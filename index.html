@@ -1,0 +1,37 @@
+<div class="translation_settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <div><b>记忆优化（表格）</b><span id="tableUpdateTag">有更新</span></div>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <div id="table_message_tip"></div>
+            <div>
+                <div id="translation_clear" class="menu_button">
+                    <i class="fa-solid fa-window-restore"></i>
+                    <span>阅读文档</span>
+                </div>
+            </div>
+            <label for="dataTable_injection_mode" class="checkbox_label">注入设置</label>
+            <div style=" display: flex;">
+                <select id="dataTable_injection_mode">
+                    <option value="deep_system">@D ⚙</option>
+                    <option value="deep_user">@D 👤</option>
+                    <option value="deep_assistant">@D 🤖</option>
+                </select>
+                <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep">深度：</label>
+                <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
+            </div>
+
+            <label for="dataTable_message_template">消息模板</label><small>(使用<code>{{tableData}}</code>、<code>{{tableEditRules}}</code>宏指令)</small>
+            <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
+
+            <!-- <label>表格结构设置</label>
+            <div id="translation_clear" class="menu_button">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>设置表格结构</span>
+            </div> -->
+
+        </div>
+    </div>
+</div>

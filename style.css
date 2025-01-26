@@ -1,0 +1,29 @@
+.translation_settings .menu_button {
+    width: fit-content;
+    display: flex;
+    gap: 10px;
+    flex-direction: row;
+}
+
+.tableDom {
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+.tableDom td,
+.tableDom th {
+    border: 1px solid #4e4848;
+    padding: 5px;
+}
+
+.scrollable {
+    width: 100%;
+    overflow-x: auto;
+}
+
+#tableUpdateTag {
+    background-color: #225d47;
+    padding: 0px 4px;
+    border-radius: 6px;
+    display:none;
+}
