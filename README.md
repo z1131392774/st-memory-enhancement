@@ -5,6 +5,8 @@
    
 ![image](https://github.com/user-attachments/assets/67904e14-dc8d-4d7c-a188-d24253b72621)
 
-2. 在弹出窗口中输入`https://github.com/muyoou/st-memory-enhancement`后选择`Install for all users`
+2. 在弹出窗口中输入`https://github.com/muyoou/st-memory-enhancement`后选择`Install for all users`  
 
 ![image](https://github.com/user-attachments/assets/9f39015f-63bb-4741-bb7f-740c02f1de17)
+
+如果因为网络问题报错可以使用国内源`https://gitee.com/muyoou/st-memory-enhancement`
