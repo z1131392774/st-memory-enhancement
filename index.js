@@ -2,9 +2,9 @@ import {
     eventSource,
     event_types,
     saveSettingsDebounced,
-} from '../../../../../script.js';
-import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../../extensions.js';
-import { POPUP_TYPE, Popup } from '../../../../popup.js';
+} from '../../../../script.js';
+import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
+import { POPUP_TYPE, Popup } from '../../../popup.js';
 
 // 默认插件设置
 const defaultSettings = {
