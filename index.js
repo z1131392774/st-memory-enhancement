@@ -421,7 +421,7 @@ async function onMessageReceived(chat_id) {
 }
 
 async function openTablePopup(mesId = -1) {
-    const manager = await renderExtensionTemplateAsync('muyoo', 'manager');
+    const manager = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'manager');
     tablePopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     tablePopup.dlg.addEventListener('focusin', () => renderTableData(mesId))
     await tablePopup.show()
@@ -446,8 +446,8 @@ jQuery(async () => {
             if (res.message) $("#table_message_tip").text(res.message)
         }
     })
-    const html = await renderExtensionTemplateAsync('muyoo', 'index');
-    const buttonHtml = await renderExtensionTemplateAsync('muyoo', 'buttons');
+    const html = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'index');
+    const buttonHtml = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'buttons');
     const button = `
     <div title="查看表格" class="mes_button open_table_by_id">
         表格

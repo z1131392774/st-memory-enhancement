@@ -10,3 +10,5 @@
 ![image](https://github.com/user-attachments/assets/9f39015f-63bb-4741-bb7f-740c02f1de17)
 
 如果因为网络问题报错可以使用国内源`https://gitee.com/muyoou/st-memory-enhancement`
+
+3. 刷新页面即可
