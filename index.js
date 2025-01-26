@@ -86,6 +86,13 @@ function loadSettings() {
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
 }
 
+function resetSettings() {
+    extension_settings.muyoo_dataTable = {...defaultSettings};
+    loadSettings();
+    saveSettingsDebounced();
+    toastr.success('已重置设置');
+}
+
 function initAllTable() {
     return defaultTableData.map(data => new Table(data.tableName, data.tableIndex, data.columns, data.note))
 }
@@ -191,6 +198,7 @@ class Table {
 
     update(rowIndex, data) {
         const row = this.content[rowIndex]
+        if (!row) return this.insert(data)
         Object.entries(data).forEach(([key, value]) => { row[key] = handleCellValue(value) })
     }
 
@@ -305,11 +313,21 @@ function isTableEditStrChanged(chat, matches) {
 function executeTableEditFunction(functionList) {
     functionList.forEach(functionStr => {
         try {
-            eval(functionStr)
+            eval(fixFunctionNameError(functionStr))
         } catch (e) {
             toastr.error('表格操作函数执行错误，请重新生成本轮文本\n错误语句：' + functionStr + '\n错误信息：' + e.message);
         }
     })
+}
+
+function fixFunctionNameError(str) {
+    if (str.startsWith("update(")) 
+        return str.replace("update(", "updateRow(");
+    if (str.startsWith("insert(")) 
+        return str.replace("insert(", "insertRow(");
+    if (str.startsWith("delete("))
+        return str.replace("delete(", "deleteRow(");
+    return str;
 }
 
 function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
@@ -479,6 +497,7 @@ jQuery(async () => {
         saveSettingsDebounced();
     })
     $("#open_table").on('click', () => openTablePopup());
+    $("#reset_settings").on('click', () => resetSettings());
     eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
