@@ -30,14 +30,14 @@
                 <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
             </div>
 
-            <label for="dataTable_message_template">消息模板</label><small>(使用<code>{{tableData}}</code>、<code>{{tableEditRules}}</code>宏指令)</small>
+            <label for="dataTable_message_template">消息模板</label><small>(用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>、<code>{{tableEditRules}}</code>宏指令)</small>
             <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
 
-            <!-- <label>表格结构设置</label>
+            <label  class="checkbox_label">表格结构设置</label>
             <div id="translation_clear" class="menu_button">
                 <i class="fa-solid fa-pen-to-square"></i>
-                <span>设置表格结构</span>
-            </div> -->
+                <span id="dataTable_set_structure">设置表格结构(New)</span>
+            </div>
 
         </div>
     </div>
