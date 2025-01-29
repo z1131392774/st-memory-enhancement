@@ -334,6 +334,7 @@ function executeTableEditFunction(functionList) {
     functionList.forEach(functionStr => {
         const newFunctionStr = fixFunctionNameError(functionStr)
         if (!newFunctionStr) return
+        
         try {
             eval(newFunctionStr)
         } catch (e) {
@@ -349,6 +350,7 @@ function fixFunctionNameError(str) {
         return str.replace("insert(", "insertRow(");
     if (str.startsWith("delete("))
         return str.replace("delete(", "deleteRow(");
+    if (str.startsWith("updateRow(") || str.startsWith("insertRow(") || str.startsWith("deleteRow(")) return str
     return
 }
 
@@ -421,7 +423,6 @@ async function onChatCompletionPromptReady(eventData) {
     if (false === eventData.dryRun) promptManager.render(false)
     const realIndex = getRealIndexInCollectionInDryRun('tableData', promptManager.messages.collection)
     eventData.chat.splice(realIndex, 0, { role: "system", content: promptContent }) */
-    console.log("最终提示", promptContent)
 }
 
 function trimString(str) {
