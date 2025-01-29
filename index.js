@@ -332,8 +332,10 @@ function isTableEditStrChanged(chat, matches) {
 
 function executeTableEditFunction(functionList) {
     functionList.forEach(functionStr => {
+        const newFunctionStr = fixFunctionNameError(functionStr)
+        if (!newFunctionStr) return
         try {
-            eval(fixFunctionNameError(functionStr))
+            eval(newFunctionStr)
         } catch (e) {
             toastr.error('表格操作函数执行错误，请重新生成本轮文本\n错误语句：' + functionStr + '\n错误信息：' + e.message);
         }
@@ -347,7 +349,7 @@ function fixFunctionNameError(str) {
         return str.replace("insert(", "insertRow(");
     if (str.startsWith("delete("))
         return str.replace("delete(", "deleteRow(");
-    return str;
+    return
 }
 
 function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
@@ -474,6 +476,10 @@ function renderTableData(mesId = -1) {
     }
 }
 
+async function updateTablePlugin() {
+
+}
+
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: '1.0.2' })
@@ -518,6 +524,7 @@ jQuery(async () => {
     })
     $("#open_table").on('click', () => openTablePopup());
     $("#reset_settings").on('click', () => resetSettings());
+    $("#table_update_button").on('click', updateTablePlugin);
     eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
