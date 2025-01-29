@@ -476,7 +476,7 @@ function renderTableData(mesId = -1) {
 
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: '1.0.0' })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: '1.0.2' })
     }).then(res => res.json()).then(res => {
         if (res.success) {
             if (!res.isLatest) $("#tableUpdateTag").show()
