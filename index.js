@@ -406,7 +406,7 @@ function getMesRole() {
 }
 
 async function onChatCompletionPromptReady(eventData) {
-    //if (eventData.dryRun === true) return
+    if (eventData.dryRun === true) return
     const promptContent = initTableData()
     eventData.chat.splice(extension_settings.muyoo_dataTable.deep, 0, { role: getMesRole(), content: promptContent })
     /* console.log("dryRun", eventData.dryRun)
