@@ -278,6 +278,7 @@ async function onChatChanged() {
 
 let waitingTable = null
 let tablePopup = null
+let copyTableData = null
 
 function insertRow(tableIndex, data) {
     if (typeof tableIndex !== 'number') {
@@ -488,30 +489,22 @@ async function updateTablePlugin() {
 
 async function copyTable(tables = []) {
     const jsonTables = JSON.stringify(tables)
-    navigator.clipboard.writeText(jsonTables)
-        .then(() => toastr.success('已复制到剪切板'))
-        .catch(err => toastr.error("复制失败：", err))
+    copyTableData = jsonTables
+    toastr.success('已复制')
 }
 
 async function pasteTable(mesId, tableContainer) {
     const confirmation = await callGenericPopup('粘贴会清空原有的表格数据，是否继续？', POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
-        navigator.clipboard.readText()
-            .then(text => {
-                const tables = JSON.parse(text)
-                checkPrototype(tables)
-                console.log(getContext().chat, mesId)
-                getContext().chat[mesId].dataTable = tables
-                renderTableData(tables, tableContainer)
-                toastr.success('粘贴成功')
-            })
-            .catch(err => {
-                if (err instanceof SyntaxError)
-                    toastr.error("粘贴失败：剪切板没有表格数据")
-                else
-                    toastr.error("粘贴失败：请设置浏览器允许访问剪切板")
-                console.error(err)
-            })
+        if (copyTableData) {
+            const tables = JSON.parse(copyTableData)
+            checkPrototype(tables)
+            getContext().chat[mesId].dataTable = tables
+            renderTableData(tables, tableContainer)
+            toastr.success('粘贴成功')
+        } else {
+            toastr.error("粘贴失败：剪切板没有表格数据")
+        }
     }
 }
 
