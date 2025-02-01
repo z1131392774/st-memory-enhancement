@@ -7,6 +7,16 @@
     <div>
         这是用于储存数据的表格。模型可以根据提供的提示词，对表格进行更新。并将表格中的数据用于下一次生成对话的参考。
     </div>
-    <hr/>
+    <div style=" display: flex;justify-content: center;">
+        <div style="display: flex;    gap: 10px;">
+            <div class="menu_button" id="copy_table_button" style="width: 90px;">
+                <a>复制表格</a>
+            </div>
+            <div class="menu_button" id="paste_table_button" style="width: 90px;">
+                <a>粘贴表格</a>
+            </div>
+        </div>
+    </div>
+    <hr />
     <div id="tableContainer"></div>
 </div>

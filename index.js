@@ -4,7 +4,9 @@ import {
     saveSettingsDebounced,
 } from '../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
-import { POPUP_TYPE, Popup } from '../../../popup.js';
+import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
+
+const VERSION = '1.0.3'
 
 // 默认插件设置
 const defaultSettings = {
@@ -19,9 +21,9 @@ dataTable是一个用于储存故事数据的csv格式表格，可以作为你�
 当你生成正文后，根据前面所列的增删改触发条件，如果判断数据dataTable中的内容需要增删改，则使用这里的操作方法进行。
 注意：
 1. 当用户要求修改表格时，用户要求的优先级最高。
-3. 使用insertRow函数插入行时，应上帝视角填写所有列，禁止写成未知或者空值。
-4. 单元格中，不要出现逗号，语义分割应使用/代替。
-5. 当表格中出现undefined、暂无时，应立即更新该单元格。
+2. 使用insertRow函数插入行时，应上帝视角填写所有列，禁止写成未知或者空值。
+3. 单元格中，不要出现逗号，语义分割应使用/代替。
+4. 当表格中出现undefined、暂无时，应立即更新该单元格。
 
 ## 1. 在某个表格中插入新行，使用insertRow函数：
 insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
@@ -105,14 +107,14 @@ function resetSettings() {
 }
 
 function initAllTable() {
-    return extension_settings.muyoo_dataTable.tableStructure.map(data => new Table(data.tableName, data.tableIndex, data.columns, data.note))
+    return extension_settings.muyoo_dataTable.tableStructure.map(data => new Table(data.tableName, data.tableIndex, data.columns))
 }
 
 function checkPrototype(dataTable) {
     for (let i = 0; i < dataTable.length; i++) {
         if (!(dataTable[i] instanceof Table)) {
             const table = dataTable[i]
-            dataTable[i] = new Table(table.tableName, table.tableIndex, table.columns, table.note, table.content)
+            dataTable[i] = new Table(table.tableName, table.tableIndex, table.columns, table.content)
         }
     }
 }
@@ -130,13 +132,13 @@ function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
     for (let i = chat.length - 1; i >= 0; i--) {
         if (chat[i].is_user === false && chat[i].dataTable) {
             checkPrototype(chat[i].dataTable)
-            return chat[i].dataTable
+            return { tables: chat[i].dataTable, index: i }
         }
     }
     for (let i = chat.length - 1; i >= 0; i--) {
         if (chat[i].is_user === false) {
             const newTableList = initAllTable()
-            return newTableList
+            return { tables: newTableList, index: i }
         }
     }
 }
@@ -160,7 +162,7 @@ function findNextChatWhitTableData(startIndex) {
 
 
 export function initTableData() {
-    const tables = findLastestTableData(true)
+    const { tables } = findLastestTableData(true)
     const promptContent = getAllPrompt(tables)
     console.log("完整提示", promptContent)
     return promptContent
@@ -172,7 +174,7 @@ function getAllPrompt(tables) {
 }
 
 function copyTableList(tableList) {
-    return tableList.map(table => new Table(table.tableName, table.tableIndex, table.columns, table.note, JSON.parse(JSON.stringify(table.content))))
+    return tableList.map(table => new Table(table.tableName, table.tableIndex, table.columns, JSON.parse(JSON.stringify(table.content))))
 }
 
 function handleCellValue(cell) {
@@ -200,11 +202,10 @@ function getTableEditRules(structure, isEmpty) {
 }
 
 class Table {
-    constructor(tableName, tableIndex, columns, note = '', content = []) {
+    constructor(tableName, tableIndex, columns, content = []) {
         this.tableName = tableName
         this.tableIndex = tableIndex
         this.columns = columns
-        this.note = note
         this.content = content
     }
 
@@ -212,7 +213,7 @@ class Table {
         const structure = findTableStructureByIndex(this.tableIndex)
         if (!structure) return
         const title = `* ${this.tableIndex}:${this.tableName}\n`
-        const node = this.note && this.note !== '' ? '【说明】' + this.note + '\n' : ''
+        const node = structure.note && structure.note !== '' ? '【说明】' + structure.note + '\n' : ''
         const headers = "rowIndex," + this.columns.map((colName, index) => index + ':' + colName).join(',') + '\n'
         const rows = this.content.length > 0 ? (this.content.map((row, index) => index + ',' + row.join(',')).join('\n') + '\n') : getEmptyTablePrompt(structure.Required, structure.initNode)
         return title + node + '【表格内容】\n' + headers + rows + getTableEditRules(structure, this.content.length == 0) + '\n'
@@ -273,7 +274,6 @@ class Table {
 }
 
 async function onChatChanged() {
-    const chatMetadata = getContext().chatMetadata;
 }
 
 let waitingTable = null
@@ -334,7 +334,7 @@ function executeTableEditFunction(functionList) {
     functionList.forEach(functionStr => {
         const newFunctionStr = fixFunctionNameError(functionStr)
         if (!newFunctionStr) return
-        
+
         try {
             eval(newFunctionStr)
         } catch (e) {
@@ -360,7 +360,7 @@ function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
     const functionList = handleTableEditTag(matches)
     if (functionList.length === 0) return
     // 寻找最近的表格数据
-    waitingTable = copyTableList(findLastestTableData(false, mesIndex))
+    waitingTable = copyTableList(findLastestTableData(false, mesIndex).tables)
     // 对最近的表格执行操作
     executeTableEditFunction(functionList)
     clearEmpty()
@@ -464,14 +464,18 @@ async function onMessageReceived(chat_id) {
 async function openTablePopup(mesId = -1) {
     const manager = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'manager');
     tablePopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    tablePopup.dlg.addEventListener('focusin', () => renderTableData(mesId))
+    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+    const { tables, index } = findLastestTableData(true, mesId)
+    renderTableData(tables, tableContainer)
+    const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
+    const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
+    copyTableButton.addEventListener('click', () => copyTable(tables))
+    pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
     await tablePopup.show()
 }
 
-function renderTableData(mesId = -1) {
-    const tableContainer = document.getElementById('tableContainer')
+function renderTableData(tables = [], tableContainer) {
     tableContainer.innerHTML = ''
-    const tables = findLastestTableData(true, mesId)
     for (let table of tables) {
         tableContainer.appendChild(table.render())
     }
@@ -481,9 +485,38 @@ async function updateTablePlugin() {
 
 }
 
+async function copyTable(tables = []) {
+    const jsonTables = JSON.stringify(tables)
+    navigator.clipboard.writeText(jsonTables)
+        .then(() => toastr.success('已复制到剪切板'))
+        .catch(err => toastr.error("复制失败：", err))
+}
+
+async function pasteTable(mesId, tableContainer) {
+    const confirmation = await callGenericPopup('粘贴会清空原有的表格数据，是否继续？', POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    if (confirmation) {
+        navigator.clipboard.readText()
+            .then(text => {
+                const tables = JSON.parse(text)
+                checkPrototype(tables)
+                console.log(getContext().chat, mesId)
+                getContext().chat[mesId].dataTable = tables
+                renderTableData(tables, tableContainer)
+                toastr.success('粘贴成功')
+            })
+            .catch(err => {
+                if (err instanceof SyntaxError)
+                    toastr.error("粘贴失败：剪切板没有表格数据")
+                else
+                    toastr.error("粘贴失败：请设置浏览器允许访问剪切板")
+                console.error(err)
+            })
+    }
+}
+
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: '1.0.2' })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: VERSION, user: getContext().name1 })
     }).then(res => res.json()).then(res => {
         if (res.success) {
             if (!res.isLatest) $("#tableUpdateTag").show()
