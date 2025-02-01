@@ -469,8 +469,9 @@ async function openTablePopup(mesId = -1) {
     renderTableData(tables, tableContainer)
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
     const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
+    if (mesId !== -1) $(pasteTableButton).hide()
+    else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
     copyTableButton.addEventListener('click', () => copyTable(tables))
-    pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
     await tablePopup.show()
 }
 
