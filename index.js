@@ -135,12 +135,13 @@ function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
             return { tables: chat[i].dataTable, index: i }
         }
     }
+    const newTableList = initAllTable()
     for (let i = chat.length - 1; i >= 0; i--) {
         if (chat[i].is_user === false) {
-            const newTableList = initAllTable()
             return { tables: newTableList, index: i }
         }
     }
+    return { tables: newTableList, index: -1 }
 }
 
 /**
@@ -494,6 +495,10 @@ async function copyTable(tables = []) {
 }
 
 async function pasteTable(mesId, tableContainer) {
+    if (mesId === -1) {
+        toastr.error("请至少让ai回复一条消息作为表格载体")
+        return
+    }
     const confirmation = await callGenericPopup('粘贴会清空原有的表格数据，是否继续？', POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         if (copyTableData) {
