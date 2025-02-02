@@ -6,7 +6,18 @@ import {
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 
-const VERSION = '1.0.3'
+const VERSION = '1.1.0'
+
+let waitingTable = null
+let tablePopup = null
+let copyTableData = null
+let selectedCell = null
+const selectedCellInfo = {
+    tables: null,
+    tableIndex: null,
+    rowIndex: null,
+    colIndex: null,
+}
 
 // 默认插件设置
 const defaultSettings = {
@@ -202,6 +213,34 @@ function getTableEditRules(structure, isEmpty) {
     }
 }
 
+function onTdClick(event) {
+    if (selectedCell) {
+        selectedCell.removeClass("selected");
+    }
+    selectedCell = $(this);
+    saveTdData(selectedCell.data("tableData"))
+    selectedCell.addClass("selected");
+    // 计算工具栏位置
+    const cellOffset = selectedCell.offset();
+    const containerOffset = $("#tableContainer").offset();
+    const relativeY = cellOffset.left - containerOffset.left;
+    const relativeX = cellOffset.top - containerOffset.top;
+
+    $("#tableToolbar").css({
+        top: relativeX + 32 + "px", // 上方显示
+        left: relativeY + "px"
+    }).show();
+
+    event.stopPropagation(); // 阻止事件冒泡
+}
+
+function saveTdData(data) {
+    const [tableIndex, rowIndex, colIndex] = data.split("-");
+    selectedCellInfo.tableIndex = parseInt(tableIndex);
+    selectedCellInfo.rowIndex = parseInt(rowIndex);
+    selectedCellInfo.colIndex = parseInt(colIndex);
+}
+
 class Table {
     constructor(tableName, tableIndex, columns, content = []) {
         this.tableName = tableName
@@ -226,6 +265,14 @@ class Table {
         this.content.push(newRow)
     }
 
+    insertEmptyRow(rowIndex) {
+        this.content.splice(rowIndex, 0, this.getEmptyRow())
+    }
+
+    getEmptyRow() {
+        return this.columns.map(() => '')
+    }
+
     update(rowIndex, data) {
         const row = this.content[rowIndex]
         if (!row) return this.insert(data)
@@ -240,6 +287,14 @@ class Table {
         this.content = this.content.filter(Boolean)
     }
 
+    getCellValue(rowIndex, colIndex) {
+        return this.content[rowIndex][colIndex]
+    }
+
+    setCellValue(rowIndex, colIndex, value) {
+        this.content[rowIndex][colIndex] = handleCellValue(value)
+    }
+
     render() {
         const container = document.createElement('div')
         container.classList.add('justifyLeft')
@@ -247,6 +302,7 @@ class Table {
         const title = document.createElement('h3')
         title.innerText = this.tableName
         const table = document.createElement('table')
+        $(table).on('click', 'td', onTdClick)
         table.classList.add('tableDom')
         const thead = document.createElement('thead')
         const titleTr = document.createElement('tr')
@@ -258,11 +314,12 @@ class Table {
         thead.appendChild(titleTr)
         table.appendChild(thead)
         const tbody = document.createElement('tbody')
-        for (let row of this.content) {
+        for (let rowIndex in this.content) {
             const tr = document.createElement('tr')
-            for (let cell of row) {
+            for (let cellIndex in this.content[rowIndex]) {
                 const td = document.createElement('td')
-                td.innerText = cell
+                $(td).data("tableData", this.tableIndex + '-' + rowIndex + '-' + cellIndex)
+                td.innerText = this.content[rowIndex][cellIndex]
                 tr.appendChild(td)
             }
             tbody.appendChild(tr)
@@ -276,10 +333,6 @@ class Table {
 
 async function onChatChanged() {
 }
-
-let waitingTable = null
-let tablePopup = null
-let copyTableData = null
 
 function insertRow(tableIndex, data) {
     if (typeof tableIndex !== 'number') {
@@ -316,9 +369,10 @@ function clearEmpty() {
 
 function handleTableEditTag(matches) {
     let functionList = []
+    console.log(matches)
     matches.forEach(match => {
-        const functionStr = trimString(match)
-        const newFunctionList = functionStr.split('\n').map(str => str.trim()).filter(str => str !== '')
+        const matchFunctionBlock = trimString(match)
+        const newFunctionList = matchFunctionBlock.split('\n').map(str => str.trim()).filter(str => str !== '')
         functionList = functionList.concat(newFunctionList)
     })
     return functionList
@@ -357,7 +411,7 @@ function fixFunctionNameError(str) {
 }
 
 function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
-    const { matches, updatedText } = getTableEditTag(chat.mes)
+    const { matches } = getTableEditTag(chat.mes)
     if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return
     const functionList = handleTableEditTag(matches)
     if (functionList.length === 0) return
@@ -428,6 +482,10 @@ async function onChatCompletionPromptReady(eventData) {
 }
 
 function trimString(str) {
+    const str1 = str.trim()
+    if (!str1.startsWith("<!--")) {
+
+    }
     return str
         .trim()
         .replace(/^\s*<!--|-->?\s*$/g, "")
@@ -468,7 +526,8 @@ async function openTablePopup(mesId = -1) {
     tablePopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     const { tables, index } = findLastestTableData(true, mesId)
-    renderTableData(tables, tableContainer)
+    selectedCellInfo.tables = tables
+    renderTableData(tables, tableContainer, mesId === -1)
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
     const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
     if (mesId !== -1) $(pasteTableButton).hide()
@@ -477,11 +536,59 @@ async function openTablePopup(mesId = -1) {
     await tablePopup.show()
 }
 
-function renderTableData(tables = [], tableContainer) {
-    tableContainer.innerHTML = ''
-    for (let table of tables) {
-        tableContainer.appendChild(table.render())
+function renderTableData(tables = [], tableContainer, isEdit = false) {
+    $(tableContainer).empty()
+    if (isEdit) {
+        const tableToolbar = $(tableToolbarDom)
+        tableToolbar.on('click', '#deleteRow', onDeleteRow)
+        tableToolbar.on('click', '#editCell', onModifyCell)
+        tableToolbar.on('click', '#insertRow', onInsertRow)
+        $(tableContainer).append(tableToolbar)
     }
+    for (let table of tables) {
+        $(tableContainer).append(table.render())
+    }
+}
+
+/**
+ * 删除行事件
+ */
+async function onDeleteRow() {
+    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+    console.log("测试", selectedCellInfo)
+    const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
+    table.delete(selectedCellInfo.rowIndex)
+    renderTableData(selectedCellInfo.tables, tableContainer, true)
+    getContext().saveChat()
+    toastr.success('已删除')
+}
+
+/**
+ * 修改单元格事件
+ */
+async function onModifyCell() {
+    const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
+    const cellValue = table.getCellValue(selectedCellInfo.rowIndex, selectedCellInfo.colIndex)
+    const newValue = await callGenericPopup('', POPUP_TYPE.INPUT, cellValue, { okButton: "保存", cancelButton: "取消" });
+    if (newValue) {
+        const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+        table.setCellValue(selectedCellInfo.rowIndex, selectedCellInfo.colIndex, newValue)
+        renderTableData(selectedCellInfo.tables, tableContainer, true)
+        getContext().saveChat()
+        toastr.success('已修改')
+    }
+}
+
+/**
+ * 下方插入行事件
+ */
+async function onInsertRow() {
+    const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
+    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+    table.insertEmptyRow(selectedCellInfo.rowIndex + 1)
+    renderTableData(selectedCellInfo.tables, tableContainer, true)
+    getContext().saveChat()
+    toastr.success('已插入')
 }
 
 async function updateTablePlugin() {
@@ -505,13 +612,19 @@ async function pasteTable(mesId, tableContainer) {
             const tables = JSON.parse(copyTableData)
             checkPrototype(tables)
             getContext().chat[mesId].dataTable = tables
-            renderTableData(tables, tableContainer)
+            renderTableData(tables, tableContainer, true)
             toastr.success('粘贴成功')
         } else {
             toastr.error("粘贴失败：剪切板没有表格数据")
         }
     }
 }
+
+const tableToolbarDom = `<div class="tableToolbar" id="tableToolbar">
+    <button id="editCell" class="menu_button">编辑</button>
+    <button id="deleteRow" class="menu_button">删除行</button>
+    <button id="insertRow" class="menu_button">下方插入</button>
+</div>`
 
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {

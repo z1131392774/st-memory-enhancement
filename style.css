@@ -16,6 +16,10 @@
     padding: 5px;
 }
 
+td.selected {
+    background-color: rgb(56, 66, 70);
+}
+
 .scrollable {
     width: 100%;
     overflow-x: auto;
@@ -25,5 +29,23 @@
     background-color: #225d47;
     padding: 0px 4px;
     border-radius: 6px;
-    display:none;
+    display: none;
+}
+
+.tableToolbar {
+    display: none;
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 5px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+#tableToolbar button {
+    width: 90px;
+}
+
+#tableContainer {
+    position: relative;
 }
