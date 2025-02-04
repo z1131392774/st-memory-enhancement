@@ -19,7 +19,9 @@ const selectedCellInfo = {
     colIndex: null,
 }
 
-// 默认插件设置
+/**
+ * 默认插件设置
+ */
 const defaultSettings = {
     injection_mode: 'deep_system',
     deep: -3,
@@ -92,11 +94,18 @@ insertRow(4, {0: '惠惠/悠悠', 1: '惠惠向悠悠表白', 2: '2021-10-01', 3
     ]
 };
 
-
+/**
+ * 通过表格索引查找表格结构
+ * @param {number} index 表格索引
+ * @returns 此索引的表格结构
+ */
 function findTableStructureByIndex(index) {
     return extension_settings.muyoo_dataTable.tableStructure.find(table => table.tableIndex === index);
 }
 
+/**
+ * 加载设置
+ */
 function loadSettings() {
     extension_settings.muyoo_dataTable = extension_settings.muyoo_dataTable || {};
     for (const key in defaultSettings) {
@@ -110,6 +119,9 @@ function loadSettings() {
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
 }
 
+/**
+ * 重置设置
+ */
 function resetSettings() {
     extension_settings.muyoo_dataTable = { ...defaultSettings };
     loadSettings();
@@ -117,10 +129,18 @@ function resetSettings() {
     toastr.success('已重置设置');
 }
 
+/**
+ * 初始化所有表格
+ * @returns 所有表格对象数组
+ */
 function initAllTable() {
     return extension_settings.muyoo_dataTable.tableStructure.map(data => new Table(data.tableName, data.tableIndex, data.columns))
 }
 
+/**
+ * 检查数据是否为Table实例，不是则重新创建
+ * @param {Table[]} dataTable 所有表格对象数组
+ */
 function checkPrototype(dataTable) {
     for (let i = 0; i < dataTable.length; i++) {
         if (!(dataTable[i] instanceof Table)) {
@@ -172,7 +192,10 @@ function findNextChatWhitTableData(startIndex) {
     return { index: - 1, chat: null }
 }
 
-
+/**
+ * 搜寻最后一个含有表格数据的消息，并生成提示词
+ * @returns 生成的完整提示词
+ */
 export function initTableData() {
     const { tables } = findLastestTableData(true)
     const promptContent = getAllPrompt(tables)
@@ -180,15 +203,30 @@ export function initTableData() {
     return promptContent
 }
 
+/**
+ * 获取所有的完整提示词
+ * @param {Table[]} tables 所有表格对象数组
+ * @returns 完整提示词
+ */
 function getAllPrompt(tables) {
     const tableDataPrompt = tables.map(table => table.getTableText()).join('\n')
     return extension_settings.muyoo_dataTable.message_template.replace('{{tableData}}', tableDataPrompt)
 }
 
+/**
+ * 深拷贝所有表格数据
+ * @param {Table[]} tableList 要拷贝的表格对象数组
+ * @returns 拷贝后的表格对象数组
+ */
 function copyTableList(tableList) {
     return tableList.map(table => new Table(table.tableName, table.tableIndex, table.columns, JSON.parse(JSON.stringify(table.content))))
 }
 
+/**
+ * 将单元格中的逗号替换为/符号
+ * @param {string | number} cell 
+ * @returns 处理后的单元格值
+ */
 function handleCellValue(cell) {
     if (typeof cell === 'string') {
         return cell.replace(/,/g, "/")
@@ -198,10 +236,22 @@ function handleCellValue(cell) {
     return ''
 }
 
+/**
+ * 获取表格为空时的提示词
+ * @param {boolean} Required 此表格是否为必填表格
+ * @param {string} node 此表格的初始化提示词
+ * @returns 
+ */
 function getEmptyTablePrompt(Required, node) {
     return '（此表格为空' + (Required ? (node ? ('，' + node) : '') : '') + '）\n'
 }
 
+/**
+ * 获取表格编辑规则提示词
+ * @param {Structure} structure 表格结构信息
+ * @param {boolean} isEmpty 表格是否为空
+ * @returns 
+ */
 function getTableEditRules(structure, isEmpty) {
     if (structure.Required && isEmpty) return '【增删改触发条件】\n插入：' + structure.initNode + '\n'
     else {
@@ -213,6 +263,10 @@ function getTableEditRules(structure, isEmpty) {
     }
 }
 
+/**
+ * 处理表格中的单元格点击事件
+ * @param {Event} event 点击事件
+ */
 function onTdClick(event) {
     if (selectedCell) {
         selectedCell.removeClass("selected");
@@ -234,6 +288,10 @@ function onTdClick(event) {
     event.stopPropagation(); // 阻止事件冒泡
 }
 
+/**
+ * 将保存的data数据字符串保存到设置中
+ * @param {string} data 保存的data属性字符串
+ */
 function saveTdData(data) {
     const [tableIndex, rowIndex, colIndex] = data.split("-");
     selectedCellInfo.tableIndex = parseInt(tableIndex);
@@ -241,6 +299,9 @@ function saveTdData(data) {
     selectedCellInfo.colIndex = parseInt(colIndex);
 }
 
+/**
+ * 表格类
+ */
 class Table {
     constructor(tableName, tableIndex, columns, content = []) {
         this.tableName = tableName
@@ -249,6 +310,10 @@ class Table {
         this.content = content
     }
 
+    /**
+     * 获取表格内容的提示词
+     * @returns 表格内容提示词
+     */
     getTableText() {
         const structure = findTableStructureByIndex(this.tableIndex)
         if (!structure) return
@@ -259,42 +324,82 @@ class Table {
         return title + node + '【表格内容】\n' + headers + rows + getTableEditRules(structure, this.content.length == 0) + '\n'
     }
 
+    /**
+     * 插入一行数据
+     * @param {object} data 
+     */
     insert(data) {
         const newRow = []
         Object.entries(data).forEach(([key, value]) => { newRow[key] = handleCellValue(value) })
         this.content.push(newRow)
     }
 
+    /**
+     * 插入一个空行
+     * @param {number} rowIndex 插入空行的索引
+     */
     insertEmptyRow(rowIndex) {
         this.content.splice(rowIndex, 0, this.getEmptyRow())
     }
 
+    /**
+     * 获取一个空行
+     * @returns 一个空行
+     */
     getEmptyRow() {
         return this.columns.map(() => '')
     }
 
+    /**
+     * 更新单个行的内容
+     * @param {number} rowIndex 需要更新的行索引
+     * @param {object} data 需要更新的数据
+     */
     update(rowIndex, data) {
         const row = this.content[rowIndex]
         if (!row) return this.insert(data)
         Object.entries(data).forEach(([key, value]) => { row[key] = handleCellValue(value) })
     }
 
+    /**
+     * 删除单个行
+     * @param {number} rowIndex 删除单个行的索引
+     */
     delete(rowIndex) {
         this.content[rowIndex] = null
     }
 
+    /**
+     * 清除空行
+     */
     clearEmpty() {
         this.content = this.content.filter(Boolean)
     }
 
+    /**
+     * 获取某个单元格的值
+     * @param {number} rowIndex 行索引
+     * @param {number} colIndex 列索引
+     * @returns 此单元格的值
+     */
     getCellValue(rowIndex, colIndex) {
         return this.content[rowIndex][colIndex]
     }
 
+    /**
+     * 设置某个单元格的值
+     * @param {number} rowIndex 行索引
+     * @param {number} colIndex 列索引
+     * @param {any} value 需要设置的值
+     */
     setCellValue(rowIndex, colIndex, value) {
         this.content[rowIndex][colIndex] = handleCellValue(value)
     }
 
+    /**
+     * 把表格数据渲染成DOM元素
+     * @returns DOM容器元素
+     */
     render() {
         const container = document.createElement('div')
         container.classList.add('justifyLeft')
@@ -334,6 +439,11 @@ class Table {
 async function onChatChanged() {
 }
 
+/**
+ * 在表格末尾插入行
+ * @param {number} tableIndex 表格索引
+ * @param {object} data 插入的数据
+ */
 function insertRow(tableIndex, data) {
     if (typeof tableIndex !== 'number') {
         toastr.error('insert tableIndex数据类型错误');
@@ -343,6 +453,11 @@ function insertRow(tableIndex, data) {
     table.insert(data)
 }
 
+/**
+ * 删除行
+ * @param {number} tableIndex 表格索引
+ * @param {number} rowIndex 行索引
+ */
 function deleteRow(tableIndex, rowIndex) {
     if (typeof tableIndex !== 'number' || typeof rowIndex !== 'number') {
         toastr.error('delete tableIndex或rowIndex数据类型错误，请重新生成本轮文本');
@@ -352,6 +467,12 @@ function deleteRow(tableIndex, rowIndex) {
     table.delete(rowIndex)
 }
 
+/**
+ * 更新单个行的信息
+ * @param {number} tableIndex 表格索引
+ * @param {number} rowIndex 行索引
+ * @param {object} data 更新的数据
+ */
 function updateRow(tableIndex, rowIndex, data) {
     if (typeof tableIndex !== 'number' || typeof rowIndex !== 'number') {
         toastr.error('update tableIndex或rowIndex数据类型错误，请重新生成本轮文本');
@@ -361,15 +482,22 @@ function updateRow(tableIndex, rowIndex, data) {
     table.update(rowIndex, data)
 }
 
+/**
+ * 清除表格中的所有空行
+ */
 function clearEmpty() {
     waitingTable.forEach(table => {
         table.clearEmpty()
     })
 }
 
+/**
+ * 将匹配到的整体字符串转化为单个语句的数组
+ * @param {string[]} matches 匹配到的整体字符串
+ * @returns 单条执行语句数组
+ */
 function handleTableEditTag(matches) {
     let functionList = []
-    console.log(matches)
     matches.forEach(match => {
         const matchFunctionBlock = trimString(match)
         const newFunctionList = matchFunctionBlock.split('\n').map(str => str.trim()).filter(str => str !== '')
@@ -378,6 +506,12 @@ function handleTableEditTag(matches) {
     return functionList
 }
 
+/**
+ * 检查表格编辑字符串是否改变
+ * @param {Chat} chat 单个聊天对象
+ * @param {string[]} matches 新的匹配对象
+ * @returns 
+ */
 function isTableEditStrChanged(chat, matches) {
     if (chat.tableEditMatches != null && chat.tableEditMatches.join('') === matches.join('')) {
         return false
@@ -386,6 +520,10 @@ function isTableEditStrChanged(chat, matches) {
     return true
 }
 
+/**
+ * 执行表格操作函数
+ * @param {string[]} functionList 表格执行函数列表
+ */
 function executeTableEditFunction(functionList) {
     functionList.forEach(functionStr => {
         const newFunctionStr = fixFunctionNameError(functionStr)
@@ -399,6 +537,11 @@ function executeTableEditFunction(functionList) {
     })
 }
 
+/**
+ * 修复将update和insert函数名写错的问题
+ * @param {string} str 单个函数执行语句
+ * @returns 修复后的函数执行语句
+ */
 function fixFunctionNameError(str) {
     if (str.startsWith("update("))
         return str.replace("update(", "updateRow(");
@@ -410,6 +553,13 @@ function fixFunctionNameError(str) {
     return
 }
 
+/**
+ * 处理表格编辑事件
+ * @param {Chat} chat 单个聊天对象
+ * @param {number} mesIndex 修改的消息索引
+ * @param {boolean} ignoreCheck 是否跳过重复性检查
+ * @returns 
+ */
 function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
     const { matches } = getTableEditTag(chat.mes)
     if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return
@@ -428,6 +578,12 @@ function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
     }
 }
 
+/**
+ * 获取在干运行中collection中排序的真实消息索引（未使用）
+ * @param {*} identifier 
+ * @param {*} collection 
+ * @returns 
+ */
 function getRealIndexInCollectionInDryRun(identifier, collection) {
     const newCollection = collection.filter(Boolean).filter(item => item.collection && item.collection.length !== 0)
     let index = 0
@@ -439,6 +595,12 @@ function getRealIndexInCollectionInDryRun(identifier, collection) {
     return index
 }
 
+/**
+ * 获取在collection中排序的真实消息索引（未使用）
+ * @param {*} identifier 
+ * @param {*} collection 
+ * @returns 
+ */
 function getRealIndexInCollection(identifier, collection) {
     const excludeList = ['newMainChat', 'newChat', 'groupNudge'];
     const shouldSquash = (message) => {
@@ -452,6 +614,10 @@ function getRealIndexInCollection(identifier, collection) {
     return index
 }
 
+/**
+ * 读取设置中的注入角色
+ * @returns 注入角色
+ */
 function getMesRole() {
     switch (extension_settings.muyoo_dataTable.injection_mode) {
         case 'deep_system':
@@ -463,6 +629,11 @@ function getMesRole() {
     }
 }
 
+/**
+ * 注入表格总体提示词
+ * @param {*} eventData 
+ * @returns 
+ */
 async function onChatCompletionPromptReady(eventData) {
     if (eventData.dryRun === true) return
     const promptContent = initTableData()
@@ -481,6 +652,12 @@ async function onChatCompletionPromptReady(eventData) {
     eventData.chat.splice(realIndex, 0, { role: "system", content: promptContent }) */
 }
 
+
+/**
+ * 去掉编辑指令两端的空格和注释标签
+ * @param {string} str 输入的编辑指令字符串
+ * @returns 
+ */
 function trimString(str) {
     const str1 = str.trim()
     if (!str1.startsWith("<!--")) {
@@ -492,6 +669,11 @@ function trimString(str) {
         .trim()
 }
 
+/**
+ * 获取表格的tableEdit标签内的内容
+ * @param {string} mes 消息正文字符串
+ * @returns {matches} 匹配到的内容数组
+ */
 function getTableEditTag(mes) {
     const regex = /<tableEdit>(.*?)<\/tableEdit>/gs;
     const matches = [];
@@ -500,7 +682,7 @@ function getTableEditTag(mes) {
         matches.push(match[1]);
     }
     const updatedText = mes.replace(regex, "");
-    return { matches, updatedText }
+    return { matches }
 }
 
 /**
@@ -514,20 +696,24 @@ async function onMessageEdited(this_edit_mes_id) {
 
 /**
  * 消息接收时触发
- * @param {*} chat_id 此消息的ID
+ * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
     const chat = getContext().chat[chat_id];
     handleEditStrInMessage(chat)
 }
 
+/**
+ * 打开表格展示/编辑弹窗
+ * @param {number} mesId 需要打开的消息ID，-1为最新一条
+ */
 async function openTablePopup(mesId = -1) {
     const manager = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'manager');
     tablePopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     const { tables, index } = findLastestTableData(true, mesId)
     selectedCellInfo.tables = tables
-    renderTableData(tables, tableContainer, mesId === -1)
+    renderTablesDOM(tables, tableContainer, mesId === -1)
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
     const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
     if (mesId !== -1) $(pasteTableButton).hide()
@@ -536,10 +722,16 @@ async function openTablePopup(mesId = -1) {
     await tablePopup.show()
 }
 
-function renderTableData(tables = [], tableContainer, isEdit = false) {
+/**
+ * 渲染所有表格DOM及编辑栏
+ * @param {Array} tables 所有表格数据
+ * @param {Element} tableContainer 表格DOM容器
+ * @param {boolean} isEdit 是否可以编辑
+ */
+function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
     $(tableContainer).empty()
     if (isEdit) {
-        const tableToolbar = $(tableToolbarDom)
+        const tableToolbar = $(tableEditToolbarDom)
         tableToolbar.on('click', '#deleteRow', onDeleteRow)
         tableToolbar.on('click', '#editCell', onModifyCell)
         tableToolbar.on('click', '#insertRow', onInsertRow)
@@ -558,7 +750,7 @@ async function onDeleteRow() {
     console.log("测试", selectedCellInfo)
     const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
     table.delete(selectedCellInfo.rowIndex)
-    renderTableData(selectedCellInfo.tables, tableContainer, true)
+    renderTablesDOM(selectedCellInfo.tables, tableContainer, true)
     getContext().saveChat()
     toastr.success('已删除')
 }
@@ -573,7 +765,7 @@ async function onModifyCell() {
     if (newValue) {
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
         table.setCellValue(selectedCellInfo.rowIndex, selectedCellInfo.colIndex, newValue)
-        renderTableData(selectedCellInfo.tables, tableContainer, true)
+        renderTablesDOM(selectedCellInfo.tables, tableContainer, true)
         getContext().saveChat()
         toastr.success('已修改')
     }
@@ -586,7 +778,7 @@ async function onInsertRow() {
     const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     table.insertEmptyRow(selectedCellInfo.rowIndex + 1)
-    renderTableData(selectedCellInfo.tables, tableContainer, true)
+    renderTablesDOM(selectedCellInfo.tables, tableContainer, true)
     getContext().saveChat()
     toastr.success('已插入')
 }
@@ -595,12 +787,21 @@ async function updateTablePlugin() {
 
 }
 
+/**
+ * 复制表格
+ * @param {*} tables 所有表格数据
+ */
 async function copyTable(tables = []) {
     const jsonTables = JSON.stringify(tables)
     copyTableData = jsonTables
     toastr.success('已复制')
 }
 
+/**
+ * 粘贴表格
+ * @param {number} mesId 需要粘贴到的消息id
+ * @param {Element} tableContainer 表格容器DOM
+ */
 async function pasteTable(mesId, tableContainer) {
     if (mesId === -1) {
         toastr.error("请至少让ai回复一条消息作为表格载体")
@@ -612,7 +813,7 @@ async function pasteTable(mesId, tableContainer) {
             const tables = JSON.parse(copyTableData)
             checkPrototype(tables)
             getContext().chat[mesId].dataTable = tables
-            renderTableData(tables, tableContainer, true)
+            renderTablesDOM(tables, tableContainer, true)
             toastr.success('粘贴成功')
         } else {
             toastr.error("粘贴失败：剪切板没有表格数据")
@@ -620,11 +821,23 @@ async function pasteTable(mesId, tableContainer) {
     }
 }
 
-const tableToolbarDom = `<div class="tableToolbar" id="tableToolbar">
+/**
+ * 表格编辑浮窗
+ */
+const tableEditToolbarDom = `<div class="tableToolbar" id="tableToolbar">
     <button id="editCell" class="menu_button">编辑</button>
     <button id="deleteRow" class="menu_button">删除行</button>
     <button id="insertRow" class="menu_button">下方插入</button>
 </div>`
+
+/**
+ * 表头编辑浮窗
+ */
+const tableHeaderEditToolbarDom = `
+<div class="tableToolbar" id="tableHeaderToolbar">
+    <button id="insertRow" class="menu_button">下方插入</button>
+</div>
+`
 
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
