@@ -52,7 +52,7 @@ updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|num
 你需要在<tableEdit>标签中输出对每个表格的检视过程；使用js注释写简短的判断依据；如果需要增删改，则使用js的函数写法调用函数。
 注意：
 1. 标签内需要使用<!-- -->标记进行注释
-2. 单个函数调用只能占用一行，不能一个函数占用多行。
+2. 单个函数可以处理多行，但格式需保证正确。
 
 输出示例：
 <tableEdit>
@@ -285,8 +285,6 @@ function onTdClick(event) {
     const relativeY = cellOffset.left - containerOffset.left;
     const relativeX = cellOffset.top - containerOffset.top;
     const clickedElement = event.target;
-    $("#tableToolbar").hide();
-    $("#tableHeaderToolbar").hide()
     if (clickedElement.tagName.toLowerCase() === "td")
         $("#tableToolbar").css({
             top: relativeX + 32 + "px",
@@ -508,20 +506,48 @@ function clearEmpty() {
 }
 
 /**
- * 将匹配到的整体字符串转化为单个语句的数组
+ * 将匹配到的整体字符串转化为单个语句的数组（支持多行函数）
  * @param {string[]} matches 匹配到的整体字符串
  * @returns 单条执行语句数组
  */
 function handleTableEditTag(matches) {
-    let functionList = []
-    matches.forEach(match => {
-        const matchFunctionBlock = trimString(match)
-        const newFunctionList = matchFunctionBlock.split('\n').map(str => str.trim()).filter(str => str !== '')
-        functionList = functionList.concat(newFunctionList)
-    })
-    return functionList
-}
+    let functionList = [];
+    matches.forEach(matchBlock => {
+        const lines = trimString(matchBlock)
+            .split('\n')
+            .map(line => line.replace(/^\s*\/\/.*/, '').trim()) // 移除行注释
+            .filter(line => line.length > 0);
 
+        let currentFunction = '';
+        let parenthesisCount = 0;
+
+        for (const line of lines) {
+            // 跳过空行和纯注释行
+            if (!line || line.startsWith('//')) continue;
+
+            currentFunction += line;
+            parenthesisCount += (line.match(/\(/g) || []).length;
+            parenthesisCount -= (line.match(/\)/g) || []).length;
+
+            // 当括号匹配时完成一个函数
+            if (parenthesisCount === 0 && currentFunction) {
+                // 移除多余空格和换行
+                const formatted = currentFunction
+                    .replace(/\s*\(\s*/g, '(')   // 移除参数括号内空格
+                    .replace(/\s*\)\s*/g, ')')   // 移除结尾括号空格
+                    .replace(/\s*,\s*/g, ',');   // 统一逗号格式
+
+                functionList.push(formatted);
+                currentFunction = '';
+            }
+            // 如果未闭合则添加换行符保持多行结构
+            else if (parenthesisCount > 0) {
+                currentFunction += '\n';
+            }
+        }
+    });
+    return functionList;
+}
 /**
  * 检查表格编辑字符串是否改变
  * @param {Chat} chat 单个聊天对象
