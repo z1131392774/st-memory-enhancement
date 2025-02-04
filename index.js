@@ -285,6 +285,8 @@ function onTdClick(event) {
     const relativeY = cellOffset.left - containerOffset.left;
     const relativeX = cellOffset.top - containerOffset.top;
     const clickedElement = event.target;
+    $("#tableToolbar").hide();
+    $("#tableHeaderToolbar").hide()
     if (clickedElement.tagName.toLowerCase() === "td")
         $("#tableToolbar").css({
             top: relativeX + 32 + "px",
