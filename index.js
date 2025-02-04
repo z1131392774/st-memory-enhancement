@@ -6,13 +6,14 @@ import {
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 
-const VERSION = '1.1.0'
+const VERSION = '1.1.1'
 
 let waitingTable = null
 let tablePopup = null
 let copyTableData = null
 let selectedCell = null
-const selectedCellInfo = {
+const userTableEditInfo = {
+    editAble: false,
     tables: null,
     tableIndex: null,
     rowIndex: null,
@@ -24,7 +25,7 @@ const selectedCellInfo = {
  */
 const defaultSettings = {
     injection_mode: 'deep_system',
-    deep: -3,
+    deep: -2,
     message_template: `# dataTable表格
 dataTable是一个用于储存故事数据的csv格式表格，可以作为你推演下文的重要参考。推演的下文可以在表格基础上做出发展，并影响表格。
 ## A. 表格说明及数据
@@ -36,7 +37,6 @@ dataTable是一个用于储存故事数据的csv格式表格，可以作为你�
 1. 当用户要求修改表格时，用户要求的优先级最高。
 2. 使用insertRow函数插入行时，应上帝视角填写所有列，禁止写成未知或者空值。
 3. 单元格中，不要出现逗号，语义分割应使用/代替。
-4. 当表格中出现undefined、暂无时，应立即更新该单元格。
 
 ## 1. 在某个表格中插入新行，使用insertRow函数：
 insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
@@ -49,7 +49,11 @@ deleteRow(tableIndex:number, rowIndex:number)
 updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
 例如：updateRow(0, 0, {3: '惠惠'})
 
-你需要在<tableEdit>标签中输出对每个表格的检视过程，使用js注释写简短的判断依据。如果需要增删改，则使用js的函数写法调用函数。
+你需要在<tableEdit>标签中输出对每个表格的检视过程；使用js注释写简短的判断依据；如果需要增删改，则使用js的函数写法调用函数。
+注意：
+1. 标签内需要使用<!-- -->标记进行注释
+2. 单个函数调用只能占用一行，不能一个函数占用多行。
+
 输出示例：
 <tableEdit>
 <!--
@@ -178,12 +182,13 @@ function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
 /**
  * 寻找下一个含有表格数据的消息，如寻找不到，则返回null
  * @param startIndex 开始寻找的索引
+ * @param isIncludeStartIndex 是否包含开始索引
  * @returns 寻找到的mes数据
  */
-function findNextChatWhitTableData(startIndex) {
+function findNextChatWhitTableData(startIndex, isIncludeStartIndex = false) {
+    if (startIndex === -1) return { index: - 1, chat: null }
     const chat = getContext().chat
-    for (let i = startIndex; i < chat.length; i++) {
-
+    for (let i = isIncludeStartIndex ? startIndex : startIndex + 1; i < chat.length; i++) {
         if (chat[i].is_user === false && chat[i].dataTable) {
             checkPrototype(chat[i].dataTable)
             return { index: i, chat: chat[i] }
@@ -272,19 +277,24 @@ function onTdClick(event) {
         selectedCell.removeClass("selected");
     }
     selectedCell = $(this);
-    saveTdData(selectedCell.data("tableData"))
     selectedCell.addClass("selected");
+    saveTdData(selectedCell.data("tableData"))
     // 计算工具栏位置
     const cellOffset = selectedCell.offset();
     const containerOffset = $("#tableContainer").offset();
     const relativeY = cellOffset.left - containerOffset.left;
     const relativeX = cellOffset.top - containerOffset.top;
-
-    $("#tableToolbar").css({
-        top: relativeX + 32 + "px", // 上方显示
-        left: relativeY + "px"
-    }).show();
-
+    const clickedElement = event.target;
+    if (clickedElement.tagName.toLowerCase() === "td")
+        $("#tableToolbar").css({
+            top: relativeX + 32 + "px",
+            left: relativeY + "px"
+        }).show();
+    else if (clickedElement.tagName.toLowerCase() === "th")
+        $("#tableHeaderToolbar").css({
+            top: relativeX + 32 + "px",
+            left: relativeY + "px"
+        }).show();
     event.stopPropagation(); // 阻止事件冒泡
 }
 
@@ -294,9 +304,9 @@ function onTdClick(event) {
  */
 function saveTdData(data) {
     const [tableIndex, rowIndex, colIndex] = data.split("-");
-    selectedCellInfo.tableIndex = parseInt(tableIndex);
-    selectedCellInfo.rowIndex = parseInt(rowIndex);
-    selectedCellInfo.colIndex = parseInt(colIndex);
+    userTableEditInfo.tableIndex = parseInt(tableIndex);
+    userTableEditInfo.rowIndex = parseInt(rowIndex);
+    userTableEditInfo.colIndex = parseInt(colIndex);
 }
 
 /**
@@ -407,12 +417,16 @@ class Table {
         const title = document.createElement('h3')
         title.innerText = this.tableName
         const table = document.createElement('table')
-        $(table).on('click', 'td', onTdClick)
+        if (userTableEditInfo.editAble) {
+            $(table).on('click', 'td', onTdClick)
+            $(table).on('click', 'th', onTdClick)
+        }
         table.classList.add('tableDom')
         const thead = document.createElement('thead')
         const titleTr = document.createElement('tr')
         this.columns.forEach(colName => {
             const th = document.createElement('th')
+            $(th).data("tableData", this.tableIndex + '-0-0')
             th.innerText = colName
             titleTr.appendChild(th)
         })
@@ -573,7 +587,7 @@ function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
     chat.dataTable = waitingTable
     // 如果不是最新的消息，则更新接下来的表格
     if (mesIndex !== -1) {
-        const { index, chat: nextChat } = findNextChatWhitTableData(mesIndex + 1)
+        const { index, chat: nextChat } = findNextChatWhitTableData(mesIndex)
         if (index !== -1) handleEditStrInMessage(nextChat, index, true)
     }
 }
@@ -710,16 +724,35 @@ async function onMessageReceived(chat_id) {
 async function openTablePopup(mesId = -1) {
     const manager = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'manager');
     tablePopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
+    userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+    const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
+    setTableEditTips(tableEditTips)
     const { tables, index } = findLastestTableData(true, mesId)
-    selectedCellInfo.tables = tables
-    renderTablesDOM(tables, tableContainer, mesId === -1)
+    userTableEditInfo.tables = tables
+    renderTablesDOM(tables, tableContainer, userTableEditInfo.editAble)
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
     const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
-    if (mesId !== -1) $(pasteTableButton).hide()
+    if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
     else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
     copyTableButton.addEventListener('click', () => copyTable(tables))
     await tablePopup.show()
+}
+
+/**
+ * 设置表格编辑Tips
+ * @param {Element} tableEditTips 表格编辑提示DOM
+ */
+function setTableEditTips(tableEditTips) {
+    const tips = $(tableEditTips)
+    tips.empty()
+    if (userTableEditInfo.editAble) {
+        tips.append('你可以在此页面上编辑表格，只需要点击你想编辑的单元格即可')
+        tips.css("color", "lightgreen")
+    } else {
+        tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑')
+        tips.css("color", "lightyellow")
+    }
 }
 
 /**
@@ -732,10 +765,13 @@ function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
     $(tableContainer).empty()
     if (isEdit) {
         const tableToolbar = $(tableEditToolbarDom)
+        const tableHeaderToolbar = $(tableHeaderEditToolbarDom)
         tableToolbar.on('click', '#deleteRow', onDeleteRow)
         tableToolbar.on('click', '#editCell', onModifyCell)
         tableToolbar.on('click', '#insertRow', onInsertRow)
+        tableHeaderToolbar.on('click', '#insertRow', onInsertFirstRow)
         $(tableContainer).append(tableToolbar)
+        $(tableContainer).append(tableHeaderToolbar)
     }
     for (let table of tables) {
         $(tableContainer).append(table.render())
@@ -747,10 +783,9 @@ function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
  */
 async function onDeleteRow() {
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    console.log("测试", selectedCellInfo)
-    const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
-    table.delete(selectedCellInfo.rowIndex)
-    renderTablesDOM(selectedCellInfo.tables, tableContainer, true)
+    const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
+    table.delete(userTableEditInfo.rowIndex)
+    renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
     getContext().saveChat()
     toastr.success('已删除')
 }
@@ -759,13 +794,13 @@ async function onDeleteRow() {
  * 修改单元格事件
  */
 async function onModifyCell() {
-    const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
-    const cellValue = table.getCellValue(selectedCellInfo.rowIndex, selectedCellInfo.colIndex)
+    const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
+    const cellValue = table.getCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex)
     const newValue = await callGenericPopup('', POPUP_TYPE.INPUT, cellValue, { okButton: "保存", cancelButton: "取消" });
     if (newValue) {
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-        table.setCellValue(selectedCellInfo.rowIndex, selectedCellInfo.colIndex, newValue)
-        renderTablesDOM(selectedCellInfo.tables, tableContainer, true)
+        table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
+        renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
         getContext().saveChat()
         toastr.success('已修改')
     }
@@ -775,10 +810,22 @@ async function onModifyCell() {
  * 下方插入行事件
  */
 async function onInsertRow() {
-    const table = selectedCellInfo.tables[selectedCellInfo.tableIndex]
+    const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    table.insertEmptyRow(selectedCellInfo.rowIndex + 1)
-    renderTablesDOM(selectedCellInfo.tables, tableContainer, true)
+    table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
+    renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+    getContext().saveChat()
+    toastr.success('已插入')
+}
+
+/**
+ * 首行插入事件
+ */
+async function onInsertFirstRow() {
+    const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
+    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+    table.insertEmptyRow(0)
+    renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
     getContext().saveChat()
     toastr.success('已插入')
 }
@@ -827,7 +874,7 @@ async function pasteTable(mesId, tableContainer) {
 const tableEditToolbarDom = `<div class="tableToolbar" id="tableToolbar">
     <button id="editCell" class="menu_button">编辑</button>
     <button id="deleteRow" class="menu_button">删除行</button>
-    <button id="insertRow" class="menu_button">下方插入</button>
+    <button id="insertRow" class="menu_button">下方插入行</button>
 </div>`
 
 /**
@@ -835,7 +882,7 @@ const tableEditToolbarDom = `<div class="tableToolbar" id="tableToolbar">
  */
 const tableHeaderEditToolbarDom = `
 <div class="tableToolbar" id="tableHeaderToolbar">
-    <button id="insertRow" class="menu_button">下方插入</button>
+    <button id="insertRow" class="menu_button">下方插入行</button>
 </div>
 `
 

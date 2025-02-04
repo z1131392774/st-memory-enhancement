@@ -42,7 +42,7 @@ td.selected {
     z-index: 1000;
 }
 
-#tableToolbar button {
+.tableToolbar button {
     width: 90px;
 }
 
