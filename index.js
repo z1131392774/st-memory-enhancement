@@ -444,14 +444,12 @@ class Table {
             if (action.tableIndex !== this.tableIndex) continue
             if (action.type === 'Insert') {
                 action.rowIndex = nowRowIndex
-                console.log("寻找到I", nowRowIndex)
                 this.insertedRows.push(nowRowIndex)
                 nowRowIndex++
             } else if (action.type === 'Update') {
                 const updateData = action.data
                 for (const colIndex in updateData) {
                     this.updatedRows.push(`${action.rowIndex}-${colIndex}`)
-                    console.log("寻找到U", `${action.rowIndex}-${colIndex}`)
                 }
             }
         }
@@ -493,9 +491,7 @@ class Table {
                 if (this.updatedRows && this.updatedRows.includes(rowIndex + '-' + cellIndex)) $(td).css('background-color', 'rgba(0, 98, 128, 0.2)')
                 tr.appendChild(td)
             }
-            console.log('rowIndex', typeof rowIndex, this.insertedRows)
             if (this.insertedRows && this.insertedRows.includes(parseInt(rowIndex))) {
-                console.log('inserted row')
                 $(tr).css('background-color', 'rgba(0, 128, 0, 0.2)')
             }
             tbody.appendChild(tr)
@@ -671,7 +667,6 @@ function handleTableEditTag(matches) {
             }
         }
     });
-    console.log("测试", functionList);
     return functionList;
 }
 /**
@@ -741,7 +736,6 @@ function ParseFunctionParams(str) {
             return arg.replace(/^['"]|['"]$/g, ''); // 去除字符串的引号
         }
     });
-    console.log("测试", matches)
     return matches
 }
 
@@ -784,6 +778,7 @@ function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     waitingTable = copyTableList(tables)
     // 对最近的表格执行操作
     tableEditActions = functionList.map(functionStr => new TableEditAction(functionStr))
+    dryRunExecuteTableEditTag()
     return true
 }
 
@@ -794,7 +789,6 @@ function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
  */
 function executeTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     // 执行action
-    console.log("执行表格编辑", tableEditActions, getContext().chat)
     waitingTable.forEach(table => table.clearInsertAndUpdate())
     tableEditActions.filter(action => action.able && action.type !== 'Comment').forEach(tableEditAction => tableEditAction.execute())
     clearEmpty()
@@ -981,7 +975,6 @@ async function openTablePopup(mesId = -1) {
     // 获取action信息
     if (userTableEditInfo.editAble && index !== -1 && (!waitingTableIndex || waitingTableIndex !== index)) {
         parseTableEditTag(getContext().chat[index], -1, true)
-        dryRunExecuteTableEditTag()
     }
 
     // 渲染
@@ -1049,7 +1042,7 @@ async function onDeleteRow() {
             findAndDeleteActionsForDelete()
             const chat = getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = waitingTable
         } else {
             table.delete(userTableEditInfo.rowIndex)
@@ -1070,18 +1063,14 @@ async function onModifyCell() {
     const button = { text: '直接修改', result: 3 }
     const tableEditPopup = new Popup("", POPUP_TYPE.INPUT, cellValue, { okButton: "伪装为AI修改", cancelButton: "取消", customButtons: [button] });
     const newValue = await tableEditPopup.show()
-    console.log("按钮", newValue, tableEditPopup.result)
     if (newValue) {
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
         // 伪装修改
         if (tableEditPopup.result !== 3) {
-            console.log("伪装修改", table)
-            if (!table.insertedRows || !table.updatedRows)
-                return toastr.error("由于旧数据兼容性问题，请再聊一轮后再使用此功能")
             findAndEditOrAddActionsForUpdate(newValue)
             const chat = getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = waitingTable
         } else {
             table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
@@ -1153,8 +1142,8 @@ function addActionForInsert() {
  */
 async function onInsertRow() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
-    const button = { text: '直接修改', result: 3 }
-    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
+    const button = { text: '直接插入', result: 3 }
+    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI插入", cancelButton: "取消", customButtons: [button] })
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     if (result) {
         // 伪装输出
@@ -1178,8 +1167,8 @@ async function onInsertRow() {
  */
 async function onInsertFirstRow() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
-    const button = { text: '直接修改', result: 3 }
-    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
+    const button = { text: '直接插入', result: 3 }
+    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI插入", cancelButton: "取消", customButtons: [button] })
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     if (result) {
         // 伪装输出
@@ -1187,7 +1176,7 @@ async function onInsertFirstRow() {
             addActionForInsert()
             const chat = getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = waitingTable
         } else {
             table.insertEmptyRow(0)
