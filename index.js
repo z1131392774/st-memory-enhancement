@@ -1,23 +1,31 @@
 import {
     eventSource,
     event_types,
+    saveChat,
     saveSettingsDebounced,
 } from '../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 
-const VERSION = '1.1.1'
+const VERSION = '1.1.2'
 
 let waitingTable = null
+let waitingTableIndex = null
 let tablePopup = null
 let copyTableData = null
 let selectedCell = null
+let tableEditActions = []
 const userTableEditInfo = {
+    chatIndex: null,
     editAble: false,
     tables: null,
     tableIndex: null,
     rowIndex: null,
     colIndex: null,
+}
+const editErrorInfo = {
+    forgotCommentTag: false,
+    functionNameError: false,
 }
 
 /**
@@ -49,24 +57,16 @@ deleteRow(tableIndex:number, rowIndex:number)
 updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
 例如：updateRow(0, 0, {3: '惠惠'})
 
-你需要在<tableEdit>标签中输出对每个表格的检视过程；使用js注释写简短的判断依据；如果需要增删改，则使用js的函数写法调用函数。
-注意：
-1. 标签内需要使用<!-- -->标记进行注释
-2. 单个函数可以处理多行，但格式需保证正确。
+你需要根据【增删改触发条件】对每个表格是否需要增删改进行检视，如果有需要增删改的表格，需要你在<tableEdit>标签中使用js的函数写法调用函数。
+注意：标签内需要使用<!-- -->标记进行注释
 
 输出示例：
 <tableEdit>
 <!--
-// 时空表格中的角色发生了改变，需要更新
 updateRow(0, 0, {3: '惠惠/悠悠'})
-// 角色特征表格由于出现了新人物，需要插入
 insertRow(1, {1:'悠悠', 1:'身高170/体重60kg/身材娇小/黑色长发', 2:'开朗活泼', 3:'学生', 4:'打羽毛球, 5:'鬼灭之刃', 6:'宿舍', 7:'是运动部部长'})
-// 角色与<user>社交表格由于出现了新人物，需要插入
 insertRow(2, {1:'悠悠', 1:'喜欢', 2:'依赖/喜欢', 3:'高'})
-// 任务、命令或者约定表格由于没有新任务、命令或者约定，所以不需要操作
-// 重要事件历史表格由于悠悠向惠惠表白，所以需要插入
 insertRow(4, {0: '惠惠/悠悠', 1: '惠惠向悠悠表白', 2: '2021-10-01', 3: '教室',4:'感动'})
-// 重要物品表格由于没有新物品，所以不需要操作
 -->
 </tableEdit>
 `,
@@ -88,8 +88,8 @@ insertRow(4, {0: '惠惠/悠悠', 1: '惠惠向悠悠表白', 2: '2021-10-01', 3
             insertNode: '当特定时间约定一起去做某事时/某角色收到做某事的命令或任务时', updateNode: "", deleteNode: "当大家赴约时/任务或命令完成时/任务，命令或约定被取消时"
         },
         {
-            tableName: '重要事件历史表格', tableIndex: 4, columns: ['角色', '事件简述', '日期', '地点', '情绪'], columnsIndex: [0, 1, 2, 3, 4], enable: true, Required: false, note: '',
-            insertNode: '当某个角色经历让自己印象深刻的事件时，比如表白、分手等', updateNode: "", deleteNode: ""
+            tableName: '重要事件历史表格', tableIndex: 4, columns: ['角色', '事件简述', '日期', '地点', '情绪'], columnsIndex: [0, 1, 2, 3, 4], enable: true, Required: true, note: '记录<user>或角色经历的重要事件',
+            initNode: '本轮必须从上文寻找可以插入的事件并使用insertRow插入', insertNode: '当某个角色经历让自己印象深刻的事件时，比如表白、分手等', updateNode: "", deleteNode: ""
         },
         {
             tableName: '重要物品表格', tableIndex: 5, columns: ['拥有人', '物品描述', '物品名', '重要原因'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, note: '对某人很贵重或有特殊纪念意义的物品',
@@ -118,6 +118,7 @@ function loadSettings() {
         }
     }
     extension_settings.muyoo_dataTable.message_template = defaultSettings.message_template
+    extension_settings.muyoo_dataTable.tableStructure = defaultSettings.tableStructure
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
@@ -149,7 +150,7 @@ function checkPrototype(dataTable) {
     for (let i = 0; i < dataTable.length; i++) {
         if (!(dataTable[i] instanceof Table)) {
             const table = dataTable[i]
-            dataTable[i] = new Table(table.tableName, table.tableIndex, table.columns, table.content)
+            dataTable[i] = new Table(table.tableName, table.tableIndex, table.columns, table.content, table.insertedRows, table.updatedRows)
         }
     }
 }
@@ -285,17 +286,27 @@ function onTdClick(event) {
     const relativeY = cellOffset.left - containerOffset.left;
     const relativeX = cellOffset.top - containerOffset.top;
     const clickedElement = event.target;
-    if (clickedElement.tagName.toLowerCase() === "td")
+    hideAllEditPanels()
+    if (clickedElement.tagName.toLowerCase() === "td") {
         $("#tableToolbar").css({
             top: relativeX + 32 + "px",
             left: relativeY + "px"
         }).show();
-    else if (clickedElement.tagName.toLowerCase() === "th")
+    } else if (clickedElement.tagName.toLowerCase() === "th") {
         $("#tableHeaderToolbar").css({
             top: relativeX + 32 + "px",
             left: relativeY + "px"
         }).show();
+    }
     event.stopPropagation(); // 阻止事件冒泡
+}
+
+/**
+ * 隐藏所有的编辑浮窗
+ */
+function hideAllEditPanels() {
+    $("#tableToolbar").hide();
+    $("#tableHeaderToolbar").hide();
 }
 
 /**
@@ -313,11 +324,21 @@ function saveTdData(data) {
  * 表格类
  */
 class Table {
-    constructor(tableName, tableIndex, columns, content = []) {
+    constructor(tableName, tableIndex, columns, content = [], insertedRows = [], updatedRows = []) {
         this.tableName = tableName
         this.tableIndex = tableIndex
         this.columns = columns
         this.content = content
+        this.insertedRows = insertedRows
+        this.updatedRows = updatedRows
+    }
+
+    /**
+     * 清空插入或更新记录
+     */
+    clearInsertAndUpdate() {
+        this.insertedRows = []
+        this.updatedRows = []
     }
 
     /**
@@ -339,9 +360,11 @@ class Table {
      * @param {object} data 
      */
     insert(data) {
-        const newRow = []
+        const newRow = new Array(this.columns.length).fill("");
         Object.entries(data).forEach(([key, value]) => { newRow[key] = handleCellValue(value) })
-        this.content.push(newRow)
+        const newRowIndex = this.content.push(newRow) - 1
+        this.insertedRows.push(newRowIndex)
+        return newRowIndex
     }
 
     /**
@@ -368,7 +391,11 @@ class Table {
     update(rowIndex, data) {
         const row = this.content[rowIndex]
         if (!row) return this.insert(data)
-        Object.entries(data).forEach(([key, value]) => { row[key] = handleCellValue(value) })
+        Object.entries(data).forEach(([key, value]) => {
+            row[key] = handleCellValue(value)
+            this.updatedRows.push(`${rowIndex}-${key}`)
+        })
+
     }
 
     /**
@@ -407,6 +434,27 @@ class Table {
     }
 
     /**
+     * 干运行
+     * @param {TableEditAction[]} actions 需要执行的编辑操作
+     */
+    dryRun(actions) {
+        this.clearInsertAndUpdate()
+        let nowRowIndex = this.content.length
+        for (const action of actions) {
+            if (action.type === 'Insert') {
+                action.rowIndex = nowRowIndex
+                this.insertedRows.push(nowRowIndex)
+                nowRowIndex++
+            } else if (action.type === 'Update') {
+                const updateData = action.data
+                for (const colIndex in updateData) {
+                    this.updatedRows.push(`${action.rowIndex}-${colIndex}`)
+                }
+            }
+        }
+    }
+
+    /**
      * 把表格数据渲染成DOM元素
      * @returns DOM容器元素
      */
@@ -439,7 +487,13 @@ class Table {
                 const td = document.createElement('td')
                 $(td).data("tableData", this.tableIndex + '-' + rowIndex + '-' + cellIndex)
                 td.innerText = this.content[rowIndex][cellIndex]
+                if (this.updatedRows && this.updatedRows.includes(rowIndex + '-' + cellIndex)) $(td).css('background-color', 'rgba(0, 98, 128, 0.2)')
                 tr.appendChild(td)
+            }
+            console.log('rowIndex', typeof rowIndex, this.insertedRows)
+            if (this.insertedRows && this.insertedRows.includes(parseInt(rowIndex))) {
+                console.log('inserted row')
+                $(tr).css('background-color', 'rgba(0, 128, 0, 0.2)')
             }
             tbody.appendChild(tr)
         }
@@ -457,14 +511,13 @@ async function onChatChanged() {
  * 在表格末尾插入行
  * @param {number} tableIndex 表格索引
  * @param {object} data 插入的数据
+ * @returns 新插入行的索引
  */
 function insertRow(tableIndex, data) {
-    if (typeof tableIndex !== 'number') {
-        toastr.error('insert tableIndex数据类型错误');
-        return
-    }
+    if (tableIndex == null) return toastr.error('insert函数，tableIndex函数为空');
+    if (data == null) return toastr.error('insert函数，data函数为空');
     const table = waitingTable[tableIndex]
-    table.insert(data)
+    return table.insert(data)
 }
 
 /**
@@ -473,10 +526,8 @@ function insertRow(tableIndex, data) {
  * @param {number} rowIndex 行索引
  */
 function deleteRow(tableIndex, rowIndex) {
-    if (typeof tableIndex !== 'number' || typeof rowIndex !== 'number') {
-        toastr.error('delete tableIndex或rowIndex数据类型错误，请重新生成本轮文本');
-        return
-    }
+    if (tableIndex == null) return toastr.error('delete函数，tableIndex函数为空');
+    if (rowIndex == null) return toastr.error('delete函数，rowIndex函数为空');
     const table = waitingTable[tableIndex]
     table.delete(rowIndex)
 }
@@ -488,10 +539,9 @@ function deleteRow(tableIndex, rowIndex) {
  * @param {object} data 更新的数据
  */
 function updateRow(tableIndex, rowIndex, data) {
-    if (typeof tableIndex !== 'number' || typeof rowIndex !== 'number') {
-        toastr.error('update tableIndex或rowIndex数据类型错误，请重新生成本轮文本');
-        return
-    }
+    if (tableIndex == null) return toastr.error('update函数，tableIndex函数为空');
+    if (rowIndex == null) return toastr.error('update函数，rowIndex函数为空');
+    if (data == null) return toastr.error('update函数，data函数为空');
     const table = waitingTable[tableIndex]
     table.update(rowIndex, data)
 }
@@ -506,7 +556,88 @@ function clearEmpty() {
 }
 
 /**
- * 将匹配到的整体字符串转化为单个语句的数组（支持多行函数）
+ * 命令执行对象
+ */
+class TableEditAction {
+    constructor(str) {
+        this.able = true
+        if (!str) return
+        this.str = str.trim()
+        this.parsingFunctionStr()
+    }
+
+    setActionInfo(type, tableIndex, rowIndex, data) {
+        this.type = type
+        this.tableIndex = tableIndex
+        this.rowIndex = rowIndex
+        this.data = data
+    }
+
+    parsingFunctionStr() {
+        const { type, newFunctionStr } = isTableEditFunction(this.str)
+        this.type = type
+        if (this.type === 'Comment') {
+            if (!this.str.startsWith('//')) this.str = '// ' + this.str
+        }
+        this.params = ParseFunctionParams(newFunctionStr)
+        this.AssignParams()
+    }
+
+    AssignParams() {
+        for (const paramIndex in this.params) {
+            if (typeof this.params[paramIndex] === 'number')
+                switch (paramIndex) {
+                    case '0':
+                        this.tableIndex = this.params[paramIndex]
+                        break
+                    case '1':
+                        this.rowIndex = this.params[paramIndex]
+                        break
+                    default:
+                        break
+                }
+            else if (typeof this.params[paramIndex] === 'object' && this.params[paramIndex] !== null) {
+                this.data = this.params[paramIndex]
+            }
+        }
+    }
+
+    execute() {
+        try {
+            switch (this.type) {
+                case 'Update':
+                    updateRow(this.tableIndex, this.rowIndex, this.data)
+                    break
+                case 'Insert':
+                    const newRowIndex = insertRow(this.tableIndex, this.data)
+                    this.rowIndex = newRowIndex
+                    break
+                case 'Delete':
+                    deleteRow(this.tableIndex, this.rowIndex)
+                    break
+            }
+        } catch (err) {
+            toastr.error('表格操作函数执行错误，请重新生成本轮文本\n错误语句：' + this.str + '\n错误信息：' + err.message);
+        }
+    }
+
+    format() {
+        switch (this.type) {
+            case 'Update':
+                return `updateRow(${this.tableIndex}, ${this.rowIndex}, ${JSON.stringify(this.data)})`
+            case 'Insert':
+                return `insertRow(${this.tableIndex}, ${JSON.stringify(this.data)})`
+            case 'Delete':
+                return `deleteRow(${this.tableIndex}, ${this.rowIndex})`
+            default:
+                return this.str
+        }
+    }
+
+}
+
+/**
+ * 将匹配到的整体字符串转化为单个语句的数组
  * @param {string[]} matches 匹配到的整体字符串
  * @returns 单条执行语句数组
  */
@@ -515,37 +646,29 @@ function handleTableEditTag(matches) {
     matches.forEach(matchBlock => {
         const lines = trimString(matchBlock)
             .split('\n')
-            .map(line => line.replace(/^\s*\/\/.*/, '').trim()) // 移除行注释
             .filter(line => line.length > 0);
-
         let currentFunction = '';
         let parenthesisCount = 0;
-
         for (const line of lines) {
-            // 跳过空行和纯注释行
-            if (!line || line.startsWith('//')) continue;
-
-            currentFunction += line;
-            parenthesisCount += (line.match(/\(/g) || []).length;
-            parenthesisCount -= (line.match(/\)/g) || []).length;
-
-            // 当括号匹配时完成一个函数
+            const trimmedLine = line.trim()
+            if (trimmedLine.startsWith('//')) {
+                functionList.push(trimmedLine)
+                continue
+            };
+            currentFunction += trimmedLine;
+            parenthesisCount += (trimmedLine.match(/\(/g) || []).length;
+            parenthesisCount -= (trimmedLine.match(/\)/g) || []).length;
             if (parenthesisCount === 0 && currentFunction) {
-                // 移除多余空格和换行
                 const formatted = currentFunction
                     .replace(/\s*\(\s*/g, '(')   // 移除参数括号内空格
                     .replace(/\s*\)\s*/g, ')')   // 移除结尾括号空格
                     .replace(/\s*,\s*/g, ',');   // 统一逗号格式
-
                 functionList.push(formatted);
                 currentFunction = '';
             }
-            // 如果未闭合则添加换行符保持多行结构
-            else if (parenthesisCount > 0) {
-                currentFunction += '\n';
-            }
         }
     });
+    console.log("测试", functionList);
     return functionList;
 }
 /**
@@ -560,23 +683,6 @@ function isTableEditStrChanged(chat, matches) {
     }
     chat.tableEditMatches = matches
     return true
-}
-
-/**
- * 执行表格操作函数
- * @param {string[]} functionList 表格执行函数列表
- */
-function executeTableEditFunction(functionList) {
-    functionList.forEach(functionStr => {
-        const newFunctionStr = fixFunctionNameError(functionStr)
-        if (!newFunctionStr) return
-
-        try {
-            eval(newFunctionStr)
-        } catch (e) {
-            toastr.error('表格操作函数执行错误，请重新生成本轮文本\n错误语句：' + functionStr + '\n错误信息：' + e.message);
-        }
-    })
 }
 
 /**
@@ -596,28 +702,135 @@ function fixFunctionNameError(str) {
 }
 
 /**
- * 处理表格编辑事件
+ * 检测单个语句是否是执行表格编辑的函数
+ * @param {string} str 单个函数执行语句
+ * @returns 是那种类型的表格编辑函数
+ */
+function isTableEditFunction(str) {
+    let type = 'Comment'
+    let newFunctionStr = ''
+    if (str.startsWith("update(") || str.startsWith("updateRow(")) type = 'Update'
+    if (str.startsWith("insert(") || str.startsWith("insertRow(")) type = 'Insert'
+    if (str.startsWith("delete(") || str.startsWith("deleteRow(")) type = 'Delete'
+    if (str.startsWith("update(") || str.startsWith("insert(") || str.startsWith("delete(")) editErrorInfo.functionNameError = true
+    if (type !== 'Comment') newFunctionStr = str.replace(/^(update|insert|delete|insertRow|deleteRow|updateRow)\s*/, '').trim()
+    return { type, newFunctionStr }
+}
+
+/**
+ * 解析函数的参数字符串，并返回参数数组
+ * @param {string} str 参数字符串
+ * @returns 参数数组
+ */
+function ParseFunctionParams(str) {
+    const argsStr = str.trim().replace(/^\(|\)$/g, '');
+
+    // 使用正则表达式匹配对象、字符串、数字
+    const argRegex = /{[^{}]*}|'[^']*'|"[^"]*"|\d+/g;
+    let matches = argsStr.match(argRegex) || [];
+    matches = matches.map(arg => {
+        if (/^{.*}$/.test(arg)) {
+            console.log(arg)
+            return handleJsonStr(arg); // 替换单引号为双引号后解析对象
+        } else if (/^\d+$/.test(arg)) {
+            return Number(arg); // 解析数字
+        } else {
+            return arg.replace(/^['"]|['"]$/g, ''); // 去除字符串的引号
+        }
+    });
+    console.log("测试", matches)
+    return matches
+}
+
+/**
+ * 处理json格式的字符串
+ * @param {string} str json格式的字符串
+ * @returns
+ */
+function handleJsonStr(str) {
+    const jsonStr = str.replace(/'/g, '"').replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":');
+    return JSON.parse(jsonStr);
+}
+
+/**
+ * 处理文本内的表格编辑事件
  * @param {Chat} chat 单个聊天对象
  * @param {number} mesIndex 修改的消息索引
  * @param {boolean} ignoreCheck 是否跳过重复性检查
  * @returns 
  */
 function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
+    if (!parseTableEditTag(chat, mesIndex, ignoreCheck)) return
+    executeTableEditTag(chat, mesIndex)
+}
+
+/**
+ * 解析回复中的表格编辑标签
+ * @param {Chat} chat 单个聊天对象
+ * @param {number} mesIndex 修改的消息索引
+ * @param {boolean} ignoreCheck 是否跳过重复性检查
+ */
+function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     const { matches } = getTableEditTag(chat.mes)
-    if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return
+    if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return false
     const functionList = handleTableEditTag(matches)
-    if (functionList.length === 0) return
+    if (functionList.length === 0) return false
     // 寻找最近的表格数据
-    waitingTable = copyTableList(findLastestTableData(false, mesIndex).tables)
+    const { tables, index: lastestIndex } = findLastestTableData(false, mesIndex)
+    waitingTableIndex = lastestIndex
+    waitingTable = copyTableList(tables)
     // 对最近的表格执行操作
-    executeTableEditFunction(functionList)
+    tableEditActions = functionList.map(functionStr => new TableEditAction(functionStr))
+    return true
+}
+
+/**
+ * 执行回复中得编辑标签
+ * @param {Chat} chat 单个聊天对象
+ * @param {number} mesIndex 修改的消息索引
+ */
+function executeTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
+    // 执行action
+    console.log("执行表格编辑", tableEditActions, getContext().chat)
+    waitingTable.forEach(table => table.clearInsertAndUpdate())
+    tableEditActions.filter(action => action.able && action.type !== 'Comment').forEach(tableEditAction => tableEditAction.execute())
     clearEmpty()
+    replaceTableEditTag(chat, getTableEditActionsStr())
     chat.dataTable = waitingTable
     // 如果不是最新的消息，则更新接下来的表格
     if (mesIndex !== -1) {
         const { index, chat: nextChat } = findNextChatWhitTableData(mesIndex)
         if (index !== -1) handleEditStrInMessage(nextChat, index, true)
     }
+}
+
+/**
+ * 干运行获取插入action的插入位置和表格插入更新内容
+ */
+function dryRunExecuteTableEditTag() {
+    waitingTable.forEach(table => table.dryRun(tableEditActions))
+}
+
+/**
+ * 获取生成的操作函数字符串
+ * @returns 生成的操作函数字符串
+ */
+function getTableEditActionsStr() {
+    return `
+    <!--
+    ${tableEditActions.filter(action => action.able && action.type !== 'Comment').map(tableEditAction => tableEditAction.format()).join('\n')}
+    -->
+    `
+}
+
+/**
+ * 替换聊天中的TableEdit标签内的内容
+ * @param {*} chat 聊天对象
+ */
+function replaceTableEditTag(chat, newContent) {
+    chat.mes = chat.mes.replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>${newContent}</tableEdit>`)
+    chat.swipes[chat.swipe_id] = chat.swipes[chat.swipe_id].replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>\n${newContent}\n</tableEdit>`)
+    getContext().saveChat()
 }
 
 /**
@@ -702,11 +915,10 @@ async function onChatCompletionPromptReady(eventData) {
  */
 function trimString(str) {
     const str1 = str.trim()
-    if (!str1.startsWith("<!--")) {
-
+    if (!str1.startsWith("<!--") || !str1.endsWith("-->")) {
+        editErrorInfo.forgotCommentTag = true
     }
-    return str
-        .trim()
+    return str1
         .replace(/^\s*<!--|-->?\s*$/g, "")
         .trim()
 }
@@ -752,13 +964,26 @@ async function onMessageReceived(chat_id) {
 async function openTablePopup(mesId = -1) {
     const manager = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'manager');
     tablePopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
+    // 是否可编辑
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+    $(tableContainer).on('click', hideAllEditPanels)
     const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
+    // 设置编辑提示
     setTableEditTips(tableEditTips)
+    // 开始寻找表格
     const { tables, index } = findLastestTableData(true, mesId)
+    userTableEditInfo.chatIndex = index
     userTableEditInfo.tables = tables
-    renderTablesDOM(tables, tableContainer, userTableEditInfo.editAble)
+    // 获取action信息
+    if (userTableEditInfo.editAble && index !== -1 && (!waitingTableIndex || waitingTableIndex !== index)) {
+        parseTableEditTag(getContext().chat[index], -1, true)
+        dryRunExecuteTableEditTag()
+    }
+
+    // 渲染
+    renderTablesDOM(userTableEditInfo.tables, tableContainer, userTableEditInfo.editAble)
+    // 拷贝粘贴
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
     const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
     if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
@@ -775,7 +1000,7 @@ function setTableEditTips(tableEditTips) {
     const tips = $(tableEditTips)
     tips.empty()
     if (userTableEditInfo.editAble) {
-        tips.append('你可以在此页面上编辑表格，只需要点击你想编辑的单元格即可')
+        tips.append('你可以在此页面上编辑表格，只需要点击你想编辑的单元格即可。绿色单元格为本轮插入的单元格，蓝色单元格为本轮修改的单元格。')
         tips.css("color", "lightgreen")
     } else {
         tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑')
@@ -810,12 +1035,27 @@ function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
  * 删除行事件
  */
 async function onDeleteRow() {
-    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
-    table.delete(userTableEditInfo.rowIndex)
-    renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-    getContext().saveChat()
-    toastr.success('已删除')
+    const button = { text: '直接修改', result: 3 }
+    const result = await callGenericPopup("请选择删除方式", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
+    if (result) {
+        // 伪装修改
+        if (result !== 3) {
+            if (!table.insertedRows || !table.updatedRows)
+                return toastr.error("由于旧数据兼容性问题，请再聊一次后再使用此功能")
+            findAndDeleteActionsForDelete()
+            const chat = getContext().chat[userTableEditInfo.chatIndex]
+            replaceTableEditTag(chat, getTableEditActionsStr())
+            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            userTableEditInfo.tables = waitingTable
+        } else {
+            table.delete(userTableEditInfo.rowIndex)
+        }
+        const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+        renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+        getContext().saveChat()
+        toastr.success('已删除')
+    }
 }
 
 /**
@@ -824,10 +1064,25 @@ async function onDeleteRow() {
 async function onModifyCell() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
     const cellValue = table.getCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex)
-    const newValue = await callGenericPopup('', POPUP_TYPE.INPUT, cellValue, { okButton: "保存", cancelButton: "取消" });
+    const button = { text: '直接修改', result: 3 }
+    const tableEditPopup = new Popup("", POPUP_TYPE.INPUT, cellValue, { okButton: "伪装为AI修改", cancelButton: "取消", customButtons: [button] });
+    const newValue = await tableEditPopup.show()
+    console.log("按钮", newValue, tableEditPopup.result)
     if (newValue) {
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-        table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
+        // 伪装修改
+        if (tableEditPopup.result !== 3) {
+            console.log("伪装修改", table)
+            if (!table.insertedRows || !table.updatedRows)
+                return toastr.error("由于旧数据兼容性问题，请再聊一轮后再使用此功能")
+            findAndEditOrAddActionsForUpdate(newValue)
+            const chat = getContext().chat[userTableEditInfo.chatIndex]
+            replaceTableEditTag(chat, getTableEditActionsStr())
+            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            userTableEditInfo.tables = waitingTable
+        } else {
+            table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
+        }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
         getContext().saveChat()
         toastr.success('已修改')
@@ -835,15 +1090,84 @@ async function onModifyCell() {
 }
 
 /**
+ * 寻找actions中是否有与修改值相关的行动，有则修改
+ */
+function findAndEditOrAddActionsForUpdate(newValue) {
+    let haveAction = false
+    tableEditActions.forEach((action) => {
+        if (action.type === 'Update' || action.type === 'Insert') {
+            if (action.tableIndex === userTableEditInfo.tableIndex && action.rowIndex === userTableEditInfo.rowIndex) {
+                action.data[userTableEditInfo.colIndex] = newValue
+                haveAction = true
+            }
+        }
+    })
+    if (!haveAction) {
+        const newAction = new TableEditAction()
+        const data = {}
+        data[userTableEditInfo.colIndex] = newValue
+        newAction.setActionInfo("Update", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex, data)
+        tableEditActions.push(newAction)
+    }
+}
+
+/**
+ * 寻找actions中是否有与删除值相关的行动，有则删除
+ */
+function findAndDeleteActionsForDelete() {
+    let haveAction = false
+    tableEditActions.forEach(action => {
+        if (action.tableIndex === userTableEditInfo.tableIndex && action.rowIndex === userTableEditInfo.rowIndex) {
+            action.able = false
+            haveAction = true
+            if (action.type === 'Update') {
+                const newAction = new TableEditAction()
+                newAction.setActionInfo("Delete", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex)
+                tableEditActions.push(newAction)
+            }
+        }
+    })
+    tableEditActions = tableEditActions.filter(action => action.able)
+    if (!haveAction) {
+        const newAction = new TableEditAction()
+        newAction.setActionInfo("Delete", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex)
+        tableEditActions.push(newAction)
+    }
+}
+
+/**
+ * 在actions中插入值
+ */
+function addActionForInsert() {
+    const newAction = new TableEditAction()
+    newAction.setActionInfo("Insert", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex, {})
+    tableEditActions.push(newAction)
+}
+
+
+/**
  * 下方插入行事件
  */
 async function onInsertRow() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
+    const button = { text: '直接修改', result: 3 }
+    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
-    renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-    getContext().saveChat()
-    toastr.success('已插入')
+    if (result) {
+        // 伪装输出
+        if (result !== 3) {
+            addActionForInsert()
+            const chat = getContext().chat[userTableEditInfo.chatIndex]
+            replaceTableEditTag(chat, getTableEditActionsStr())
+            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            userTableEditInfo.tables = waitingTable
+        } else {
+            table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
+        }
+        renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+        getContext().saveChat()
+        toastr.success('已插入')
+    }
 }
 
 /**
@@ -851,11 +1175,24 @@ async function onInsertRow() {
  */
 async function onInsertFirstRow() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
+    const button = { text: '直接修改', result: 3 }
+    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    table.insertEmptyRow(0)
-    renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-    getContext().saveChat()
-    toastr.success('已插入')
+    if (result) {
+        // 伪装输出
+        if (result !== 3) {
+            addActionForInsert()
+            const chat = getContext().chat[userTableEditInfo.chatIndex]
+            replaceTableEditTag(chat, getTableEditActionsStr())
+            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            userTableEditInfo.tables = waitingTable
+        } else {
+            table.insertEmptyRow(0)
+        }
+        renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+        getContext().saveChat()
+        toastr.success('已插入')
+    }
 }
 
 async function updateTablePlugin() {
