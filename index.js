@@ -441,14 +441,17 @@ class Table {
         this.clearInsertAndUpdate()
         let nowRowIndex = this.content.length
         for (const action of actions) {
+            if (action.tableIndex !== this.tableIndex) continue
             if (action.type === 'Insert') {
                 action.rowIndex = nowRowIndex
+                console.log("寻找到I", nowRowIndex)
                 this.insertedRows.push(nowRowIndex)
                 nowRowIndex++
             } else if (action.type === 'Update') {
                 const updateData = action.data
                 for (const colIndex in updateData) {
                     this.updatedRows.push(`${action.rowIndex}-${colIndex}`)
+                    console.log("寻找到U", `${action.rowIndex}-${colIndex}`)
                 }
             }
         }
@@ -1159,7 +1162,7 @@ async function onInsertRow() {
             addActionForInsert()
             const chat = getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            executeTableEditTag(getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = waitingTable
         } else {
             table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
