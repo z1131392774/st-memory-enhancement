@@ -119,6 +119,10 @@ function loadSettings() {
     }
     extension_settings.muyoo_dataTable.message_template = defaultSettings.message_template
     extension_settings.muyoo_dataTable.tableStructure = defaultSettings.tableStructure
+    if (!extension_settings.muyoo_dataTable.updateIndex) {
+        if (extension_settings.muyoo_dataTable.deep === -3) extension_settings.muyoo_dataTable.deep = -2
+        extension_settings.muyoo_dataTable.updateIndex = 1
+    }
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
