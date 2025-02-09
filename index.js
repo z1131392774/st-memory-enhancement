@@ -775,7 +775,6 @@ function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     const { matches } = getTableEditTag(chat.mes)
     if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return false
     const functionList = handleTableEditTag(matches)
-    if (functionList.length === 0) return false
     // 寻找最近的表格数据
     const { tables, index: lastestIndex } = findLastestTableData(false, mesIndex)
     waitingTableIndex = lastestIndex
@@ -829,9 +828,19 @@ function getTableEditActionsStr() {
  * @param {*} chat 聊天对象
  */
 function replaceTableEditTag(chat, newContent) {
-    chat.mes = chat.mes.replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>${newContent}</tableEdit>`)
-    chat.swipes[chat.swipe_id] = chat.swipes[chat.swipe_id].replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>\n${newContent}\n</tableEdit>`)
-    getContext().saveChat()
+    // 处理 mes
+    if (/<tableEdit>.*?<\/tableEdit>/gs.test(chat.mes)) {
+        chat.mes = chat.mes.replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>${newContent}</tableEdit>`);
+    } else {
+        chat.mes += `\n<tableEdit>${newContent}</tableEdit>`;
+    }
+    // 处理 swipes
+    if (/<tableEdit>.*?<\/tableEdit>/gs.test(chat.swipes[chat.swipe_id])) {
+        chat.swipes[chat.swipe_id] = chat.swipes[chat.swipe_id].replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>\n${newContent}\n</tableEdit>`);
+    } else {
+        chat.swipes[chat.swipe_id] += `\n<tableEdit>\n${newContent}\n</tableEdit>`;
+    }
+    getContext().saveChat();
 }
 
 /**
