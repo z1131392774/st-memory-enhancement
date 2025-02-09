@@ -732,7 +732,6 @@ function ParseFunctionParams(str) {
     let matches = argsStr.match(argRegex) || [];
     matches = matches.map(arg => {
         if (/^{.*}$/.test(arg)) {
-            console.log(arg)
             return handleJsonStr(arg); // 替换单引号为双引号后解析对象
         } else if (/^\d+$/.test(arg)) {
             return Number(arg); // 解析数字
@@ -835,11 +834,12 @@ function replaceTableEditTag(chat, newContent) {
         chat.mes += `\n<tableEdit>${newContent}</tableEdit>`;
     }
     // 处理 swipes
-    if (/<tableEdit>.*?<\/tableEdit>/gs.test(chat.swipes[chat.swipe_id])) {
-        chat.swipes[chat.swipe_id] = chat.swipes[chat.swipe_id].replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>\n${newContent}\n</tableEdit>`);
-    } else {
-        chat.swipes[chat.swipe_id] += `\n<tableEdit>\n${newContent}\n</tableEdit>`;
-    }
+    if (chat.swipes != null && chat.swipe_id != null)
+        if (/<tableEdit>.*?<\/tableEdit>/gs.test(chat.swipes[chat.swipe_id])) {
+            chat.swipes[chat.swipe_id] = chat.swipes[chat.swipe_id].replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>\n${newContent}\n</tableEdit>`);
+        } else {
+            chat.swipes[chat.swipe_id] += `\n<tableEdit>\n${newContent}\n</tableEdit>`;
+        }
     getContext().saveChat();
 }
 
