@@ -7,7 +7,7 @@ import {
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 
-const VERSION = '1.1.2'
+const VERSION = '1.1.21'
 
 let waitingTable = null
 let waitingTableIndex = null
