@@ -7,7 +7,7 @@ import {
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 
-const VERSION = '1.1.21'
+const VERSION = '1.1.22'
 
 let waitingTable = null
 let waitingTableIndex = null
@@ -815,11 +815,8 @@ function dryRunExecuteTableEditTag() {
  * @returns 生成的操作函数字符串
  */
 function getTableEditActionsStr() {
-    return `
-    <!--
-    ${tableEditActions.filter(action => action.able && action.type !== 'Comment').map(tableEditAction => tableEditAction.format()).join('\n')}
-    -->
-    `
+    const tableEditActionsStr = tableEditActions.filter(action => action.able && action.type !== 'Comment').map(tableEditAction => tableEditAction.format()).join('\n')
+    return "\n<!--\n" + (tableEditActionsStr === '' ? '' : (tableEditActionsStr + '\n')) + '-->\n'
 }
 
 /**
@@ -838,7 +835,7 @@ function replaceTableEditTag(chat, newContent) {
         if (/<tableEdit>.*?<\/tableEdit>/gs.test(chat.swipes[chat.swipe_id])) {
             chat.swipes[chat.swipe_id] = chat.swipes[chat.swipe_id].replace(/<tableEdit>(.*?)<\/tableEdit>/gs, `<tableEdit>\n${newContent}\n</tableEdit>`);
         } else {
-            chat.swipes[chat.swipe_id] += `\n<tableEdit>\n${newContent}\n</tableEdit>`;
+            chat.swipes[chat.swipe_id] += `\n<tableEdit>${newContent}</tableEdit>`;
         }
     getContext().saveChat();
 }
@@ -955,6 +952,7 @@ function getTableEditTag(mes) {
  */
 async function onMessageEdited(this_edit_mes_id) {
     const chat = getContext().chat[this_edit_mes_id]
+    if (chat.is_user === true) return
     handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
 }
 
