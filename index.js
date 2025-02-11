@@ -1082,7 +1082,7 @@ function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
 async function onDeleteRow() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
     const button = { text: '直接修改', result: 3 }
-    const result = await callGenericPopup("请选择删除方式", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
+    const result = await callGenericPopup("请选择删除方式<br/>注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
     if (result) {
         // 伪装修改
         if (result !== 3) {
@@ -1110,7 +1110,7 @@ async function onModifyCell() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
     const cellValue = table.getCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex)
     const button = { text: '直接修改', result: 3 }
-    const tableEditPopup = new Popup("", POPUP_TYPE.INPUT, cellValue, { okButton: "伪装为AI修改", cancelButton: "取消", customButtons: [button] });
+    const tableEditPopup = new Popup("注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", POPUP_TYPE.INPUT, cellValue, { okButton: "伪装为AI修改", cancelButton: "取消", customButtons: [button] });
     const newValue = await tableEditPopup.show()
     if (newValue) {
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
@@ -1192,7 +1192,7 @@ function addActionForInsert() {
 async function onInsertRow() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
     const button = { text: '直接插入', result: 3 }
-    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI插入", cancelButton: "取消", customButtons: [button] })
+    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部<br/>注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI插入", cancelButton: "取消", customButtons: [button] })
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     if (result) {
         // 伪装输出
@@ -1217,7 +1217,7 @@ async function onInsertRow() {
 async function onInsertFirstRow() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
     const button = { text: '直接插入', result: 3 }
-    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI插入", cancelButton: "取消", customButtons: [button] })
+    const result = await callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部<br/>注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI插入", cancelButton: "取消", customButtons: [button] })
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     if (result) {
         // 伪装输出
