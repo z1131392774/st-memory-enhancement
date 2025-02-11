@@ -631,9 +631,9 @@ class TableEditAction {
     format() {
         switch (this.type) {
             case 'Update':
-                return `updateRow(${this.tableIndex}, ${this.rowIndex}, ${JSON.stringify(this.data)})`
+                return `updateRow(${this.tableIndex}, ${this.rowIndex}, ${JSON.stringify(this.data).replace(/\\"/g, '"')})`
             case 'Insert':
-                return `insertRow(${this.tableIndex}, ${JSON.stringify(this.data)})`
+                return `insertRow(${this.tableIndex}, ${JSON.stringify(this.data).replace(/\\"/g, '"')})`
             case 'Delete':
                 return `deleteRow(${this.tableIndex}, ${this.rowIndex})`
             default:
@@ -786,7 +786,7 @@ function splitParams(paramStr) {
  * @returns
  */
 function handleJsonStr(str) {
-    const jsonStr = str.replace(/'/g, '"').replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":');
+    const jsonStr = str.replace(/:\s*"([^"]*?)"([^",}])/g, ': "$1\\"$2');
     return JSON.parse(jsonStr);
 }
 
@@ -1241,7 +1241,6 @@ async function onInsertFirstRow() {
  */
 async function onMessageSwiped(chat_id) {
     const chat = getContext().chat[chat_id];
-    console.log("滑动", chat)
     handleEditStrInMessage(chat)
 }
 
