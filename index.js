@@ -588,6 +588,7 @@ class TableEditAction {
 
     AssignParams() {
         for (const paramIndex in this.params) {
+            console.log("参数", this.params)
             if (typeof this.params[paramIndex] === 'number')
                 switch (paramIndex) {
                     case '0':
@@ -599,6 +600,10 @@ class TableEditAction {
                     default:
                         break
                 }
+            else if (typeof this.params[paramIndex] === 'string') {
+                // 暂时处理第二位参数为undefined的情况
+                if (paramIndex == 1) this.rowIndex = 0
+            }
             else if (typeof this.params[paramIndex] === 'object' && this.params[paramIndex] !== null) {
                 this.data = this.params[paramIndex]
             }
@@ -715,7 +720,7 @@ function isTableEditFunction(str) {
     if (str.startsWith("insert(") || str.startsWith("insertRow(")) type = 'Insert'
     if (str.startsWith("delete(") || str.startsWith("deleteRow(")) type = 'Delete'
     if (str.startsWith("update(") || str.startsWith("insert(") || str.startsWith("delete(")) editErrorInfo.functionNameError = true
-    if (type !== 'Comment') newFunctionStr = str.replace(/^(update|insert|delete|insertRow|deleteRow|updateRow)\s*/, '').trim()
+    if (type !== 'Comment') newFunctionStr = str.replace(/^(insertRow|deleteRow|updateRow|update|insert|delete)\s*/, '').trim()
     return { type, newFunctionStr }
 }
 
@@ -725,12 +730,11 @@ function isTableEditFunction(str) {
  * @returns 参数数组
  */
 function ParseFunctionParams(str) {
-    const argsStr = str.trim().replace(/^\(|\)$/g, '');
-
+    console.log("开始", str)
+    const paramStr = str.trim().replace(/^\(|\)$/g, '');
+    const params = splitParams(paramStr)
     // 使用正则表达式匹配对象、字符串、数字
-    const argRegex = /{[^{}]*}|'[^']*'|"[^"]*"|\d+/g;
-    let matches = argsStr.match(argRegex) || [];
-    matches = matches.map(arg => {
+    const newParams = params.map(arg => {
         if (/^{.*}$/.test(arg)) {
             return handleJsonStr(arg); // 替换单引号为双引号后解析对象
         } else if (/^\d+$/.test(arg)) {
@@ -739,7 +743,44 @@ function ParseFunctionParams(str) {
             return arg.replace(/^['"]|['"]$/g, ''); // 去除字符串的引号
         }
     });
-    return matches
+    console.log("结束", newParams)
+    return newParams
+}
+
+/**
+ * 分割函数的参数部分
+ */
+function splitParams(paramStr) {
+    let params = [];
+    let current = "";
+    let inString = false;
+    let inObject = 0; // 追踪 `{}` 作用域
+    let quoteType = null;
+
+    for (let i = 0; i < paramStr.length; i++) {
+        let char = paramStr[i];
+        // 处理字符串状态
+        if ((char === '"' || char === "'") && paramStr[i - 1] !== '\\') {
+            if (!inString) {
+                inString = true;
+                quoteType = char;
+            } else if (char === quoteType) {
+                inString = false;
+            }
+        }
+        // 处理对象 `{}` 作用域
+        if (char === '{' && !inString) inObject++;
+        if (char === '}' && !inString) inObject--;
+        // 遇到 `,` 只有在不在字符串和对象里的时候才分割
+        if (char === ',' && !inString && inObject === 0) {
+            params.push(current.trim());
+            current = "";
+        } else {
+            current += char;
+        }
+    }
+    if (current.trim()) params.push(current.trim()); // 最后一个参数
+    return params;
 }
 
 /**
