@@ -588,7 +588,6 @@ class TableEditAction {
 
     AssignParams() {
         for (const paramIndex in this.params) {
-            console.log("参数", this.params)
             if (typeof this.params[paramIndex] === 'number')
                 switch (paramIndex) {
                     case '0':
@@ -602,7 +601,7 @@ class TableEditAction {
                 }
             else if (typeof this.params[paramIndex] === 'string') {
                 // 暂时处理第二位参数为undefined的情况
-                if (paramIndex == 1) this.rowIndex = 0
+                if (paramIndex == '1') this.rowIndex = 0
             }
             else if (typeof this.params[paramIndex] === 'object' && this.params[paramIndex] !== null) {
                 this.data = this.params[paramIndex]
@@ -730,7 +729,6 @@ function isTableEditFunction(str) {
  * @returns 参数数组
  */
 function ParseFunctionParams(str) {
-    console.log("开始", str)
     const paramStr = str.trim().replace(/^\(|\)$/g, '');
     const params = splitParams(paramStr)
     // 使用正则表达式匹配对象、字符串、数字
@@ -743,7 +741,6 @@ function ParseFunctionParams(str) {
             return arg.replace(/^['"]|['"]$/g, ''); // 去除字符串的引号
         }
     });
-    console.log("结束", newParams)
     return newParams
 }
 
@@ -1239,6 +1236,15 @@ async function onInsertFirstRow() {
     }
 }
 
+/**
+ * 滑动切换消息事件
+ */
+async function onMessageSwiped(chat_id) {
+    const chat = getContext().chat[chat_id];
+    console.log("滑动", chat)
+    handleEditStrInMessage(chat)
+}
+
 async function updateTablePlugin() {
 
 }
@@ -1344,4 +1350,5 @@ jQuery(async () => {
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
+    eventSource.on(event_types.MESSAGE_SWIPED, onMessageSwiped);
 });
