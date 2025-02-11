@@ -6,7 +6,7 @@ import {
 } from '../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
-
+import JSON5 from './index.min.mjs'
 const VERSION = '1.1.22'
 
 let waitingTable = null
@@ -786,8 +786,8 @@ function splitParams(paramStr) {
  * @returns
  */
 function handleJsonStr(str) {
-    const jsonStr = str.replace(/:\s*"([^"]*?)"([^",}])/g, ': "$1\\"$2');
-    return JSON.parse(jsonStr);
+    //const jsonStr = str.replace(/:\s*"([^"]*?)"([^",}])/g, ': "$1\\"$2');
+    return JSON5.parse(str);
 }
 
 /**
