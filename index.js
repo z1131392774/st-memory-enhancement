@@ -786,8 +786,10 @@ function splitParams(paramStr) {
  * @returns
  */
 function handleJsonStr(str) {
-    //const jsonStr = str.replace(/:\s*"([^"]*?)"([^",}])/g, ': "$1\\"$2');
-    return JSON5.parse(str);
+    const jsonStr = str.replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":')
+    console.log("asasasa",str);
+    
+    return JSON5.parse(jsonStr);
 }
 
 /**
