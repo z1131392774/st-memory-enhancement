@@ -263,12 +263,12 @@ function getEmptyTablePrompt(Required, node) {
  * @returns 
  */
 function getTableEditRules(structure, isEmpty) {
-    if (structure.Required && isEmpty) return '【增删改触发条件】\n插入：' + structure.initNode + '\n'
+    if (structure.Required && isEmpty) return '【增删改触发条件】\n插入：' + replaceUserTag(structure.initNode) + '\n'
     else {
         let editRules = '【增删改触发条件】\n'
-        if (structure.insertNode) editRules += ('插入：' + structure.insertNode + '\n')
-        if (structure.updateNode) editRules += ('更新：' + structure.updateNode + '\n')
-        if (structure.deleteNode) editRules += ('删除：' + structure.deleteNode + '\n')
+        if (structure.insertNode) editRules += ('插入：' + replaceUserTag(structure.insertNode) + '\n')
+        if (structure.updateNode) editRules += ('更新：' + replaceUserTag(structure.updateNode) + '\n')
+        if (structure.deleteNode) editRules += ('删除：' + replaceUserTag(structure.deleteNode) + '\n')
         return editRules
     }
 }
@@ -352,10 +352,10 @@ class Table {
     getTableText() {
         const structure = findTableStructureByIndex(this.tableIndex)
         if (!structure) return
-        const title = `* ${this.tableIndex}:${this.tableName}\n`
+        const title = `* ${this.tableIndex}:${replaceUserTag(this.tableName)}\n`
         const node = structure.note && structure.note !== '' ? '【说明】' + structure.note + '\n' : ''
-        const headers = "rowIndex," + this.columns.map((colName, index) => index + ':' + colName).join(',') + '\n'
-        const rows = this.content.length > 0 ? (this.content.map((row, index) => index + ',' + row.join(',')).join('\n') + '\n') : getEmptyTablePrompt(structure.Required, structure.initNode)
+        const headers = "rowIndex," + this.columns.map((colName, index) => index + ':' + replaceUserTag(colName)).join(',') + '\n'
+        const rows = this.content.length > 0 ? (this.content.map((row, index) => index + ',' + row.join(',')).join('\n') + '\n') : getEmptyTablePrompt(structure.Required, replaceUserTag(structure.initNode))
         return title + node + '【表格内容】\n' + headers + rows + getTableEditRules(structure, this.content.length == 0) + '\n'
     }
 
@@ -399,7 +399,6 @@ class Table {
             row[key] = handleCellValue(value)
             this.updatedRows.push(`${rowIndex}-${key}`)
         })
-
     }
 
     /**
@@ -468,7 +467,7 @@ class Table {
         container.classList.add('justifyLeft')
         container.classList.add('scrollable')
         const title = document.createElement('h3')
-        title.innerText = this.tableName
+        title.innerText = replaceUserTag(this.tableName)
         const table = document.createElement('table')
         if (userTableEditInfo.editAble) {
             $(table).on('click', 'td', onTdClick)
@@ -480,7 +479,7 @@ class Table {
         this.columns.forEach(colName => {
             const th = document.createElement('th')
             $(th).data("tableData", this.tableIndex + '-0-0')
-            th.innerText = colName
+            th.innerText = replaceUserTag(colName)
             titleTr.appendChild(th)
         })
         thead.appendChild(titleTr)
@@ -508,6 +507,13 @@ class Table {
 }
 
 async function onChatChanged() {
+}
+
+/**
+ * 替换字符串中的user标签
+ */
+function replaceUserTag(str) {
+    return str.replace(/<user>/g, getContext().name1)
 }
 
 /**
@@ -787,8 +793,8 @@ function splitParams(paramStr) {
  */
 function handleJsonStr(str) {
     const jsonStr = str.replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":')
-    console.log("asasasa",str);
-    
+    console.log("asasasa", str);
+
     return JSON5.parse(jsonStr);
 }
 
@@ -1243,6 +1249,7 @@ async function onInsertFirstRow() {
  */
 async function onMessageSwiped(chat_id) {
     const chat = getContext().chat[chat_id];
+    console.log("滑动", chat)
     handleEditStrInMessage(chat)
 }
 
