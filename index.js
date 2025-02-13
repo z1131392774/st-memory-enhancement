@@ -7,7 +7,7 @@ import {
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 import JSON5 from './index.min.mjs'
-const VERSION = '1.1.3'
+const VERSION = '1.1.31'
 
 let waitingTable = null
 let waitingTableIndex = null
@@ -1025,6 +1025,7 @@ async function onMessageEdited(this_edit_mes_id) {
 async function onMessageReceived(chat_id) {
     if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[chat_id];
+    console.log("收到消息", chat_id)
     handleEditStrInMessage(chat)
 }
 
@@ -1272,7 +1273,7 @@ async function onInsertFirstRow() {
 async function onMessageSwiped(chat_id) {
     if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[chat_id];
-    console.log("滑动", chat)
+    if (!chat.swipe_info[chat.swipe_id]) return
     handleEditStrInMessage(chat)
 }
 
