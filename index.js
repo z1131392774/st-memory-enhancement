@@ -95,7 +95,8 @@ insertRow(4, {0: '惠惠/悠悠', 1: '惠惠向悠悠表白', 2: '2021-10-01', 3
             tableName: '重要物品表格', tableIndex: 5, columns: ['拥有人', '物品描述', '物品名', '重要原因'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, note: '对某人很贵重或有特殊纪念意义的物品',
             insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
         },
-    ]
+    ],
+    isExtensionAble: true,
 };
 
 /**
@@ -126,6 +127,20 @@ function loadSettings() {
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
+    updateSwitch()
+}
+
+/**
+ * 更新设置中的开关状态
+ */
+function updateSwitch() {
+    if (extension_settings.muyoo_dataTable.isExtensionAble) {
+        $("#table_switch .table-toggle-on").show()
+        $("#table_switch .table-toggle-off").hide()
+    } else {
+        $("#table_switch .table-toggle-on").hide()
+        $("#table_switch .table-toggle-off").show()
+    }
 }
 
 /**
@@ -943,7 +958,7 @@ function getMesRole() {
  * @returns 
  */
 async function onChatCompletionPromptReady(eventData) {
-    if (eventData.dryRun === true) return
+    if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const promptContent = initTableData()
     eventData.chat.splice(extension_settings.muyoo_dataTable.deep, 0, { role: getMesRole(), content: promptContent })
     /* console.log("dryRun", eventData.dryRun)
@@ -997,8 +1012,8 @@ function getTableEditTag(mes) {
  * @param this_edit_mes_id 此消息的ID
  */
 async function onMessageEdited(this_edit_mes_id) {
+    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[this_edit_mes_id]
-    if (chat.is_user === true) return
     handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
 }
 
@@ -1007,6 +1022,7 @@ async function onMessageEdited(this_edit_mes_id) {
  * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[chat_id];
     handleEditStrInMessage(chat)
 }
@@ -1052,7 +1068,10 @@ async function openTablePopup(mesId = -1) {
 function setTableEditTips(tableEditTips) {
     const tips = $(tableEditTips)
     tips.empty()
-    if (userTableEditInfo.editAble) {
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false) {
+        tips.append('目前插件已关闭，将不会要求AI更新表格。')
+        tips.css("color", "rgb(211 39 39)")
+    } else if (userTableEditInfo.editAble) {
         tips.append('你可以在此页面上编辑表格，只需要点击你想编辑的单元格即可。绿色单元格为本轮插入的单元格，蓝色单元格为本轮修改的单元格。')
         tips.css("color", "lightgreen")
     } else {
@@ -1248,6 +1267,7 @@ async function onInsertFirstRow() {
  * 滑动切换消息事件
  */
 async function onMessageSwiped(chat_id) {
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[chat_id];
     console.log("滑动", chat)
     handleEditStrInMessage(chat)
@@ -1354,7 +1374,18 @@ jQuery(async () => {
     $("#open_table").on('click', () => openTablePopup());
     $("#reset_settings").on('click', () => resetSettings());
     $("#table_update_button").on('click', updateTablePlugin);
-    eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
+    $(".table-toggle-on").on('click', () => {
+        extension_settings.muyoo_dataTable.isExtensionAble = false;
+        updateSwitch()
+        saveSettingsDebounced();
+        toastr.success('插件已关闭，可以打开和编辑表格但不会要求AI生成');
+    })
+    $(".table-toggle-off").on('click', () => {
+        extension_settings.muyoo_dataTable.isExtensionAble = true;
+        updateSwitch()
+        saveSettingsDebounced();
+        toastr.success('插件已开启');
+    })
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
