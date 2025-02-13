@@ -1055,9 +1055,11 @@ async function openTablePopup(mesId = -1) {
     // 拷贝粘贴
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
     const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
+    const clearTableButton = tablePopup.dlg.querySelector('#clear_table_button');
     if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
     else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
     copyTableButton.addEventListener('click', () => copyTable(tables))
+    clearTableButton.addEventListener('click', () => clearTable(index, tableContainer))
     await tablePopup.show()
 }
 
@@ -1308,6 +1310,22 @@ async function pasteTable(mesId, tableContainer) {
         } else {
             toastr.error("粘贴失败：剪切板没有表格数据")
         }
+    }
+}
+
+/**
+ * 清空表格
+ * @param {number} mesId 需要清空表格的消息id
+ * @param {Element} tableContainer 表格容器DOM
+ */
+async function clearTable(mesId, tableContainer) {
+    if (mesId === -1) return
+    const confirmation = await callGenericPopup('清空此条的所有表格数据，是否继续？', POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    if (confirmation) {
+        const emptyTable = initAllTable()
+        getContext().chat[mesId].dataTable = emptyTable
+        renderTablesDOM(emptyTable, tableContainer, true)
+        toastr.success('清空成功')
     }
 }
 
