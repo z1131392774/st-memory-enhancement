@@ -528,6 +528,7 @@ async function onChatChanged() {
  * 替换字符串中的user标签
  */
 function replaceUserTag(str) {
+    if (str == null) return
     return str.replace(/<user>/g, getContext().name1)
 }
 
