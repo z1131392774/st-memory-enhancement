@@ -7,7 +7,7 @@ import {
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 import JSON5 from './index.min.mjs'
-const VERSION = '1.1.23'
+const VERSION = '1.1.3'
 
 let waitingTable = null
 let waitingTableIndex = null
