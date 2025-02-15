@@ -1013,8 +1013,8 @@ function getTableEditTag(mes) {
  * @param this_edit_mes_id 此消息的ID
  */
 async function onMessageEdited(this_edit_mes_id) {
-    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[this_edit_mes_id]
+    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
     handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
 }
 
