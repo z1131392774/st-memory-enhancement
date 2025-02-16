@@ -962,12 +962,16 @@ function getMesRole() {
  * @returns 
  */
 async function onChatCompletionPromptReady(eventData) {
-    if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
-    const promptContent = initTableData()
-    if (extension_settings.muyoo_dataTable.deep === 0)
-        eventData.chat.push({ role: getMesRole(), content: promptContent })
-    else
-        eventData.chat.splice(-extension_settings.muyoo_dataTable.deep, 0, { role: getMesRole(), content: promptContent })
+    try {
+        if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
+        const promptContent = initTableData()
+        if (extension_settings.muyoo_dataTable.deep === 0)
+            eventData.chat.push({ role: getMesRole(), content: promptContent })
+        else
+            eventData.chat.splice(-extension_settings.muyoo_dataTable.deep, 0, { role: getMesRole(), content: promptContent })
+    } catch (error) {
+        toastr.error("记忆插件：表格数据注入失败\n原因：", error.message)
+    }
     console.log("注入表格总体提示词", eventData.chat)
     /* console.log("dryRun", eventData.dryRun)
     console.log("chatCompletionPromptReady", promptManager)
@@ -1029,7 +1033,11 @@ function getTableEditTag(mes) {
 async function onMessageEdited(this_edit_mes_id) {
     const chat = getContext().chat[this_edit_mes_id]
     if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
-    handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
+    try {
+        handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
+    } catch (error) {
+        toastr.error("记忆插件：表格编辑失败\n原因：", error.message)
+    }
 }
 
 /**
@@ -1040,7 +1048,11 @@ async function onMessageReceived(chat_id) {
     if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[chat_id];
     console.log("收到消息", chat_id)
-    handleEditStrInMessage(chat)
+    try {
+        handleEditStrInMessage(chat)
+    } catch (error) {
+        toastr.error("记忆插件：表格自动更改失败\n原因：", error.message)
+    }
 }
 
 /**
@@ -1288,7 +1300,11 @@ async function onMessageSwiped(chat_id) {
     if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const chat = getContext().chat[chat_id];
     if (!chat.swipe_info[chat.swipe_id]) return
-    handleEditStrInMessage(chat)
+    try {
+        handleEditStrInMessage(chat)
+    } catch (error) {
+        toastr.error("记忆插件：swipe切换失败\n原因：", error.message)
+    }
 }
 
 async function updateTablePlugin() {
@@ -1387,7 +1403,7 @@ jQuery(async () => {
             const messageId = $(this).closest('.mes').attr('mesid');
             openTablePopup(parseInt(messageId));
         } catch (err) {
-            console.error('Failed to copy: ', err);
+            console.error('Failed to copy: ', err.message);
         }
     });
     loadSettings();
