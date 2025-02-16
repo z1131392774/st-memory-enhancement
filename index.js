@@ -33,7 +33,7 @@ const editErrorInfo = {
  */
 const defaultSettings = {
     injection_mode: 'deep_system',
-    deep: -2,
+    deep: 2,
     message_template: `# dataTable表格
 dataTable是一个用于储存故事数据的csv格式表格，可以作为你推演下文的重要参考。推演的下文可以在表格基础上做出发展，并影响表格。
 ## A. 表格说明及数据
@@ -124,6 +124,7 @@ function loadSettings() {
         if (extension_settings.muyoo_dataTable.deep === -3) extension_settings.muyoo_dataTable.deep = -2
         extension_settings.muyoo_dataTable.updateIndex = 1
     }
+    if (extension_settings.muyoo_dataTable.deep < 0) formatDeep()
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
@@ -963,7 +964,11 @@ function getMesRole() {
 async function onChatCompletionPromptReady(eventData) {
     if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
     const promptContent = initTableData()
-    eventData.chat.splice(extension_settings.muyoo_dataTable.deep, 0, { role: getMesRole(), content: promptContent })
+    if (extension_settings.muyoo_dataTable.deep === 0)
+        eventData.chat.push({ role: getMesRole(), content: promptContent })
+    else
+        eventData.chat.splice(-extension_settings.muyoo_dataTable.deep, 0, { role: getMesRole(), content: promptContent })
+    console.log("注入表格总体提示词", eventData.chat)
     /* console.log("dryRun", eventData.dryRun)
     console.log("chatCompletionPromptReady", promptManager)
     const prompts = promptManager.getPromptCollection();
@@ -976,6 +981,13 @@ async function onChatCompletionPromptReady(eventData) {
     if (false === eventData.dryRun) promptManager.render(false)
     const realIndex = getRealIndexInCollectionInDryRun('tableData', promptManager.messages.collection)
     eventData.chat.splice(realIndex, 0, { role: "system", content: promptContent }) */
+}
+
+/**
+ * 格式化深度设置
+ */
+function formatDeep() {
+    extension_settings.muyoo_dataTable.deep = Math.abs(extension_settings.muyoo_dataTable.deep)
 }
 
 
@@ -1390,7 +1402,7 @@ jQuery(async () => {
     })
     $('#dataTable_deep').on("input", function () {
         const value = $(this).val();
-        extension_settings.muyoo_dataTable.deep = value;
+        extension_settings.muyoo_dataTable.deep = Math.abs(value);
         saveSettingsDebounced();
     })
     $("#open_table").on('click', () => openTablePopup());
