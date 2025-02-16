@@ -370,8 +370,9 @@ class Table {
         const title = `* ${this.tableIndex}:${replaceUserTag(this.tableName)}\n`
         const node = structure.note && structure.note !== '' ? '【说明】' + structure.note + '\n' : ''
         const headers = "rowIndex," + this.columns.map((colName, index) => index + ':' + replaceUserTag(colName)).join(',') + '\n'
-        const rows = this.content.length > 0 ? (this.content.map((row, index) => index + ',' + row.join(',')).join('\n') + '\n') : getEmptyTablePrompt(structure.Required, replaceUserTag(structure.initNode))
-        return title + node + '【表格内容】\n' + headers + rows + getTableEditRules(structure, this.content.length == 0) + '\n'
+        const newContent = this.content.filter(Boolean)
+        const rows = newContent.length > 0 ? (newContent.map((row, index) => index + ',' + row.join(',')).join('\n') + '\n') : getEmptyTablePrompt(structure.Required, replaceUserTag(structure.initNode))
+        return title + node + '【表格内容】\n' + headers + rows + getTableEditRules(structure, newContent.length == 0) + '\n'
     }
 
     /**
@@ -840,6 +841,7 @@ function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     const { tables, index: lastestIndex } = findLastestTableData(false, mesIndex)
     waitingTableIndex = lastestIndex
     waitingTable = copyTableList(tables)
+    clearEmpty()
     // 对最近的表格执行操作
     tableEditActions = functionList.map(functionStr => new TableEditAction(functionStr))
     dryRunExecuteTableEditTag()
