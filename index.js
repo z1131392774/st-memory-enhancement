@@ -1396,7 +1396,7 @@ jQuery(async () => {
         if (res.success) {
             if (!res.isLatest) $("#tableUpdateTag").show()
             if (res.toastr) toastr.warning(res.toastrText)
-            if (res.message) $("#table_message_tip").text(res.message)
+            if (res.message) $("#table_message_tip").html(res.message)
         }
     })
     const html = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'index');
