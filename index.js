@@ -847,6 +847,12 @@ function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     clearEmpty()
     // 对最近的表格执行操作
     tableEditActions = functionList.map(functionStr => new TableEditAction(functionStr))
+    // 临时措施-4，5号表格禁止更新，替换为插入
+    tableEditActions.forEach(action => {
+        if (action.tableIndex === 4 || action.tableIndex === 5) {
+            action.type = 'Insert'
+        }
+    })
     dryRunExecuteTableEditTag()
     return true
 }
