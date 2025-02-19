@@ -7,7 +7,7 @@ import {
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 import JSON5 from './index.min.mjs'
-const VERSION = '1.1.41'
+const VERSION = '1.1.42'
 
 let waitingTable = null
 let waitingTableIndex = null
@@ -863,12 +863,6 @@ function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     clearEmpty()
     // 对最近的表格执行操作
     tableEditActions = functionList.map(functionStr => new TableEditAction(functionStr))
-    // 临时措施-4，5号表格禁止更新，替换为插入
-    tableEditActions.forEach(action => {
-        if (action.tableIndex === 4 || action.tableIndex === 5) {
-            action.type = 'Insert'
-        }
-    })
     dryRunExecuteTableEditTag()
     return true
 }
