@@ -34,40 +34,54 @@ const editErrorInfo = {
 const defaultSettings = {
     injection_mode: 'deep_system',
     deep: 2,
-    message_template: `# dataTable表格
-dataTable是一个用于储存故事数据的csv格式表格，可以作为你推演下文的重要参考。推演的下文可以在表格基础上做出发展，并影响表格。
-## A. 表格说明及数据
-你可以在这里查看所有的表格数据，以及表格的说明和修改表格的触发条件。表格中表名格式为[tableIndex:表名]例如[2:角色特征表格];列名的格式为[colIndex:列名]例如[2:示例列];行名的格式为[rowIndex]。
-{{tableData}}
-# 增删改dataTable操作方法
-当你生成正文后，根据前面所列的增删改触发条件，如果判断数据dataTable中的内容需要增删改，则使用这里的操作方法进行。
-注意：
-1. 当用户要求修改表格时，用户要求的优先级最高。
-2. 使用insertRow函数插入行时，应上帝视角填写所有列，禁止写成未知或者空值。
-3. 单元格中，不要出现逗号，语义分割应使用/代替。
-4. 字符串类型中，禁止出现双引号。
+    message_template: `# dataTable表格的含义：
+-dataTable是一个用于储存数据与状态的csv格式表格，可以作为你生成下文的重要参考。
+-新生成的下文可以在表格基础上做出发展，并影响表格。
+# 表格说明及数据：
+-你可以在这里查看所有的表格数据，以及表格的说明和修改表格的触发条件。
+-表格中表名格式为[tableIndex:表名]
+-例如[2:角色特征表格];列名的格式为[colIndex:列名]
+-例如[2:示例列];行名的格式为[rowIndex]
 
-## 1. 在某个表格中插入新行，使用insertRow函数：
+{{tableData}}
+
+# 增删改dataTable操作方法：
+当你生成正文后，根据【增删改触发条件】，如果判断数据dataTable中的内容需要增删改，则使用下面的规则(OperateRule)进行。
+
+# Improtant：以下规则非常重要，必须严格遵守
+<OperateRule>
+-在某个表格中插入新行时，使用insertRow函数：
 insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
-例如：insertRow(0, {0: "2021-10-01", 1: "12:00", 2: "教室", 3: "悠悠"})
+例如：insertRow(0, {0: "2021-09-01", 1: "12:00", 2: "阳台", 3: "小花"})
 注意：请检查data:{[colIndex:number]:string|number}参数是否包含所有的colIndex，且禁止填写为未知。
-## 2. 在某个表格中删除行，使用deleteRow函数：
+-在某个表格中删除行时，使用deleteRow函数：
 deleteRow(tableIndex:number, rowIndex:number)
 例如：deleteRow(0, 0)
-## 3. 在某个表格中更新行，使用updateRow函数：
+-在某个表格中更新行时，使用updateRow函数：
 updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
 例如：updateRow(0, 0, {3: "惠惠"})
+</OperateRule>
 
 你需要根据【增删改触发条件】对每个表格是否需要增删改进行检视，如果有需要增删改的表格，需要你在<tableEdit>标签中使用js的函数写法调用函数。
-注意：标签内需要使用<!-- -->标记进行注释
 
-输出示例：
+# Improtant：以下规则非常重要，必须严格遵守
+-当用户要求修改表格时，用户要求的优先级最高。
+-使用insertRow函数插入行时，应使用全知视角填写所有列，禁止填入未知或者空值。
+-单元格中不能出现逗号，语义分割应使用 / 。
+-string中，禁止出现双引号。
+-社交表格(tableIndex: 2)中禁止出现对user的态度。反面例子(绝对不能使用)：insertRow(2, {"0":"user","1":"未知","2":"无","3":"低"}) 
+-标签内必须使用<!-- -->标记进行注释
+
+# 输出示例：
 <tableEdit>
 <!--
-updateRow(0, 0, {3: "惠惠/悠悠"})
-insertRow(1, {0:"悠悠", 1:"身高170/体重60kg/身材娇小/黑色长发", 2:"开朗活泼", 3:"学生", 4:"打羽毛球", 5:"鬼灭之刃", 6:"宿舍", 7:"是运动部部长"})
-insertRow(2, {0:"悠悠", 1:"喜欢", 2:"依赖/喜欢", 3:"高"})
-insertRow(4, {0: "惠惠/悠悠", 1: "惠惠向悠悠表白", 2: "2021-10-01", 3: "教室",4:"感动"})
+insertRow(0, {"0":"十月","1":"冬天/下雪","2":"学校","3":"user/悠悠"})
+insertRow(1, {0:"悠悠", 1:"身高170/体重60kg/黑色长发", 2:"开朗活泼", 3:"学生", 4:"羽毛球", 5:"鬼灭之刃", 6:"宿舍", 7:"运动部部长"})
+insertRow(1, {0:"user", 1:"身高150/蓝色短发", 2:"忧郁", 3:"学生", 4:"篮球", 5:"咒术回战", 6:"自己家", 7:"学生会长"})
+insertRow(2, {0:"悠悠", 1:"同学", 2:"依赖/喜欢", 3:"高"})
+insertRow(3, {"0":"悠悠","1":"写作业","2":"教室","3":"三小时"})
+insertRow(4, {0: "user/悠悠", 1: "悠悠向user表白", 2: "2021-10-01", 3: "教室",4:"感动"})
+insertRow(5, {"0":"user","1":"社团赛奖品","2":"奖杯","3":"比赛第一名"})
 -->
 </tableEdit>
 `,
@@ -127,6 +141,7 @@ function loadSettings() {
         if (extension_settings.muyoo_dataTable.deep === -3) extension_settings.muyoo_dataTable.deep = -2
         extension_settings.muyoo_dataTable.updateIndex = 1
     }
+    extension_settings.muyoo_dataTable.updateIndex = 2
     if (extension_settings.muyoo_dataTable.deep < 0) formatDeep()
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
@@ -1042,7 +1057,7 @@ function getTableEditTag(mes) {
  */
 async function onMessageEdited(this_edit_mes_id) {
     const chat = getContext().chat[this_edit_mes_id]
-    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false ||extension_settings.muyoo_dataTable.isAiWriteTable === false) return
+    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiWriteTable === false) return
     try {
         handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
     } catch (error) {
