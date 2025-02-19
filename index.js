@@ -98,6 +98,8 @@ insertRow(4, {0: "惠惠/悠悠", 1: "惠惠向悠悠表白", 2: "2021-10-01", 3
         },
     ],
     isExtensionAble: true,
+    isAiReadTable: true,
+    isAiWriteTable: true,
 };
 
 /**
@@ -129,19 +131,19 @@ function loadSettings() {
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
-    updateSwitch()
+    updateSwitch("#table_switch", extension_settings.muyoo_dataTable.isExtensionAble)
+    updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
+    updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
 }
 
 /**
  * 更新设置中的开关状态
  */
-function updateSwitch() {
-    if (extension_settings.muyoo_dataTable.isExtensionAble) {
-        $("#table_switch .table-toggle-on").show()
-        $("#table_switch .table-toggle-off").hide()
+function updateSwitch(selector, switchValue) {
+    if (switchValue) {
+        $(selector).prop('checked', true);
     } else {
-        $("#table_switch .table-toggle-on").hide()
-        $("#table_switch .table-toggle-off").show()
+        $(selector).prop('checked', false);
     }
 }
 
@@ -971,7 +973,7 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
+        if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiReadTable === false) return
         const promptContent = initTableData()
         if (extension_settings.muyoo_dataTable.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
@@ -1040,7 +1042,7 @@ function getTableEditTag(mes) {
  */
 async function onMessageEdited(this_edit_mes_id) {
     const chat = getContext().chat[this_edit_mes_id]
-    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false) return
+    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false ||extension_settings.muyoo_dataTable.isAiWriteTable === false) return
     try {
         handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
     } catch (error) {
@@ -1053,7 +1055,7 @@ async function onMessageEdited(this_edit_mes_id) {
  * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
-    if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiWriteTable === false) return
     const chat = getContext().chat[chat_id];
     console.log("收到消息", chat_id)
     try {
@@ -1305,7 +1307,7 @@ async function onInsertFirstRow() {
  * 滑动切换消息事件
  */
 async function onMessageSwiped(chat_id) {
-    if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiWriteTable === false) return
     const chat = getContext().chat[chat_id];
     if (!chat.swipe_info[chat.swipe_id]) return
     try {
@@ -1429,21 +1431,52 @@ jQuery(async () => {
         extension_settings.muyoo_dataTable.deep = Math.abs(value);
         saveSettingsDebounced();
     })
+    // 打开表格
     $("#open_table").on('click', () => openTablePopup());
+    // 重置设置
     $("#reset_settings").on('click', () => resetSettings());
-    $("#table_update_button").on('click', updateTablePlugin);
-    $(".table-toggle-on").on('click', () => {
-        extension_settings.muyoo_dataTable.isExtensionAble = false;
-        updateSwitch()
-        saveSettingsDebounced();
-        toastr.success('插件已关闭，可以打开和编辑表格但不会要求AI生成');
-    })
-    $(".table-toggle-off").on('click', () => {
-        extension_settings.muyoo_dataTable.isExtensionAble = true;
-        updateSwitch()
-        saveSettingsDebounced();
-        toastr.success('插件已开启');
-    })
+    // 插件总体开关
+    $('#table_switch').change(function () {
+        if ($(this).prop('checked')) {
+            extension_settings.muyoo_dataTable.isExtensionAble = true;
+            updateSwitch("#table_switch", extension_settings.muyoo_dataTable.isExtensionAble)
+            saveSettingsDebounced();
+            toastr.success('插件已开启');
+        } else {
+            extension_settings.muyoo_dataTable.isExtensionAble = false;
+            updateSwitch("#table_switch", extension_settings.muyoo_dataTable.isExtensionAble)
+            saveSettingsDebounced();
+            toastr.success('插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
+        }
+    });
+    // 插件读表开关
+    $('#table_read_switch').change(function () {
+        if ($(this).prop('checked')) {
+            extension_settings.muyoo_dataTable.isAiReadTable = true;
+            updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
+            saveSettingsDebounced();
+            toastr.success('AI现在会读取表格');
+        } else {
+            extension_settings.muyoo_dataTable.isAiReadTable = false;
+            updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
+            saveSettingsDebounced();
+            toastr.success('AI现在将不会读表');
+        }
+    });
+    // 插件写表开关
+    $('#table_edit_switch').change(function () {
+        if ($(this).prop('checked')) {
+            extension_settings.muyoo_dataTable.isAiWriteTable = true;
+            updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
+            saveSettingsDebounced();
+            toastr.success('AI的更改现在会被写入表格');
+        } else {
+            extension_settings.muyoo_dataTable.isAiWriteTable = false;
+            updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
+            saveSettingsDebounced();
+            toastr.success('AI的更改现在不会被写入表格');
+        }
+    });
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
