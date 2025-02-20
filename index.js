@@ -34,27 +34,27 @@ const editErrorInfo = {
 const defaultSettings = {
     injection_mode: 'deep_system',
     deep: 2,
-    message_template: `# dataTable表格的含义：
--dataTable是一个用于储存数据与状态的csv格式表格，可以作为你生成下文的重要参考。
--新生成的下文可以在表格基础上做出发展，并影响表格。
-#表格说明及数据：
--你可以在这里查看所有的表格数据，以及表格的说明和修改表格的触发条件。
--表格中表名格式为[tableIndex:表名]
--例如[2:角色特征表格];列名的格式为[colIndex:列名]
--例如[2:示例列];行名的格式为[rowIndex]
+    message_template: `# dataTable 说明
+## 用途
+- dataTable是 CSV 格式表格，存储数据和状态，是你生成下文的重要参考。
+- 新生成的下文应基于 dataTable 发展，并允许更新表格。
+## 数据与格式
+- 你可以在这里查看所有的表格数据，相关说明和修改表格的触发条件。
+- 命名格式：
+    - 表名: [tableIndex:表名] (示例: [2:角色特征表格])
+    - 列名: [colIndex:列名] (示例: [2:示例列])
+    - 行名: [rowIndex]
 
 {{tableData}}
 
 # 增删改dataTable操作方法：
--你需要根据【增删改触发条件】对每个表格是否需要增删改进行检视，如果有需要增删改的表格，需要你在<tableEdit>标签中使用js的函数写法调用函数。
--当你生成正文后，根据【增删改触发条件】，如果判断数据dataTable中的内容需要增删改，则使用下面的规则(OperateRule)进行。
+-当你生成正文后，需要根据【增删改触发条件】对每个表格是否需要增删改进行检视。如需修改，请在<tableEdit>标签中使用 JavaScript 函数的写法调用函数，并使用下面的 OperateRule 进行。
 
-# Improtant：以下规则非常重要，必须严格遵守
+## 操作规则 (必须严格遵守)
 <OperateRule>
 -在某个表格中插入新行时，使用insertRow函数：
 insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
 例如：insertRow(0, {0: "2021-09-01", 1: "12:00", 2: "阳台", 3: "小花"})
-注意：请检查data:{[colIndex:number]:string|number}参数是否包含所有的colIndex，且禁止填写为未知。
 -在某个表格中删除行时，使用deleteRow函数：
 deleteRow(tableIndex:number, rowIndex:number)
 例如：deleteRow(0, 0)
@@ -63,23 +63,25 @@ updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|num
 例如：updateRow(0, 0, {3: "惠惠"})
 </OperateRule>
 
-# Improtant：以下规则必须严格遵守
--当用户要求修改表格时，用户要求的优先级最高。
--使用insertRow函数插入行时，应使用全知视角填写所有列，禁止填入未知或者空值。
--单元格中不能出现逗号，语义分割应使用 / 。
+# 重要操作原则 (必须遵守)
+-当<user>要求修改表格时，<user>的要求优先级最高。
+-每次回复都必须根据剧情在正确的位置进行增、删、改操作，禁止捏造信息和填入未知。
+-使用 insertRow 函数插入行时，请为所有已知的列提供对应的数据。且检查data:{[colIndex:number]:string|number}参数是否包含所有的colIndex。
+-单元格中禁止使用逗号，语义分割应使用 / 。
 -string中，禁止出现双引号。
--社交表格(tableIndex: 2)中禁止出现对<user>的态度。反面例子(绝对不能使用)：insertRow(2, {"0":"<user>","1":"未知","2":"无","3":"低"}) 
--标签内必须使用<!-- -->标记进行注释
+-社交表格(tableIndex: 2)中禁止出现对<user>的态度。反例 (禁止)：insertRow(2, {"0":"<user>","1":"未知","2":"无","3":"低"}) 
+-<tableEdit>标签内必须使用<!-- -->标记进行注释
 
 # 输出示例：
 <tableEdit>
 <!--
 insertRow(0, {"0":"十月","1":"冬天/下雪","2":"学校","3":"<user>/悠悠"})
-insertRow(1, {0:"悠悠", 1:"身高170/体重60kg/黑色长发", 2:"开朗活泼", 3:"学生", 4:"羽毛球", 5:"鬼灭之刃", 6:"宿舍", 7:"运动部部长"})
-insertRow(1, {0:"<user>", 1:"身高150/蓝色短发", 2:"忧郁", 3:"学生", 4:"唱歌", 5:"咒术回战", 6:"自己家", 7:"学生会长"})
+deleteRow(1, 2)
+insertRow(1, {0:"悠悠", 1:"体重60kg/黑色长发", 2:"开朗活泼", 3:"学生", 4:"羽毛球", 5:"鬼灭之刃", 6:"宿舍", 7:"运动部部长"})
+insertRow(1, {0:"<user>", 1:"制服/短发", 2:"忧郁", 3:"学生", 4:"唱歌", 5:"咒术回战", 6:"自己家", 7:"学生会长"})
 insertRow(2, {0:"悠悠", 1:"同学", 2:"依赖/喜欢", 3:"高"})
-insertRow(3, {"0":"悠悠","1":"写作业","2":"教室","3":"三小时"})
-insertRow(4, {0: "<user>/悠悠", 1: "悠悠向<user>表白", 2: "2021-10-01", 3: "教室",4:"感动"})
+updateRow(4, 1, {0: "小花", 1: "破坏表白失败", 2: "10月", 3: "学校",4:"愤怒"})
+insertRow(4, {0: "<user>/悠悠", 1: "悠悠向<user>表白", 2: "2021-10-05", 3: "教室",4:"感动"})
 insertRow(5, {"0":"<user>","1":"社团赛奖品","2":"奖杯","3":"比赛第一名"})
 -->
 </tableEdit>
@@ -140,7 +142,7 @@ function loadSettings() {
         if (extension_settings.muyoo_dataTable.deep === -3) extension_settings.muyoo_dataTable.deep = -2
         extension_settings.muyoo_dataTable.updateIndex = 1
     }
-    extension_settings.muyoo_dataTable.updateIndex = 2
+    extension_settings.muyoo_dataTable.updateIndex = 3
     if (extension_settings.muyoo_dataTable.deep < 0) formatDeep()
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
