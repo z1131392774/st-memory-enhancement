@@ -49,3 +49,37 @@ td.selected {
 #tableContainer {
     position: relative;
 }
+
+.dataTable_tableEditor_item {
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 5px;
+    border: rgba(0, 0, 0, 0.548);
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 10px;
+}
+
+.dataTable_tableEditor_item .checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.dataTable_tableEditor_item .menu_button{
+    white-space: nowrap;
+}
+
+.dataTable_tablePrompt_list textarea{
+    margin-bottom: 10px;
+}
+
+.dataTable_tablePrompt_list{
+    text-align: start;
+}
+.tableName_pole{
+    width: 100%;
+}

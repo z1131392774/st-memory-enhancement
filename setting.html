@@ -1,0 +1,27 @@
+<div class="wide100p padding5 dataBankAttachments">
+    <h2 class="marginBot5">
+        <span>
+            修改表格结构
+        </span>
+    </h2>
+    <div>
+        在这里可以调整表格的说明以及各种编辑操作的提示词
+    </div>
+    <div class="dataTable_tablePrompt_list">
+        <label>表格名</label>
+        <input type="text" id="dataTable_tableSetting_tableName" class="margin0 text_pole" style=" margin-bottom: 20px;"/>
+        <label>表格说明</label><small> (给AI解释此表格的作用)</small>
+        <textarea id="dataTable_tableSetting_note" class="wide100p" rows="2"></textarea>
+        <div class="checkbox flex-container" style="margin-bottom: 10px;">
+            <input type="checkbox" id="dataTable_tableSetting_required"><span>是否必填</span>
+        </div>
+        <label>初始化提示词</label><small> (当表格为必填表时，但是又为空时，给AI的提示)</small>
+        <textarea id="dataTable_tableSetting_initNode" class="wide100p" rows="2"></textarea>
+        <label>插入提示词</label><small> (解释什么时候应该插入行)</small>
+        <textarea id="dataTable_tableSetting_insertNode" class="wide100p" rows="2"></textarea>
+        <label>更新提示词</label><small> (解释什么时候应该更新行)</small>
+        <textarea id="dataTable_tableSetting_updateNode" class="wide100p" rows="2"></textarea>
+        <label>删除提示词</label><small> (解释什么时候应该删除行)</small>
+        <textarea id="dataTable_tableSetting_deleteNode" class="wide100p" rows="2"></textarea>
+    </div>
+</div>

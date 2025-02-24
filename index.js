@@ -1,13 +1,12 @@
 import {
     eventSource,
     event_types,
-    saveChat,
     saveSettingsDebounced,
 } from '../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 import JSON5 from './index.min.mjs'
-const VERSION = '1.1.42'
+const VERSION = '1.2.0'
 
 let waitingTable = null
 let waitingTableIndex = null
@@ -118,6 +117,42 @@ insertRow(5, {"0":"<user>","1":"社团赛奖品","2":"奖杯","3":"比赛第一�
 };
 
 /**
+ * 将表格结构转为设置DOM
+ * @param {object} tableStructure 表格结构
+ * @returns 设置DOM
+ */
+function tableStructureToSettingDOM(tableStructure) {
+    const tableIndex = tableStructure.tableIndex;
+    const $item = $('<div>', { class: 'dataTable_tableEditor_item' });
+    const $index = $('<div>').text(`#${tableIndex}`); // 编号
+    const $input = $('<div>', {
+        class: 'tableName_pole margin0',
+    });
+    $input.text(tableStructure.tableName);
+    const $checkboxLabel = $('<label>', { class: 'checkbox' });
+    const $checkbox = $('<input>', { type: 'checkbox', 'data-index': tableIndex, checked: tableStructure.enable, class: 'tableEditor_switch' });
+    $checkboxLabel.append($checkbox, '启用');
+    const $editButton = $('<div>', {
+        class: 'menu_button menu_button_icon fa-solid fa-pencil tableEditor_editButton',
+        title: '编辑',
+        'data-index': tableIndex, // 绑定索引
+    }).text('编辑');
+    $item.append($index, $input, $checkboxLabel, $editButton);
+    return $item;
+}
+
+/**
+ * 更新设置中的表格结构DOM
+ */
+function updateTableStructureDOM() {
+    const container = $('#dataTable_tableEditor_list');
+    container.empty();
+    extension_settings.muyoo_dataTable.tableStructure.forEach((tableStructure) => {
+        container.append(tableStructureToSettingDOM(tableStructure));
+    })
+}
+
+/**
  * 通过表格索引查找表格结构
  * @param {number} index 表格索引
  * @returns 此索引的表格结构
@@ -136,20 +171,26 @@ function loadSettings() {
             extension_settings.muyoo_dataTable[key] = defaultSettings[key];
         }
     }
-    extension_settings.muyoo_dataTable.message_template = defaultSettings.message_template
-    extension_settings.muyoo_dataTable.tableStructure = defaultSettings.tableStructure
-    if (!extension_settings.muyoo_dataTable.updateIndex) {
-        if (extension_settings.muyoo_dataTable.deep === -3) extension_settings.muyoo_dataTable.deep = -2
-        extension_settings.muyoo_dataTable.updateIndex = 1
+    if (extension_settings.muyoo_dataTable.updateIndex != 3) {
+        extension_settings.muyoo_dataTable.message_template = defaultSettings.message_template
+        extension_settings.muyoo_dataTable.tableStructure = defaultSettings.tableStructure
+        extension_settings.muyoo_dataTable.updateIndex = 3
     }
-    extension_settings.muyoo_dataTable.updateIndex = 3
     if (extension_settings.muyoo_dataTable.deep < 0) formatDeep()
+    renderSetting()
+}
+
+/**
+ * 渲染设置
+ */
+function renderSetting() {
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
     updateSwitch("#table_switch", extension_settings.muyoo_dataTable.isExtensionAble)
     updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
     updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
+    updateTableStructureDOM()
 }
 
 /**
@@ -161,6 +202,48 @@ function updateSwitch(selector, switchValue) {
     } else {
         $(selector).prop('checked', false);
     }
+}
+
+/**
+ * 导出插件设置
+ */
+function exportTableSet() {
+    const blob = new Blob([JSON.stringify(extension_settings.muyoo_dataTable)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a')
+    a.href = url;
+    a.download = `tableExtensionPrompt.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * 导入插件设置
+ */
+async function importTableSet(/**@type {FileList}*/files) {
+    for (let i = 0; i < files.length; i++) {
+        await importSingleTableSet(files.item(i))
+    }
+}
+
+async function importSingleTableSet(/**@type {File}*/file) {
+    try {
+        const text = await file.text()
+        const props = JSON.parse(text)
+        console.log(props)
+        if (props.message_template && props.tableStructure) {
+            extension_settings.muyoo_dataTable.tableStructure = props.tableStructure
+            extension_settings.muyoo_dataTable.message_template = props.message_template
+            extension_settings.muyoo_dataTable.deep = props.deep
+            extension_settings.muyoo_dataTable.injection_mode = props.injection_mode
+            saveSettingsDebounced()
+            renderSetting()
+            toastr.success('导入成功')
+        } else toastr.error('导入失败，非记忆插件预设')
+    } catch (e) {
+        toastr.error('导入失败，请检查文件格式')
+    }
+
 }
 
 /**
@@ -1076,6 +1159,45 @@ async function onMessageReceived(chat_id) {
 }
 
 /**
+ * 打开表格设置弹窗
+ * @param {number} tableIndex 表格索引
+ */
+async function openTableSettingPopup(tableIndex) {
+    const manager = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'setting');
+    const tableSettingPopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, allowVerticalScrolling: true });
+    const tableStructure = findTableStructureByIndex(tableIndex)
+    const $dlg = $(tableSettingPopup.dlg)
+    const $tableName = $dlg.find('#dataTable_tableSetting_tableName')
+    const $note = $dlg.find('#dataTable_tableSetting_note')
+    const $initNote = $dlg.find('#dataTable_tableSetting_initNode')
+    const $updateNode = $dlg.find('#dataTable_tableSetting_updateNode')
+    const $insertNode = $dlg.find('#dataTable_tableSetting_insertNode')
+    const $deleteNode = $dlg.find('#dataTable_tableSetting_deleteNode')
+    const $required = $dlg.find('#dataTable_tableSetting_required')
+    $tableName.val(tableStructure.tableName)
+    $note.val(tableStructure.note)
+    $initNote.val(tableStructure.initNode)
+    $updateNode.val(tableStructure.updateNode)
+    $insertNode.val(tableStructure.insertNode)
+    $deleteNode.val(tableStructure.deleteNode)
+    $required.prop('checked', tableStructure.Required);
+    const changeEvent = (name, value) => {
+        tableStructure[name] = value.trim()
+    }
+    $tableName.on('change', function () { changeEvent("tableName", $(this).val()) })
+    $note.on('change', function () { changeEvent("note", $(this).val()) })
+    $initNote.on('change', function () { changeEvent("initNode", $(this).val()) })
+    $updateNode.on('change', function () { changeEvent("updateNode", $(this).val()) })
+    $insertNode.on('change', function () { changeEvent("insertNode", $(this).val()) })
+    $deleteNode.on('change', function () { changeEvent("deleteNode", $(this).val()) })
+    $required.on('change', function () { tableStructure.Required = $(this).prop('checked') })
+    await tableSettingPopup.show()
+    console.log("保持", extension_settings.muyoo_dataTable.tableStructure)
+    saveSettingsDebounced()
+    renderSetting()
+}
+
+/**
  * 打开表格展示/编辑弹窗
  * @param {number} mesId 需要打开的消息ID，-1为最新一条
  */
@@ -1444,7 +1566,9 @@ jQuery(async () => {
     // 打开表格
     $("#open_table").on('click', () => openTablePopup());
     // 重置设置
-    $("#reset_settings").on('click', () => resetSettings());
+    $("#table-reset").on('click', () => resetSettings());
+    // 导出
+    $("#table-set-export").on('click', () => exportTableSet());
     // 插件总体开关
     $('#table_switch').change(function () {
         if ($(this).prop('checked')) {
@@ -1487,6 +1611,25 @@ jQuery(async () => {
             toastr.success('AI的更改现在不会被写入表格');
         }
     });
+    // 导入预设
+    const importFile = document.querySelector('#table-set-importFile');
+    importFile.addEventListener('change', async () => {
+        await importTableSet(importFile.files);
+        importFile.value = null;
+    });
+    $("#table-set-import").on('click', () => importFile.click());
+    // 设置表格编辑按钮
+    $(document).on('click', '.tableEditor_editButton', function () {
+        let index = $(this).data('index'); // 获取当前点击的索引
+        openTableSettingPopup(index)
+    })
+    // 设置表格开启开关
+    $(document).on('change', '.tableEditor_switch', function () {
+        let index = $(this).data('index'); // 获取当前点击的索引
+        const tableStructure = findTableStructureByIndex(index);
+        tableStructure.enable = $(this).prop('checked');
+        saveSettingsDebounced();
+    })
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
