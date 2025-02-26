@@ -15,9 +15,10 @@
 <div id="tablePreview"></div>
 <small>
     自定义表格的显示样式，当样式内容为空时默认显示原始表格。
-    <br>支持\$\w\s+的方式定位单元格，例如$B3代表第二列第三行。
+    <br>支持<code>\$\w\s+</code>的方式定位单元格，例如<code>$B1</code>代表第2列第1行。
+    <br>支持HTML标签，支持CSS样式。
 </small>
-<textarea id="htmlEditor"></textarea>
+<textarea id="htmlEditor" rows="5"></textarea>
 <h3 class="marginBot5"><span>结果预览:</span></h3>
 <div id="tableRendererDisplay"></div>
 
