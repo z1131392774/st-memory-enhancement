@@ -11,6 +11,7 @@ let tablePopup = null
 let copyTableData = null
 let selectedCell = null
 let tableEditActions = []
+let tableEditHistory = []
 const userTableEditInfo = {
     chatIndex: null,
     editAble: false,
@@ -84,27 +85,27 @@ insertRow(5, {"0":"<user>","1":"社团赛奖品","2":"奖杯","3":"比赛第一�
 `,
     tableStructure: [
         {
-            tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: "记录时空信息的表格，应保持在一行",
+            tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: false, note: "记录时空信息的表格，应保持在一行",
             initNode: '本轮需要记录当前时间、地点、人物信息，使用insertRow函数', updateNode: "当描写的场景，时间，人物变更时", deleteNode: "此表大于一行时应删除多余行"
         },
         {
-            tableName: '角色特征表格', tableIndex: 1, columns: ['角色名', '身体特征', '性格', '职业', '爱好', '喜欢的事物（作品、虚拟人物、物品等）', '住所', '其他重要信息'], enable: true, Required: true, asStatus: true, toChat: true, columnsIndex: [0, 1, 2, 3, 4, 5, 6, 7], note: '角色天生或不易改变的特征csv表格，思考本轮有否有其中的角色，他应作出什么反应',
+            tableName: '角色特征表格', tableIndex: 1, columns: ['角色名', '身体特征', '性格', '职业', '爱好', '喜欢的事物（作品、虚拟人物、物品等）', '住所', '其他重要信息'], enable: true, Required: true, asStatus: true, toChat: false, columnsIndex: [0, 1, 2, 3, 4, 5, 6, 7], note: '角色天生或不易改变的特征csv表格，思考本轮有否有其中的角色，他应作出什么反应',
             initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色的身体出现持久性变化时，例如伤痕/当角色有新的爱好，职业，喜欢的事物时/当角色更换住所时/当角色提到重要信息时", deleteNode: ""
         },
         {
-            tableName: '角色与<user>社交表格', tableIndex: 2, columns: ['角色名', '对<user>关系', '对<user>态度', '对<user>好感'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: '思考如果有角色和<user>互动，应什么态度',
+            tableName: '角色与<user>社交表格', tableIndex: 2, columns: ['角色名', '对<user>关系', '对<user>态度', '对<user>好感'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: false, note: '思考如果有角色和<user>互动，应什么态度',
             initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色和<user>的交互不再符合原有的记录时/当角色和<user>的关系改变时", deleteNode: ""
         },
         {
-            tableName: '任务、命令或者约定表格', tableIndex: 3, columns: ['角色', '任务', '地点', '持续时间'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: true, note: '思考本轮是否应该执行任务/赴约',
+            tableName: '任务、命令或者约定表格', tableIndex: 3, columns: ['角色', '任务', '地点', '持续时间'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: false, note: '思考本轮是否应该执行任务/赴约',
             insertNode: '当特定时间约定一起去做某事时/某角色收到做某事的命令或任务时', updateNode: "", deleteNode: "当大家赴约时/任务或命令完成时/任务，命令或约定被取消时"
         },
         {
-            tableName: '重要事件历史表格', tableIndex: 4, columns: ['角色', '事件简述', '日期', '地点', '情绪'], columnsIndex: [0, 1, 2, 3, 4], enable: true, Required: true, asStatus: true, toChat: true, note: '记录<user>或角色经历的重要事件',
+            tableName: '重要事件历史表格', tableIndex: 4, columns: ['角色', '事件简述', '日期', '地点', '情绪'], columnsIndex: [0, 1, 2, 3, 4], enable: true, Required: true, asStatus: true, toChat: false, note: '记录<user>或角色经历的重要事件',
             initNode: '本轮必须从上文寻找可以插入的事件并使用insertRow插入', insertNode: '当某个角色经历让自己印象深刻的事件时，比如表白、分手等', updateNode: "", deleteNode: ""
         },
         {
-            tableName: '重要物品表格', tableIndex: 5, columns: ['拥有人', '物品描述', '物品名', '重要原因'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: true, note: '对某人很贵重或有特殊纪念意义的物品',
+            tableName: '重要物品表格', tableIndex: 5, columns: ['拥有人', '物品描述', '物品名', '重要原因'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: false, note: '对某人很贵重或有特殊纪念意义的物品',
             insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
         },
     ],
@@ -924,9 +925,11 @@ function handleJsonStr(str) {
  * @returns
  */
 function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
-    if (!parseTableEditTag(chat, mesIndex, ignoreCheck)) return
+    if (!parseTableEditTag(chat, mesIndex, ignoreCheck)) {
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        return
+    }
     executeTableEditTag(chat, mesIndex)
-
     updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
 }
 
@@ -1065,7 +1068,9 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiReadTable === false) return
+
         const promptContent = initTableData()
         if (extension_settings.muyoo_dataTable.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
@@ -1167,7 +1172,7 @@ async function openTableRendererPopup() {
     const manager = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'renderer');
     const tableRendererPopup = new Popup(manager, POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const tableStructure = findTableStructureByIndex(_currentTableIndex);
-    const table = findLastestTableData().tables[_currentTableIndex];
+    const table = findLastestTableData(true).tables[_currentTableIndex];
     const $dlg = $(tableRendererPopup.dlg);
     const $htmlEditor = $dlg.find('#htmlEditor');
     const $tableRendererDisplay = $dlg.find('#tableRendererDisplay');
@@ -1233,6 +1238,7 @@ async function openTableSettingPopup(tableIndex) {
     console.log("保持", extension_settings.muyoo_dataTable.tableStructure);
     saveSettingsDebounced();
     renderSetting();
+    updateSystemMessageTableStatus();
 }
 
 /**
@@ -1335,6 +1341,7 @@ async function onDeleteRow() {
         }
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         getContext().saveChat()
         toastr.success('已删除')
     }
@@ -1362,6 +1369,7 @@ async function onModifyCell() {
             table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         getContext().saveChat()
         toastr.success('已修改')
     }
@@ -1443,6 +1451,7 @@ async function onInsertRow() {
             table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         getContext().saveChat()
         toastr.success('已插入')
     }
@@ -1468,6 +1477,7 @@ async function onInsertFirstRow() {
             table.insertEmptyRow(0)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         getContext().saveChat()
         toastr.success('已插入')
     }
@@ -1518,6 +1528,7 @@ async function pasteTable(mesId, tableContainer) {
             checkPrototype(tables)
             getContext().chat[mesId].dataTable = tables
             renderTablesDOM(tables, tableContainer, true)
+            updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
             toastr.success('粘贴成功')
         } else {
             toastr.error("粘贴失败：剪切板没有表格数据")
@@ -1537,6 +1548,7 @@ async function clearTable(mesId, tableContainer) {
         const emptyTable = initAllTable()
         getContext().chat[mesId].dataTable = emptyTable
         renderTablesDOM(emptyTable, tableContainer, true)
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         toastr.success('清空成功')
     }
 }
@@ -1549,53 +1561,68 @@ function parseTableRender(html, table) {
     if (!html) {
         return table.render(); // 如果html为空，则直接返回
     }
-    let r = html;
-    if (!table || !table.content || !table.columns) {
-        return r; // 如果表格数据无效，则直接返回原始html
-    }
-    r = r.replace(/\$(\w)(\d+)/g, function(match, colLetter, rowNumber) {
+    if (!table || !table.content || !table.columns) return html;
+    html = html.replace(/\$(\w)(\d+)/g, function(match, colLetter, rowNumber) {
         const colIndex = colLetter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0); // 将列字母转换为列索引 (A=0, B=1, ...)
         const rowIndex = parseInt(rowNumber);
-
-        if (rowIndex === 0) {
-            return table.columns[colIndex] || ''; // 如果是header行，则返回对应列的标题
-        }
-        if (rowIndex > 0 && rowIndex <= table.content.length) {
-            return table.content[rowIndex - 1][colIndex] || ''; // 如果是数据行，则返回对应单元格的内容
-        }
-        return ''; // 如果索引超出范围或单元格内容不存在，则返回空字符串
+        return rowIndex === 0
+            ? table.columns[colIndex] || ''                 // 行数从header行开始计数，header行为0
+            : table.content[rowIndex - 1][colIndex] || '';  // content的行数从1开始
     });
-    return r;
+    return html;
+}
+
+/**
+ * +.检查聊天内容中是否有表格状态
+ * @returns {Object} 包含lastMesText和tableStatusContainer的对象
+ * lastMesText: 最后一个聊天消息的mes_text元素
+ * tableStatusContainer: 最后一个聊天消息中的tableStatus元素
+ * */
+function checkChatTableStatus() {
+    // 查找window中的最后一个<div class="mes_text">标签
+    const mesTexts = Array.from(window.document.querySelectorAll('.mes_text'));
+    const lastMesText = mesTexts[mesTexts.length - 1];
+    const tableStatusContainer = lastMesText?.querySelector('tableStatus');
+    // 返回lastMesText和tableStatusContainer
+    return { lastMesText, tableStatusContainer };
 }
 
 /**
  * +.将table数据推送至聊天内容中显示
- * @param {*} chat 聊天对象
+ * @param tableStatusHTML 表格状态html
  */
-function replaceTableToStatusTag(chat, tableStatusHTML) {
-    // 处理 mes
-    if (/<tableStatus>.*?<\/tableStatus>/gs.test(chat.mes)) {
-        chat.mes = chat.mes.replace(/<tableStatus>(.*?)<\/tableStatus>/gs, `<tableStatus>${tableStatusHTML}</tableStatus>`);
-    } else {
-        chat.mes += `\n<tableStatus>${tableStatusHTML}</tableStatus>`;
-    }
-    getContext().saveChat();
+function replaceTableToStatusTag(tableStatusHTML) {
+    const { lastMesText, tableStatusContainer } = checkChatTableStatus();
+    setTimeout(() => {
+        if (tableStatusContainer) {
+            tableStatusContainer.innerHTML = tableStatusHTML; // 使用 innerHTML 替换内容
+        } else {
+            lastMesText.insertAdjacentHTML('beforeend', `<tableStatus>${tableStatusHTML}</tableStatus>`);
+        }
+    }, 0);
 }
 
 /**
  * +.更新最后一条 System 消息的 <tableStatus> 标签内容
  */
 function updateSystemMessageTableStatus() {
-    const tables = findLastestTableData().tables;
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiReadTable === false) {
+        const { tableStatusContainer } = checkChatTableStatus();
+        if (tableStatusContainer) tableStatusContainer.innerHTML = ''; // 清空内容
+        return;
+    }
+
+    const tables = findLastestTableData(true).tables;
     let tableStatusHTML = '';
     for (let i = 0; i < tables.length; i++) {
         const structure = findTableStructureByIndex(i);
-        if (!structure.toChat) continue; // 如果不需要发送到聊天，则跳过
-
-        const table = tables[i];
-        tableStatusHTML += structure.tableRender ? parseTableRender(structure.tableRender, table) : table.render().outerHTML;
+        if (!structure.enable || !structure.toChat) continue;
+        // 如果有自定义渲染器，则使用自定义渲染器，否则使用默认渲染器
+        tableStatusHTML += structure.tableRender
+            ? parseTableRender(structure.tableRender, tables[i])
+            : tables[i].render().outerHTML;
     }
-    replaceTableToStatusTag(getContext().chat[getContext().chat.length - 1], tableStatusHTML);
+    replaceTableToStatusTag(tableStatusHTML);
 }
 
 /**
@@ -1677,6 +1704,7 @@ jQuery(async () => {
             saveSettingsDebounced();
             toastr.success('插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
         }
+        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
     });
     // 插件读表开关
     $('#table_read_switch').change(function () {
