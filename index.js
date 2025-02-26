@@ -722,6 +722,7 @@ class TableEditAction {
     }
 
     parsingFunctionStr() {
+        console.log("解析",this.str)
         const { type, newFunctionStr } = isTableEditFunction(this.str)
         this.type = type
         if (this.type === 'Comment') {
@@ -874,7 +875,8 @@ function isTableEditFunction(str) {
  * @returns 参数数组
  */
 function ParseFunctionParams(str) {
-    const paramStr = str.trim().replace(/^\(|\)$/g, '');
+    const paramStr = str.replace(/\/\/.*$/, '').trim().replace(/^\(|\)$/g, '');
+    console.log("处理后",paramStr)
     const params = splitParams(paramStr)
     // 使用正则表达式匹配对象、字符串、数字
     const newParams = params.map(arg => {
@@ -1239,7 +1241,7 @@ async function openTableSettingPopup(tableIndex) {
     $insertNode.val(tableStructure.insertNode);
     $deleteNode.val(tableStructure.deleteNode);
     $required.prop('checked', tableStructure.Required);
-    $toChat.prop('checked', tableStructure.toChat);     // +.
+    $toChat.prop('checked', tableStructure.toChat ?? false);     // +.
     $tableRender.val(tableStructure.tableRender);       // +.
     _currentTableIndex = tableIndex;    // +.
     const changeEvent = (name, value) => {
