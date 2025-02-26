@@ -1607,7 +1607,7 @@ function replaceTableToStatusTag(tableStatusHTML) {
     const tableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
     setTimeout(() => {
         if (tableStatusContainer) chatContainer.removeChild(tableStatusContainer);
-        chatContainer.insertAdjacentHTML('beforeend', `<div id="tableStatusContainer">${r}</div>`);
+        chatContainer.insertAdjacentHTML('beforeend', `<div class="wide100p" id="tableStatusContainer">${r}</div>`);
     }, 0);
 }
 
