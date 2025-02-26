@@ -1,4 +1,4 @@
-import {eventSource, event_types, saveSettingsDebounced,} from '../../../../script.js';
+import { eventSource, event_types, saveSettingsDebounced, } from '../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 import JSON5 from './index.min.mjs'
@@ -202,7 +202,6 @@ function renderSetting() {
     $(`#dataTable_injection_mode option[value="${extension_settings.muyoo_dataTable.injection_mode}"]`).attr('selected', true);
     $('#dataTable_deep').val(extension_settings.muyoo_dataTable.deep);
     $('#dataTable_message_template').val(extension_settings.muyoo_dataTable.message_template);
-    $('#dataTable_to_chat_container').val(extension_settings.muyoo_dataTable.to_chat_container);
     updateSwitch("#table_switch", extension_settings.muyoo_dataTable.isExtensionAble)
     updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
     updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
@@ -423,19 +422,19 @@ function onTdClick(event) {
     // 计算工具栏位置
     const cellOffset = selectedCell.offset();
     const containerOffset = $("#tableContainer").offset();
-    const relativeY = cellOffset.left - containerOffset.left;
-    const relativeX = cellOffset.top - containerOffset.top;
+    const relativeX = cellOffset.left - containerOffset.left;
+    const relativeY = cellOffset.top - containerOffset.top;
     const clickedElement = event.target;
     hideAllEditPanels()
     if (clickedElement.tagName.toLowerCase() === "td") {
         $("#tableToolbar").css({
-            top: relativeX + 32 + "px",
-            left: relativeY + "px"
+            top: relativeY + 32 + "px",
+            left: relativeX + "px"
         }).show();
     } else if (clickedElement.tagName.toLowerCase() === "th") {
         $("#tableHeaderToolbar").css({
-            top: relativeX + 32 + "px",
-            left: relativeY + "px"
+            top: relativeY + 32 + "px",
+            left: relativeX + "px"
         }).show();
     }
     event.stopPropagation(); // 阻止事件冒泡
@@ -722,7 +721,6 @@ class TableEditAction {
     }
 
     parsingFunctionStr() {
-        console.log("解析",this.str)
         const { type, newFunctionStr } = isTableEditFunction(this.str)
         this.type = type
         if (this.type === 'Comment') {
@@ -876,7 +874,6 @@ function isTableEditFunction(str) {
  */
 function ParseFunctionParams(str) {
     const paramStr = str.replace(/\/\/.*$/, '').trim().replace(/^\(|\)$/g, '');
-    console.log("处理后",paramStr)
     const params = splitParams(paramStr)
     // 使用正则表达式匹配对象、字符串、数字
     const newParams = params.map(arg => {
@@ -1376,7 +1373,7 @@ async function onModifyCell() {
     const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
     const cellValue = table.getCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex)
     const button = { text: '直接修改', result: 3 }
-    const tableEditPopup = new Popup("注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", POPUP_TYPE.INPUT, cellValue, { okButton: "伪装为AI修改", cancelButton: "取消", customButtons: [button] });
+    const tableEditPopup = new Popup("注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", POPUP_TYPE.INPUT, cellValue, { okButton: "伪装为AI修改", cancelButton: "取消", customButtons: [button], rows: 5 });
     const newValue = await tableEditPopup.show()
     if (newValue) {
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
@@ -1584,7 +1581,7 @@ function parseTableRender(html, table) {
         return table.render(); // 如果html为空，则直接返回
     }
     if (!table || !table.content || !table.columns) return html;
-    html = html.replace(/\$(\w)(\d+)/g, function(match, colLetter, rowNumber) {
+    html = html.replace(/\$(\w)(\d+)/g, function (match, colLetter, rowNumber) {
         const colIndex = colLetter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0); // 将列字母转换为列索引 (A=0, B=1, ...)
         const rowIndex = parseInt(rowNumber);
         const r = `<span style="color: red">无单元格</span>`;
@@ -1607,10 +1604,10 @@ function parseTableRender(html, table) {
 function replaceTableToStatusTag(tableStatusHTML) {
     const r = extension_settings.muyoo_dataTable.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
     const chatContainer = window.document.querySelector('#chat');
-    const tableStatusContainer = chatContainer?.querySelector('#tableContainer');
+    const tableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
     setTimeout(() => {
         if (tableStatusContainer) chatContainer.removeChild(tableStatusContainer);
-        chatContainer.insertAdjacentHTML('beforeend', `<div id="tableContainer">${r}</div>`);
+        chatContainer.insertAdjacentHTML('beforeend', `<div id="tableStatusContainer">${r}</div>`);
     }, 0);
 }
 
@@ -1619,7 +1616,7 @@ function replaceTableToStatusTag(tableStatusHTML) {
  */
 function updateSystemMessageTableStatus() {
     if (extension_settings.muyoo_dataTable.isTableToChat === false) {
-        window.document.querySelector('#tableContainer')?.remove();
+        window.document.querySelector('#tableStatusContainer')?.remove();
         return;
     }
 
@@ -1691,10 +1688,13 @@ jQuery(async () => {
         extension_settings.muyoo_dataTable.message_template = value;
         saveSettingsDebounced();
     })
-    $('#dataTable_to_chat_container').on("input", function () {
-        const value = $(this).val();
-        extension_settings.muyoo_dataTable.to_chat_container = value;
-        saveSettingsDebounced();
+    $("#dataTable_to_chat_button").on("click", async function () {
+        const result = await callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", POPUP_TYPE.INPUT, extension_settings.muyoo_dataTable.to_chat_container, { rows: 5 })
+        if (result) {
+            extension_settings.muyoo_dataTable.to_chat_container = result;
+            saveSettingsDebounced()
+            updateSystemMessageTableStatus()
+        }
     })
     $('#dataTable_deep').on("input", function () {
         const value = $(this).val();
