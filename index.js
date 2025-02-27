@@ -31,6 +31,48 @@ const editErrorInfo = {
 const defaultSettings = {
     injection_mode: 'deep_system',
     deep: 2,
+    isExtensionAble: true,
+    isAiReadTable: true,
+    isAiWriteTable: true,
+    isTableToChat: false,
+    tableStructure: [
+        {
+            tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: "记录时空信息的表格，应保持在一行",
+            initNode: '本轮需要记录当前时间、地点、人物信息，使用insertRow函数', updateNode: "当描写的场景，时间，人物变更时", deleteNode: "此表大于一行时应删除多余行"
+        },
+        {
+            tableName: '角色特征表格', tableIndex: 1, columns: ['角色名', '身体特征', '性格', '职业', '爱好', '喜欢的事物（作品、虚拟人物、物品等）', '住所', '其他重要信息'], enable: true, Required: true, asStatus: true, toChat: true, columnsIndex: [0, 1, 2, 3, 4, 5, 6, 7], note: '角色天生或不易改变的特征csv表格，思考本轮有否有其中的角色，他应作出什么反应',
+            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色的身体出现持久性变化时，例如伤痕/当角色有新的爱好，职业，喜欢的事物时/当角色更换住所时/当角色提到重要信息时", deleteNode: ""
+        },
+        {
+            tableName: '角色与<user>社交表格', tableIndex: 2, columns: ['角色名', '对<user>关系', '对<user>态度', '对<user>好感'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: '思考如果有角色和<user>互动，应什么态度',
+            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色和<user>的交互不再符合原有的记录时/当角色和<user>的关系改变时", deleteNode: ""
+        },
+        {
+            tableName: '任务、命令或者约定表格', tableIndex: 3, columns: ['角色', '任务', '地点', '持续时间'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: true, note: '思考本轮是否应该执行任务/赴约',
+            insertNode: '当特定时间约定一起去做某事时/某角色收到做某事的命令或任务时', updateNode: "", deleteNode: "当大家赴约时/任务或命令完成时/任务，命令或约定被取消时"
+        },
+        {
+            tableName: '重要事件历史表格', tableIndex: 4, columns: ['角色', '事件简述', '日期', '地点', '情绪'], columnsIndex: [0, 1, 2, 3, 4], enable: true, Required: true, asStatus: true, toChat: true, note: '记录<user>或角色经历的重要事件',
+            initNode: '本轮必须从上文寻找可以插入的事件并使用insertRow插入', insertNode: '当某个角色经历让自己印象深刻的事件时，比如表白、分手等', updateNode: "", deleteNode: ""
+        },
+        {
+            tableName: '重要物品表格', tableIndex: 5, columns: ['拥有人', '物品描述', '物品名', '重要原因'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: true, note: '对某人很贵重或有特殊纪念意义的物品',
+            insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
+        },
+    ],
+    to_chat_container: `<div class="table-preview-bar"><details> <summary>记忆增强表格</summary>
+$0
+</details></div>
+
+<style>
+.table-preview-bar {
+    padding: 0 8px;
+    border-radius: 10px;
+    color: #888;
+    font-size: 0.8rem;
+}
+</style>`,
     message_template: `# dataTable 说明
 ## 用途
 - dataTable是 CSV 格式表格，存储数据和状态，是你生成下文的重要参考。
@@ -83,51 +125,6 @@ insertRow(5, {"0":"<user>","1":"社团赛奖品","2":"奖杯","3":"比赛第一�
 -->
 </tableEdit>
 `,
-    to_chat_container: `<div class="rounded-bar"><font size=2><font color="#888888"><details> <summary>记忆增强表格</summary>
-$0
-</details></font color></font size></div>
-
-<style>
-    .rounded-bar {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        background-color: #111;
-        border-radius: 10px;
-        padding: 0 8px;
-        box-sizing: border-box;
-    }
-</style>`,
-    tableStructure: [
-        {
-            tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: "记录时空信息的表格，应保持在一行",
-            initNode: '本轮需要记录当前时间、地点、人物信息，使用insertRow函数', updateNode: "当描写的场景，时间，人物变更时", deleteNode: "此表大于一行时应删除多余行"
-        },
-        {
-            tableName: '角色特征表格', tableIndex: 1, columns: ['角色名', '身体特征', '性格', '职业', '爱好', '喜欢的事物（作品、虚拟人物、物品等）', '住所', '其他重要信息'], enable: true, Required: true, asStatus: true, toChat: true, columnsIndex: [0, 1, 2, 3, 4, 5, 6, 7], note: '角色天生或不易改变的特征csv表格，思考本轮有否有其中的角色，他应作出什么反应',
-            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色的身体出现持久性变化时，例如伤痕/当角色有新的爱好，职业，喜欢的事物时/当角色更换住所时/当角色提到重要信息时", deleteNode: ""
-        },
-        {
-            tableName: '角色与<user>社交表格', tableIndex: 2, columns: ['角色名', '对<user>关系', '对<user>态度', '对<user>好感'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: '思考如果有角色和<user>互动，应什么态度',
-            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色和<user>的交互不再符合原有的记录时/当角色和<user>的关系改变时", deleteNode: ""
-        },
-        {
-            tableName: '任务、命令或者约定表格', tableIndex: 3, columns: ['角色', '任务', '地点', '持续时间'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: true, note: '思考本轮是否应该执行任务/赴约',
-            insertNode: '当特定时间约定一起去做某事时/某角色收到做某事的命令或任务时', updateNode: "", deleteNode: "当大家赴约时/任务或命令完成时/任务，命令或约定被取消时"
-        },
-        {
-            tableName: '重要事件历史表格', tableIndex: 4, columns: ['角色', '事件简述', '日期', '地点', '情绪'], columnsIndex: [0, 1, 2, 3, 4], enable: true, Required: true, asStatus: true, toChat: true, note: '记录<user>或角色经历的重要事件',
-            initNode: '本轮必须从上文寻找可以插入的事件并使用insertRow插入', insertNode: '当某个角色经历让自己印象深刻的事件时，比如表白、分手等', updateNode: "", deleteNode: ""
-        },
-        {
-            tableName: '重要物品表格', tableIndex: 5, columns: ['拥有人', '物品描述', '物品名', '重要原因'], columnsIndex: [0, 1, 2, 3], enable: true, Required: false, asStatus: true, toChat: true, note: '对某人很贵重或有特殊纪念意义的物品',
-            insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
-        },
-    ],
-    isExtensionAble: true,
-    isAiReadTable: true,
-    isAiWriteTable: true,
-    isTableToChat: false,
 };
 
 /**
@@ -266,11 +263,21 @@ async function importSingleTableSet(/**@type {File}*/file) {
 /**
  * 重置设置
  */
-function resetSettings() {
-    extension_settings.muyoo_dataTable = { ...defaultSettings };
-    loadSettings();
-    saveSettingsDebounced();
-    toastr.success('已重置设置');
+async function resetSettings() {
+    const tableInitPopup = $(tableInitPopupDom)
+    const confirmation = await callGenericPopup(tableInitPopup, POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    if (confirmation) {
+        // 千万不要简化以下的三元表达式和赋值顺序！！！，否则会导致重置设置无法正确运行
+        let newSettings = tableInitPopup.find('#table_init_basic').prop('checked') ? {...extension_settings.muyoo_dataTable, ...defaultSettings} : {...extension_settings.muyoo_dataTable};
+        newSettings.message_template = tableInitPopup.find('#table_init_message_template').prop('checked') ? defaultSettings.message_template : extension_settings.muyoo_dataTable.message_template;
+        newSettings.tableStructure = tableInitPopup.find('#table_init_structure').prop('checked') ? defaultSettings.tableStructure : extension_settings.muyoo_dataTable.tableStructure;
+        newSettings.to_chat_container = tableInitPopup.find('#table_init_to_chat_container').prop('checked') ? defaultSettings.to_chat_container : extension_settings.muyoo_dataTable.to_chat_container;
+
+        extension_settings.muyoo_dataTable = newSettings;
+        saveSettingsDebounced();
+        renderSetting()
+        toastr.success('已重置所选设置');
+    }
 }
 
 /**
@@ -1604,10 +1611,38 @@ function parseTableRender(html, table) {
 function replaceTableToStatusTag(tableStatusHTML) {
     const r = extension_settings.muyoo_dataTable.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
     const chatContainer = window.document.querySelector('#chat');
-    const tableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
+    let tableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
+
+    // 定义具名的事件监听器函数
+    const touchstartHandler = function(event) {
+        event.stopPropagation();
+    };
+    const touchmoveHandler = function(event) {
+        event.stopPropagation();
+    };
+    const touchendHandler = function(event) {
+        event.stopPropagation();
+    };
+
     setTimeout(() => {
-        if (tableStatusContainer) chatContainer.removeChild(tableStatusContainer);
-        chatContainer.insertAdjacentHTML('beforeend', `<div id="tableStatusContainer">${r}</div>`);
+        if (tableStatusContainer) {
+            // 移除之前的事件监听器，防止重复添加 (虽然在这个场景下不太可能重复添加)
+            tableStatusContainer.removeEventListener('touchstart', touchstartHandler);
+            tableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
+            tableStatusContainer.removeEventListener('touchend', touchendHandler);
+            chatContainer.removeChild(tableStatusContainer); // 移除旧的 tableStatusContainer
+        }
+        chatContainer.insertAdjacentHTML('beforeend', `<div class="wide100p" id="tableStatusContainer">${r}</div>`);
+        // 获取新创建的 tableStatusContainer
+        const newTableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
+        if (newTableStatusContainer) {
+            // 添加事件监听器，使用具名函数
+            newTableStatusContainer.addEventListener('touchstart', touchstartHandler, { passive: false });
+            newTableStatusContainer.addEventListener('touchmove', touchmoveHandler, { passive: false });
+            newTableStatusContainer.addEventListener('touchend', touchendHandler, { passive: false });
+        }
+        // 更新 tableStatusContainer 变量指向新的元素，以便下次移除
+        tableStatusContainer = newTableStatusContainer;
     }, 0);
 }
 
@@ -1651,6 +1686,24 @@ const tableHeaderEditToolbarDom = `
 </div>
 `
 
+/**
+ * 表格重置弹出窗
+ */
+const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_basic" checked><span>基础设置</span>
+</div>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_message_template"><span>消息模板</span>
+</div>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_structure"><span>所有表格数据</span>
+</div>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_to_chat_container"><span>对话中的面板样式</span>
+</div>
+`
+
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: VERSION, user: getContext().name1 })
@@ -1689,7 +1742,7 @@ jQuery(async () => {
         saveSettingsDebounced();
     })
     $("#dataTable_to_chat_button").on("click", async function () {
-        const result = await callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", POPUP_TYPE.INPUT, extension_settings.muyoo_dataTable.to_chat_container, { rows: 5 })
+        const result = await callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", POPUP_TYPE.INPUT, extension_settings.muyoo_dataTable.to_chat_container, { rows: 10 })
         if (result) {
             extension_settings.muyoo_dataTable.to_chat_container = result;
             saveSettingsDebounced()
