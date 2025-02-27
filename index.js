@@ -83,20 +83,17 @@ insertRow(5, {"0":"<user>","1":"社团赛奖品","2":"奖杯","3":"比赛第一�
 -->
 </tableEdit>
 `,
-    to_chat_container: `<div class="rounded-bar"><font size=2><font color="#888888"><details> <summary>记忆增强表格</summary>
+    to_chat_container: `<div class="table-preview-bar"><details> <summary>记忆增强表格</summary>
 $0
-</details></font color></font size></div>
+</details></div>
 
 <style>
-    .rounded-bar {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        background-color: #111;
-        border-radius: 10px;
-        padding: 0 8px;
-        box-sizing: border-box;
-    }
+.table-preview-bar {
+    padding: 0 8px;
+    border-radius: 10px;
+    color: #888;
+    font-size: 0.8rem;
+}
 </style>`,
     tableStructure: [
         {
@@ -266,11 +263,38 @@ async function importSingleTableSet(/**@type {File}*/file) {
 /**
  * 重置设置
  */
-function resetSettings() {
-    extension_settings.muyoo_dataTable = { ...defaultSettings };
-    loadSettings();
-    saveSettingsDebounced();
-    toastr.success('已重置设置');
+async function resetSettings() {
+    const tableInitPopup = $(tableInitPopupDom)
+    const confirmation = await callGenericPopup(tableInitPopup, POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    if (confirmation) {
+        if (tableInitPopup.find('#table_init_basic').is(':checked')){
+            console.log('1重置基础设置')
+            extension_settings.muyoo_dataTable.injection_mode = defaultSettings.injection_mode
+            extension_settings.muyoo_dataTable.deep = defaultSettings.deep
+            extension_settings.muyoo_dataTable.updateIndex = defaultSettings.updateIndex
+            extension_settings.muyoo_dataTable.isExtensionAble = defaultSettings.isExtensionAble
+            extension_settings.muyoo_dataTable.isAiReadTable = defaultSettings.isAiReadTable
+            extension_settings.muyoo_dataTable.isAiWriteTable = defaultSettings.isAiWriteTable
+            extension_settings.muyoo_dataTable.isTableToChat = defaultSettings.isTableToChat
+        }
+        if (tableInitPopup.find('#table_init_message_template').is(':checked')){
+            console.log('2重置消息设置')
+            extension_settings.muyoo_dataTable.message_template = defaultSettings.message_template
+        }
+        if (tableInitPopup.find('#table_init_structure').is(':checked')){
+            console.log('3重置表格设置')
+            extension_settings.muyoo_dataTable.tableStructure = defaultSettings.tableStructure
+        }
+        if (tableInitPopup.find('#table_init_to_chat_container').is(':checked')){
+            console.log('4重置聊天设置')
+            extension_settings.muyoo_dataTable.to_chat_container = defaultSettings.to_chat_container
+        }
+        setTimeout(() => {
+            loadSettings();
+            saveSettingsDebounced();
+            toastr.success('已重置所选设置');
+        }, 0);
+    }
 }
 
 /**
@@ -1679,6 +1703,24 @@ const tableHeaderEditToolbarDom = `
 </div>
 `
 
+/**
+ * 表格重置弹出窗
+ */
+const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？<br>（建议重置前先备份数据）</span>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_basic" checked><span>基础设置</span>
+</div>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_message_template" checked><span>消息模板</span>
+</div>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_structure" checked><span>所有表格结构及其样式</span>
+</div>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_to_chat_container" checked><span>推送至对话的包裹样式</span>
+</div>
+`
+
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: VERSION, user: getContext().name1 })
@@ -1717,7 +1759,7 @@ jQuery(async () => {
         saveSettingsDebounced();
     })
     $("#dataTable_to_chat_button").on("click", async function () {
-        const result = await callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", POPUP_TYPE.INPUT, extension_settings.muyoo_dataTable.to_chat_container, { rows: 5 })
+        const result = await callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", POPUP_TYPE.INPUT, extension_settings.muyoo_dataTable.to_chat_container, { rows: 10 })
         if (result) {
             extension_settings.muyoo_dataTable.to_chat_container = result;
             saveSettingsDebounced()
