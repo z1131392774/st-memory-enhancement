@@ -31,6 +31,26 @@
                 <div class="checkbox flex-container">
                     <input type="checkbox" id="table_to_chat"><span>表格推送至对话</span>
                 </div>
+                <div class="menu_button" id="table_clear_up" style="width: 120px;">
+                    <a>重新整理表格</a>
+                </div>
+                <div class="checkbox flex-container" style="margin-left: 10px;">
+                    <input type="checkbox" id="use_main_api" checked>
+                    <span>使用主API（取消勾选后可以用自定义的api）</span>
+                </div>
+                <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
+                    <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾">
+                    <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
+                    <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
+                    <div style="margin-top: 10px;">
+                        <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
+                            <option value="">请先获取模型列表</option>
+                        </select>
+                        <div class="menu_button" id="fetch_models_button" style="width: 100%;">
+                            <a>获取模型列表</a>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div style="display: flex;align-items: center;gap: 6px;">
                 <b>插件预设</b>

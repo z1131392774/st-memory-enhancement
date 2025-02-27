@@ -2,9 +2,12 @@ import { eventSource, event_types, saveSettingsDebounced, } from '../../../../sc
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 import JSON5 from './index.min.mjs'
+import { generateRaw } from '../../../../../../script.js';
 
 const VERSION = '1.2.1'
 
+let clearUpButton = null;
+let clearUpButtonManager = null;
 let waitingTable = null
 let waitingTableIndex = null
 let tablePopup = null
@@ -36,6 +39,16 @@ const defaultSettings = {
     isAiWriteTable: true,
     isTableToChat: false,
     enableHistory: true,
+
+    //自动整理表格
+    use_main_api: true,
+    custom_api_url: '',
+    custom_api_key: '',
+    custom_model_name: '',
+    custom_temperature: 1.0,
+    custom_max_tokens: 2048,
+    custom_top_p: 1,
+
     tableStructure: [
         {
             tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: "记录时空信息的表格，应保持在一行",
@@ -191,6 +204,12 @@ function loadSettings() {
     }
     if (extension_settings.muyoo_dataTable.deep < 0) formatDeep()
     renderSetting()
+
+    //api初始化
+    $('#use_main_api').prop('checked', extension_settings.muyoo_dataTable.use_main_api ?? true);
+    $('#custom_api_url').val(extension_settings.muyoo_dataTable.custom_api_url || '');
+    $('#custom_api_key').val(extension_settings.muyoo_dataTable.custom_api_key || '');
+    $('#custom_model_name').val(extension_settings.muyoo_dataTable.custom_model_name || '');
 }
 
 /**
@@ -489,18 +508,39 @@ class Table {
     }
 
     /**
-     * 获取表格内容的提示词
+     * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
      * @returns 表格内容提示词
      */
-    getTableText() {
-        const structure = findTableStructureByIndex(this.tableIndex)
-        if (!structure) return
-        const title = `* ${this.tableIndex}:${replaceUserTag(this.tableName)}\n`
-        const node = structure.note && structure.note !== '' ? '【说明】' + structure.note + '\n' : ''
-        const headers = "rowIndex," + this.columns.map((colName, index) => index + ':' + replaceUserTag(colName)).join(',') + '\n'
-        const newContent = this.content.filter(Boolean)
-        const rows = newContent.length > 0 ? (newContent.map((row, index) => index + ',' + row.join(',')).join('\n') + '\n') : getEmptyTablePrompt(structure.Required, replaceUserTag(structure.initNode))
-        return title + node + '【表格内容】\n' + headers + rows + getTableEditRules(structure, newContent.length == 0) + '\n'
+    getTableText(customParts = ['title', 'node', 'headers', 'rows', 'editRules']) {
+        const structure = findTableStructureByIndex(this.tableIndex);
+        if (!structure) return;
+
+        const title = `* ${this.tableIndex}:${replaceUserTag(this.tableName)}\n`;
+        const node = structure.note && structure.note !== '' ? '【说明】' + structure.note + '\n' : '';
+        const headers = "rowIndex," + this.columns.map((colName, index) => index + ':' + replaceUserTag(colName)).join(',') + '\n';
+        const newContent = this.content.filter(Boolean);
+        const rows = newContent.length > 0 ? (newContent.map((row, index) => index + ',' + row.join(',')).join('\n') + '\n') : getEmptyTablePrompt(structure.Required, replaceUserTag(structure.initNode));
+        const editRules = getTableEditRules(structure, newContent.length === 0) + '\n';
+
+        let result = '';
+
+        if (customParts.includes('title')) {
+            result += title;
+        }
+        if (customParts.includes('node')) {
+            result += node;
+        }
+        if (customParts.includes('headers')) {
+            result += '【表格内容】\n' + headers;
+        }
+        if (customParts.includes('rows')) {
+            result += rows;
+        }
+        if (customParts.includes('editRules')) {
+            result += editRules;
+        }
+
+        return result;
     }
 
     /**
@@ -2165,6 +2205,355 @@ jQuery(async () => {
         }
         updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
     });
+
+
+    // 插件设置界面整理表格按钮
+    clearUpButton = document.getElementById('table_clear_up');
+    // 定义 OpenAI API 密钥和 API 地址
+    let OPENAI_API_KEY = 'xxxx';
+    let OPENAI_ENDPOINT = 'https://xxx/v1/chat/completions';
+    let OPENAI_API_MODEL = "gpt-3.5-turbo";
+
+    // 在解析响应后添加验证
+    function validateActions(actions) {
+        if (!Array.isArray(actions)) {
+            console.error('操作列表必须是数组');
+            return false;
+        }
+        return actions.every(action => {
+            // 检查必要字段
+            if (!action.action || !['insert', 'update', 'delete'].includes(action.action.toLowerCase())) {
+                console.error(`无效的操作类型: ${action.action}`);
+                return false;
+            }
+            if (typeof action.tableIndex !== 'number') {
+                console.error(`tableIndex 必须是数字: ${action.tableIndex}`);
+                return false;
+            }
+            if (action.action !== 'insert' && typeof action.rowIndex !== 'number') {
+                console.error(`rowIndex 必须是数字: ${action.rowIndex}`);
+                return false;
+            }
+            // 检查 data 字段
+            if (action.data && typeof action.data === 'object') {
+                const invalidKeys = Object.keys(action.data).filter(k => !/^\d+$/.test(k));
+                if (invalidKeys.length > 0) {
+                    console.error(`发现非数字键: ${invalidKeys.join(', ')}`);
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+    if (clearUpButton) {
+        clearUpButton.addEventListener('click', async () => {
+            let response;
+
+            const loadingToast = toastr.info(
+                $('#use_main_api').prop('checked')
+                    ? '正在使用【主API】整理表格...'
+                    : '正在使用【自定义API】整理表格...',
+                '',
+                { timeOut: 0 }
+            );
+
+            try {
+
+                const latestData = findLastestTableData(true);
+                if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
+                    throw new Error('findLastestTableData 未返回有效的表格数据');
+                }
+                const { tables: latestTables } = latestData;
+                waitingTable = copyTableList(latestTables);
+
+                let originText = '<表格内容>\n' + latestTables
+                    .map(table => table.getTableText(['title', 'node', 'headers', 'rows']))
+                    .join("\n");
+
+                // 获取最近3条聊天记录
+                let chat = getContext().chat;
+                let lastThreeChats = '';
+                if (chat.length < 3) {
+                    throw new Error('需要至少3条消息记录');
+                } else {
+                    for (let i = Math.max(0, chat.length - 3); i < chat.length; i++) {
+                        let currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
+                        lastThreeChats += `\n${currentChat}`;
+                    }
+                }
+
+                // 构建AI提示
+                const systemPrompt = `你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`;
+                const userPrompt = `根据以下规则整理表格：
+<整理规则>
+    1. 修正格式错误，删除所有data[0]为空的行
+    2. 补全空白/未知内容，但禁止捏造信息
+    3. 删除"重要事件历史表格"中重复的行，只保留完全不同的部分
+    4. "角色与User社交表格"(tableIndex: 2)中角色名禁止重复，有重复的需要整行删除
+    5. 如果一个格子中超过20个字，则进行简化；如果一个格子中斜杠分隔的内容超过4个，则进行简化
+    6. 时间格式统一为YYYY-MM-DD HH：MM   (时间中的冒号应当用中文冒号，未知的部分可以省略，例如：2023-10-01 12：00 或 2023-10-01 或 12：00)
+    7. 地点格式为 大陆>国家>城市>具体地点 (未知的部分可以省略，例如：大陆>中国>北京>故宫 或 异世界>酒馆)
+    8. 单元格中禁止使用逗号，语义分割应使用 /
+    9. 单元格内的string中禁止出现双引号
+</整理规则>
+
+<聊天记录>
+    ${lastThreeChats}
+</聊天记录>
+
+<当前表格>
+    ${originText}
+</当前表格>
+
+请用纯JSON格式回复操作列表，确保：
+    1. 所有键名必须使用双引号包裹，例如 "action" 而非 action
+    2. 数值键名必须加双引号，例如 "0" 而非 0
+    3. 使用双引号而非单引号，例如 "value" 而非 'value'
+    4. 斜杠（/）必须转义为 \/
+    5. 不要包含注释或多余的Markdown标记
+    6. 将所有删除操作放在最后发送，并且删除的时候先发送row值较大的操作
+    7. 有效的格式：
+        [{
+            "action": "insert/update/delete",
+            "tableIndex": 数字,
+            "rowIndex": 数字（delete/update时需要）,
+            "data": {列索引: "值"}（insert/update时需要）
+        }]
+    8. 强调：delete操作不包含"data"，insert操作不包含"rowIndex"
+    9. 强调：tableIndex和rowIndex的值为数字，不加双引号，例如 0 而非 "0"
+
+<正确回复示例>
+    [
+        {
+            "action": "update",
+            "tableIndex": 0,
+            "rowIndex": 0,
+            "data": {
+            "0": "2023-10-01",
+            "1": "12：00",
+            "2": "大陆>中国>北京>故宫"
+            }
+        }，
+        {
+            "action": "insert",",
+            "tableIndex": 0,
+            "data": {
+            "0": "2023-10-01",
+            "1": "12：00",
+            "2": "大陆>中国>北京>故宫"
+            }
+        },
+        {
+            "action": "delete",
+            "tableIndex": 0,
+            "rowIndex": 0,
+        }
+    ]
+</正确格式示例>`
+    ;
+                let cleanContent;
+                if ($('#use_main_api').prop('checked')) {
+                    // 主API
+                    response = await generateRaw(
+                        userPrompt,
+                        '',
+                        false,
+                        false,
+                        systemPrompt,
+                    )
+                    console.log('原始响应内容:', response);
+
+                    // 清洗响应内容
+                    cleanContent = response
+                    .replace(/```json|```/g, '')
+                    .trim();
+                } else{
+                    // 自定义API
+                    const baseUrl = $('#custom_api_url').val().trim().replace(/\/+$/, '');;
+                    const apiKey = $('#custom_api_key').val().trim();
+                    const modelName = $('#custom_model_name').val().trim();
+
+                    if (!baseUrl || !apiKey || !modelName) {
+                        toastr.error('请填写完整的自定义API配置');
+                        return;
+                    }
+                    const apiUrl = new URL(baseUrl);
+                    apiUrl.pathname = '/v1/chat/completions';
+                    OPENAI_ENDPOINT = apiUrl.toString();
+
+                    OPENAI_API_KEY = apiKey;
+                    OPENAI_API_MODEL = modelName;
+
+                    response = await fetch(OPENAI_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${OPENAI_API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            model: OPENAI_API_MODEL,
+                            messages: [
+                                { role: "system", content: systemPrompt },
+                                { role: "user", content: userPrompt }
+                            ],
+                            temperature: 1
+                        })
+                    }).catch(error => {
+                        throw new Error(`网络连接失败: ${error.message}`);
+                    });;
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        throw new Error(`API请求失败 [${response.status}]: ${errorBody}`);
+                    }
+
+                    const result = await response.json();
+                    const rawContent = result.choices[0].message.content;
+
+                    console.log('原始响应内容:', rawContent);
+                    // 清洗响应内容
+                    cleanContent = rawContent
+                    .replace(/```json|```/g, '') // 移除JSON代码块标记
+                    .replace(/([{,]\s*)(?:"?([a-zA-Z_]\w*)"?\s*:)/g, '$1"$2":') // 严格限定键名格式
+                    .replace(/'/g, '"') // 单引号转双引号
+                    .replace(/\/\*.*?\*\//g, '') // 移除块注释
+                    .trim();
+                }
+
+                let actions;
+                try {
+                // 增强清洗逻辑
+                cleanContent = cleanContent
+                    // 时间格式保护（最先处理！！！！！）
+                    .replace(/(?<!")(\d{1,2}:\d{2})(?!")/g, '"$1"') // 使用负向断言确保不会重复处理
+                    // 统一键名处理
+                    .replace(/"([a-zA-Z_]\w*)"\s*:/g, '"$1":') // 仅处理合法键名格式
+                    // 尾逗号修复
+                    .replace(/,\s*([}\]])/g, '$1')
+                    // 数字键处理（需在时间处理后执行）
+                    .replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3')
+                    // 其他处理
+                    .replace(/\\\//g, '/')
+                    .replace(/\/\/.*/g, ''); // 行注释移除
+
+                    // 新增安全校验
+                    if (!cleanContent || typeof cleanContent !== 'string') {
+                        throw new Error('无效的响应内容');
+                    }
+
+                    actions = JSON5.parse(cleanContent);
+                    if (!validateActions(actions)) {
+                        throw new Error('AI返回了无效的操作格式');
+                    };
+                } catch (parseError) {
+                    // 添加错误位置容错处理
+                    const position = parseError.position || 0;
+                    console.error('[解析错误] 详细日志：', {
+                        rawContent: cleanContent,
+                        errorPosition: parseError.stack,
+                        previewText: cleanContent.slice(
+                            Math.max(0, position - 50),
+                            position + 50
+                        )
+                    });
+                    throw new Error(`JSON解析失败：${parseError.message}`);
+                }
+                console.log('清洗后的内容:', cleanContent);
+
+
+
+                // 执行操作
+                actions.forEach(action => {
+                    switch (action.action.toLowerCase()) {
+                        case 'update':
+                            updateRow(action.tableIndex, action.rowIndex, action.data);
+                            console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, waitingTable[action.tableIndex].content[action.rowIndex]);
+                            break;
+                        case 'insert':
+                            insertRow(action.tableIndex, action.data);
+                            console.log(`Inserted: table ${action.tableIndex}`, waitingTable[action.tableIndex].content);
+                            break;
+                        case 'delete':
+                            const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
+                            deleteRow(action.tableIndex, action.rowIndex);
+                            console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
+                            break;
+                    }
+                });
+
+                // 更新聊天数据
+                chat = getContext().chat[getContext().chat.length - 1];
+                chat.dataTable = waitingTable;
+                getContext().saveChat();
+
+                // 刷新 UI
+                const tableContainer = document.querySelector('#tableContainer');
+                renderTablesDOM(waitingTable, tableContainer, true);
+
+                toastr.success('表格整理完成');
+                } catch (error) {
+                console.error('整理过程出错:', error);
+                toastr.error(`整理失败：${error.message}`);
+                } finally {
+                toastr.clear(loadingToast);
+                }
+        });
+    }
+    // 初始化API设置显示状态
+    document.getElementById('use_main_api').addEventListener('change', function() {
+        document.getElementById('custom_api_settings').style.display =
+            this.checked ? 'none' : 'flex';
+    });
+
+    // 默认触发一次change事件来初始化状态
+    document.getElementById('use_main_api').dispatchEvent(new Event('change'));
+
+    // 获取模型列表
+    $('#fetch_models_button').on('click', async function() {
+        const apiUrl = $('#custom_api_url').val().trim();
+        const apiKey = $('#custom_api_key').val().trim();
+
+        if (!apiUrl) {
+            toastr.error('请输入API URL');
+            return;
+        }
+
+        try {
+            // 规范化URL路径
+            const normalizedUrl = new URL(apiUrl);
+            normalizedUrl.pathname = '/v1/models';
+
+            const response = await fetch(normalizedUrl, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+
+            const data = await response.json();
+            const $selector = $('#model_selector').empty();
+
+            data.data.forEach(model => {
+                $selector.append($('<option>', {
+                    value: model.id,
+                    text: model.id
+                }));
+            });
+
+            toastr.success('成功获取模型列表');
+        } catch (error) {
+            console.error('模型获取失败:', error);
+            toastr.error(`模型获取失败: ${error.message}`);
+        }
+    });
+    // 根据下拉列表选择的模型更新自定义模型名称
+    $('#model_selector').on('change', function() {
+        const selectedModel = $(this).val();
+        $('#custom_model_name').val(selectedModel);
+    });
+
+
     // 导入预设
     const importFile = document.querySelector('#table-set-importFile');
     importFile.addEventListener('change', async () => {
@@ -2194,4 +2583,23 @@ jQuery(async () => {
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
     eventSource.on(event_types.MESSAGE_SWIPED, onMessageSwiped);
+
+    // 保存API设置
+    $(document).ready(function() {
+        clearUpButtonManager = document.getElementById('table_clear_up_button'); // manager界面按钮
+        $(document).on('click', '#table_clear_up_button', function() {
+            // console.log('table_clear_up_button 被点击了');
+            if (clearUpButton) {
+                $(clearUpButton).trigger('click');
+            }
+        });
+
+        $('#use_main_api, #custom_api_url, #custom_api_key, #custom_model_name').on('change', function() {
+            extension_settings.muyoo_dataTable.use_main_api = $('#use_main_api').prop('checked');
+            extension_settings.muyoo_dataTable.custom_api_url = $('#custom_api_url').val();
+            extension_settings.muyoo_dataTable.custom_api_key = $('#custom_api_key').val();
+            extension_settings.muyoo_dataTable.custom_model_name = $('#custom_model_name').val();
+            saveSettingsDebounced();
+        });
+    });
 });
