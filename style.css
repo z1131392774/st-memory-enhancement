@@ -83,3 +83,77 @@ td.selected {
 .tableName_pole{
     width: 100%;
 }
+
+
+
+
+
+.history-group {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.group-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.insert-group {
+    background-color: rgba(144, 238, 144, 0.2);
+    border-color: rgba(144, 238, 144, 0.7);
+}
+
+.update-group {
+    background-color: rgba(173, 216, 230, 0.2);
+    border-color: rgba(173, 216, 230, 0.7);
+}
+
+.delete-group {
+    background-color: rgba(255, 182, 193, 0.2);
+    border-color: rgba(255, 182, 193, 0.7);
+}
+
+.history-item {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-radius: 3px;
+}
+
+.function-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 1.1em;
+    color: #aaa;
+}
+
+.params-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+}
+
+.params-table th,
+.params-table td {
+    padding: 8px;
+    text-align: left;
+    font-size: 0.95em;
+}
+
+.params-table th {
+    font-weight: bold;
+}
+
+.params-table td {
+    color: #eee;
+}
+
+.item-separator {
+    border: none;
+    border-top: 1px dashed #ddd;
+    margin: 15px 0;
+}
+
