@@ -1198,58 +1198,96 @@ async function openTableHistoryPopup(){
     const tableEditHistory = getContext().chat;
     const $dlg = $(tableHistoryPopup.dlg);
     const $tableHistory = $dlg.find('#tableHistory');
-    $tableHistory.empty(); // 清空历史记录显示区域，避免重复添加
+    $tableHistory.empty();
+    console.log(tableEditHistory);
 
     if (tableEditHistory && tableEditHistory.length > 0) {
-        for (const item of tableEditHistory) {
-            if (!item.is_user) { // 仅处理非用户消息
+        // 倒序遍历聊天记录，从最新的消息开始处理
+        for (let i = tableEditHistory.length - 1; i >= 0; i--) {
+            const item = tableEditHistory[i];
+            if (!item.is_user) {
                 const mesContent = item.mes;
                 if (mesContent) {
-                    const tableEditMatch = mesContent.match(/<tableEdit>(.*?)<\/tableEdit>/s); // 匹配<tableEdit>标签内容
+                    const tableEditMatch = mesContent.match(/<tableEdit>(.*?)<\/tableEdit>/s);
                     if (tableEditMatch) {
-                        const tableEditBlock = tableEditMatch[1].trim(); // 获取<tableEdit>标签内的文本块
-                        const commentMatch = tableEditBlock.match(/<!--(.*?)-->/s); // 匹配注释块
+                        const tableEditBlock = tableEditMatch[1].trim();
+                        const commentMatch = tableEditBlock.match(/<!--(.*?)-->/s);
                         if (commentMatch) {
-                            const commentContent = commentMatch[1].trim(); // 获取注释内容
-                            const functions = commentContent.split('\n') // 按行分割函数调用
-                                .map(line => line.trim()) // 去除每行首尾空格
-                                .filter(line => line.startsWith('insertRow') || line.startsWith('updateRow') || line.startsWith('deleteRow')); // 过滤出函数调用行
-
+                            const commentContent = commentMatch[1].trim();
+                            const functions = commentContent.split('\n')
+                                .map(line => line.trim())
+                                .filter(line => line.startsWith('insertRow') || line.startsWith('updateRow') || line.startsWith('deleteRow'));
                             if (functions.length > 0) {
-                                const $insertDiv = $('<div>').addClass('history-group insert-group');
-                                const $updateDiv = $('<div>').addClass('history-group update-group');
-                                const $deleteDiv = $('<div>').addClass('history-group delete-group');
+                                const $historyGroup = $('<div>').addClass('history-group');
+                                // 如果不是最后一条消息，添加可折叠 class
+                                if (i < tableEditHistory.length - 1) {
+                                    $historyGroup.addClass('collapsible-history-group');
+                                }
+
+                                // 在 history-group 级别创建原始消息按钮 和 折叠按钮
+                                const $buttonGroup = $('<div>').addClass('history-button-group'); // 创建按钮组容器
+                                const $originalButton = $('<button><i class="fa-solid fa-quote-left"></i>')
+                                    .addClass('original-message-button')
+                                    .on('click', function(e) {
+                                        e.stopPropagation(); // 阻止事件冒泡
+                                        const $currentHistoryGroup = $(this).closest('.history-group');
+                                        const $originalMessageDisplay = $currentHistoryGroup.find('.original-message-display');
+
+                                        if ($originalMessageDisplay.is(':visible')) {
+                                            // 如果原始消息当前是显示的，切换回表格视图
+                                            $originalMessageDisplay.hide();
+                                            $currentHistoryGroup.find('.history-item').show();
+                                            $currentHistoryGroup.find('.params-table').show(); // 确保参数表格也显示出来
+                                        } else {
+                                            // 如果原始消息当前是隐藏的，显示原始消息
+                                            $currentHistoryGroup.find('.history-item').hide();
+                                            $currentHistoryGroup.find('.params-table').hide();
+                                            if ($originalMessageDisplay.length === 0) { // 避免重复添加
+                                                const $newMessageDisplay = $('<div>').addClass('original-message-display').text(`原始消息内容:\n\n${mesContent}`);
+                                                $currentHistoryGroup.append($newMessageDisplay); // 添加原始消息展示
+                                            } else {
+                                                $originalMessageDisplay.show(); // 如果已存在则显示
+                                            }
+                                        }
+                                    });
+                                $buttonGroup.append($originalButton); // 将原始消息按钮添加到按钮组
+
+                                const $collapseButton = $('<button><i class="fa-solid fa-square-caret-down"></i></button>')
+                                    .addClass('collapse-button')
+                                    .on('click', function(e) {
+                                        e.stopPropagation(); // 阻止事件冒泡
+                                        const $currentHistoryGroup = $(this).closest('.history-group');
+                                        const $paramsTable = $currentHistoryGroup.find('.params-table');
+                                        $paramsTable.slideToggle();
+                                    });
+                                $buttonGroup.append($collapseButton); // 将折叠按钮添加到按钮组
+                                $historyGroup.append($buttonGroup); // 将按钮组添加到 history-group
 
                                 functions.forEach(func => {
-                                    const funcDetails = parseFunctionDetails(func); // 解析函数参数
+                                    const funcDetails = parseFunctionDetails(func);
                                     const $funcItem = $('<div>').addClass('history-item');
-                                    $funcItem.append($('<div>').addClass('function-name').text(funcDetails.name)); // 函数名
-                                    $funcItem.append(renderParamsTable(funcDetails.params)); // 参数表格
+                                    $funcItem.append($('<div>').addClass('function-name').text(funcDetails.name));
 
-                                    if (func.startsWith('insertRow')) {
-                                        $insertDiv.append($funcItem);
-                                        $insertDiv.append('<hr class="item-separator">'); // 分隔线
-                                    } else if (func.startsWith('updateRow')) {
-                                        $updateDiv.append($funcItem);
-                                        $updateDiv.append('<hr class="item-separator">'); // 分隔线
-                                    } else if (func.startsWith('deleteRow')) {
-                                        $deleteDiv.append($funcItem);
-                                        $deleteDiv.append('<hr class="item-separator">'); // 分隔线
+                                    const $paramsTable = renderParamsTable(funcDetails.name, funcDetails.params);
+                                    $funcItem.append($paramsTable);
+
+                                    // 如果是可折叠的 history-group，初始隐藏参数表格
+                                    if (i < tableEditHistory.length - 1) {
+                                        $paramsTable.hide();
                                     }
-                                });
 
-                                if ($insertDiv.children().length > 0) {
-                                    $insertDiv.find('hr.item-separator').last().remove(); // 移除最后一个分隔线
-                                    $tableHistory.append($insertDiv);
-                                }
-                                if ($updateDiv.children().length > 0) {
-                                    $updateDiv.find('hr.item-separator').last().remove(); // 移除最后一个分隔线
-                                    $tableHistory.append($updateDiv);
-                                }
-                                if ($deleteDiv.children().length > 0) {
-                                    $deleteDiv.find('hr.item-separator').last().remove(); // 移除最后一个分隔线
-                                    $tableHistory.append($deleteDiv);
-                                }
+                                    // 根据函数类型添加不同的背景色 class
+                                    if (func.startsWith('insertRow')) {
+                                        $funcItem.addClass('insert-item');
+                                    } else if (func.startsWith('updateRow')) {
+                                        $funcItem.addClass('update-item');
+                                    } else if (func.startsWith('deleteRow')) {
+                                        $funcItem.addClass('delete-item');
+                                    }
+
+                                    $historyGroup.append($funcItem);
+                                });
+                                $tableHistory.prepend($historyGroup);
                             }
                         }
                     }
@@ -1262,60 +1300,169 @@ async function openTableHistoryPopup(){
     } else {
         $tableHistory.append($('<p>').text('聊天记录为空，无法查看数据表编辑历史。'));
     }
+    setTimeout(() => {
+        // 确保在 DOM 更新后执行滚动到底部
+        $tableHistory.scrollTop($tableHistory[0].scrollHeight);
+    }, 0);
+
     await tableHistoryPopup.show();
 }
 
 /**
- * 解析函数调用字符串，提取函数名和参数
+ * 解析函数调用字符串，提取函数名和参数 (JSON 感知)
  * @param {string} funcStr 函数调用字符串
- * @returns {object} 包含函数名和参数的对象
+ * @returns {object} 包含函数名和参数的对象，参数为数组
  */
 function parseFunctionDetails(funcStr) {
     const nameMatch = funcStr.match(/^(insertRow|updateRow|deleteRow)\(/);
-    const name = nameMatch ? nameMatch[1] : funcStr.split('(')[0]; // 提取函数名
-    let paramsStr = funcStr.substring(funcStr.indexOf('(') + 1, funcStr.lastIndexOf(')')); // 提取参数字符串
-    let params = {};
+    const name = nameMatch ? nameMatch[1] : funcStr.split('(')[0];
+    let paramsStr = funcStr.substring(funcStr.indexOf('(') + 1, funcStr.lastIndexOf(')'));
+    let params = [];
+
     if (paramsStr) {
-        try {
-            params = JSON5.parse(paramsStr); // 使用 JSON5 解析参数 (假设参数是 JSON 格式)
-        } catch (e) {
-            paramsStr = paramsStr.replace(/([a-zA-Z0-9_]+):/g, '"$1":'); // 尝试修复不规范的 JSON 格式 (例如键名没有引号)
-            try {
-                params = JSON.parse(paramsStr); // 再次尝试使用 JSON 解析
-            } catch (e) {
-                params = { raw: paramsStr }; // 如果解析失败，则将原始参数字符串作为 raw 属性
+        let currentParam = '';
+        let bracketLevel = 0;
+        let quoteLevel = 0;
+
+        for (let i = 0; i < paramsStr.length; i++) {
+            const char = paramsStr[i];
+
+            if (quoteLevel === 0 && char === '{') {
+                bracketLevel++;
+                currentParam += char;
+            } else if (quoteLevel === 0 && char === '}') {
+                bracketLevel--;
+                currentParam += char;
+            } else if (quoteLevel === 0 && char === ',' && bracketLevel === 0) {
+                params.push(parseParamValue(currentParam.trim()));
+                currentParam = '';
+            } else if (quoteLevel === 0 && (char === '"' || char === "'")) {
+                quoteLevel = (char === '"' ? 2 : 1);
+                currentParam += char;
+            } else if (quoteLevel !== 0 && char === (quoteLevel === 2 ? '"' : "'") && paramsStr[i-1] !== '\\') {
+                quoteLevel = 0;
+                currentParam += char;
             }
+            else {
+                currentParam += char;
+            }
+        }
+        if (currentParam.trim()) {
+            params.push(parseParamValue(currentParam.trim()));
         }
     }
     return { name, params };
 }
 
 /**
- * 渲染参数表格
- * @param {object} params 参数对象
+ * 解析参数值，尝试解析为数字或 JSON，否则作为字符串返回
+ * @param {string} paramStr 参数字符串
+ * @returns {any} 解析后的参数值
+ */
+function parseParamValue(paramStr) {
+    const trimmedParam = paramStr.trim();
+    const num = Number(trimmedParam);
+    if (!isNaN(num)) {
+        return num;
+    }
+    if (trimmedParam.startsWith('{') && trimmedParam.endsWith('}')) {
+        try {
+            return JSON5.parse(trimmedParam);
+        } catch (e) {
+            // JSON 解析失败，返回原始字符串 (可能不是有效的 JSON 字符串)
+        }
+    }
+    if (trimmedParam.startsWith('"') && trimmedParam.endsWith('"') || trimmedParam.startsWith("'") && trimmedParam.endsWith("'")) {
+        return trimmedParam.slice(1, -1);
+    }
+    return trimmedParam;
+}
+
+/**
+ * 渲染参数表格，根据函数类型进行优化显示
+ * @param {string} functionName 函数名 (insertRow, updateRow, deleteRow)
+ * @param {array} params 参数数组
  * @returns {JQuery<HTMLElement>} 参数表格的 jQuery 对象
  */
-function renderParamsTable(params) {
+function renderParamsTable(functionName, params) {
     const $table = $('<table>').addClass('params-table');
     const $tbody = $('<tbody>');
-    if (params && typeof params === 'object') {
-        for (const key in params) {
-            if (params.hasOwnProperty(key)) {
-                const value = params[key];
-                const $tr = $('<tr>');
-                $tr.append($('<th>').text(key)); // 参数名 (列索引)
-                $tr.append($('<td>').text(value)); // 参数值
-                $tbody.append($tr);
+
+    // 提取公共的 Table Index 和 Row Index 添加逻辑
+    const addIndexRows = (tableIndex, rowIndex) => {
+        if (typeof tableIndex === 'number') {
+            $tbody.append($('<tr>').append($('<th style="color: #82e8ff; font-weight: bold;">').text('#')).append($('<td>').text(tableIndex))); // 加粗
+        }
+        if (typeof rowIndex === 'number') {
+            $tbody.append($('<tr>').append($('<th style="color: #82e8ff; font-weight: bold;">').text('^')).append($('<td>').text(rowIndex))); // 加粗
+        }
+    };
+
+    if (functionName === 'insertRow') {
+        // insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
+        const tableIndex = params[0];
+        const data = params[1];
+
+        if (typeof tableIndex === 'number' && data && typeof data === 'object') {
+            addIndexRows(tableIndex, undefined); // 仅添加 Table Index
+            for (const colIndex in data) {
+                if (data.hasOwnProperty(colIndex)) {
+                    const value = data[colIndex];
+                    $tbody.append($('<tr>').append($('<th>').text(`${colIndex}`)).append($('<td>').text(value)));
+                }
             }
+        } else {
+            $tbody.append(createRawParamsRow(params));
+        }
+    } else if (functionName === 'updateRow') {
+        // updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
+        const tableIndex = params[0];
+        const rowIndex = params[1];
+        const data = params[2];
+
+        if (typeof tableIndex === 'number' && typeof rowIndex === 'number' && data && typeof data === 'object') {
+            addIndexRows(tableIndex, rowIndex); // 添加 Table Index 和 Row Index
+            for (const colIndex in data) {
+                if (data.hasOwnProperty(colIndex)) {
+                    const value = data[colIndex];
+                    $tbody.append($('<tr>').append($('<th>').text(`${colIndex}`)).append($('<td>').text(value)));
+                }
+            }
+        } else {
+            $tbody.append(createRawParamsRow(params));
+        }
+    } else if (functionName === 'deleteRow') {
+        // deleteRow(tableIndex:number, rowIndex:number)
+        const tableIndex = params[0];
+        const rowIndex = params[1];
+
+        if (typeof tableIndex === 'number' && typeof rowIndex === 'number') {
+            addIndexRows(tableIndex, rowIndex); // 添加 Table Index 和 Row Index
+        } else {
+            $tbody.append(createRawParamsRow(params));
         }
     } else {
-        const $tr = $('<tr>');
-        $tr.append($('<td>').text(params && params.raw ? params.raw : 'No parameters')); // 显示原始参数或提示无参数
-        $tbody.append($tr);
+        $tbody.append(createRawParamsRow(params));
     }
+
     $table.append($tbody);
     return $table;
 }
+
+/**
+ * 创建显示原始参数的表格行
+ * @param {object} params 参数对象
+ * @returns {JQuery<HTMLElement>} 包含原始参数的表格行
+ */
+function createRawParamsRow(params) {
+    const $tr = $('<tr>');
+    $tr.append($('<th>').text('Raw Parameters'));
+    $tr.append($('<td>').text(JSON.stringify(params)));
+    return $tr;
+}
+
+
+
 
 let _currentTableIndex = -1;    // +.
 let _currentTablePD = null;     // +.

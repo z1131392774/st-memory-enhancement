@@ -88,46 +88,91 @@ td.selected {
 
 
 
+/* CSS 变量定义 */
+:root {
+    --history-group-border-color: #666;
+    --function-name-color: #aaa;
+    --params-table-td-color: #eee;
+    --item-separator-color: #ddd;
+    --insert-item-bg-color: rgba(0, 255, 25, 0.1); /* 深绿色 */
+    --update-item-bg-color: rgba(25, 25, 255, 0.1); /* 深蓝色 */
+    --delete-item-bg-color: rgba(255, 25, 0, 0.1); /* 深红色 */
+    --error-item-bg-color: #f44336;
+}
+
+.dataBankAttachments {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.history-title-bar {
+    /* 标题栏样式 */
+    padding-bottom: 10px;
+}
+
+.history-title {
+    margin-bottom: 0;
+}
+
+.history-scroll-content {
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+
 .history-group {
-    margin-bottom: 5px;
+    margin-bottom: 25px;
     padding: 5px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
+    border-radius: 12px;
+    /*border: 3px solid var(--history-group-border-color);*/
 }
 
-.group-title {
-    font-weight: bold;
-    margin-bottom: 10px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid #eee;
-}
-
-.insert-group {
-    background-color: rgba(144, 238, 144, 0.2);
-    border-color: rgba(144, 238, 144, 0.7);
-}
-
-.update-group {
-    background-color: rgba(173, 216, 230, 0.2);
-    border-color: rgba(173, 216, 230, 0.7);
-}
-
-.delete-group {
-    background-color: rgba(255, 182, 193, 0.2);
-    border-color: rgba(255, 182, 193, 0.7);
+.collapsible-history-group {
+    /* 可折叠的 history-group 特有样式 */
 }
 
 .history-item {
-    margin-bottom: 5px;
-    padding: 5px;
-    border-radius: 3px;
+    padding: 5px 5px 10px 5px;
+    border-radius: 8px;
+}
+
+.history-button-group {
+    display: flex;
+    flex-direction: row;
+    top: 10px;
+    right: 10px;
+    gap: 5px;
+}
+
+.original-message-button, .collapse-button {
+    padding: 5px 8px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: #aaa;
+    font-size: 0.8em;
+    cursor: pointer;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.original-message-button:hover, .collapse-button:hover {
+    color: #ccc;
+}
+
+.original-message-button i, .collapse-button i {
+    font-size: 1em;
 }
 
 .function-name {
     font-weight: bold;
-    margin-bottom: 5px;
-    font-size: 1.1em;
-    color: #aaa;
+    color: var(--function-name-color);
 }
 
 .params-table {
@@ -138,9 +183,9 @@ td.selected {
 
 .params-table th,
 .params-table td {
-    padding: 8px;
+    padding: 0 8px;
     text-align: left;
-    font-size: 0.95em;
+    font-size: 0.9em;
 }
 
 .params-table th {
@@ -148,12 +193,36 @@ td.selected {
 }
 
 .params-table td {
-    color: #eee;
+    width: 100%;
+    color: var(--params-table-td-color);
+    text-align: left;
 }
 
 .item-separator {
     border: none;
-    border-top: 1px dashed #ddd;
-    margin: 15px 0;
+    border-top: 2px dashed var(--item-separator-color);
 }
 
+/*.insert-item {*/
+/*    color: #41b651;*/
+/*}*/
+
+/*.update-item {*/
+/*    color: #3877ff;*/
+/*}*/
+
+/*.delete-item {*/
+/*    color: #f44336;*/
+/*}*/
+
+.insert-item {
+    background-color: var(--insert-item-bg-color);
+}
+
+.update-item {
+    background-color: var(--update-item-bg-color);
+}
+
+.delete-item {
+    background-color: var(--delete-item-bg-color);
+}
