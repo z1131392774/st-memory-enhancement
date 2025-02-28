@@ -5,31 +5,48 @@
             数据表
         </span>
     </h2>
-    <div>
+    <small>
         这是用于储存数据的表格。模型可以根据提供的提示词，对表格进行更新。并将表格中的数据用于下一次生成对话的参考。
-    </div>
+    </small>
     <div id="tableEditTips"></div>
-    <div style=" display: flex;justify-content: center;">
-        <div style="display: flex;    gap: 10px;">
-            <div class="menu_button" id="copy_table_button" style="width: 90px;">
-                <a>复制表格</a>
-            </div>
-            <div class="menu_button" id="paste_table_button" style="width: 90px;">
-                <a>粘贴表格</a>
-            </div>
-            <div class="menu_button" id="clear_table_button" style="width: 90px;">
-                <a>清空表格</a>
-            </div>
-            <div class="menu_button" id="table_clear_up_button" style="width: 90px;" title="可以从插件界面更改设置">
-                <a>整理表格</a>
-            </div>
-        </div>
-    </div>
     <hr />
-    <div style="display: flex;justify-content: center;">
-        <i class="menu_button menu_button_icon fa-solid fa-clock-rotate-left dataTable_history_button" data-index="${tableIndex}">
-            <a style="min-width: 100px">查看当前表格的历史记录</a>
-        </i>
+    <div style=" display: flex; justify-content: flex-start; flex-wrap: wrap; width: fit-content; gap: 4px;">
+
+        <div style="display: flex; justify-content: center;" id="import_clear_up_button">
+            <i class="menu_button menu_button_icon fa-solid fa-file-import" style="height: 30px; width: 30px" title="导入表格">
+<!--                <a style="min-width: 50px">导入</a>-->
+            </i>
+        </div>
+        <div style="display: flex; justify-content: center;" id="export_table_button">
+            <i class="menu_button menu_button_icon fa-solid fa-file-export" style="height: 30px; width: 30px" title="导出表格">
+<!--                <a style="min-width: 50px">导出</a>-->
+            </i>
+        </div>
+        <div style="display: flex; justify-content: center;" id="copy_table_button">
+            <i class="menu_button menu_button_icon fa-solid fa-copy" style="height: 30px; width: 30px" title="复制表格">
+                <!--                <a style="min-width: 50px">复制</a>-->
+            </i>
+        </div>
+        <div style="display: flex; justify-content: center;" id="paste_table_button">
+            <i class="menu_button menu_button_icon fa-solid fa-paste" style="height: 30px; width: 30px" title="粘贴表格">
+                <!--                <a style="min-width: 50px">粘贴</a>-->
+            </i>
+        </div>
+        <div style="display: flex; justify-content: center;" id="clear_table_button">
+            <i class="menu_button menu_button_icon fa-solid fa-trash-can" style="height: 30px; width: 30px" title="清空表格">
+<!--                <a style="min-width: 50px">清空</a>-->
+            </i>
+        </div>
+        <div style="display: flex; justify-content: center;" id="table_clear_up_button">
+            <i class="menu_button menu_button_icon fa-solid fa-broom" style="height: 30px; width: 30px" title="整理表格（可以从插件界面更改设置）">
+<!--                <a>整理表格</a>-->
+            </i>
+        </div>
+        <div style="display: flex; justify-content: center;" id="dataTable_history_button">
+            <i class="menu_button menu_button_icon fa-solid fa-history" style="height: 30px; width: 30px" title="查看表格编辑历史记录">
+<!--                <a style="min-width: 50px">历史</a>-->
+            </i>
+        </div>
     </div>
     <hr />
     <div id="tableContainer">
