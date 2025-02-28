@@ -5,23 +5,36 @@
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
+            <!-- 记忆增强表格管理 -->
             <div id="table_message_tip"></div>
             <div style=" display: flex;">
                 <div class="menu_button">
                     <i class="fa-solid fa-window-restore"></i>
-                    <a
-                        href="https://muyoo.com.cn/2025/01/26/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%95%99%E7%A8%8B/">阅读教程</a>
+                    <a href="https://muyoo.com.cn/2025/01/26/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%95%99%E7%A8%8B/">阅读教程</a>
                 </div>
                 <div class="menu_button">
                     <i class="fa-solid fa-window-restore"></i>
-                    <a
-                        href="https://muyoo.com.cn/2025/01/27/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97/">更新日志</a>
+                    <a href="https://muyoo.com.cn/2025/01/27/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97/">更新日志</a>
                 </div>
             </div>
 
+            <!-- 子设置 -->
             <div style="padding: 10px 0; gap: 10px">
-                <div class="table_setting_category_container"><!-- 基础设置 -->
-                    <b>基础设置</b>
+                <!-- 插件预设 -->
+                <div class="table_setting_category_container" style="display: flex; align-items: center; gap: 6px;">
+                    <b class="table_setting_category_header">导入导出与重置插件</b>
+                    <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
+                    </div>
+                    <input type="file" id="table-set-importFile" accept=".json" hidden>
+                    <div class="menu_button menu_button_icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设">
+                    </div>
+                    <div class="menu_button menu_button_icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
+                </div>
+                <hr/>
+
+                <!-- 基础设置 -->
+                <div class="table_setting_category_container">
+                    <b class="table_setting_category_header">基础设置</b>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="table_switch"><span>插件启用</span>
                     </div>
@@ -34,8 +47,32 @@
                 </div>
                 <hr/>
 
-                <div class="table_setting_category_container"><!-- 重新整理表格 -->
-                    <b>重新整理表格</b>
+                <!-- 表格预设 -->
+                <div class="table_setting_category_container">
+                    <b class="table_setting_category_header">回复设置</b>
+                    <div style="padding-left: 10px;">
+                        <label for="dataTable_injection_mode" class="checkbox_label">注入设置</label>
+                        <div style=" display: flex;">
+                            <select id="dataTable_injection_mode">
+                                <option value="deep_system">@D ⚙</option>
+                                <option value="deep_user">@D 👤</option>
+                                <option value="deep_assistant">@D 🤖</option>
+                            </select>
+                            <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep">深度：</label>
+                            <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
+                        </div>
+                    </div>
+                    <div style="padding-left: 10px;">
+                        <label for="dataTable_message_template">消息模板</label><small>
+                        (用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
+                        <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
+                    </div>
+                </div>
+                <hr/>
+
+                <!-- 重新整理表格 -->
+                <div class="table_setting_category_container">
+                    <b class="table_setting_category_header">重新整理表格</b>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="advanced_settings">
                         <span>高级设置</span>
@@ -71,58 +108,30 @@
                             </div>
                         </div>
                     </div>
-                    <div class="menu_button" id="table_clear_up" style="width: 120px;">
-                        <a>重新整理表格</a>
+                    <div class="menu_button" id="table_clear_up" style="min-width: 120px;">
+                        <i class="fa-solid fa-arrows-rotate"></i><a>重新整理表格</a>
                     </div>
                 </div>
                 <hr/>
 
-                <div class="table_setting_category_container"><!-- 表格推送至对话 -->
-                    <b>表格推送至对话</b>
+                <!-- 表格推送至对话 -->
+                <div class="table_setting_category_container">
+                    <b class="table_setting_category_header">表格推送至对话</b>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="table_to_chat"><span>表格推送至对话</span>
                     </div>
-                    <div style="padding-left: 10px;">
-                        <label for="dataTable_to_chat_button">对话中的面板样式</label><small>(使用HTML、CSS自定义推送至对话的表格整体样式，用<code>$0</code>表示表格整体的插入位置)</small>
-                        <i class="menu_button menu_button_icon fa-solid fa-pen-to-square" id="dataTable_to_chat_button" data-index="${tableIndex}">
-                            <a style="min-width: 100px">编辑对话中的面板样式</a>
-                        </i>
-                    </div>
-                </div>
-                <hr/>
-
-                <div class="table_setting_category_container"><!-- 表格预设 -->
-                    <div style="display: flex;align-items: center;gap: 6px;">
-                        <b>插件预设</b>
-                        <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
-                        </div>
-                        <input type="file" id="table-set-importFile" accept=".json" hidden>
-                        <div class="menu_button menu_button_icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设">
-                        </div>
-                        <div class="menu_button menu_button_icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
-                    </div>
-                    <div style="padding-left: 10px;">
-                        <label for="dataTable_injection_mode" class="checkbox_label">注入设置</label>
-                        <div style=" display: flex;">
-                            <select id="dataTable_injection_mode">
-                                <option value="deep_system">@D ⚙</option>
-                                <option value="deep_user">@D 👤</option>
-                                <option value="deep_assistant">@D 🤖</option>
-                            </select>
-                            <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep">深度：</label>
-                            <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
-                        </div>
-                    </div>
-                    <div style="padding-left: 10px;">
-                        <label for="dataTable_message_template">消息模板</label><small>
-                        (用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
-                        <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
+<!--                    <div style="padding-left: 10px">-->
+<!--                        <label for="dataTable_to_chat_button">对话中的面板样式</label>-->
+<!--                    </div>-->
+<!--                    <small>(使用HTML、CSS自定义推送至对话的表格整体样式，用<code>$0</code>表示表格整体的插入位置)</small>-->
+                    <div class="menu_button" id="dataTable_to_chat_button">
+                        <i class="fa-solid fa-pen-to-square"></i><a style="min-width: 100px">编辑对话中的面板样式</a>
                     </div>
                 </div>
                 <hr/>
 
                 <div class="table_setting_category_container"><!-- 表格结构 -->
-                    <b>表格结构</b>
+                    <b class="table_setting_category_header">表格结构</b>
                     <div style="padding-left: 10px;">
                         <label>所有表格</label><small> (目前用于修改表格的说明及各种表格操作的触发提示词)</small>
                         <div id="dataTable_tableEditor_list">
