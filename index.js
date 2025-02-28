@@ -55,7 +55,8 @@ const defaultSettings = {
     isAiReadTable: true,
     isAiWriteTable: true,
     isTableToChat: false,
-    enableHistory: true,
+    // enableHistory: true,
+    step_by_step: false,
     //自动整理表格
     use_main_api: true,
     custom_temperature: 1.0,
@@ -320,6 +321,8 @@ function loadSettings() {
     renderSetting()
 
     //api初始化
+    $('#step_by_step').prop('checked', extension_settings.muyoo_dataTable.step_by_step ?? true);
+    $('#reply_options').toggle(!extension_settings.muyoo_dataTable.step_by_step);
     $('#use_main_api').prop('checked', extension_settings.muyoo_dataTable.use_main_api ?? true);
     $('#custom_api_settings').toggle(!extension_settings.muyoo_dataTable.use_main_api);
 
@@ -1410,12 +1413,17 @@ function getTableEditTag(mes) {
  * @param this_edit_mes_id 此消息的ID
  */
 async function onMessageEdited(this_edit_mes_id) {
-    const chat = getContext().chat[this_edit_mes_id]
-    if (chat.is_user === true || extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiWriteTable === false) return
-    try {
-        handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
-    } catch (error) {
-        toastr.error("记忆插件：表格编辑失败\n原因：", error.message)
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
+    if (extension_settings.muyoo_dataTable.step_by_step === true) {
+
+    } else {
+        const chat = getContext().chat[this_edit_mes_id]
+        if (chat.is_user === true ||extension_settings.muyoo_dataTable.isAiWriteTable === false) return
+        try {
+            handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
+        } catch (error) {
+            toastr.error("记忆插件：表格编辑失败\n原因：", error.message)
+        }
     }
 }
 
@@ -1424,14 +1432,36 @@ async function onMessageEdited(this_edit_mes_id) {
  * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
-    if (extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiWriteTable === false) return
-    const chat = getContext().chat[chat_id];
-    console.log("收到消息", chat_id)
-    try {
-        handleEditStrInMessage(chat)
-    } catch (error) {
-        toastr.error("记忆插件：表格自动更改失败\n原因：", error.message)
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
+    if (extension_settings.muyoo_dataTable.step_by_step === true) {
+        await TableTwoStepSummary();
+    } else {
+        if (extension_settings.muyoo_dataTable.isAiWriteTable === false) return
+        const chat = getContext().chat[chat_id];
+        console.log("收到消息", chat_id)
+        try {
+            handleEditStrInMessage(chat)
+        } catch (error) {
+            toastr.error("记忆插件：表格自动更改失败\n原因：", error.message)
+        }
     }
+}
+
+/**
+ * 执行两步总结
+ * */
+async function TableTwoStepSummary() {
+    console.log("执行两步总结")
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.step_by_step === false) return
+    const chat = getContext().chat;
+    const currentChat = chat[chat.length - 1];
+    if (currentChat.is_user === true) return
+    if (currentChat.enabledTwoStepSummary === true) {
+        console.log("当前消息已执行两步总结")
+        return;
+    }
+    await refreshTableActions(true, true);
+    currentChat.enabledTwoStepSummary = true;
 }
 
 /**
@@ -2122,13 +2152,18 @@ async function onInsertFirstRow() {
  * 滑动切换消息事件
  */
 async function onMessageSwiped(chat_id) {
-    if (extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiWriteTable === false) return
-    const chat = getContext().chat[chat_id];
-    if (!chat.swipe_info[chat.swipe_id]) return
-    try {
-        handleEditStrInMessage(chat)
-    } catch (error) {
-        toastr.error("记忆插件：swipe切换失败\n原因：", error.message)
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false) return
+    if (extension_settings.muyoo_dataTable.step_by_step === true) {
+        await TableTwoStepSummary();
+    } else {
+        if (extension_settings.muyoo_dataTable.isAiWriteTable === false) return
+        const chat = getContext().chat[chat_id];
+        if (!chat.swipe_info[chat.swipe_id]) return
+        try {
+            handleEditStrInMessage(chat)
+        } catch (error) {
+            toastr.error("记忆插件：swipe切换失败\n原因：", error.message)
+        }
     }
 }
 
@@ -2502,10 +2537,15 @@ function confirmTheOperationPerformed(content) {
 `;
 }
 
-async function refreshTableActions() {
+async function refreshTableActions(force = false, silentUpdate = false) {
     const tableRefreshPopup = (getRefreshTableConfigStatus());
-    const confirmation = await callGenericPopup(tableRefreshPopup, POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
-    if (!confirmation) return;
+
+    // 如果不是强制刷新，先确认是否继续
+    if (!force) {
+        // 显示配置状态
+        const confirmation = await callGenericPopup(tableRefreshPopup, POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+        if (!confirmation) return;
+    }
 
     // 开始执行整理表格
     let response;
@@ -2711,63 +2751,68 @@ async function refreshTableActions() {
         // 合并操作：先非删除，后删除
         uniqueActions = [...uniqueNonDeleteActions, ...uniqueDeleteActions];
 
-        // 将uniqueActions内容推送给用户确认是否继续
-        const confirmContent = confirmTheOperationPerformed(uniqueActions);
-        const tableRefreshPopup = new Popup(confirmContent, POPUP_TYPE.TEXT, '', { okButton: "继续", cancelButton: "取消" });
-        toastr.clear(loadingToast);
-        await tableRefreshPopup.show();
+        // 如果不是静默更新，显示操作确认
+        if (!silentUpdate){
+            // 将uniqueActions内容推送给用户确认是否继续
+            const confirmContent = confirmTheOperationPerformed(uniqueActions);
+            const tableRefreshPopup = new Popup(confirmContent, POPUP_TYPE.TEXT, '', { okButton: "继续", cancelButton: "取消" });
+            toastr.clear(loadingToast);
+            await tableRefreshPopup.show();
+            if (!tableRefreshPopup.result) {
+                toastr.info('操作已取消');
+                return;
+            }
+        }
 
         // 处理用户确认的操作
-        if (tableRefreshPopup.result) {
-            // 执行操作
-            uniqueActions.forEach(action => {
-                switch (action.action.toLowerCase()) {
-                    case 'update':
-                        try {
-                            const targetRow = waitingTable[action.tableIndex].content[action.rowIndex];
-                            if (!targetRow || !targetRow[0]?.trim()) {
-                                console.log(`Skipped update: table ${action.tableIndex} row ${action.rowIndex} 第一列为空`);
-                                break;
-                            }
-                            updateRow(action.tableIndex, action.rowIndex, action.data);
-                            console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, waitingTable[action.tableIndex].content[action.rowIndex]);
-                        } catch (error) {
-                            console.error(`Update操作失败: ${error.message}`);
-                        }
-                        break;
-                    case 'insert':
-                        const requiredColumns = findTableStructureByIndex(action.tableIndex)?.columns || [];
-                        const isDataComplete = requiredColumns.every((_, index) => action.data.hasOwnProperty(index.toString()));
-                        if (!isDataComplete) {
-                            console.error(`插入失败：表 ${action.tableIndex} 缺少必填列数据`);
+        // 执行操作
+        uniqueActions.forEach(action => {
+            switch (action.action.toLowerCase()) {
+                case 'update':
+                    try {
+                        const targetRow = waitingTable[action.tableIndex].content[action.rowIndex];
+                        if (!targetRow || !targetRow[0]?.trim()) {
+                            console.log(`Skipped update: table ${action.tableIndex} row ${action.rowIndex} 第一列为空`);
                             break;
                         }
-                        insertRow(action.tableIndex, action.data);
+                        updateRow(action.tableIndex, action.rowIndex, action.data);
+                        console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, waitingTable[action.tableIndex].content[action.rowIndex]);
+                    } catch (error) {
+                        console.error(`Update操作失败: ${error.message}`);
+                    }
+                    break;
+                case 'insert':
+                    const requiredColumns = findTableStructureByIndex(action.tableIndex)?.columns || [];
+                    const isDataComplete = requiredColumns.every((_, index) => action.data.hasOwnProperty(index.toString()));
+                    if (!isDataComplete) {
+                        console.error(`插入失败：表 ${action.tableIndex} 缺少必填列数据`);
                         break;
-                    case 'delete':
-                        if (action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del) {
-                            const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
-                            deleteRow(action.tableIndex, action.rowIndex);
-                            console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
-                        } else {
-                            console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
-                            toastr.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
-                        }
-                        break;
-                }
-            });
+                    }
+                    insertRow(action.tableIndex, action.data);
+                    break;
+                case 'delete':
+                    if (action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del) {
+                        const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
+                        deleteRow(action.tableIndex, action.rowIndex);
+                        console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
+                    } else {
+                        console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
+                        toastr.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
+                    }
+                    break;
+            }
+        });
 
-            // 更新聊天数据
-            chat = getContext().chat[getContext().chat.length - 1];
-            chat.dataTable = waitingTable;
-            getContext().saveChat();
+        // 更新聊天数据
+        chat = getContext().chat[getContext().chat.length - 1];
+        chat.dataTable = waitingTable;
+        getContext().saveChat();
 
-            // 刷新 UI
-            const tableContainer = document.querySelector('#tableContainer');
-            renderTablesDOM(waitingTable, tableContainer, true);
+        // 刷新 UI
+        const tableContainer = document.querySelector('#tableContainer');
+        renderTablesDOM(waitingTable, tableContainer, true);
 
-            toastr.success('表格整理完成');
-        }
+        toastr.success('表格整理完成');
     } catch (error) {
         console.error('整理过程出错:', error);
         toastr.error(`整理失败：${error.message}`);
@@ -2950,6 +2995,15 @@ jQuery(async () => {
         saveSettingsDebounced();
         toastr.success(this.checked ? 'AI的更改现在会被写入表格' : 'AI的更改现在不会被写入表格');
     });
+
+
+    $('#step_by_step').on('change', function() {
+        $('#reply_options').toggle(!this.checked);
+        extension_settings.muyoo_dataTable.step_by_step = this.checked;
+        saveSettingsDebounced();
+    });
+
+
     // 表格推送至对话开关
     $('#table_to_chat').change(function () {
         extension_settings.muyoo_dataTable.isTableToChat = this.checked;
@@ -2957,6 +3011,8 @@ jQuery(async () => {
         toastr.success(this.checked ? '表格会被推送至对话中' : '关闭表格推送至对话');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
+
+
     //整理表格相关高级设置
     $('#advanced_settings').on('change', function() {
         $('#advanced_options').toggle(this.checked);
