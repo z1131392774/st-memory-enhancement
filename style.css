@@ -5,6 +5,10 @@
     flex-direction: row;
 }
 
+.table_setting_category_container {
+
+}
+
 .tableDom {
     border-collapse: collapse;
     white-space: nowrap;

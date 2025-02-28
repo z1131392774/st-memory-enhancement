@@ -18,99 +18,124 @@
                         href="https://muyoo.com.cn/2025/01/27/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97/">更新日志</a>
                 </div>
             </div>
-            <div style="padding: 10px 0px;">
-                <div class="checkbox flex-container">
-                    <input type="checkbox" id="table_switch"><span>插件启用</span>
-                </div>
-                <div class="checkbox flex-container">
-                    <input type="checkbox" id="table_read_switch"><span>AI读表开关</span>
-                </div>
-                <div class="checkbox flex-container">
-                    <input type="checkbox" id="table_edit_switch"><span>AI改表开关</span>
-                </div>
-                <div class="checkbox flex-container">
-                    <input type="checkbox" id="table_to_chat"><span>表格推送至对话</span>
-                </div>
-                <div class="menu_button" id="table_clear_up" style="width: 120px;">
-                    <a>重新整理表格</a>
-                </div>
-                <div class="checkbox flex-container" style="margin-left: 10px;">
-                    <input type="checkbox" id="advanced_settings">
-                    <span>高级设置</span>
-                </div>
-                <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
-                    <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                        <input type="checkbox" id="ignore_del" checked>
-                        <span>整理时不删除，只修改和添加</span>
+
+            <div style="padding: 10px 0; gap: 10px">
+                <div class="table_setting_category_container"><!-- 基础设置 -->
+                    <b>基础设置</b>
+                    <div class="checkbox flex-container">
+                        <input type="checkbox" id="table_switch"><span>插件启用</span>
                     </div>
-                    <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
-                        <label>整理参考消息数（最近几层楼纳入参考）：<span id="clear_up_stairs_value">3</span></label>
-                        <input type="range" id="clear_up_stairs" min="3" max="20" step="1" value="3" style="width: 80%;">
+                    <div class="checkbox flex-container">
+                        <input type="checkbox" id="table_read_switch"><span>AI读表开关</span>
                     </div>
-                    <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
-                        <label>API温度设定（只对自定义API生效）：<span id="custom_temperature_value">1.0</span></label>
-                        <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="width: 80%;">
+                    <div class="checkbox flex-container">
+                        <input type="checkbox" id="table_edit_switch"><span>AI改表开关</span>
                     </div>
                 </div>
-                <div class="checkbox flex-container" style="margin-left: 10px;">
-                    <input type="checkbox" id="use_main_api" checked>
-                    <span>使用主API（取消勾选后可以用自定义的api）</span>
-                </div>
-                <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
-                    <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
-                    <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
-                    <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
-                    <div style="margin-top: 10px;">
-                        <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
-                            <option value="">请先获取模型列表</option>
-                        </select>
-                        <div class="menu_button" id="fetch_models_button" style="width: 100%;">
-                            <a>获取模型列表</a>
+                <hr/>
+
+                <div class="table_setting_category_container"><!-- 重新整理表格 -->
+                    <b>重新整理表格</b>
+                    <div class="checkbox flex-container">
+                        <input type="checkbox" id="advanced_settings">
+                        <span>高级设置</span>
+                    </div>
+                    <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
+                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                            <input type="checkbox" id="ignore_del" checked>
+                            <span>整理时不删除，只修改和添加</span>
+                        </div>
+                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
+                            <label>整理参考消息数（最近几层楼纳入参考）：<span id="clear_up_stairs_value">3</span></label>
+                            <input type="range" id="clear_up_stairs" min="3" max="20" step="1" value="3" style="width: 80%;">
+                        </div>
+                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
+                            <label>API温度设定（只对自定义API生效）：<span id="custom_temperature_value">1.0</span></label>
+                            <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="width: 80%;">
                         </div>
                     </div>
+                    <div class="checkbox flex-container">
+                        <input type="checkbox" id="use_main_api" checked>
+                        <span>使用主API（取消勾选后可以用自定义的api）</span>
+                    </div>
+                    <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
+                        <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
+                        <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
+                        <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
+                        <div style="margin-top: 10px;">
+                            <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
+                                <option value="">请先获取模型列表</option>
+                            </select>
+                            <div class="menu_button" id="fetch_models_button" style="width: 100%;">
+                                <a>获取模型列表</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="menu_button" id="table_clear_up" style="width: 120px;">
+                        <a>重新整理表格</a>
+                    </div>
+                </div>
+                <hr/>
+
+                <div class="table_setting_category_container"><!-- 表格推送至对话 -->
+                    <b>表格推送至对话</b>
+                    <div class="checkbox flex-container">
+                        <input type="checkbox" id="table_to_chat"><span>表格推送至对话</span>
+                    </div>
+                    <div style="padding-left: 10px;">
+                        <label for="dataTable_to_chat_button">对话中的面板样式</label><small>(使用HTML、CSS自定义推送至对话的表格整体样式，用<code>$0</code>表示表格整体的插入位置)</small>
+                        <i class="menu_button menu_button_icon fa-solid fa-pen-to-square" id="dataTable_to_chat_button" data-index="${tableIndex}">
+                            <a style="min-width: 100px">编辑对话中的面板样式</a>
+                        </i>
+                    </div>
+                </div>
+                <hr/>
+
+                <div class="table_setting_category_container"><!-- 表格预设 -->
+                    <div style="display: flex;align-items: center;gap: 6px;">
+                        <b>插件预设</b>
+                        <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
+                        </div>
+                        <input type="file" id="table-set-importFile" accept=".json" hidden>
+                        <div class="menu_button menu_button_icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设">
+                        </div>
+                        <div class="menu_button menu_button_icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
+                    </div>
+                    <div style="padding-left: 10px;">
+                        <label for="dataTable_injection_mode" class="checkbox_label">注入设置</label>
+                        <div style=" display: flex;">
+                            <select id="dataTable_injection_mode">
+                                <option value="deep_system">@D ⚙</option>
+                                <option value="deep_user">@D 👤</option>
+                                <option value="deep_assistant">@D 🤖</option>
+                            </select>
+                            <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep">深度：</label>
+                            <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
+                        </div>
+                    </div>
+                    <div style="padding-left: 10px;">
+                        <label for="dataTable_message_template">消息模板</label><small>
+                        (用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
+                        <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
+                    </div>
+                </div>
+                <hr/>
+
+                <div class="table_setting_category_container"><!-- 表格结构 -->
+                    <b>表格结构</b>
+                    <div style="padding-left: 10px;">
+                        <label>所有表格</label><small> (目前用于修改表格的说明及各种表格操作的触发提示词)</small>
+                        <div id="dataTable_tableEditor_list">
+                        </div>
+                    </div>
+                    <!-- <div style="padding-left: 10px;">
+                        <label>表格提示词组装函数</label><small> (用于指定表格提示词的组装方式的js函数)</small>
+                        <textarea id="dataTable_table_function" class="wide100p" rows="3"></textarea>
+                    </div> -->
                 </div>
             </div>
-            <div style="display: flex;align-items: center;gap: 6px;">
-                <b>插件预设</b>
-                <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
-                </div>
-                <input type="file" id="table-set-importFile" accept=".json" hidden>
-                <div class="menu_button menu_button_icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设">
-                </div>
-                <div class="menu_button menu_button_icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
-            </div>
-            <div style="padding-left: 10px;">
-                <label for="dataTable_injection_mode" class="checkbox_label">注入设置</label>
-                <div style=" display: flex;">
-                    <select id="dataTable_injection_mode">
-                        <option value="deep_system">@D ⚙</option>
-                        <option value="deep_user">@D 👤</option>
-                        <option value="deep_assistant">@D 🤖</option>
-                    </select>
-                    <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep">深度：</label>
-                    <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
-                </div>
-            </div>
-            <div style="padding-left: 10px;">
-                <label for="dataTable_message_template">消息模板</label><small>
-                    (用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
-                <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
-            </div>
-            <div style="padding-left: 10px;">
-                <label>表格结构</label><small> (目前用于修改表格的说明及各种表格操作的触发提示词)</small>
-                <div id="dataTable_tableEditor_list">
-                </div>
-            </div>
-            <!-- <div style="padding-left: 10px;">
-                <label>表格提示词组装函数</label><small> (用于指定表格提示词的组装方式的js函数)</small>
-                <textarea id="dataTable_table_function" class="wide100p" rows="3"></textarea>
-            </div> -->
-            <div style="padding-left: 10px;">
-                <label for="dataTable_to_chat_button">对话中的面板样式</label><small>(使用HTML、CSS自定义推送至对话的表格整体样式，用<code>$0</code>表示表格整体的插入位置)</small>
-                <i class="menu_button menu_button_icon fa-solid fa-pen-to-square" id="dataTable_to_chat_button" data-index="${tableIndex}">
-                    <a style="min-width: 100px">编辑对话中的面板样式</a>
-                </i>
-            </div>
+
+
             <div style="height: 20px;"></div>
         </div>
     </div>
