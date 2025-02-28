@@ -1223,7 +1223,6 @@ async function openTableHistoryPopup(){
                                 if (i < tableEditHistory.length - 1) {
                                     $historyGroup.addClass('collapsible-history-group');
                                 }
-
                                 // 在 history-group 级别创建原始消息按钮 和 折叠按钮
                                 const $buttonGroup = $('<div>').addClass('history-button-group'); // 创建按钮组容器
                                 const $originalButton = $('<button><i class="fa-solid fa-quote-left"></i>')
@@ -1250,41 +1249,66 @@ async function openTableHistoryPopup(){
                                             }
                                         }
                                     });
-                                $buttonGroup.append($originalButton); // 将原始消息按钮添加到按钮组
-
                                 const $collapseButton = $('<button><i class="fa-solid fa-square-caret-down"></i></button>')
                                     .addClass('collapse-button')
                                     .on('click', function(e) {
                                         e.stopPropagation(); // 阻止事件冒泡
                                         const $currentHistoryGroup = $(this).closest('.history-group');
                                         const $paramsTable = $currentHistoryGroup.find('.params-table');
+                                        const $indexPreview = $currentHistoryGroup.find('.index-preview'); // 获取预览元素
+                                        const $icon = $(this).find('i');
+
                                         $paramsTable.slideToggle();
+                                        $indexPreview.slideToggle(); // 同时切换预览元素的显示
+
+                                        if ($paramsTable.is(':visible')) {
+                                            $icon.removeClass('fa-square-caret-down').addClass('fa-square-caret-up');
+                                        } else {
+                                            $icon.removeClass('fa-square-caret-up').addClass('fa-square-caret-down');
+                                        }
                                     });
                                 $buttonGroup.append($collapseButton); // 将折叠按钮添加到按钮组
+                                $buttonGroup.append($originalButton); // 将原始消息按钮添加到按钮组
                                 $historyGroup.append($buttonGroup); // 将按钮组添加到 history-group
 
-                                functions.forEach(func => {
-                                    const funcDetails = parseFunctionDetails(func);
+                                functions.forEach((func, funcIndex) => { // functions.forEach 添加 index
+                                    const isValidFormat = validateFunctionFormat(func);
                                     const $funcItem = $('<div>').addClass('history-item');
-                                    $funcItem.append($('<div>').addClass('function-name').text(funcDetails.name));
+                                    const $leftRectangle = $('<div>').addClass('left-rectangle');
+                                    if (isValidFormat) {
+                                        const funcDetails = parseFunctionDetails(func);
+                                        const $itemIndex = $('<div>').addClass('item-index').text(`${funcIndex}`);
+                                        const renderResult = renderParamsTable(funcDetails.name, funcDetails.params); // 获取 renderParamsTable 的返回结果
+                                        const $paramsTable = renderResult.$table; // 从返回结果中获取 $table
+                                        const indexData = renderResult.indexData; // 从返回结果中获取 indexData
+                                        const funcIcon = renderWithType();
 
-                                    const $paramsTable = renderParamsTable(funcDetails.name, funcDetails.params);
-                                    $funcItem.append($paramsTable);
-
-                                    // 如果是可折叠的 history-group，初始隐藏参数表格
-                                    if (i < tableEditHistory.length - 1) {
-                                        $paramsTable.hide();
+                                        // 根据函数类型添加不同的背景色和图标
+                                        function renderWithType() {
+                                            if (func.startsWith('insertRow')) {
+                                                $leftRectangle.addClass('insert-item');
+                                                return `<i class="fa-solid fa-plus"></i>`;
+                                            } else if (func.startsWith('updateRow')) {
+                                                $leftRectangle.addClass('update-item');
+                                                return `<i class="fa-solid fa-pen"></i>`;
+                                            } else if (func.startsWith('deleteRow')) {
+                                                $leftRectangle.addClass('delete-item');
+                                                return `<i class="fa-solid fa-trash"></i>`;
+                                            }
+                                            return '';
+                                        }
+                                        $funcItem.append($leftRectangle);
+                                        $funcItem.append($itemIndex); // 将序号添加到 history-item 的最前面
+                                        $funcItem.append($paramsTable);
+                                        
+                                        if (i < tableEditHistory.length - 1) $paramsTable.hide();   // 如果是可折叠的 history-group，初始隐藏参数表格
+                                    } else {
+                                        // 添加序号 div，即使是错误格式也添加序号
+                                        const $itemIndex = $('<div>').addClass('item-index').addClass('error-index').text(`${funcIndex}`); // 错误格式序号添加 error-index class
+                                        $funcItem.addClass('error-item');
+                                        $funcItem.append($itemIndex);
+                                        $funcItem.append($('<div>').addClass('function-name error-function').text('Error Format: ' + func));
                                     }
-
-                                    // 根据函数类型添加不同的背景色 class
-                                    if (func.startsWith('insertRow')) {
-                                        $funcItem.addClass('insert-item');
-                                    } else if (func.startsWith('updateRow')) {
-                                        $funcItem.addClass('update-item');
-                                    } else if (func.startsWith('deleteRow')) {
-                                        $funcItem.addClass('delete-item');
-                                    }
-
                                     $historyGroup.append($funcItem);
                                 });
                                 $tableHistory.prepend($historyGroup);
@@ -1307,6 +1331,45 @@ async function openTableHistoryPopup(){
 
     await tableHistoryPopup.show();
 }
+
+/**
+ * 验证函数字符串格式是否正确
+ * @param {string} funcStr 函数字符串
+ * @returns {boolean} true 如果格式正确，false 否则
+ */
+function validateFunctionFormat(funcStr) {
+    const trimmedFuncStr = funcStr.trim();
+    if (!(trimmedFuncStr.startsWith('insertRow') || trimmedFuncStr.startsWith('updateRow') || trimmedFuncStr.startsWith('deleteRow'))) {
+        return false;
+    }
+
+    const functionName = trimmedFuncStr.split('(')[0];
+    const paramsStr = trimmedFuncStr.substring(trimmedFuncStr.indexOf('(') + 1, trimmedFuncStr.lastIndexOf(')'));
+    const params = parseFunctionDetails(trimmedFuncStr).params; // Reuse parseFunctionDetails to get params array
+
+    if (functionName === 'insertRow') {
+        if (params.length !== 2) return false;
+        if (typeof params[0] !== 'number') return false;
+        if (typeof params[1] !== 'object' || params[1] === null) return false;
+        for (const key in params[1]) {
+            if (params[1].hasOwnProperty(key) && isNaN(Number(key))) return false;
+        }
+    } else if (functionName === 'updateRow') {
+        if (params.length !== 3) return false;
+        if (typeof params[0] !== 'number') return false;
+        if (typeof params[1] !== 'number') return false;
+        if (typeof params[2] !== 'object' || params[2] === null) return false;
+        for (const key in params[2]) {
+            if (params[2].hasOwnProperty(key) && isNaN(Number(key))) return false;
+        }
+    } else if (functionName === 'deleteRow') {
+        if (params.length !== 2) return false;
+        if (typeof params[0] !== 'number') return false;
+        if (typeof params[1] !== 'number') return false;
+    }
+    return true;
+}
+
 
 /**
  * 解析函数调用字符串，提取函数名和参数 (JSON 感知)
@@ -1382,19 +1445,22 @@ function parseParamValue(paramStr) {
  * 渲染参数表格，根据函数类型进行优化显示
  * @param {string} functionName 函数名 (insertRow, updateRow, deleteRow)
  * @param {array} params 参数数组
- * @returns {JQuery<HTMLElement>} 参数表格的 jQuery 对象
+ * @returns {object} 包含参数表格和 index 数据的对象
  */
 function renderParamsTable(functionName, params) {
     const $table = $('<table>').addClass('params-table');
     const $tbody = $('<tbody>');
+    let indexData = {}; // 用于存储 index 数据的对象
 
     // 提取公共的 Table Index 和 Row Index 添加逻辑
     const addIndexRows = (tableIndex, rowIndex) => {
         if (typeof tableIndex === 'number') {
-            $tbody.append($('<tr>').append($('<th style="color: #82e8ff; font-weight: bold;">').text('#')).append($('<td>').text(tableIndex))); // 加粗
+            $tbody.append($('<tr>').append($('<th style="color: #82e8ff; font-weight: bold;">').text('#')).append($('<td>').text(tableIndex, ))); // 加粗
+            indexData.tableIndex = tableIndex; // 存储 tableIndex
         }
         if (typeof rowIndex === 'number') {
             $tbody.append($('<tr>').append($('<th style="color: #82e8ff; font-weight: bold;">').text('^')).append($('<td>').text(rowIndex))); // 加粗
+            indexData.rowIndex = rowIndex; // 存储 rowIndex
         }
     };
 
@@ -1404,7 +1470,7 @@ function renderParamsTable(functionName, params) {
         const data = params[1];
 
         if (typeof tableIndex === 'number' && data && typeof data === 'object') {
-            addIndexRows(tableIndex, undefined); // 仅添加 Table Index
+            addIndexRows(tableIndex, tableIndex); // 仅添加 Table Index
             for (const colIndex in data) {
                 if (data.hasOwnProperty(colIndex)) {
                     const value = data[colIndex];
@@ -1446,7 +1512,7 @@ function renderParamsTable(functionName, params) {
     }
 
     $table.append($tbody);
-    return $table;
+    return { $table, indexData }; // 返回包含 $table 和 indexData 的对象
 }
 
 /**
@@ -1460,6 +1526,8 @@ function createRawParamsRow(params) {
     $tr.append($('<td>').text(JSON.stringify(params)));
     return $tr;
 }
+
+
 
 
 

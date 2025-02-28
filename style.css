@@ -87,17 +87,15 @@ td.selected {
 
 
 
-
 /* CSS 变量定义 */
 :root {
     --history-group-border-color: #666;
     --function-name-color: #aaa;
     --params-table-td-color: #eee;
     --item-separator-color: #ddd;
-    --insert-item-bg-color: rgba(0, 255, 25, 0.1); /* 深绿色 */
-    --update-item-bg-color: rgba(25, 25, 255, 0.1); /* 深蓝色 */
-    --delete-item-bg-color: rgba(255, 25, 0, 0.1); /* 深红色 */
     --error-item-bg-color: #f44336;
+    --item-index-color: #888; /* 序号颜色 */
+    --error-item-index-color: white; /* 错误序号颜色 */
 }
 
 .dataBankAttachments {
@@ -134,8 +132,16 @@ td.selected {
 }
 
 .history-item {
-    padding: 5px 5px 10px 5px;
-    border-radius: 8px;
+    padding: 2px;
+    display: flex;
+    flex-direction: column; /* 修改为 column 布局 */
+    align-items: stretch;
+    /*border-radius: 8px;*/
+    position: relative; /* Add relative positioning context for left-rectangle */
+}
+
+.history-item:hover {
+    background-color: #3333;
 }
 
 .history-button-group {
@@ -143,11 +149,12 @@ td.selected {
     flex-direction: row;
     top: 10px;
     right: 10px;
+    margin-left: 2px;
     gap: 5px;
 }
 
 .original-message-button, .collapse-button {
-    padding: 5px 8px;
+    padding: 12px;
     border: none;
     border-radius: 50%;
     background: none;
@@ -173,17 +180,64 @@ td.selected {
 .function-name {
     font-weight: bold;
     color: var(--function-name-color);
+    margin-left: 5px; /* 函数名和序号之间的间距 */
 }
 
+.function-name.error-function {
+    color: white;
+}
+
+.left-rectangle {
+    position: absolute;
+    left: -4px;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    border-radius: 8px;
+    /* background-color: #f44336;  不再需要默认背景色，因为 class 会覆盖 */
+}
+
+.item-index {
+    width: 20px;
+    text-align: left;
+    color: var(--item-index-color);
+    font-size: 0.9em;
+    margin: 0 8px; /* 序号和函数名之间的间距 */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.item-index.error-index {
+    color: var(--error-item-index-color); /* 错误序号使用白色文字 */
+}
+
+.index-preview {
+    display: flex; /* Flexbox for horizontal layout */
+    flex-direction: row;
+    gap: 10px; /* Spacing between preview items */
+    margin: 5px;
+    font-size: 0.9em;
+    color: #ccc;
+}
+
+.index-preview-item {
+    /* Style for each preview item if needed */
+}
+
+
 .params-table {
+    display: flex;
+    flex-direction: row;
     width: 100%;
     border-collapse: collapse;
-    margin-top: 5px;
+    margin: 5px 0;
 }
 
 .params-table th,
 .params-table td {
-    padding: 0 8px;
+    padding: 0 8px 0 8px;
     text-align: left;
     font-size: 0.9em;
 }
@@ -203,26 +257,19 @@ td.selected {
     border-top: 2px dashed var(--item-separator-color);
 }
 
-/*.insert-item {*/
-/*    color: #41b651;*/
-/*}*/
-
-/*.update-item {*/
-/*    color: #3877ff;*/
-/*}*/
-
-/*.delete-item {*/
-/*    color: #f44336;*/
-/*}*/
-
 .insert-item {
-    background-color: var(--insert-item-bg-color);
+    background-color: rgb(84, 145, 89);
 }
 
 .update-item {
-    background-color: var(--update-item-bg-color);
+    background-color: rgb(55, 95, 173);
 }
 
 .delete-item {
-    background-color: var(--delete-item-bg-color);
+    background-color: rgb(173, 55, 55);
+}
+
+.error-item {
+    border-left: 5px solid #f44336;
+    background-color: var(--error-item-bg-color);
 }
