@@ -401,12 +401,17 @@ function getAllPrompt(tables) {
 }
 
 /**
- * 深拷贝所有表格数据
+ * 深拷贝所有表格数据，拷贝时保留 Table 类的原型链
  * @param {Table[]} tableList 要拷贝的表格对象数组
  * @returns 拷贝后的表格对象数组
  */
 function copyTableList(tableList) {
-    return tableList.map(table => new Table(table.tableName, table.tableIndex, table.columns, JSON.parse(JSON.stringify(table.content))))
+    return tableList.map(table => {
+        const newTable = new Table(table.tableName, table.tableIndex, table.columns, JSON.parse(JSON.stringify(table.content)));
+        newTable.insertedRows = [...table.insertedRows];
+        newTable.updatedRows = [...table.updatedRows];
+        return newTable;
+    });
 }
 
 /**
@@ -564,10 +569,16 @@ class Table {
      */
     insert(data) {
         const newRow = new Array(this.columns.length).fill("");
-        Object.entries(data).forEach(([key, value]) => { newRow[key] = handleCellValue(value) })
-        const newRowIndex = this.content.push(newRow) - 1
-        this.insertedRows.push(newRowIndex)
-        return newRowIndex
+        Object.entries(data).forEach(([key, value]) => {
+            const colIndex = parseInt(key);
+            if (colIndex < this.columns.length) { // 防止越界
+                newRow[colIndex] = handleCellValue(value);
+            }
+        });
+        const newRowIndex = this.content.length; // 直接使用当前长度作为新索引
+        this.content.push(newRow);
+        this.insertedRows.push(newRowIndex);
+        return newRowIndex;
     }
 
     /**
@@ -1964,7 +1975,7 @@ jQuery(async () => {
     3. 当"重要事件历史表格"(tableIndex: 4)超过10行时，检查是否有重复或内容相近的行，适当合并或删除多余的行，此操作只允许整行操作！
     4. "角色与User社交表格"(tableIndex: 2)中角色名禁止重复，有重复的需要整行删除，此操作只允许整行操作！
     5. "时空表格"(tableIndex: 0）只允许有一行，删除所有旧的内容，此操作只允许整行操作！
-    6. 如果一个格子中超过20个字，则进行简化；如果一个格子中斜杠分隔的内容超过4个，则对此格子的内容适当简化
+    6. 如果一个格子中超过15个字，则进行简化使之不超过15个字；如果一个格子中斜杠分隔的内容超过4个，则简化后只保留不超过4个
     7. 时间格式统一为YYYY-MM-DD HH：MM   (时间中的冒号应当用中文冒号，未知的部分可以省略，例如：2023-10-01 12：00 或 2023-10-01 或 12：00)
     8. 地点格式为 大陆>国家>城市>具体地点 (未知的部分可以省略，例如：大陆>中国>北京>故宫 或 异世界>酒馆)
     9. 单元格中禁止使用逗号，语义分割应使用 /
@@ -2133,13 +2144,46 @@ jQuery(async () => {
                 }
                 console.log('清洗后的内容:', cleanContent);
 
+                // 去重并确保删除操作顺序
+                let uniqueActions = [];
+                const deleteActions = [];
+                const nonDeleteActions = [];
+                // 分离删除和非删除操作
+                actions.forEach(action => {
+                    if (action.action.toLowerCase() === 'delete') {
+                        deleteActions.push(action);
+                    } else {
+                        nonDeleteActions.push(action);
+                    }
+                });
+
+                // 去重非删除操作
+                const uniqueNonDeleteActions = nonDeleteActions.filter((action, index, self) =>
+                    index === self.findIndex(a => (
+                        a.action === action.action &&
+                        a.tableIndex === action.tableIndex &&
+                        JSON.stringify(a.data) === JSON.stringify(action.data)
+                    ))
+                );
+
+                // 去重删除操作并按 rowIndex 降序排序
+                const uniqueDeleteActions = deleteActions
+                    .filter((action, index, self) =>
+                        index === self.findIndex(a => (
+                            a.tableIndex === action.tableIndex &&
+                            a.rowIndex === action.rowIndex
+                        ))
+                    )
+                    .sort((a, b) => b.rowIndex - a.rowIndex); // 降序排序，确保大 rowIndex 先执行
+
+                // 合并操作：先非删除，后删除
+                uniqueActions = [...uniqueNonDeleteActions, ...uniqueDeleteActions];
 
 
                 // 执行操作
-                actions.forEach(action => {
+                uniqueActions.forEach(action => {
                     switch (action.action.toLowerCase()) {
                         case 'update':
-                            // 第一列空值检查
                             try {
                                 const targetRow = waitingTable[action.tableIndex].content[action.rowIndex];
                                 if (!targetRow || !targetRow[0]?.trim()) {
@@ -2153,25 +2197,20 @@ jQuery(async () => {
                             }
                             break;
                         case 'insert':
-                            // 如果有空列则不插入
-                            try {
-                                const hasEmpty = Object.values(action.data).some(v => !String(v).trim());
-                                if (hasEmpty) {
-                                    console.log(`Skipped insert: table ${action.tableIndex} 存在空列`, action.data);
-                                    break;
-                                }
-                                insertRow(action.tableIndex, action.data);
-                                console.log(`Inserted: table ${action.tableIndex}`, waitingTable[action.tableIndex].content);
-                            } catch (error) {
-                                console.error(`Insert操作失败: ${error.message}`);
+                            const requiredColumns = findTableStructureByIndex(action.tableIndex)?.columns || [];
+                            const isDataComplete = requiredColumns.every((_, index) => action.data.hasOwnProperty(index.toString()));
+                            if (!isDataComplete) {
+                                console.error(`插入失败：表 ${action.tableIndex} 缺少必填列数据`);
+                                break;
                             }
+                            insertRow(action.tableIndex, action.data); // 假设 insertRow 已定义
                             break;
                         case 'delete':
-                            if(action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del){
+                            if (action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del) {
                                 const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
                                 deleteRow(action.tableIndex, action.rowIndex);
                                 console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
-                            }else{
+                            } else {
                                 console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
                                 toastr.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
                             }
