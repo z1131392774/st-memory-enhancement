@@ -2357,6 +2357,41 @@ function updateSystemMessageTableStatus(eventData) {
     replaceTableToStatusTag(tableStatusHTML);
 }
 
+//random一个唯一id加密用
+function generateUniId() {
+    return `st-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+}
+
+// 解密
+async function decryptXor(encrypted, deviceId) {
+    try {
+        const bytes = encrypted.match(/.{1,2}/g).map(b =>
+            parseInt(b, 16)
+        );
+        return String.fromCharCode(...bytes.map((b, i) =>
+            b ^ deviceId.charCodeAt(i % deviceId.length)
+        ));
+    } catch(e) {
+        console.error('解密失败:', e);
+        return null;
+    }
+}
+
+// api解密
+async function getDecryptedApiKey() {
+    try {
+        const encrypted = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
+        const deviceId = localStorage.getItem('st_device_id');
+        if (!encrypted || !deviceId) return null;
+
+        return await decryptXor(encrypted, deviceId);
+    } catch (error) {
+        console.error('API Key 解密失败:', error);
+        return null;
+    }
+}
+
+
 // 在解析响应后添加验证
 function validateActions(actions) {
     if (!Array.isArray(actions)) {
@@ -2541,7 +2576,7 @@ async function refreshTableActions() {
         } else {
             // 自定义API
             const USER_API_URL = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
-            const USER_API_KEY = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
+            const USER_API_KEY = await getDecryptedApiKey(); // 使用解密后的密钥
             const USER_API_MODEL = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
 
             if (!USER_API_URL || !USER_API_KEY || !USER_API_MODEL) {
@@ -2743,8 +2778,12 @@ async function refreshTableActions() {
 
 async function updateModelList(){
     const apiUrl = $('#custom_api_url').val().trim();
-    const apiKey = $('#custom_api_key').val().trim();
+    const apiKey = await getDecryptedApiKey();// 使用解密后的API密钥
 
+    if (!apiKey) {
+        toastr.error('API key解密失败，请重新输入API key吧！');
+        return;
+    }
     if (!apiUrl) {
         toastr.error('请输入API URL');
         return;
@@ -2958,13 +2997,32 @@ jQuery(async () => {
         extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = $(this).val();
         saveSettingsDebounced();
     });
-    // API Key
-    $('#custom_api_key').on('input', function() {
-        console.error('该代码未通过安全性检查，功能暂不可用')
-        toastr.error('该功能因安全性问题暂不可用');
-        // extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = $(this).val();
-        // saveSettingsDebounced();
-    });
+    // API KEY
+    $('#custom_api_key').on('input', async function() {
+        try {
+            const rawKey = $(this).val();
+
+            // 获取或生成设备ID
+            let deviceId = localStorage.getItem('st_device_id') || generateUniId();
+            if (!localStorage.getItem('st_device_id')) {
+                localStorage.setItem('st_device_id', deviceId);
+            }
+
+            // 加密
+            const xorEncrypted = Array.from(rawKey).map((c, i) =>
+                c.charCodeAt(0) ^ deviceId.charCodeAt(i % deviceId.length)
+            ).map(c => c.toString(16).padStart(2, '0')).join('');
+
+            extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = xorEncrypted;
+            console.log('加密后的API密钥:', xorEncrypted);
+            saveSettingsDebounced();
+
+        } catch (error) {
+            console.error('API Key 处理失败:', error);
+            toastr.error('未能获取到API KEY，请重新输入~');
+        }
+    })
+
     // 模型名称
     $('#custom_model_name').on('input', function() {
         extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = $(this).val();
