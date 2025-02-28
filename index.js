@@ -2057,7 +2057,7 @@ jQuery(async () => {
                                 { role: "system", content: systemPrompt },
                                 { role: "user", content: userPrompt }
                             ],
-                            temperature: custom_temperature
+                            temperature: extension_settings.muyoo_dataTable.custom_temperature
                         })
                     }).catch(error => {
                         throw new Error(`网络连接失败: ${error.message}`);
