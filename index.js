@@ -2126,12 +2126,32 @@ jQuery(async () => {
                 actions.forEach(action => {
                     switch (action.action.toLowerCase()) {
                         case 'update':
-                            updateRow(action.tableIndex, action.rowIndex, action.data);
-                            console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, waitingTable[action.tableIndex].content[action.rowIndex]);
+                            // 第一列空值检查
+                            try {
+                                const targetRow = waitingTable[action.tableIndex].content[action.rowIndex];
+                                if (!targetRow || !targetRow[0]?.trim()) {
+                                    console.log(`Skipped update: table ${action.tableIndex} row ${action.rowIndex} 第一列为空`);
+                                    break;
+                                }
+                                updateRow(action.tableIndex, action.rowIndex, action.data);
+                                console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, waitingTable[action.tableIndex].content[action.rowIndex]);
+                            } catch (error) {
+                                console.error(`Update操作失败: ${error.message}`);
+                            }
                             break;
                         case 'insert':
-                            insertRow(action.tableIndex, action.data);
-                            console.log(`Inserted: table ${action.tableIndex}`, waitingTable[action.tableIndex].content);
+                            // 如果有空列则不插入
+                            try {
+                                const hasEmpty = Object.values(action.data).some(v => !String(v).trim());
+                                if (hasEmpty) {
+                                    console.log(`Skipped insert: table ${action.tableIndex} 存在空列`, action.data);
+                                    break;
+                                }
+                                insertRow(action.tableIndex, action.data);
+                                console.log(`Inserted: table ${action.tableIndex}`, waitingTable[action.tableIndex].content);
+                            } catch (error) {
+                                console.error(`Insert操作失败: ${error.message}`);
+                            }
                             break;
                         case 'delete':
                             if(action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del){
