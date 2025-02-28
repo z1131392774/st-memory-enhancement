@@ -22,7 +22,7 @@
             <div style="padding: 10px 0; gap: 10px">
                 <!-- 插件预设 -->
                 <div class="table_setting_category_container" style="display: flex; align-items: center; gap: 6px;">
-                    <b class="table_setting_category_header">导入导出与重置插件</b>
+                    <b class="table_setting_category_header">导入导出与重置插件</b><div style="height: 10px;"></div>
                     <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
                     </div>
                     <input type="file" id="table-set-importFile" accept=".json" hidden>
@@ -34,7 +34,7 @@
 
                 <!-- 基础设置 -->
                 <div class="table_setting_category_container">
-                    <b class="table_setting_category_header">基础设置</b>
+                    <b class="table_setting_category_header">基础设置</b><div style="height: 10px;"></div>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="table_switch"><span>插件启用</span>
                     </div>
@@ -49,7 +49,7 @@
 
                 <!-- 表格预设 -->
                 <div class="table_setting_category_container">
-                    <b class="table_setting_category_header">回复设置</b>
+                    <b class="table_setting_category_header">回复设置</b><div style="height: 10px;"></div>
                     <div style="padding-left: 10px;">
                         <label for="dataTable_injection_mode" class="checkbox_label">注入设置</label>
                         <div style=" display: flex;">
@@ -72,16 +72,13 @@
 
                 <!-- 重新整理表格 -->
                 <div class="table_setting_category_container">
-                    <b class="table_setting_category_header">重新整理表格</b>
+                    <b class="table_setting_category_header">重新整理表格</b><div style="height: 10px;"></div>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="advanced_settings">
-                        <span>高级设置</span>
+                        <span>查看高级设置</span>
                     </div>
                     <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="ignore_del" checked>
-                            <span>整理时不删除，只修改和添加</span>
-                        </div>
+                        <!-- 高级设置选项 -->
                         <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
                             <label>整理参考消息数（最近几层楼纳入参考）：<span id="clear_up_stairs_value">3</span></label>
                             <input type="range" id="clear_up_stairs" min="3" max="20" step="1" value="3" style="width: 80%;">
@@ -90,21 +87,29 @@
                             <label>API温度设定（只对自定义API生效）：<span id="custom_temperature_value">1.0</span></label>
                             <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="width: 80%;">
                         </div>
-                    </div>
-                    <div class="checkbox flex-container">
-                        <input type="checkbox" id="use_main_api" checked>
-                        <span>使用主API（取消勾选后可以用自定义的api）</span>
-                    </div>
-                    <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
-                        <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
-                        <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
-                        <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
-                        <div style="margin-top: 10px;">
-                            <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
-                                <option value="">请先获取模型列表</option>
-                            </select>
-                            <div class="menu_button" id="fetch_models_button" style="width: 100%;">
-                                <a>获取模型列表</a>
+                        <div style="height: 20px;"></div>
+                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                            <input type="checkbox" id="ignore_del" checked>
+                            <span>整理时不删除，只修改和添加</span>
+                        </div>
+
+                        <!-- 自定义API -->
+                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                            <input type="checkbox" id="use_main_api" checked>
+                            <span>使用主API（取消勾选后可以用自定义的api）</span>
+                        </div>
+                        <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
+                            <!-- 自定义API设置 -->
+                            <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
+                            <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
+                            <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
+                            <div style="margin-top: 10px;">
+                                <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
+                                    <option value="">请先获取模型列表</option>
+                                </select>
+                                <div class="menu_button" id="fetch_models_button" style="width: 100%;">
+                                    <a>获取模型列表</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -116,7 +121,7 @@
 
                 <!-- 表格推送至对话 -->
                 <div class="table_setting_category_container">
-                    <b class="table_setting_category_header">表格推送至对话</b>
+                    <b class="table_setting_category_header">表格推送至对话</b><div style="height: 10px;"></div>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="table_to_chat"><span>表格推送至对话</span>
                     </div>
@@ -131,7 +136,7 @@
                 <hr/>
 
                 <div class="table_setting_category_container"><!-- 表格结构 -->
-                    <b class="table_setting_category_header">表格结构</b>
+                    <b class="table_setting_category_header">表格结构</b><div style="height: 10px;"></div>
                     <div style="padding-left: 10px;">
                         <label>所有表格</label><small> (目前用于修改表格的说明及各种表格操作的触发提示词)</small>
                         <div id="dataTable_tableEditor_list">

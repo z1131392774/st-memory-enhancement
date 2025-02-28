@@ -274,3 +274,97 @@ td.selected {
 #use_main_api:not(:checked) ~ #custom_api_settings {
     display: flex;
 }
+
+.refresh-scroll-content {
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.operation-confirmation-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.operation-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* 操作项之间的间距 */
+    margin-top: 10px;
+}
+
+.operation-item {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid #dee2e6; /* 分割线 */
+    padding: 8px 0;
+}
+
+.operation-item:last-child {
+    border-bottom: none; /* 最后一项不显示底部分割线 */
+}
+
+.operation-detail {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline; /* label 和 value 对齐 */
+    padding: 2px 0;
+}
+
+.operation-detail.data-detail {
+    flex-direction: column; /* 数据详情垂直排列 */
+}
+
+.detail-label {
+    font-weight: bold;
+    margin-right: 10px;
+    min-width: 80px;
+    color: #aaa;
+}
+
+.detail-value {
+    color: #ccc;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.data-json {
+    display: flex;
+    flex-direction: column;
+    padding-left: 15px;
+}
+
+.json-item {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    line-height: 1.4;
+}
+
+.json-key {
+    font-family: monospace;
+    color: #8c8c8c;
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+.json-value {
+    font-family: monospace;
+    color: #ccc;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.json-fallback {
+    font-family: monospace;
+    color: #ccc;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+

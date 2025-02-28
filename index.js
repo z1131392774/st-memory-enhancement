@@ -13,6 +13,8 @@ let waitingTable = null
 let waitingTableIndex = null
 let tablePopup = null
 let copyTableData = null
+let exportTableData = null
+let importTableData = null
 let selectedCell = null
 let tableEditActions = []
 // let tableEditHistory = []
@@ -352,6 +354,7 @@ function renderSetting() {
     updateSwitch("#table_to_chat", extension_settings.muyoo_dataTable.isTableToChat)
     updateSwitch("#advanced_settings", extension_settings.muyoo_dataTable.advanced_settings)
     $('#advanced_options').toggle(extension_settings.muyoo_dataTable.advanced_settings)
+    $('#custom_api_settings').toggle(!extension_settings.muyoo_dataTable.use_main_api);
     updateTableStructureDOM()
     console.log("设置已渲染")
 }
@@ -1560,16 +1563,16 @@ async function openTableHistoryPopup(){
                                 });
                                 $tableHistory.prepend($historyGroup);
                             } else {
-                                $tableHistory.append($('<p>').text('没有找到有效的表格编辑函数。'));
+                                $tableHistory.append($('<p>').text('注释信息中没有匹配到有效的表格编辑函数。'));
                             }
                         } else {
-                            $tableHistory.append($('<p>').text('没有找到注释信息。'));
+                            $tableHistory.append($('<p>').text('表格编辑标签中没有匹配到注释信息。'));
                         }
                     } else {
-                        $tableHistory.append($('<p>').text('没有找到表格编辑信息。'));
+                        $tableHistory.append($('<p>').text('本轮对话消息中没有发现表格编辑标签。'));
                     }
                 } else {
-                    $tableHistory.append($('<p>').text('没有找到解析消息内容。'));
+                    $tableHistory.append($('<p>').text('没有找到可解析的消息内容。'));
                 }
             }
         }
@@ -1898,10 +1901,14 @@ async function openTablePopup(mesId = -1) {
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
     const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
     const clearTableButton = tablePopup.dlg.querySelector('#clear_table_button');
+    const importTableButton = tablePopup.dlg.querySelector('#import_clear_up_button');
+    const exportTableButton = tablePopup.dlg.querySelector('#export_table_button');
     if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
     else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
     copyTableButton.addEventListener('click', () => copyTable(tables))
     clearTableButton.addEventListener('click', () => clearTable(index, tableContainer))
+    importTableButton.addEventListener('click', () => importTable(index, tableContainer))
+    exportTableButton.addEventListener('click', () => exportTable(tables))
     await tablePopup.show()
 }
 
@@ -1916,7 +1923,7 @@ function setTableEditTips(tableEditTips) {
         tips.append('目前插件已关闭，将不会要求AI更新表格。')
         tips.css("color", "rgb(211 39 39)")
     } else if (userTableEditInfo.editAble) {
-        tips.append('你可以在此页面上编辑表格，只需要点击你想编辑的单元格即可。绿色单元格为本轮插入的单元格，蓝色单元格为本轮修改的单元格。')
+        tips.append('点击单元格选择编辑操作。绿色单元格为本轮插入，蓝色单元格为本轮修改。')
         tips.css("color", "lightgreen")
     } else {
         tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑')
@@ -1943,7 +1950,7 @@ function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
         $(tableContainer).append(tableHeaderToolbar)
     }
     for (let table of tables) {
-        $(tableContainer).append(table.render())
+        $(tableContainer).append(table.render()).append(`<hr />`)
     }
 }
 
@@ -1969,7 +1976,7 @@ async function onDeleteRow() {
         }
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        updateSystemMessageTableStatus();
         getContext().saveChat()
         toastr.success('已删除')
     }
@@ -1997,7 +2004,7 @@ async function onModifyCell() {
             table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        updateSystemMessageTableStatus();
         getContext().saveChat()
         toastr.success('已修改')
     }
@@ -2079,7 +2086,7 @@ async function onInsertRow() {
             table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        updateSystemMessageTableStatus();
         getContext().saveChat()
         toastr.success('已插入')
     }
@@ -2105,7 +2112,7 @@ async function onInsertFirstRow() {
             table.insertEmptyRow(0)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        updateSystemMessageTableStatus();
         getContext().saveChat()
         toastr.success('已插入')
     }
@@ -2134,8 +2141,7 @@ async function updateTablePlugin() {
  * @param {*} tables 所有表格数据
  */
 async function copyTable(tables = []) {
-    const jsonTables = JSON.stringify(tables)
-    copyTableData = jsonTables
+    copyTableData = JSON.stringify(tables)
     toastr.success('已复制')
 }
 
@@ -2156,12 +2162,93 @@ async function pasteTable(mesId, tableContainer) {
             checkPrototype(tables)
             getContext().chat[mesId].dataTable = tables
             renderTablesDOM(tables, tableContainer, true)
-            updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+            updateSystemMessageTableStatus();
             toastr.success('粘贴成功')
         } else {
             toastr.error("粘贴失败：剪切板没有表格数据")
         }
     }
+}
+
+/**
+ * 导入表格
+ * @param {number} mesId 需要导入表格的消息id
+ */
+async function importTable(mesId, tableContainer) {
+    if (mesId === -1) {
+        toastr.error("请至少让ai回复一条消息作为表格载体")
+        return
+    }
+
+    // 1. 创建一个 input 元素，类型设置为 'file'，用于文件选择
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    // 设置 accept 属性，限制只能选择 JSON 文件，提高用户体验
+    fileInput.accept = '.json';
+
+    // 2. 添加事件监听器，监听文件选择的变化 (change 事件)
+    fileInput.addEventListener('change', function(event) {
+        // 获取用户选择的文件列表 (FileList 对象)
+        const files = event.target.files;
+
+        // 检查是否选择了文件
+        if (files && files.length > 0) {
+            // 获取用户选择的第一个文件 (这里假设只选择一个 JSON 文件)
+            const file = files[0];
+
+            // 3. 创建 FileReader 对象，用于读取文件内容
+            const reader = new FileReader();
+
+            // 4. 定义 FileReader 的 onload 事件处理函数
+            // 当文件读取成功后，会触发 onload 事件
+            reader.onload = function(loadEvent) {
+                // loadEvent.target.result 包含了读取到的文件内容 (文本格式)
+                const fileContent = loadEvent.target.result;
+
+                try {
+                    // 5. 尝试解析 JSON 数据
+                    const tables = JSON.parse(fileContent)
+                    checkPrototype(tables)
+                    getContext().chat[mesId].dataTable = tables
+                    renderTablesDOM(tables, tableContainer, true)
+                    updateSystemMessageTableStatus();
+                    toastr.success('导入成功')
+                } catch (error) {
+                    // 7. 捕获 JSON 解析错误，并打印错误信息
+                    console.error("JSON 解析错误:", error);
+                    alert("JSON 文件解析失败，请检查文件格式是否正确。");
+                }
+            };
+
+            reader.readAsText(file, 'UTF-8'); // 建议指定 UTF-8 编码，确保中文等字符正常读取
+        }
+    });
+    fileInput.click();
+}
+
+/**
+ * 导出表格
+ * @param {Array} tables 所有表格数据
+ */
+async function exportTable(tables = []) {
+    if (!tables || tables.length === 0) {
+        toastr.warning('当前表格没有数据，无法导出');
+        return;
+    }
+
+    const jsonTables = JSON.stringify(tables, null, 2); // 使用 2 空格缩进，提高可读性
+    const blob = new Blob([jsonTables], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = 'table_data.json'; // 默认文件名
+    document.body.appendChild(downloadLink); // 必须添加到 DOM 才能触发下载
+    downloadLink.click();
+    document.body.removeChild(downloadLink); // 下载完成后移除
+
+    URL.revokeObjectURL(url); // 释放 URL 对象
+
+    toastr.success('已导出');
 }
 
 /**
@@ -2302,8 +2389,86 @@ function validateActions(actions) {
     });
 }
 
+function getRefreshTableConfigStatus() {
+    // 显示所有相关的配置信息
+    const isUseMainAPI = extension_settings.muyoo_dataTable.use_main_api;
+    const userApiUrl = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
+    const userApiModel = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
+    const userApiTemperature = extension_settings.muyoo_dataTable.custom_temperature;
+    const clearUpStairs = extension_settings.muyoo_dataTable.clear_up_stairs;
+    const isIgnoreDel = extension_settings.muyoo_dataTable.bool_ignore_del;
+    const systemMessageTemplate = extension_settings.muyoo_dataTable.refresh_system_message_template;
+    const userMessageTemplate = extension_settings.muyoo_dataTable.refresh_user_message_template;
+
+    return `<div class="wide100p padding5 dataBankAttachments">
+                <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
+                <br><div id="config_sheet_container" style="justify-content: center; display: flex; margin: 10px;">
+                    <table class="table table-bordered table-striped">
+                        <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
+                        <tbody>
+                        <tr> <td>纳入参考的楼层数</td> <td>${clearUpStairs}</td> </tr>
+                        <tr> <td>不允许删除的操作</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>
+                        <tr> <td>使用主API</td> <td>${isUseMainAPI ? '是' : '否'}</td> </tr>
+                        <tr> <td>API URL</td> <td>${userApiUrl}</td> </tr>
+                        <tr> <td>API Model</td> <td>${userApiModel}</td> </tr>
+                        <tr> <td>Temperature</td> <td>${userApiTemperature}</td> </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+`;}
+
+function confirmTheOperationPerformed(content) {
+    return `
+<div class="wide100p padding5 dataBankAttachments">
+    <div class="refresh-title-bar">
+        <h2 class="refresh-title"> 请确认以下操作 </h2>
+        <div>
+
+        </div>
+    </div>
+    <div id="tableRefresh" class="refresh-scroll-content">
+        <div>
+            <div class="operation-list-container"> ${content.map(action => {
+                const { action: type, tableIndex, rowIndex, data } = action;
+                return `<div class="operation-item">
+                        <div class="operation-detail">
+                            <span class="detail-label">操作类型:</span>
+                            <span class="detail-value">${type}</span>
+                        </div>
+                        <div class="operation-detail">
+                            <span class="detail-label">表格索引:</span>
+                            <span class="detail-value">${tableIndex}</span>
+                        </div>
+                        <div class="operation-detail">
+                            <span class="detail-label">行索引:</span>
+                            <span class="detail-value">${rowIndex}</span>
+                        </div>
+                        <div class="operation-detail data-detail">
+                            <span class="detail-label">数据:</span>
+                            <div class="detail-value data-json">
+                                ${typeof data === 'object' && data !== null ?
+        Object.entries(data).map(([key, value]) => {
+            return `<div class="json-item">
+                        <span class="json-key">"${key}":</span>
+                        <span class="json-value">"${value}"</span>
+                    </div>`;
+        }).join('')
+        : `<span class="json-fallback">${JSON.stringify(data, null, 2)}</span>`
+    }
+                            </div>
+                        </div>
+                    </div>`;
+}).join('')}
+            </div>
+        </div>
+    </div>
+</div>
+`;
+}
+
 async function refreshTableActions() {
-    const tableRefreshPopup = $(tableRefreshPopupDom)
+    const tableRefreshPopup = (getRefreshTableConfigStatus());
     const confirmation = await callGenericPopup(tableRefreshPopup, POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (!confirmation) return;
 
@@ -2356,6 +2521,7 @@ async function refreshTableActions() {
         userPrompt = userPrompt.replace(/\$0/g, originText);
         userPrompt = userPrompt.replace(/\$1/g, lastChats);
 
+        // 生成响应内容
         let cleanContent;
         if (isUseMainAPI) {
             // 主API
@@ -2421,6 +2587,7 @@ async function refreshTableActions() {
                 .trim();
         }
 
+        // 解析响应内容
         let actions;
         try {
             // 增强清洗逻辑
@@ -2445,7 +2612,7 @@ async function refreshTableActions() {
             actions = JSON5.parse(cleanContent);
             if (!validateActions(actions)) {
                 throw new Error('AI返回了无效的操作格式');
-            };
+            }
         } catch (parseError) {
             // 添加错误位置容错处理
             const position = parseError.position || 0;
@@ -2509,55 +2676,63 @@ async function refreshTableActions() {
         // 合并操作：先非删除，后删除
         uniqueActions = [...uniqueNonDeleteActions, ...uniqueDeleteActions];
 
+        // 将uniqueActions内容推送给用户确认是否继续
+        const confirmContent = confirmTheOperationPerformed(uniqueActions);
+        const tableRefreshPopup = new Popup(confirmContent, POPUP_TYPE.TEXT, '', { okButton: "继续", cancelButton: "取消" });
+        toastr.clear(loadingToast);
+        await tableRefreshPopup.show();
 
-        // 执行操作
-        uniqueActions.forEach(action => {
-            switch (action.action.toLowerCase()) {
-                case 'update':
-                    try {
-                        const targetRow = waitingTable[action.tableIndex].content[action.rowIndex];
-                        if (!targetRow || !targetRow[0]?.trim()) {
-                            console.log(`Skipped update: table ${action.tableIndex} row ${action.rowIndex} 第一列为空`);
+        // 处理用户确认的操作
+        if (tableRefreshPopup.result) {
+            // 执行操作
+            uniqueActions.forEach(action => {
+                switch (action.action.toLowerCase()) {
+                    case 'update':
+                        try {
+                            const targetRow = waitingTable[action.tableIndex].content[action.rowIndex];
+                            if (!targetRow || !targetRow[0]?.trim()) {
+                                console.log(`Skipped update: table ${action.tableIndex} row ${action.rowIndex} 第一列为空`);
+                                break;
+                            }
+                            updateRow(action.tableIndex, action.rowIndex, action.data);
+                            console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, waitingTable[action.tableIndex].content[action.rowIndex]);
+                        } catch (error) {
+                            console.error(`Update操作失败: ${error.message}`);
+                        }
+                        break;
+                    case 'insert':
+                        const requiredColumns = findTableStructureByIndex(action.tableIndex)?.columns || [];
+                        const isDataComplete = requiredColumns.every((_, index) => action.data.hasOwnProperty(index.toString()));
+                        if (!isDataComplete) {
+                            console.error(`插入失败：表 ${action.tableIndex} 缺少必填列数据`);
                             break;
                         }
-                        updateRow(action.tableIndex, action.rowIndex, action.data);
-                        console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, waitingTable[action.tableIndex].content[action.rowIndex]);
-                    } catch (error) {
-                        console.error(`Update操作失败: ${error.message}`);
-                    }
-                    break;
-                case 'insert':
-                    const requiredColumns = findTableStructureByIndex(action.tableIndex)?.columns || [];
-                    const isDataComplete = requiredColumns.every((_, index) => action.data.hasOwnProperty(index.toString()));
-                    if (!isDataComplete) {
-                        console.error(`插入失败：表 ${action.tableIndex} 缺少必填列数据`);
+                        insertRow(action.tableIndex, action.data);
                         break;
-                    }
-                    insertRow(action.tableIndex, action.data);
-                    break;
-                case 'delete':
-                    if (action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del) {
-                        const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
-                        deleteRow(action.tableIndex, action.rowIndex);
-                        console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
-                    } else {
-                        console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
-                        toastr.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
-                    }
-                    break;
-            }
-        });
+                    case 'delete':
+                        if (action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del) {
+                            const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
+                            deleteRow(action.tableIndex, action.rowIndex);
+                            console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
+                        } else {
+                            console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
+                            toastr.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
+                        }
+                        break;
+                }
+            });
 
-        // 更新聊天数据
-        chat = getContext().chat[getContext().chat.length - 1];
-        chat.dataTable = waitingTable;
-        getContext().saveChat();
+            // 更新聊天数据
+            chat = getContext().chat[getContext().chat.length - 1];
+            chat.dataTable = waitingTable;
+            getContext().saveChat();
 
-        // 刷新 UI
-        const tableContainer = document.querySelector('#tableContainer');
-        renderTablesDOM(waitingTable, tableContainer, true);
+            // 刷新 UI
+            const tableContainer = document.querySelector('#tableContainer');
+            renderTablesDOM(waitingTable, tableContainer, true);
 
-        toastr.success('表格整理完成');
+            toastr.success('表格整理完成');
+        }
     } catch (error) {
         console.error('整理过程出错:', error);
         toastr.error(`整理失败：${error.message}`);
@@ -2655,13 +2830,6 @@ const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</
 </div>
 `
 
-/**
- * 表格重置弹出窗
- */
-const tableRefreshPopupDom = `<span>将重新整理表格，是否继续？</span>
-<br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
-`
-
 
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
@@ -2686,10 +2854,10 @@ jQuery(async () => {
 
     // 开始绑定事件
     // 表格弹出窗
-    $('.open_table_by_id').on('click', function () {
-        const messageId = $(this).closest('.mes').attr('mesid');
-        openTablePopup(parseInt(messageId));
-    })
+    // $('.open_table_by_id').on('click', function () {
+    //     const messageId = $(this).closest('.mes').attr('mesid');
+    //     openTablePopup(parseInt(messageId));
+    // })
     // 表格插入模式
     $('#dataTable_injection_mode').on('change', (event) => {
         extension_settings.muyoo_dataTable.injection_mode = event.target.value;
@@ -2792,8 +2960,8 @@ jQuery(async () => {
     });
     // API Key
     $('#custom_api_key').on('input', function() {
-        console.error('该代码未通过安全性检查，暂不可用')
-        toastr.error('该代码未通过安全性检查，暂不可用');
+        console.error('该代码未通过安全性检查，功能暂不可用')
+        toastr.error('该功能因安全性问题暂不可用');
         // extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = $(this).val();
         // saveSettingsDebounced();
     });
@@ -2827,7 +2995,7 @@ jQuery(async () => {
         openTableRendererPopup();
     })
     // 点击打开查看表格历史按钮
-    $(document).on('click', '.dataTable_history_button', function () {
+    $(document).on('click', '#dataTable_history_button', function () {
         openTableHistoryPopup();
     })
     // 设置表格开启开关
