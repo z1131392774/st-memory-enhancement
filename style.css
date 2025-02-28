@@ -83,3 +83,7 @@ td.selected {
 .tableName_pole{
     width: 100%;
 }
+
+#use_main_api:not(:checked) ~ #custom_api_settings {
+    display: flex;
+}
