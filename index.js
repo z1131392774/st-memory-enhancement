@@ -1289,7 +1289,7 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        updateSystemMessageTableStatus(eventData);   // +.新增代码，将表格数据状态更新到系统消息中
+        updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
         if (eventData.dryRun === true || extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isAiReadTable === false) return
 
         const promptContent = initTableData()
@@ -1298,7 +1298,21 @@ async function onChatCompletionPromptReady(eventData) {
         else
             eventData.chat.splice(-extension_settings.muyoo_dataTable.deep, 0, { role: getMesRole(), content: promptContent })
     } catch (error) {
-        toastr.error("记忆插件：表格数据注入失败\n原因：", error.message)
+        // 获取堆栈信息
+        const stack = error.stack;
+        let lineNumber = '未知行';
+        if (stack) {
+            // 尝试从堆栈信息中提取行号，这里假设堆栈信息格式是常见的格式，例如 "at functionName (http://localhost:8080/file.js:12:34)"
+            const match = stack.match(/:(\d+):/); // 匹配冒号和数字，例如 ":12:"
+            if (match && match[1]) {
+                lineNumber = match[1] + '行';
+            } else {
+                // 如果无法提取到行号，则显示完整的堆栈信息，方便调试
+                lineNumber = '行号信息提取失败，堆栈信息：' + stack;
+            }
+        }
+
+        toastr.error(`记忆插件：表格数据注入失败\n原因：${error.message}\n位置：第${lineNumber}`);
     }
     console.log("注入表格总体提示词", eventData.chat)
     /* console.log("dryRun", eventData.dryRun)
@@ -2204,10 +2218,7 @@ function replaceTableToStatusTag(tableStatusHTML) {
  * +.更新最后一条 System 消息的 <tableStatus> 标签内容
  */
 function updateSystemMessageTableStatus(eventData) {
-    // if (extension_settings.muyoo_dataTable.enableHistory === true) {
-    //     currentChatHistory = eventData.chat;
-    // }
-    if (extension_settings.muyoo_dataTable.isTableToChat === false) {
+    if (extension_settings.muyoo_dataTable.isExtensionAble === false || extension_settings.muyoo_dataTable.isTableToChat === false) {
         window.document.querySelector('#tableStatusContainer')?.remove();
         return;
     }
