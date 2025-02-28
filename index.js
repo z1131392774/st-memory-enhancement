@@ -1285,18 +1285,23 @@ async function openTableHistoryPopup(){
         // 倒序遍历聊天记录，从最新的消息开始处理
         for (let i = tableEditHistory.length - 1; i >= 0; i--) {
             const item = tableEditHistory[i];
+            // 过滤掉用户消息
             if (!item.is_user) {
                 const mesContent = item.mes;
+                // 解析消息内容，提取表格编辑信息
                 if (mesContent) {
                     const tableEditMatch = mesContent.match(/<tableEdit>(.*?)<\/tableEdit>/s);
+                    // 如果匹配到表格编辑信息
                     if (tableEditMatch) {
                         const tableEditBlock = tableEditMatch[1].trim();
                         const commentMatch = tableEditBlock.match(/<!--(.*?)-->/s);
+                        // 如果匹配到注释信息
                         if (commentMatch) {
                             const commentContent = commentMatch[1].trim();
                             const functions = commentContent.split('\n')
                                 .map(line => line.trim())
                                 .filter(line => line.startsWith('insertRow') || line.startsWith('updateRow') || line.startsWith('deleteRow'));
+                            // 处理函数列表
                             if (functions.length > 0) {
                                 const $historyGroup = $('<div>').addClass('history-group');
                                 // 如果不是最后一条消息，添加可折叠 class
@@ -1380,7 +1385,7 @@ async function openTableHistoryPopup(){
                                         $funcItem.append($leftRectangle);
                                         $funcItem.append($itemIndex); // 将序号添加到 history-item 的最前面
                                         $funcItem.append($paramsTable);
-                                        
+
                                         if (i < tableEditHistory.length - 1) $paramsTable.hide();   // 如果是可折叠的 history-group，初始隐藏参数表格
                                     } else {
                                         // 添加序号 div，即使是错误格式也添加序号
@@ -1392,9 +1397,17 @@ async function openTableHistoryPopup(){
                                     $historyGroup.append($funcItem);
                                 });
                                 $tableHistory.prepend($historyGroup);
+                            } else {
+                                $tableHistory.append($('<p>').text('没有找到有效的表格编辑函数。'));
                             }
+                        } else {
+                            $tableHistory.append($('<p>').text('没有找到注释信息。'));
                         }
+                    } else {
+                        $tableHistory.append($('<p>').text('没有找到表格编辑信息。'));
                     }
+                } else {
+                    $tableHistory.append($('<p>').text('没有找到解析消息内容。'));
                 }
             }
         }
