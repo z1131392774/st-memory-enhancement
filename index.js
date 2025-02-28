@@ -2769,7 +2769,7 @@ async function refreshTableActions() {
             // 刷新 UI
             const tableContainer = document.querySelector('#tableContainer');
             renderTablesDOM(waitingTable, tableContainer, true);
-
+            updateSystemMessageTableStatus()
             toastr.success('表格整理完成');
         }
     } catch (error) {
@@ -2897,10 +2897,10 @@ jQuery(async () => {
 
     // 开始绑定事件
     // 表格弹出窗
-    // $('.open_table_by_id').on('click', function () {
-    //     const messageId = $(this).closest('.mes').attr('mesid');
-    //     openTablePopup(parseInt(messageId));
-    // })
+    $(document).on('click', '.open_table_by_id', function () {
+        const messageId = $(this).closest('.mes').attr('mesid');
+        openTablePopup(parseInt(messageId));
+    })
     // 表格插入模式
     $('#dataTable_injection_mode').on('change', (event) => {
         extension_settings.muyoo_dataTable.injection_mode = event.target.value;
