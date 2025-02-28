@@ -35,11 +35,15 @@
                     <a>重新整理表格</a>
                 </div>
                 <div class="checkbox flex-container" style="margin-left: 10px;">
+                    <input type="checkbox" id="ignore_del" checked>
+                    <span>整理时不删除，只修改和添加</span>
+                </div>
+                <div class="checkbox flex-container" style="margin-left: 10px;">
                     <input type="checkbox" id="use_main_api" checked>
                     <span>使用主API（取消勾选后可以用自定义的api）</span>
                 </div>
                 <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
-                    <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾">
+                    <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
                     <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
                     <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
                     <div style="margin-top: 10px;">

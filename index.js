@@ -8,6 +8,7 @@ const VERSION = '1.2.1'
 
 let clearUpButton = null;
 let clearUpButtonManager = null;
+let clearUpRevertButton = null;
 let waitingTable = null
 let waitingTableIndex = null
 let tablePopup = null
@@ -47,6 +48,8 @@ const defaultSettings = {
     custom_temperature: 1.0,
     custom_max_tokens: 2048,
     custom_top_p: 1,
+    tableBackups: {}, // 新增表格备份存储
+    bool_ignore_del: true,
 
     tableStructure: [
         {
@@ -209,7 +212,11 @@ function loadSettings() {
     $('#custom_api_url').val(extension_settings.muyoo_dataTable.custom_api_url || '');
     $('#custom_api_key').val(extension_settings.muyoo_dataTable.custom_api_key || '');
     $('#custom_model_name').val(extension_settings.muyoo_dataTable.custom_model_name || '');
+    if (typeof extension_settings.muyoo_dataTable.bool_ignore_del === 'undefined') {
+        extension_settings.muyoo_dataTable.bool_ignore_del = defaultSettings.bool_ignore_del;
+    }
 }
+
 
 /**
  * 渲染设置
@@ -2050,7 +2057,7 @@ jQuery(async () => {
                                 { role: "system", content: systemPrompt },
                                 { role: "user", content: userPrompt }
                             ],
-                            temperature: 1
+                            temperature: custom_temperature
                         })
                     }).catch(error => {
                         throw new Error(`网络连接失败: ${error.message}`);
@@ -2127,9 +2134,14 @@ jQuery(async () => {
                             console.log(`Inserted: table ${action.tableIndex}`, waitingTable[action.tableIndex].content);
                             break;
                         case 'delete':
-                            const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
-                            deleteRow(action.tableIndex, action.rowIndex);
-                            console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
+                            if(action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del){
+                                const deletedRow = waitingTable[action.tableIndex].content[action.rowIndex];
+                                deleteRow(action.tableIndex, action.rowIndex);
+                                console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
+                            }else{
+                                console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
+                                toastr.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
+                            }
                             break;
                     }
                 });
@@ -2243,6 +2255,12 @@ jQuery(async () => {
             if (clearUpButton) {
                 $(clearUpButton).trigger('click');
             }
+        });
+
+        $('#ignore_del').on('change', function() {
+            extension_settings.muyoo_dataTable.bool_ignore_del = $(this).prop('checked');
+            saveSettingsDebounced();
+            console.log('bool_ignore_del:' + extension_settings.muyoo_dataTable.bool_ignore_del);
         });
 
         $('#use_main_api, #custom_api_url, #custom_api_key, #custom_model_name').on('change', function() {
