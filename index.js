@@ -2441,12 +2441,14 @@ function getRefreshTableConfigStatus() {
                     <table class="table table-bordered table-striped">
                         <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
                         <tbody>
-                        <tr> <td>纳入参考的楼层数</td> <td>${clearUpStairs}</td> </tr>
-                        <tr> <td>不允许删除的操作</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>
-                        <tr> <td>使用主API</td> <td>${isUseMainAPI ? '是' : '否'}</td> </tr>
+                        <tr> <td>纳入参考的聊天记录</td> <td>${clearUpStairs}条</td> </tr>
+                        <tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>
+                        <tr> <td>使用的API</td> <td>${isUseMainAPI ? '主API' : '自定义API'}</td> </tr>
+                        ${isUseMainAPI ? '' : `
                         <tr> <td>API URL</td> <td>${userApiUrl}</td> </tr>
                         <tr> <td>API Model</td> <td>${userApiModel}</td> </tr>
                         <tr> <td>Temperature</td> <td>${userApiTemperature}</td> </tr>
+                        `}
                         </tbody>
                     </table>
                 </div>
