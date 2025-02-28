@@ -33,18 +33,18 @@ const editErrorInfo = {
  * 默认插件设置
  */
 const defaultSettings = {
-    // 该设置仅在插件第一次安装和重置时生效
-    // !!以下应该为只读，请注意该设置的安全性
-    // ！！！！！！！！！！！！！！！！！！！！
-    // ！！！！！！！！！！！！！！！！！！！！
-    OPENAI_API_KEY: 'xxxx',
-    OPENAI_ENDPOINT: 'https://xxx/v1/chat/completions',
-    OPENAI_API_MODEL: "gpt-3.5-turbo",
-    custom_api_url: '',
-    custom_api_key: '',
-    custom_model_name: '',
-    // ！！！！！！！！！！！！！！！！！！！！
-    // ！！！！！！！！！！！！！！！！！！！！
+    // // 该设置仅在插件第一次安装和重置时生效
+    // // !!以下应该为只读，请注意该设置的安全性
+    // // ！！！！！！！！！！！！！！！！！！！！
+    // // ！！！！！！！！！！！！！！！！！！！！
+    // OPENAI_API_KEY: 'xxxx',
+    // OPENAI_ENDPOINT: 'https://xxx/v1/chat/completions',
+    // OPENAI_API_MODEL: "gpt-3.5-turbo",
+    // custom_api_url: '',
+    // custom_api_key: '',
+    // custom_model_name: '',
+    // // ！！！！！！！！！！！！！！！！！！！！
+    // // ！！！！！！！！！！！！！！！！！！！！
 
     // 以下可读写
     injection_mode: 'deep_system',
@@ -269,11 +269,39 @@ function findTableStructureByIndex(index) {
 }
 
 /**
+ * 导入表格数据文件
+ * */
+async function importTableDataFile(){
+    const importFileElement = document.querySelector('#table-set-importFile'); // 获取文件输入元素
+
+    // 定义一个具名的事件处理函数
+    async function changeEventHandler(event) {
+        const files = event.target.files; // 从事件对象中获取 files 列表
+        console.log("选择的文件列表:", files);
+
+        if (files && files.length > 0) { // 确保用户选择了文件
+            await importTableSet(files); // 调用 importTableSet 函数处理文件
+            importFileElement.value = null; // 清空文件输入框的值，以便下次可以选择相同文件
+        } else {
+            console.log("用户取消了文件选择或未选择文件。");
+        }
+
+        // 移除事件监听器
+        importFileElement.removeEventListener('change', changeEventHandler); // 使用具名函数引用移除
+    }
+
+    // 添加 change 事件监听器，使用具名函数引用
+    importFileElement.addEventListener('change', changeEventHandler);
+
+    importFileElement.click(); // 触发文件选择对话框
+}
+
+/**
  * 加载设置
  */
 function loadSettings() {
     extension_settings.muyoo_dataTable = extension_settings.muyoo_dataTable || {};
-    extension_settings.user_safe_setting = extension_settings.user_safe_setting || {};
+    extension_settings.IMPORTANT_USER_PRIVACY_DATA = extension_settings.IMPORTANT_USER_PRIVACY_DATA || {};
 
     for (const key in defaultSettings) {
         if (!Object.hasOwn(extension_settings.muyoo_dataTable, key)) {
@@ -291,9 +319,12 @@ function loadSettings() {
 
     //api初始化
     $('#use_main_api').prop('checked', extension_settings.muyoo_dataTable.use_main_api ?? true);
-    $('#custom_api_url').val(extension_settings.muyoo_dataTable.custom_api_url || '');
-    $('#custom_api_key').val(extension_settings.muyoo_dataTable.custom_api_key || '');
-    $('#custom_model_name').val(extension_settings.muyoo_dataTable.custom_model_name || '');
+    $('#custom_api_settings').toggle(!extension_settings.muyoo_dataTable.use_main_api);
+
+    $('#custom_api_url').val(extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
+    $('#custom_api_key').val(extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
+    $('#custom_model_name').val(extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
+
     if (typeof extension_settings.muyoo_dataTable.bool_ignore_del === 'undefined') {
         extension_settings.muyoo_dataTable.bool_ignore_del = defaultSettings.bool_ignore_del;
     }
@@ -319,7 +350,10 @@ function renderSetting() {
     updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
     updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
     updateSwitch("#table_to_chat", extension_settings.muyoo_dataTable.isTableToChat)
+    updateSwitch("#advanced_settings", extension_settings.muyoo_dataTable.advanced_settings)
+    $('#advanced_options').toggle(extension_settings.muyoo_dataTable.advanced_settings)
     updateTableStructureDOM()
+    console.log("设置已渲染")
 }
 
 /**
@@ -418,9 +452,9 @@ async function resetSettings() {
         // 以下为独立的赋值，不会影响其他设置
         // 判断是否重置用户个人API设置
         if (tableInitPopup.find('#table_init_api').prop('checked')) {
-            extension_settings.user_safe_setting.custom_api_url = defaultSettings.custom_api_url;
-            extension_settings.user_safe_setting.custom_api_key = defaultSettings.custom_api_key;
-            extension_settings.user_safe_setting.custom_model_name = defaultSettings.custom_model_name;
+            extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = '';
+            extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = '';
+            extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = '';
         }
 
         extension_settings.muyoo_dataTable = newSettings;
@@ -2275,8 +2309,8 @@ async function refreshTableActions() {
 
     // 开始执行整理表格
     let response;
-    const loadingToast = toastr.info(
-        $('#use_main_api').prop('checked')
+    const isUseMainAPI = $('#use_main_api').prop('checked');
+    const loadingToast = toastr.info(isUseMainAPI
             ? '正在使用【主API】整理表格...'
             : '正在使用【自定义API】整理表格...',
         '',
@@ -2323,7 +2357,7 @@ async function refreshTableActions() {
         userPrompt = userPrompt.replace(/\$1/g, lastChats);
 
         let cleanContent;
-        if ($('#use_main_api').prop('checked')) {
+        if (isUseMainAPI) {
             // 主API
             response = await generateRaw(
                 userPrompt,
@@ -2339,61 +2373,52 @@ async function refreshTableActions() {
                 .replace(/```json|```/g, '')
                 .trim();
         } else {
-            return;
-
-            // !!!!!!!!!!!!!!!!!.未通过安全性检查的代码!!!!!!!!!!!!!!!!!
             // 自定义API
-            // const baseUrl = $('#custom_api_url').val().trim().replace(/\/+$/, '');
-            // const apiKey = $('#custom_api_key').val().trim();
-            // const modelName = $('#custom_model_name').val().trim();
-            // const USER_API_URL = extension_settings.user_safe_setting.custom_api_url;
-            // const USER_API_KEY = extension_settings.user_safe_setting.custom_api_key;
-            // const USER_API_MODEL = extension_settings.user_safe_setting.custom_model_name;
-            //
-            // if (!USER_API_URL || !USER_API_KEY || !USER_API_MODEL) {
-            //     toastr.error('请填写完整的自定义API配置');
-            //     return;
-            // }
-            // const apiUrl = new URL(USER_API_URL);
-            // apiUrl.pathname = '/v1/chat/completions';
-            //
-            // extension_settings.user_safe_setting.custom_api_url = apiUrl.toString();
-            // extension_settings.user_safe_setting.custom_api_key = apiKey;
-            // extension_settings.user_safe_setting.custom_model_name = modelName;
-            //
-            // response = await fetch(USER_API_KEY, {
-            //     method: 'POST',
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //         'Authorization': `Bearer ${USER_API_KEY}`
-            //     },
-            //     body: JSON.stringify({
-            //         model: USER_API_MODEL,
-            //         messages: [
-            //             { role: "system", content: systemPrompt },
-            //             { role: "user", content: userPrompt }
-            //         ],
-            //         temperature: extension_settings.muyoo_dataTable.custom_temperature
-            //     })
-            // }).catch(error => {
-            //     throw new Error(`网络连接失败: ${error.message}`);
-            // });
-            // if (!response.ok) {
-            //     const errorBody = await response.text();
-            //     throw new Error(`API请求失败 [${response.status}]: ${errorBody}`);
-            // }
-            //
-            // const result = await response.json();
-            // const rawContent = result.choices[0].message.content;
-            //
-            // console.log('原始响应内容:', rawContent);
-            // // 清洗响应内容
-            // cleanContent = rawContent
-            //     .replace(/```json|```/g, '') // 移除JSON代码块标记
-            //     .replace(/([{,]\s*)(?:"?([a-zA-Z_]\w*)"?\s*:)/g, '$1"$2":') // 严格限定键名格式
-            //     .replace(/'/g, '"') // 单引号转双引号
-            //     .replace(/\/\*.*?\*\//g, '') // 移除块注释
-            //     .trim();
+            const USER_API_URL = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
+            const USER_API_KEY = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
+            const USER_API_MODEL = extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
+
+            if (!USER_API_URL || !USER_API_KEY || !USER_API_MODEL) {
+                toastr.error('请填写完整的自定义API配置');
+                return;
+            }
+            const apiUrl = new URL(USER_API_URL);
+            apiUrl.pathname = '/v1/chat/completions';
+
+            response = await fetch(apiUrl.href, { // <--- 使用 apiUrl.href 作为 URL
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${USER_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: USER_API_MODEL,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userPrompt }
+                    ],
+                    temperature: extension_settings.muyoo_dataTable.custom_temperature
+                })
+            }).catch(error => {
+                throw new Error(`网络连接失败: ${error.message}`);
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`API请求失败 [${response.status}]: ${errorBody}`);
+            }
+
+            const result = await response.json();
+            const rawContent = result.choices[0].message.content;
+
+            console.log('原始响应内容:', rawContent);
+            // 清洗响应内容
+            cleanContent = rawContent
+                .replace(/```json|```/g, '') // 移除JSON代码块标记
+                .replace(/([{,]\s*)(?:"?([a-zA-Z_]\w*)"?\s*:)/g, '$1"$2":') // 严格限定键名格式
+                .replace(/'/g, '"') // 单引号转双引号
+                .replace(/\/\*.*?\*\//g, '') // 移除块注释
+                .trim();
         }
 
         let actions;
@@ -2581,32 +2606,12 @@ async function updateModelList(){
     }
 }
 
-function saveUserApiSetting() {
-    // !!!!!!!!!!!!!!!!!.未通过安全性检查的代码!!!!!!!!!!!!!!!!!
-    // clearUpButtonManager = document.getElementById('table_clear_up_button'); // manager界面按钮
-    // $(document).on('click', '#table_clear_up_button', function() {
-    //     // console.log('table_clear_up_button 被点击了');
-    //     if (clearUpButton) {
-    //         $(clearUpButton).trigger('click');
-    //     }
-    // });
-    //
-    // $('#ignore_del').on('change', function() {
-    //     extension_settings.muyoo_dataTable.bool_ignore_del = $(this).prop('checked');
-    //     saveSettingsDebounced();
-    //     console.log('bool_ignore_del:' + extension_settings.muyoo_dataTable.bool_ignore_del);
-    // });
-    //
-    // $('#use_main_api, #custom_api_url, #custom_api_key, #custom_model_name').on('change', function() {
-    //     extension_settings.muyoo_dataTable.use_main_api = $('#use_main_api').prop('checked');
-    //
-    //     // !!!!!!!!!!!!!!!!!.未通过安全性检查的代码!!!!!!!!!!!!!!!!!
-    //     // extension_settings.user_safe_setting.custom_api_url = $('#custom_api_url').val();
-    //     // extension_settings.user_safe_setting.custom_api_key = $('#custom_api_key').val();
-    //     // extension_settings.user_safe_setting.custom_model_name = $('#custom_model_name').val();
-    //     saveSettingsDebounced();
-    // });
-}
+
+
+const openTableButtonDom = `
+<div title="查看表格" class="mes_button open_table_by_id">
+    表格
+</div>`;
 
 /**
  * 表格编辑浮窗
@@ -2670,31 +2675,33 @@ jQuery(async () => {
     })
     const html = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'index');
     const buttonHtml = await renderExtensionTemplateAsync('third-party/st-memory-enhancement', 'buttons');
-    const button = `
-    <div title="查看表格" class="mes_button open_table_by_id">
-        表格
-    </div>`;
-    $('#data_bank_wand_container').append(buttonHtml);
-    $('.extraMesButtons').append(button);
+
+    // 开始添加各部分的根DOM
+    // 添加表格编辑工具栏
     $('#translation_container').append(html);
-    $(document).on('pointerup', '.open_table_by_id', function () {
-        try {
-            const messageId = $(this).closest('.mes').attr('mesid');
-            openTablePopup(parseInt(messageId));
-        } catch (err) {
-            console.error('Failed to copy: ', err.message);
-        }
-    });
-    loadSettings();
+    // 添加表格编辑浮窗
+    $('#data_bank_wand_container').append(buttonHtml);
+    // 添加进入表格编辑按钮
+    $('.extraMesButtons').append(openTableButtonDom);
+
+    // 开始绑定事件
+    // 表格弹出窗
+    $('.open_table_by_id').on('click', function () {
+        const messageId = $(this).closest('.mes').attr('mesid');
+        openTablePopup(parseInt(messageId));
+    })
+    // 表格插入模式
     $('#dataTable_injection_mode').on('change', (event) => {
         extension_settings.muyoo_dataTable.injection_mode = event.target.value;
         saveSettingsDebounced();
     });
+    // 表格消息模板
     $('#dataTable_message_template').on("input", function () {
         const value = $(this).val();
         extension_settings.muyoo_dataTable.message_template = value;
         saveSettingsDebounced();
     })
+    // 表格推送至对话
     $("#dataTable_to_chat_button").on("click", async function () {
         const result = await callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", POPUP_TYPE.INPUT, extension_settings.muyoo_dataTable.to_chat_container, { rows: 10 })
         if (result) {
@@ -2703,6 +2710,7 @@ jQuery(async () => {
             updateSystemMessageTableStatus()
         }
     })
+    // 表格深度
     $('#dataTable_deep').on("input", function () {
         const value = $(this).val();
         extension_settings.muyoo_dataTable.deep = Math.abs(value);
@@ -2710,113 +2718,118 @@ jQuery(async () => {
     })
     // 打开表格
     $("#open_table").on('click', () => openTablePopup());
-    // 重置设置
-    $("#table-reset").on('click', () => resetSettings());
+    // 导入预设
+    $('#table-set-import').on('click', () => importTableDataFile());
     // 导出
     $("#table-set-export").on('click', () => exportTableSet());
+    // 重置设置
+    $("#table-reset").on('click', () => resetSettings());
     // 插件总体开关
     $('#table_switch').change(function () {
-        if ($(this).prop('checked')) {
-            extension_settings.muyoo_dataTable.isExtensionAble = true;
-            updateSwitch("#table_switch", extension_settings.muyoo_dataTable.isExtensionAble)
-            saveSettingsDebounced();
-            toastr.success('插件已开启');
-        } else {
-            extension_settings.muyoo_dataTable.isExtensionAble = false;
-            updateSwitch("#table_switch", extension_settings.muyoo_dataTable.isExtensionAble)
-            saveSettingsDebounced();
-            toastr.success('插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
-        }
-        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        extension_settings.muyoo_dataTable.isExtensionAble = this.checked;
+        saveSettingsDebounced();
+        toastr.success(this.checked ? '插件已开启' : '插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
+        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
     // 插件读表开关
     $('#table_read_switch').change(function () {
-        if ($(this).prop('checked')) {
-            extension_settings.muyoo_dataTable.isAiReadTable = true;
-            updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
-            saveSettingsDebounced();
-            toastr.success('AI现在会读取表格');
-        } else {
-            extension_settings.muyoo_dataTable.isAiReadTable = false;
-            updateSwitch("#table_read_switch", extension_settings.muyoo_dataTable.isAiReadTable)
-            saveSettingsDebounced();
-            toastr.success('AI现在将不会读表');
-        }
+        extension_settings.muyoo_dataTable.isAiReadTable = this.checked;
+        saveSettingsDebounced();
+        toastr.success(this.checked ? 'AI现在会读取表格' : 'AI现在将不会读表');
     });
     // 插件写表开关
     $('#table_edit_switch').change(function () {
-        if ($(this).prop('checked')) {
-            extension_settings.muyoo_dataTable.isAiWriteTable = true;
-            updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
-            saveSettingsDebounced();
-            toastr.success('AI的更改现在会被写入表格');
-        } else {
-            extension_settings.muyoo_dataTable.isAiWriteTable = false;
-            updateSwitch("#table_edit_switch", extension_settings.muyoo_dataTable.isAiWriteTable)
-            saveSettingsDebounced();
-            toastr.success('AI的更改现在不会被写入表格');
-        }
+        extension_settings.muyoo_dataTable.isAiWriteTable = this.checked;
+        saveSettingsDebounced();
+        toastr.success(this.checked ? 'AI的更改现在会被写入表格' : 'AI的更改现在不会被写入表格');
     });
     // 表格推送至对话开关
     $('#table_to_chat').change(function () {
-        if ($(this).prop('checked')) {
-            extension_settings.muyoo_dataTable.isTableToChat = true;
-            updateSwitch("#table_to_chat", extension_settings.muyoo_dataTable.isTableToChat)
-            saveSettingsDebounced();
-            toastr.success('表格会被推送至对话中');
-        } else {
-            extension_settings.muyoo_dataTable.isTableToChat = false;
-            updateSwitch("#table_to_chat", extension_settings.muyoo_dataTable.isTableToChat)
-            saveSettingsDebounced();
-            toastr.success('关闭表格推送至对话');
-        }
-        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        extension_settings.muyoo_dataTable.isTableToChat = this.checked;
+        saveSettingsDebounced();
+        toastr.success(this.checked ? '表格会被推送至对话中' : '关闭表格推送至对话');
+        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
-    // 开始整理表格
-    $("#table_clear_up").on('click', () => refreshTableActions());
+    //整理表格相关高级设置
+    $('#advanced_settings').on('change', function() {
+        $('#advanced_options').toggle(this.checked);
+        extension_settings.muyoo_dataTable.advanced_settings = this.checked;
+        saveSettingsDebounced();
+    });
+    // 忽略删除
+    $('#ignore_del').on('change', function() {
+        extension_settings.muyoo_dataTable.bool_ignore_del = $(this).prop('checked');
+        saveSettingsDebounced();
+        console.log('bool_ignore_del:' + extension_settings.muyoo_dataTable.bool_ignore_del);
+    });
+    // 清理聊天记录楼层
+    $('#clear_up_stairs').on('input', function() {
+        const value = $(this).val();
+        $('#clear_up_stairs_value').text(value);
+        extension_settings.muyoo_dataTable.clear_up_stairs = Number(value);
+        saveSettingsDebounced();
+    });
+    // 模型温度设定
+    $('#custom_temperature').on('input', function() {
+        const value = $(this).val();
+        $('#custom_temperature_value').text(value);
+        extension_settings.muyoo_dataTable.custom_temperature = Number(value);
+        saveSettingsDebounced();
+    });
+
+
+    // API设置
     // 初始化API设置显示状态
     $('#use_main_api').on('change', function() {
         $('#custom_api_settings').toggle(!this.checked);
+        extension_settings.muyoo_dataTable.use_main_api = this.checked;
+        saveSettingsDebounced();
     });
-
-
-    // 初始化API设置显示状态
-    // document.getElementById('use_main_api').addEventListener('change', function() {
-    //     document.getElementById('custom_api_settings').style.display =
-    //         this.checked ? 'none' : 'flex';
-    // });
-
-    // 默认触发一次change事件来初始化状态
-    // document.getElementById('use_main_api').dispatchEvent(new Event('change'));
-
+    // API URL
+    $('#custom_api_url').on('input', function() {
+        extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = $(this).val();
+        saveSettingsDebounced();
+    });
+    // API Key
+    $('#custom_api_key').on('input', function() {
+        console.error('该代码未通过安全性检查，暂不可用')
+        toastr.error('该代码未通过安全性检查，暂不可用');
+        // extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = $(this).val();
+        // saveSettingsDebounced();
+    });
+    // 模型名称
+    $('#custom_model_name').on('input', function() {
+        extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = $(this).val();
+        saveSettingsDebounced();
+    });
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
-
     // 根据下拉列表选择的模型更新自定义模型名称
     $('#model_selector').on('change', function() {
         const selectedModel = $(this).val();
         $('#custom_model_name').val(selectedModel);
+        extension_settings.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = selectedModel;
+        saveSettingsDebounced();
     });
+    // 开始整理表格
+    $("#table_clear_up").on('click', () => refreshTableActions());
 
+    // 应用程序启动时加载设置
+    loadSettings();
 
-    // 导入预设
-    const importFile = document.querySelector('#table-set-importFile');
-    importFile.addEventListener('change', async () => {
-        await importTableSet(importFile.files);
-        importFile.value = null;
-    });
-    $("#table-set-import").on('click', () => importFile.click());
     // 设置表格编辑按钮
     $(document).on('click', '.tableEditor_editButton', function () {
         let index = $(this).data('index'); // 获取当前点击的索引
         openTableSettingPopup(index);
     })
+    // 点击表格渲染样式设置按钮
     $(document).on('click', '.tableEditor_renderButton', function () {
         openTableRendererPopup();
-    })  // 点击表格渲染样式设置按钮
+    })
+    // 点击打开查看表格历史按钮
     $(document).on('click', '.dataTable_history_button', function () {
         openTableHistoryPopup();
-    })  // 点击打开查看表格历史按钮
+    })
     // 设置表格开启开关
     $(document).on('change', '.tableEditor_switch', function () {
         let index = $(this).data('index'); // 获取当前点击的索引
@@ -2825,30 +2838,7 @@ jQuery(async () => {
         saveSettingsDebounced();
     })
 
-    // 保存API设置
-    $(document).ready(saveUserApiSetting);
-
-    //整理表格相关高级设置
-    $('#advanced_settings').on('change', function() {
-        $('#advanced_options').toggle(this.checked);
-    });
-    // 默认隐藏高级选项
-    $('#advanced_options').hide();
-
-    $('#clear_up_stairs').on('input', function() {
-        const value = $(this).val();
-        $('#clear_up_stairs_value').text(value);
-        extension_settings.muyoo_dataTable.clear_up_stairs = Number(value);
-        saveSettingsDebounced();
-    });
-
-    $('#custom_temperature').on('input', function() {
-        const value = $(this).val();
-        $('#custom_temperature_value').text(value);
-        extension_settings.muyoo_dataTable.custom_temperature = Number(value);
-        saveSettingsDebounced();
-    });
-
+    // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
