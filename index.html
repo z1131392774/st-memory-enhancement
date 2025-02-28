@@ -35,8 +35,22 @@
                     <a>重新整理表格</a>
                 </div>
                 <div class="checkbox flex-container" style="margin-left: 10px;">
-                    <input type="checkbox" id="ignore_del" checked>
-                    <span>整理时不删除，只修改和添加</span>
+                    <input type="checkbox" id="advanced_settings">
+                    <span>高级设置</span>
+                </div>
+                <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
+                    <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                        <input type="checkbox" id="ignore_del" checked>
+                        <span>整理时不删除，只修改和添加</span>
+                    </div>
+                    <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
+                        <label>整理参考消息数（最近几层楼纳入参考）：<span id="clear_up_stairs_value">3</span></label>
+                        <input type="range" id="clear_up_stairs" min="3" max="20" step="1" value="3" style="width: 80%;">
+                    </div>
+                    <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
+                        <label>API温度设定（只对自定义API生效）：<span id="custom_temperature_value">1.0</span></label>
+                        <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="width: 80%;">
+                    </div>
                 </div>
                 <div class="checkbox flex-container" style="margin-left: 10px;">
                     <input type="checkbox" id="use_main_api" checked>

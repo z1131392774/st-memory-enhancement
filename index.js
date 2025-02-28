@@ -50,6 +50,7 @@ const defaultSettings = {
     custom_top_p: 1,
     tableBackups: {}, // 新增表格备份存储
     bool_ignore_del: true,
+    clear_up_stairs:3,//有几层聊天记录纳入范围
 
     tableStructure: [
         {
@@ -215,6 +216,14 @@ function loadSettings() {
     if (typeof extension_settings.muyoo_dataTable.bool_ignore_del === 'undefined') {
         extension_settings.muyoo_dataTable.bool_ignore_del = defaultSettings.bool_ignore_del;
     }
+
+    extension_settings.muyoo_dataTable.clear_up_stairs = extension_settings.muyoo_dataTable.clear_up_stairs || 3;
+    $('#clear_up_stairs').val(extension_settings.muyoo_dataTable.clear_up_stairs);
+    $('#clear_up_stairs_value').text(extension_settings.muyoo_dataTable.clear_up_stairs);
+
+    extension_settings.muyoo_dataTable.custom_temperature = extension_settings.muyoo_dataTable.custom_temperature || 1.0;
+    $('#custom_temperature').val(extension_settings.muyoo_dataTable.custom_temperature);
+    $('#custom_temperature_value').text(extension_settings.muyoo_dataTable.custom_temperature);
 }
 
 
@@ -1930,15 +1939,19 @@ jQuery(async () => {
                     .map(table => table.getTableText(['title', 'node', 'headers', 'rows']))
                     .join("\n");
 
-                // 获取最近3条聊天记录
+                // 获取最近clear_up_stairs条聊天记录
                 let chat = getContext().chat;
-                let lastThreeChats = '';
-                if (chat.length < 3) {
-                    throw new Error('需要至少3条消息记录');
-                } else {
-                    for (let i = Math.max(0, chat.length - 3); i < chat.length; i++) {
+                let lastChats = '';
+                if (chat.length < extension_settings.muyoo_dataTable.clear_up_stairs) {
+                    toastr.success(`当前聊天记录只有${chat.length}条，小于设置的${extension_settings.muyoo_dataTable.clear_up_stairs}条`);
+                    for (let i = 0; i < chat.length; i++) {  // 从0开始遍历所有现有消息
                         let currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
-                        lastThreeChats += `\n${currentChat}`;
+                        lastChats += `\n${currentChat}`;
+                    }
+                } else {
+                    for (let i = Math.max(0, chat.length - extension_settings.muyoo_dataTable.clear_up_stairs); i < chat.length; i++) {
+                        let currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
+                        lastChats += `\n${currentChat}`;
                     }
                 }
 
@@ -1959,7 +1972,7 @@ jQuery(async () => {
 </整理规则>
 
 <聊天记录>
-    ${lastThreeChats}
+    ${lastChats}
 </聊天记录>
 
 <当前表格>
@@ -2290,5 +2303,25 @@ jQuery(async () => {
             extension_settings.muyoo_dataTable.custom_model_name = $('#custom_model_name').val();
             saveSettingsDebounced();
         });
+    });
+    //整理表格相关高级设置
+    $('#advanced_settings').on('change', function() {
+        $('#advanced_options').toggle(this.checked);
+    });
+    // 默认隐藏高级选项
+    $('#advanced_options').hide();
+
+    $('#clear_up_stairs').on('input', function() {
+        const value = $(this).val();
+        $('#clear_up_stairs_value').text(value);
+        extension_settings.muyoo_dataTable.clear_up_stairs = Number(value);
+        saveSettingsDebounced();
+    });
+
+    $('#custom_temperature').on('input', function() {
+        const value = $(this).val();
+        $('#custom_temperature_value').text(value);
+        extension_settings.muyoo_dataTable.custom_temperature = Number(value);
+        saveSettingsDebounced();
     });
 });
