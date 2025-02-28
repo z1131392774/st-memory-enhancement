@@ -738,8 +738,21 @@ function replaceUserTag(str) {
 function insertRow(tableIndex, data) {
     if (tableIndex == null) return toastr.error('insert函数，tableIndex函数为空');
     if (data == null) return toastr.error('insert函数，data函数为空');
-    const table = waitingTable[tableIndex]
-    return table.insert(data)
+    const table = waitingTable[tableIndex];
+    const newRow = Object.entries(data)
+        .reduce((row, [key, value]) => {
+            row[parseInt(key)] = handleCellValue(value);
+            return row;
+        }, new Array(table.columns.length).fill(""));
+    const dataStr = JSON.stringify(newRow);
+    // 检查是否已存在相同行
+    if (table.content.some(row => JSON.stringify(row) === dataStr)) {
+        console.log(`跳过重复插入: table ${tableIndex}, data ${dataStr}`);
+        return -1; // 返回-1表示未插入
+    }
+    const newRowIndex = table.insert(data);
+    console.log(`插入成功: table ${tableIndex}, row ${newRowIndex}`);
+    return newRowIndex;
 }
 
 /**
@@ -2327,6 +2340,7 @@ jQuery(async () => {
     8. 地点格式为 大陆>国家>城市>具体地点 (未知的部分可以省略，例如：大陆>中国>北京>故宫 或 异世界>酒馆)
     9. 单元格中禁止使用逗号，语义分割应使用 /
     10. 单元格内的string中禁止出现双引号
+    11. 禁止插入与现有表格内容完全相同的行，检查现有表格数据后再决定是否插入
 </整理规则>
 
 <聊天记录>
@@ -2504,14 +2518,27 @@ jQuery(async () => {
                     }
                 });
 
-                // 去重非删除操作
-                const uniqueNonDeleteActions = nonDeleteActions.filter((action, index, self) =>
-                    index === self.findIndex(a => (
+                // 去重非删除操作，考虑表格现有内容
+                const uniqueNonDeleteActions = nonDeleteActions.filter((action, index, self) => {
+                    if (action.action.toLowerCase() === 'insert') {
+                        const table = waitingTable[action.tableIndex];
+                        const dataStr = JSON.stringify(action.data);
+                        // 检查是否已存在完全相同的行
+                        const existsInTable = table.content.some(row => JSON.stringify(row) === dataStr);
+                        const existsInPreviousActions = self.slice(0, index).some(a =>
+                            a.action.toLowerCase() === 'insert' &&
+                            a.tableIndex === action.tableIndex &&
+                            JSON.stringify(a.data) === dataStr
+                        );
+                        return !existsInTable && !existsInPreviousActions;
+                    }
+                    return index === self.findIndex(a =>
                         a.action === action.action &&
                         a.tableIndex === action.tableIndex &&
+                        a.rowIndex === action.rowIndex &&
                         JSON.stringify(a.data) === JSON.stringify(action.data)
-                    ))
-                );
+                    );
+                });
 
                 // 去重删除操作并按 rowIndex 降序排序
                 const uniqueDeleteActions = deleteActions
@@ -2550,7 +2577,7 @@ jQuery(async () => {
                                 console.error(`插入失败：表 ${action.tableIndex} 缺少必填列数据`);
                                 break;
                             }
-                            insertRow(action.tableIndex, action.data); // 假设 insertRow 已定义
+                            insertRow(action.tableIndex, action.data);
                             break;
                         case 'delete':
                             if (action.tableIndex === 0 || !extension_settings.muyoo_dataTable.bool_ignore_del) {
