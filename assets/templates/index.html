@@ -51,13 +51,14 @@
                 <div class="table_setting_category_container">
                     <b class="table_setting_category_header">回复设置</b><div style="height: 10px;"></div>
                     <div class="checkbox flex-container">
-                        <input type="checkbox" id="step_by_step"><span>启用分布推送</span><small>(每次对话后自动调用api独立总结表格更改)</small>
+                        <input type="checkbox" id="step_by_step"><span>启用分步填表</span><small>(每次对话后自动调用api单独总结表格)</small>
                     </div>
+                    <div style="height: 10px;"></div>
                     <div id="reply_options" style="padding-left: 20px; width: calc(100% - 20px);">
                         <!-- 高级设置选项 -->
                         <div style="padding-left: 10px;">
-                            <label for="dataTable_injection_mode" class="checkbox_label">注入设置</label>
                             <div style=" display: flex;">
+                                <label for="dataTable_injection_mode" style="min-width: 50px">注入：</label>
                                 <select id="dataTable_injection_mode">
                                     <option value="deep_system">@D ⚙</option>
                                     <option value="deep_user">@D 👤</option>
