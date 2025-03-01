@@ -1,5 +1,4 @@
 import {DERIVED, EDITOR, SYSTEM} from '../manager.js'
-import FN from '../fn.mjs'
 import JSON5 from '../../utils/json5.min.mjs'
 import {handleCellValue} from "./table.js";
 
@@ -7,7 +6,7 @@ import {handleCellValue} from "./table.js";
  * 初始化所有表格
  * @returns 所有表格对象数组
  */
-FN.initAllTable = function () {
+export function initAllTable() {
     return EDITOR.data.tableStructure.map(data => new DERIVED.Table(data.tableName, data.tableIndex, data.columns))
 }
 
@@ -17,7 +16,7 @@ FN.initAllTable = function () {
  * @param {object} data 插入的数据
  * @returns 新插入行的索引
  */
-FN.insertRow = function (tableIndex, data) {
+export function insertRow(tableIndex, data) {
     if (tableIndex == null) return EDITOR.error('insert函数，tableIndex函数为空');
     if (data == null) return EDITOR.error('insert函数，data函数为空');
     const table = DERIVED.any.waitingTable[tableIndex];
@@ -42,7 +41,7 @@ FN.insertRow = function (tableIndex, data) {
  * @param {number} tableIndex 表格索引
  * @param {number} rowIndex 行索引
  */
-FN.deleteRow = function (tableIndex, rowIndex) {
+export function deleteRow(tableIndex, rowIndex) {
     if (tableIndex == null) return EDITOR.error('delete函数，tableIndex函数为空');
     if (rowIndex == null) return EDITOR.error('delete函数，rowIndex函数为空');
     const table = DERIVED.any.waitingTable[tableIndex]
@@ -55,7 +54,7 @@ FN.deleteRow = function (tableIndex, rowIndex) {
  * @param {number} rowIndex 行索引
  * @param {object} data 更新的数据
  */
-FN.updateRow = function (tableIndex, rowIndex, data) {
+export function updateRow(tableIndex, rowIndex, data) {
     if (tableIndex == null) return EDITOR.error('update函数，tableIndex函数为空');
     if (rowIndex == null) return EDITOR.error('update函数，rowIndex函数为空');
     if (data == null) return EDITOR.error('update函数，data函数为空');
@@ -203,14 +202,14 @@ export class TableEditAction {
         try {
             switch (this.type) {
                 case 'Update':
-                    FN.updateRow(this.tableIndex, this.rowIndex, this.data)
+                    updateRow(this.tableIndex, this.rowIndex, this.data)
                     break
                 case 'Insert':
-                    const newRowIndex = FN.insertRow(this.tableIndex, this.data)
+                    const newRowIndex = insertRow(this.tableIndex, this.data)
                     this.rowIndex = newRowIndex
                     break
                 case 'Delete':
-                    FN.deleteRow(this.tableIndex, this.rowIndex)
+                    deleteRow(this.tableIndex, this.rowIndex)
                     break
             }
         } catch (err) {

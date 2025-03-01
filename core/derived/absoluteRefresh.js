@@ -1,6 +1,6 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
-import FN from '../fn.mjs';
 import {copyTableList, findLastestTableData, findTableStructureByIndex, } from "../../index.js";
+import {insertRow, updateRow, deleteRow} from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {renderTablesDOM} from "./tableDataView.js";
@@ -386,7 +386,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
                             console.log(`Skipped update: table ${action.tableIndex} row ${action.rowIndex} 第一列为空`);
                             break;
                         }
-                        FN.updateRow(action.tableIndex, action.rowIndex, action.data);
+                        updateRow(action.tableIndex, action.rowIndex, action.data);
                         console.log(`Updated: table ${action.tableIndex}, row ${action.rowIndex}`, DERIVED.any.waitingTable[action.tableIndex].content[action.rowIndex]);
                     } catch (error) {
                         console.error(`Update操作失败: ${error.message}`);
@@ -399,12 +399,12 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
                         console.error(`插入失败：表 ${action.tableIndex} 缺少必填列数据`);
                         break;
                     }
-                    FN.insertRow(action.tableIndex, action.data);
+                    insertRow(action.tableIndex, action.data);
                     break;
                 case 'delete':
                     if (action.tableIndex === 0 || !EDITOR.data.bool_ignore_del) {
                         const deletedRow = DERIVED.any.waitingTable[action.tableIndex].content[action.rowIndex];
-                        FN.deleteRow(action.tableIndex, action.rowIndex);
+                        deleteRow(action.tableIndex, action.rowIndex);
                         console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
                     } else {
                         console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
