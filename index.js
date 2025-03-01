@@ -1,3 +1,4 @@
+import './core/manager.js';
 import { eventSource, event_types } from '../../../../script.js';
 import {DERIVED, EDITOR, SYSTEM} from './core/manager.js';
 import { refreshTableActions, updateModelList } from './core/derived/absoluteRefresh.js';
@@ -6,7 +7,7 @@ import {openTableHistoryPopup} from "./core/derived/tableHistory.js";
 import {loadSettings} from "./core/derived/userExtensionSetting.js";
 import {openTableSettingPopup} from "./core/derived/tableStructureSetting.js";
 import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.js";
-import {initAllTable} from "./core/source/tableActions.js";
+import FN from "./core/fn.mjs";
 
 const VERSION = '1.3.0'
 
@@ -53,7 +54,7 @@ export function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
             return { tables: chat[i].dataTable, index: i }
         }
     }
-    const newTableList = initAllTable()
+    const newTableList = FN.initAllTable()
     for (let i = chat.length - 1; i >= 0; i--) {
         if (chat[i].is_user === false) {
             return { tables: newTableList, index: i }

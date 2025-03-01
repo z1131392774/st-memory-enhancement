@@ -188,6 +188,7 @@ insertRow(5, {"0":"<user>","1":"社团赛奖品","2":"奖杯","3":"比赛第一�
 };
 
 let derivedData = {}
+let derivedMethod = {}
 /**
  * @description 辅助函数，递归创建 Proxy
  * @param {Object} obj - 要代理的对象
@@ -224,6 +225,14 @@ export let DERIVED = {
             return {};
         }
         return createProxy(data);
+    },
+    get fn() {
+        let method = derivedMethod;
+        if (!method) {
+            console.warn("method is undefined, please ensure 'let method = {}' is defined in the same file.");
+            return {};
+        }
+        return createProxy(method);
     },
     Table: Table,
     TableEditAction: TableEditAction,
@@ -263,11 +272,5 @@ export let SYSTEM = {
         console.log('getComponent', name);
         return renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
     },
-    // readFile: ,
-    // writeFile: ,
-    // readFilesInDir: ,
-    //
-    // taskTiming: ,
-
     createProxy: createProxy,
 };

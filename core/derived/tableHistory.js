@@ -1,5 +1,4 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
-import { deleteRow, insertRow, updateRow } from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
 /**

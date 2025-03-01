@@ -2,7 +2,7 @@ import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {findLastestTableData, findNextChatWhitTableData, getTableEditActionsStr, handleEditStrInMessage, parseTableEditTag, replaceTableEditTag,} from "../../index.js";
 import {refreshTableActions} from "./absoluteRefresh.js";
-import {initAllTable} from "../source/tableActions.js";
+import FN from "../fn.mjs";
 
 let tablePopup = null
 let copyTableData = null
@@ -198,7 +198,7 @@ async function clearTable(mesId, tableContainer) {
     if (mesId === -1) return
     const confirmation = await EDITOR.callGenericPopup('清空此条的所有表格数据，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
-        const emptyTable = initAllTable()
+        const emptyTable = FN.initAllTable()
         EDITOR.getContext().chat[mesId].dataTable = emptyTable
         renderTablesDOM(emptyTable, tableContainer, true)
         updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
