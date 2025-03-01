@@ -4,7 +4,7 @@ import { POPUP_TYPE, Popup, callGenericPopup } from '../../../popup.js';
 import JSON5 from './index.min.mjs'
 import { generateRaw } from '../../../../../../script.js';
 
-const VERSION = '1.2.1'
+const VERSION = '1.3.0'
 
 let clearUpButton = null;
 let clearUpButtonManager = null;
@@ -2815,7 +2815,7 @@ async function refreshTableActions(force = false, silentUpdate = false) {
         // 刷新 UI
         const tableContainer = document.querySelector('#tableContainer');
         renderTablesDOM(waitingTable, tableContainer, true);
-
+        updateSystemMessageTableStatus()
         toastr.success('表格整理完成');
     } catch (error) {
         console.error('整理过程出错:', error);
@@ -2942,10 +2942,10 @@ jQuery(async () => {
 
     // 开始绑定事件
     // 表格弹出窗
-    // $('.open_table_by_id').on('click', function () {
-    //     const messageId = $(this).closest('.mes').attr('mesid');
-    //     openTablePopup(parseInt(messageId));
-    // })
+    $(document).on('click', '.open_table_by_id', function () {
+        const messageId = $(this).closest('.mes').attr('mesid');
+        openTablePopup(parseInt(messageId));
+    })
     // 表格插入模式
     $('#dataTable_injection_mode').on('change', (event) => {
         extension_settings.muyoo_dataTable.injection_mode = event.target.value;
