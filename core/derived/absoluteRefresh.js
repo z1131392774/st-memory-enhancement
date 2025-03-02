@@ -1,9 +1,9 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
-import {copyTableList, findLastestTableData, findTableStructureByIndex, } from "../../index.js";
+import {copyTableList, findLastestTableData, findTableStructureByIndex } from "../../index.js";
 import {insertRow, updateRow, deleteRow} from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {renderTablesDOM} from "./tableDataView.js";
+import {renderTablesDOM,pasteTable} from "./tableDataView.js";
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -45,8 +45,7 @@ function getRefreshTableConfigStatus() {
     const userApiTemperature = EDITOR.data.custom_temperature;
     const clearUpStairs = EDITOR.data.clear_up_stairs;
     const isIgnoreDel = EDITOR.data.bool_ignore_del;
-    const systemMessageTemplate = EDITOR.data.refresh_system_message_template;
-    const userMessageTemplate = EDITOR.data.refresh_user_message_template;
+
 
     return `<div class="wide100p padding5 dataBankAttachments">
                 <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
@@ -135,15 +134,14 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
     //     if (!confirmation) return;
     // }
 
-    // // 开始重新生成完整表格
-    // let response;
-    // const isUseMainAPI = $('#use_main_api').prop('checked');
-    // const loadingToast = EDITOR.info(isUseMainAPI
-    //       ? '正在使用【主API】重新生成完整表格...'
-    //         : '正在使用【自定义API】重新生成完整表格...',
-    //     '',
-    //     { timeOut: 0 }
-    // );
+    // 开始重新生成完整表格
+    const isUseMainAPI = $('#use_main_api').prop('checked');
+    const loadingToast = EDITOR.info(isUseMainAPI
+          ? '正在使用【主API】重新生成完整表格...'
+            : '正在使用【自定义API】重新生成完整表格...',
+        '',
+        { timeOut: 0 }
+    );
 
     try {
         const latestData = findLastestTableData(true);
@@ -154,11 +152,76 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
         DERIVED.any.waitingTable = copyTableList(latestTables);
 
         let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
-        console.log('最新的表格数据:', originText);
+        // console.log('最新的表格数据:', originText);
+
+        // 获取最近clear_up_stairs条聊天记录
+        const chat = EDITOR.getContext().chat;
+        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
+
+        // 构建AI提示
+        let systemPrompt = EDITOR.data.rebuild_system_message_template||EDITOR.data.rebuild_system_message;
+        let userPrompt = EDITOR.data.rebuild_user_message_template;
+        // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
+        systemPrompt = systemPrompt.replace(/\$0/g, originText);
+        systemPrompt = systemPrompt.replace(/\$1/g, lastChats);
+        // 搜索userPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
+        userPrompt = userPrompt.replace(/\$0/g, originText);
+        userPrompt = userPrompt.replace(/\$1/g, lastChats);
+
+        console.log('systemPrompt:', systemPrompt);
+        console.log('userPrompt:', userPrompt);
+
+        // 生成响应内容
+        let rawContent;
+        if (isUseMainAPI) {
+            rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+        }
+        else {
+            rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+        }
+        console.log('rawContent:', rawContent);
+
+        //清洗
+        let cleanContent = rawContent
+            .replace(/：/g, ':')//中文冒号改英文
+            .replace(/（/g, '(').replace(/）/g, ')'); // 替换中文括号
+
+        const tableMatch = cleanContent.match(/<新的表格>([\s\S]*?)<\/新的表格>/i);
+        if (tableMatch && tableMatch[1]) {
+            cleanContent = tableMatch[1]
+                .replace(/```(json)?/g, '') // 移除代码块标记
+                .trim(); // 去除首尾空白
+        } else {
+            throw new Error('未找到 <新的表格> 标签内容');
+        }
+        console.log('cleanContent:', cleanContent);
+
+        //将表格保存回去
+        if (cleanContent) {
+            let newTables = tableDataToTables(JSON5.parse(cleanContent));
+            // mesId获取
+            const chat = EDITOR.getContext().chat;
+            const lastIndex = chat.length - 1; // 直接获取最后一个元素的索引
+            if (lastIndex >= 0) {
+                chat[lastIndex].dataTable = newTables; // 通过索引直接操作数组元素
+                EDITOR.getContext().saveChat();
+            } else {
+              console.error("聊天记录为空，无法设置dataTable");
+            }
+            // 刷新 UI
+            const tableContainer = document.querySelector('#tableContainer');
+            renderTablesDOM(newTables, tableContainer, true);
+            updateSystemMessageTableStatus()
+            EDITOR.success('生成表格成功！');
+        } else {
+            EDITOR.error("生成表格保存失败！")
+        }
 
     }catch (e) {
-
+        console.error('Error in rebuildTableActions:', e);
         return;
+    }finally {
+        EDITOR.clear(loadingToast);
     }
 }
 
@@ -173,7 +236,6 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
     }
 
     // 开始执行整理表格
-    let response;
     const isUseMainAPI = $('#use_main_api').prop('checked');
     const loadingToast = EDITOR.info(isUseMainAPI
             ? '正在使用【主API】整理表格...'
@@ -195,7 +257,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = EDITOR.getContext().chat;
-        const lastChats = getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
+        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.refresh_system_message_template;
@@ -365,7 +427,6 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
         chat = EDITOR.getContext().chat[EDITOR.getContext().chat.length - 1];
         chat.dataTable = DERIVED.any.waitingTable;
         EDITOR.getContext().saveChat();
-
         // 刷新 UI
         const tableContainer = document.querySelector('#tableContainer');
         renderTablesDOM(DERIVED.any.waitingTable, tableContainer, true);
@@ -441,14 +502,14 @@ function tablesToString(tables) {
     })));
   }
 
-// 将字符串解析回Table数组
-function stringToTables(str) {
-    return JSON.parse(str).map(item => ({
+// 将tablesData解析回Table数组
+function tableDataToTables(tablesData) {
+    return tablesData.map(item => ({
         tableName: item.tableName,
         tableIndex: item.tableIndex,
         columns: item.columns,
         content: item.content,
-        insertedRows: [],       // 变更记录暂时不管
+        insertedRows: [],
         updatedRows: []
     }));
 }
