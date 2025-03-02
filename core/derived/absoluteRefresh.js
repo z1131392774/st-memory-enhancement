@@ -183,35 +183,19 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
         console.log('rawContent:', rawContent);
 
         //清洗
-        let cleanContent = rawContent
-            .replace(/：/g, ':')//中文冒号改英文
-            .replace(/（/g, '(').replace(/）/g, ')'); // 替换中文括号
-
-        const tableMatch = cleanContent.match(/<新的表格>([\s\S]*?)<\/新的表格>/i);
-        if (tableMatch && tableMatch[1]) {
-            cleanContent = tableMatch[1]
-                .replace(/```(json)?/g, '') // 移除代码块标记
-                .trim(); // 去除首尾空白
-        } else {
-            throw new Error('未找到 <新的表格> 标签内容');
-        }
-        console.log('cleanContent:', cleanContent);
+        let cleanContentTable = fixTableFormat(rawContent);
+        console.log('cleanContent:', cleanContentTable);
 
         //将表格保存回去
-        if (cleanContent) {
+        if (cleanContentTable) {
             try {
-                // 解析并转换数据
-                const parsedData = JSON5.parse(cleanContent);
-                console.log('解析后的 cleanContent:', JSON.stringify(parsedData, null, 2));
-                let newTables = tableDataToTables(parsedData);
-
                 // 验证数据格式
-                if (!Array.isArray(newTables)) {
+                if (!Array.isArray(cleanContentTable)) {
                     throw new Error("生成的新表格数据不是数组");
                 }
 
                 // 深拷贝避免引用问题
-                const clonedTables = JSON.parse(JSON.stringify(newTables));
+                const clonedTables = tableDataToTables(cleanContentTable);
 
                 // 更新聊天记录
                 const chat = EDITOR.getContext().chat;
@@ -699,6 +683,71 @@ export function cleanApiResponse(rawContent, options = {}) {
     console.log('清洗后的内容:', content);
 
     return content;
+}
+
+/**
+ * 修复表格格式
+ * @param {string} inputText - 输入的文本
+ * @returns {string} 修复后的文本
+ * */
+function fixTableFormat(inputText) {
+    // 提取表格核心内容
+    const extractTable = (text) => {
+        const match = text.match(/<新的表格>([\s\S]*?)<\/新的表格>/i);
+        return match ? match[1] : text;
+    };
+
+    // 通用符号标准化
+    const normalizeSymbols = (str) => str
+        .replace(/[“”]/g, '"')          // 中文引号
+        .replace(/‘’/g, "'")            // 中文单引号
+        .replace(/，/g, ',')            // 中文逗号
+        .replace(/（/g, '(').replace(/）/g, ')')  // 中文括号
+        .replace(/；/g, ';')             // 中文分号
+        .replace(/？/g, '?')            // 中文问号
+        .replace(/！/g, '!')            // 中文叹号
+        .replace(/\/\//g, '/');         // 错误斜杠
+
+    // 智能括号修复
+    const fixBrackets = (str) => {
+        const stack = [];
+        return str.split('').map(char => {
+            if (char === '[' || char === '{') stack.push(char);
+            if (char === ']' && stack[stack.length-1] === '[') stack.pop();
+            if (char === '}' && stack[stack.length-1] === '{') stack.pop();
+            return char;
+        }).join('') + stack.map(c => c === '[' ? ']' : '}').join('');
+    };
+
+    // 列内容对齐修正
+    const alignColumns = (tables) => tables.map(table => {
+        const columnCount = table.columns.length;
+        table.content = table.content.map(row =>
+            Array.from({ length: columnCount }, (_, i) =>
+                (row[i] || "").toString().trim() // 自动填充缺失列
+            )
+        );
+        return table;
+    });
+
+    try {
+        // 执行修正流程
+        let jsonStr = extractTable(inputText);
+        jsonStr = normalizeSymbols(jsonStr);
+        jsonStr = fixBrackets(jsonStr);
+
+        // 智能引号修复（处理未闭合引号）
+        jsonStr = jsonStr.replace(/([:,]\s*)([^"{\[\]]+?)(\s*[}\]],?)/g, '$1"$2"$3')
+                        .replace(/'/g, '"');
+
+        // 解析并二次修正
+        const tables = JSON.parse(jsonStr);
+        return alignColumns(tables);
+    } catch (error) {
+        console.error("格式修正失败:", error);
+        // 尝试容错解析
+        return JSON.parse(jsonStr.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":'));
+    }
 }
 
 /**主API调用
