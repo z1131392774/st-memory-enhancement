@@ -4,6 +4,7 @@ import {insertRow, updateRow, deleteRow} from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {renderTablesDOM,pasteTable} from "./tableDataView.js";
+import { Table } from "../source/table.js";
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -504,7 +505,7 @@ function tablesToString(tables) {
 
 // 将tablesData解析回Table数组
 function tableDataToTables(tablesData) {
-    return tablesData.map(item => ({
+    return tablesData.map(item => new Table({
         tableName: item.tableName,
         tableIndex: item.tableIndex,
         columns: item.columns,
