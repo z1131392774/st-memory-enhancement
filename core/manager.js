@@ -28,6 +28,8 @@ const defaultSettings = {
     tableBackups: {},
     bool_ignore_del: true,
     clear_up_stairs:3,
+    ignore_user_sent: false,
+    clear_up_stairs:9,
     step_by_step_threshold: 100,
     sum_multiple_rounds: true,
     unusedChatText: '',
