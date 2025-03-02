@@ -16,6 +16,10 @@
                     <i class="fa-solid fa-window-restore"></i>
                     <a href="https://muyoo.com.cn/2025/01/27/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97/">更新日志</a>
                 </div>
+                <div class="menu_button" id="table_debug_log_button">
+                    <i class="fa-solid fa-file-waveform"></i>
+                    <a>错误日志</a>
+                </div>
             </div>
 
             <!-- 子设置 -->
@@ -39,11 +43,9 @@
                         <input type="checkbox" id="table_switch"><span>插件启用</span>
                     </div>
                     <div class="checkbox flex-container">
-                        <input type="checkbox" id="table_read_switch"><span>AI读表开关</span>
+                        <input type="checkbox" id="table_switch_debug_mode"><span>调试模式</span>
                     </div>
-                    <div class="checkbox flex-container">
-                        <input type="checkbox" id="table_edit_switch"><span>AI改表开关</span>
-                    </div>
+
                 </div>
                 <hr/>
 
@@ -55,6 +57,12 @@
                     </div>
                     <div style="height: 10px;"></div>
                     <div id="reply_options" style="padding-left: 20px; width: calc(100% - 20px);">
+                        <div class="checkbox flex-container">
+                            <input type="checkbox" id="table_read_switch"><span>AI读表开关</span>
+                        </div>
+                        <div class="checkbox flex-container">
+                            <input type="checkbox" id="table_edit_switch"><span>AI改表开关</span>
+                        </div>
                         <!-- 高级设置选项 -->
                         <div style="padding-left: 10px;">
                             <div style=" display: flex;">

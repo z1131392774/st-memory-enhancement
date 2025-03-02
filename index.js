@@ -7,6 +7,7 @@ import {loadSettings} from "./core/derived/userExtensionSetting.js";
 import {openTableSettingPopup} from "./core/derived/tableStructureSetting.js";
 import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.js";
 import {initAllTable} from "./core/source/tableActions.js";
+import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 
 const VERSION = '1.3.0'
 
@@ -465,6 +466,10 @@ jQuery(async () => {
     // 点击打开查看表格历史按钮
     $(document).on('click', '#dataTable_history_button', function () {
         openTableHistoryPopup();
+    })
+    // 点击打开查看表格日志按钮
+    $(document).on('click', '#table_debug_log_button', function () {
+        openTableDebugLogPopup();
     })
     // 对话数据表格弹出窗
     $(document).on('click', '.open_table_by_id', function () {
