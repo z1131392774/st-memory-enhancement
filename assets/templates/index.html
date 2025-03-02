@@ -51,7 +51,9 @@
 
                 <!-- 表格预设 -->
                 <div class="table_setting_category_container">
+                    <!-- 预设设置 -->
                     <b class="table_setting_category_header">回复设置</b><div style="height: 10px;"></div>
+                    <!-- 分步填表 -->
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="step_by_step"><span>启用分步填表</span><small>(每次对话后自动调用api单独总结表格)</small>
                     </div>
@@ -89,6 +91,25 @@
                 <!-- 重新整理表格 -->
                 <div class="table_setting_category_container">
                     <b class="table_setting_category_header">重新整理表格</b><div style="height: 10px;"></div>
+                    <!-- 自定义API -->
+                    <div class="checkbox flex-container" style="width: 100%;">
+                        <input type="checkbox" id="use_main_api" checked><span>使用主API（取消勾选后可以用自定义的api）</span>
+                    </div>
+                    <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; width: calc(100% - 20px); margin-left: 10px">
+                        <div style="height: 10px;"></div>
+                        <!-- 自定义API设置 -->
+                        <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
+                        <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
+                        <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
+                        <div style="margin-top: 10px;">
+                            <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
+                                <option value="">请先获取模型列表</option>
+                            </select>
+                            <div class="menu_button" id="fetch_models_button" style="width: 100%;">
+                                <a>获取模型列表</a>
+                            </div>
+                        </div>
+                    </div>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="advanced_settings"><span>查看高级设置</span>
                     </div>
@@ -112,24 +133,6 @@
                         </div>
                         <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
                             <input type="checkbox" id="bool_silent_refresh"><span>跳过整理后的确认弹窗</span>
-                        </div>
-                        <!-- 自定义API -->
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="use_main_api" checked><span>使用主API（取消勾选后可以用自定义的api）</span>
-                        </div>
-                        <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
-                            <!-- 自定义API设置 -->
-                            <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
-                            <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
-                            <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
-                            <div style="margin-top: 10px;">
-                                <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
-                                    <option value="">请先获取模型列表</option>
-                                </select>
-                                <div class="menu_button" id="fetch_models_button" style="width: 100%;">
-                                    <a>获取模型列表</a>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     <div class="menu_button" id="table_clear_up" style="margin-left: 10px; width: calc(100% - 20px)">

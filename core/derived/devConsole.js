@@ -62,7 +62,7 @@ async function copyPopup(log) {
     const logDetails = `Time: ${log.time}\nType: ${log.type}\nMessage: ${log.message}${log.stack ? `\nStack:\n${log.stack}` : ''}`;
     const textarea = $('<textarea class="log-copy-textarea" style="height: 100%"></textarea>').val(logDetails);
     const manager = await SYSTEM.getComponent('popup');
-    const copyPopupInstance = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true }); // Store popup instance
+    const copyPopupInstance = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const container = copyPopupInstance.dlg.querySelector('#popup_content');
     container.append(textarea[0]);
 
@@ -107,7 +107,7 @@ function renderDebugLogs($container, logs, onlyError) {
         if (log.stack) { // 如果 log 对象有 stack 属性 (error 类型的 log)
             // 使用正则表达式替换 URL 并包裹在 div 中
             const formattedStack = log.stack.replace(urlRegex, (url) => {
-                return `<div style="color: rgb(126, 187, 231)">${url}</div>`;
+                return `<div style="color: rgb(98, 145, 179)">${url}</div>`;
             });
             const stackPre = $('<pre class="log-stack"></pre>').html(formattedStack); // 使用 .html() 而不是 .text()，以渲染 HTML 标签
             logElement.append(stackPre); // 将堆栈信息添加到 logElement

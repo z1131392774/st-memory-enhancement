@@ -446,7 +446,7 @@ export async function openTablePopup(mesId = -1) {
     const tableRefresh = tablePopup.dlg.querySelector('#table_clear_up_button');
 
     $(tableContainer).on('click', hideAllEditPanels)
-    $(tableRefresh).on('click', refreshTableActions)
+    $(tableRefresh).on('click', () => refreshTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
     // 设置编辑提示
     setTableEditTips(tableEditTips)
     // 开始寻找表格

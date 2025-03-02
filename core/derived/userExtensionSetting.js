@@ -211,6 +211,38 @@ async function resetSettings() {
 function InitBinging() {
     console.log('初始化绑定')
     // 开始绑定事件
+    // 导入预设
+    $('#table-set-import').on('click', () => importTableDataFile());
+    // 导出
+    $("#table-set-export").on('click', () => exportTableSet());
+    // 重置设置
+    $("#table-reset").on('click', () => resetSettings());
+    // 插件总体开关
+    $('#table_switch').change(function () {
+        EDITOR.data.isExtensionAble = this.checked;
+        EDITOR.saveSettingsDebounced();
+        EDITOR.success(this.checked ? '插件已开启' : '插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
+        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
+    });
+    // 调试模式开关
+    $('#table_switch_debug_mode').change(function () {
+        EDITOR.data.tableDebugModeAble = this.checked;
+        EDITOR.saveSettingsDebounced();
+        EDITOR.success(this.checked ? '调试模式已开启' : '调试模式已关闭');
+    });
+    // 插件读表开关
+    $('#table_read_switch').change(function () {
+        EDITOR.data.isAiReadTable = this.checked;
+        EDITOR.saveSettingsDebounced();
+        EDITOR.success(this.checked ? 'AI现在会读取表格' : 'AI现在将不会读表');
+    });
+    // 插件写表开关
+    $('#table_edit_switch').change(function () {
+        EDITOR.data.isAiWriteTable = this.checked;
+        EDITOR.saveSettingsDebounced();
+        EDITOR.success(this.checked ? 'AI的更改现在会被写入表格' : 'AI的更改现在不会被写入表格');
+    });
+
     // 表格插入模式
     $('#dataTable_injection_mode').on('change', (event) => {
         EDITOR.data.injection_mode = event.target.value;
@@ -354,37 +386,6 @@ function InitBinging() {
         EDITOR.data.bool_force_refresh,
         EDITOR.data.bool_silent_refresh)
     );
-    // 导入预设
-    $('#table-set-import').on('click', () => importTableDataFile());
-    // 导出
-    $("#table-set-export").on('click', () => exportTableSet());
-    // 重置设置
-    $("#table-reset").on('click', () => resetSettings());
-    // 插件总体开关
-    $('#table_switch').change(function () {
-        EDITOR.data.isExtensionAble = this.checked;
-        EDITOR.saveSettingsDebounced();
-        EDITOR.success(this.checked ? '插件已开启' : '插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
-        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
-    });
-    // 插件总体开关
-    $('#table_switch_debug_mode').change(function () {
-        EDITOR.data.tableDebugModeAble = this.checked;
-        EDITOR.saveSettingsDebounced();
-        EDITOR.success(this.checked ? '调试模式已开启' : '调试模式已关闭');
-    });
-    // 插件读表开关
-    $('#table_read_switch').change(function () {
-        EDITOR.data.isAiReadTable = this.checked;
-        EDITOR.saveSettingsDebounced();
-        EDITOR.success(this.checked ? 'AI现在会读取表格' : 'AI现在将不会读表');
-    });
-    // 插件写表开关
-    $('#table_edit_switch').change(function () {
-        EDITOR.data.isAiWriteTable = this.checked;
-        EDITOR.saveSettingsDebounced();
-        EDITOR.success(this.checked ? 'AI的更改现在会被写入表格' : 'AI的更改现在不会被写入表格');
-    });
 }
 
 /**
