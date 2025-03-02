@@ -752,46 +752,111 @@ export function cleanApiResponse(rawContent, options = {}) {
  * @returns {string} 修复后的文本
  * */
 function fixTableFormat(inputText) {
-    // 提取表格核心内容
+    // 增强内容提取逻辑
     const extractTable = (text) => {
-        const match = text.match(/<新的表格>([\s\S]*?)<\/新的表格>/i);
-        return match ? match[1] : text;
+        // 优先匹配标签内的JSON数组（严格模式）
+        const strictTagRegex = /<新的表格>\s*(\[\s*(?:[\s\S]*?)\s*\])\s*<\/新的表格>/gis;
+        const tagMatch = text.match(strictTagRegex);
+
+        if (tagMatch) {
+            try {
+                // 提取并清理标签内容
+                const innerJSON = tagMatch[0]
+                    .replace(/<\/?新的表格>/gi, '') // 移除标签
+                    .trim();                       // 去除首尾空白
+                return JSON.parse(innerJSON);      // 直接返回解析结果
+            } catch (error) {
+                console.error("标签内JSON解析失败:", error);
+                return null; // 明确返回null，避免继续错误匹配
+            }
+        }
+
+        // 若无标签，尝试匹配严格格式的独立JSON数组
+        const standaloneJSONRegex = /^\s*(\[\s*(?:[\s\S]*?)\s*\])\s*$/s;
+        const jsonMatch = text.match(standaloneJSONRegex);
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[0].trim());
+            } catch (error) {
+                console.error("独立JSON解析失败:", error);
+                return null;
+            }
+        }
+
+        // 最后兜底：匹配任意位置的数组结构（非严格）
+        const fallbackRegex = /(\[\s*(?:[\s\S]*?)\s*\])/;
+        const fallbackMatch = text.match(fallbackRegex);
+        if (fallbackMatch) {
+            try {
+                return JSON.parse(fallbackMatch[0]);
+            } catch (error) {
+                console.error("兜底匹配解析失败:", error);
+                return text; // 返回原始文本或根据需求调整
+            }
+        }
+
+        // 完全无法匹配时返回null
+        return null;
     };
 
-    // 通用符号标准化
-    const normalizeSymbols = (str) => str
-        .replace(/[“”]/g, '"')          // 中文引号
-        .replace(/‘’/g, "'")            // 中文单引号
-        .replace(/，/g, ',')            // 中文逗号
-        .replace(/（/g, '(').replace(/）/g, ')')  // 中文括号
-        .replace(/；/g, ';')             // 中文分号
-        .replace(/？/g, '?')            // 中文问号
-        .replace(/！/g, '!')            // 中文叹号
-        .replace(/\/\//g, '/');         // 错误斜杠
+    // 增强JSON解析容错
+    const safeParse = (str) => {
+        try {
+            // 第一次尝试直接解析
+            return JSON.parse(str);
+        } catch (primaryError) {
+            console.log('首次解析失败，尝试深度清洗:', primaryError);
 
-    // 智能括号修复
-    const fixBrackets = (str) => {
-        const stack = [];
-        return str.split('').map(char => {
-            if (char === '[' || char === '{') stack.push(char);
-            if (char === ']' && stack[stack.length-1] === '[') stack.pop();
-            if (char === '}' && stack[stack.length-1] === '{') stack.pop();
-            return char;
-        }).join('') + stack.map(c => c === '[' ? ']' : '}').join('');
+            // 深度清洗：移除非JSON结构和注释
+            const deepClean = str
+                .replace(/^[^{[]*([{[])/, '$1')  // 去除前缀
+                .replace(/([}\]])[^}\]]*$/, '$1') // 去除后缀
+                .replace(/\/\*[\s\S]*?\*\//g, '') // 移除块注释
+                .replace(/,\s*([}\]])/g, '$1');   // 修复尾逗号
+
+            try {
+                return JSON.parse(deepClean);
+            } catch (fallbackError) {
+                console.error('深度清洗后解析失败:', fallbackError);
+                throw new Error(`无法解析表格数据: ${fallbackError.message}`);
+            }
+        }
     };
-
-    // 列内容对齐修正
-    const alignColumns = (tables) => tables.map(table => {
-        const columnCount = table.columns.length;
-        table.content = table.content.map(row =>
-            Array.from({ length: columnCount }, (_, i) =>
-                (row[i] || "").toString().trim() // 自动填充缺失列
-            )
-        );
-        return table;
-    });
 
     try {
+        // 通用符号标准化
+        const normalizeSymbols = (str) => str
+            .replace(/[“”]/g, '"')          // 中文引号
+            .replace(/‘’/g, "'")            // 中文单引号
+            .replace(/，/g, ',')            // 中文逗号
+            .replace(/（/g, '(').replace(/）/g, ')')  // 中文括号
+            .replace(/；/g, ';')             // 中文分号
+            .replace(/？/g, '?')            // 中文问号
+            .replace(/！/g, '!')            // 中文叹号
+            .replace(/\/\//g, '/');         // 错误斜杠
+
+        // 智能括号修复
+        const fixBrackets = (str) => {
+            const stack = [];
+            return str.split('').map(char => {
+                if (char === '[' || char === '{') stack.push(char);
+                if (char === ']' && stack[stack.length-1] === '[') stack.pop();
+                if (char === '}' && stack[stack.length-1] === '{') stack.pop();
+                return char;
+            }).join('') + stack.map(c => c === '[' ? ']' : '}').join('');
+        };
+
+        // 列内容对齐修正
+        const alignColumns = (tables) => tables.map(table => {
+            const columnCount = table.columns.length;
+            table.content = table.content.map(row =>
+                Array.from({ length: columnCount }, (_, i) =>
+                    (row[i] || "").toString().trim() // 自动填充缺失列
+                )
+            );
+            return table;
+        });
+
         // 执行修正流程
         let jsonStr = extractTable(inputText);
         jsonStr = normalizeSymbols(jsonStr);
@@ -801,13 +866,22 @@ function fixTableFormat(inputText) {
         jsonStr = jsonStr.replace(/([:,]\s*)([^"{\[\]]+?)(\s*[}\]],?)/g, '$1"$2"$3')
                         .replace(/'/g, '"');
 
-        // 解析并二次修正
-        const tables = JSON.parse(jsonStr);
+        // 解析时使用新的安全方法
+        const tables = safeParse(jsonStr);
         return alignColumns(tables);
     } catch (error) {
-        console.error("格式修正失败:", error);
-        // 尝试容错解析
-        return JSON.parse(jsonStr.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":'));
+        console.error("格式修正失败，尝试容错解析:", error);
+
+        // 最后尝试：提取所有疑似数组的部分
+        const arrayCandidates = inputText.match(/\[[^\[\]]*\]/g) || [];
+        if (arrayCandidates.length > 0) {
+            try {
+                return JSON.parse(arrayCandidates[arrayCandidates.length - 1]);
+            } catch {
+                throw new Error("无法自动恢复表格格式，请检查AI返回内容");
+            }
+        }
+        throw error;
     }
 }
 
