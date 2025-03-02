@@ -122,9 +122,10 @@ function confirmTheOperationPerformed(content) {
  * 重新生成完整表格
  * @param {*} force 是否强制刷新
  * @param {*} silentUpdate  是否静默更新
+ * @param chatToBeUsed
  * @returns
  */
-export async function rebuildTableActions(force = false, silentUpdate = false) {
+export async function rebuildTableActions(force = false, silentUpdate = false, chatToBeUsed = '') {
     if (!SYSTEM.lazy('rebuildTableActions', 1000)) return;
 
     // 如果不是强制刷新，先确认是否继续
@@ -158,7 +159,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = EDITOR.getContext().chat;
-        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
+        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs) : chatToBeUsed;
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.rebuild_system_message_template||EDITOR.data.rebuild_system_message;
@@ -251,7 +252,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
     }
 }
 
-export async function refreshTableActions(force = false, silentUpdate = false) {
+export async function refreshTableActions(force = false, silentUpdate = false, chatToBeUsed = '') {
     if (!SYSTEM.lazy('refreshTableActions', 1000)) return;
 
     // 如果不是强制刷新，先确认是否继续
@@ -284,7 +285,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
 
         // 获取最近clear_up_stairs条聊天记录
         let chat = EDITOR.getContext().chat;
-        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
+        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs) : chatToBeUsed;
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.refresh_system_message_template;
@@ -644,7 +645,7 @@ async function getDecryptedApiKey() {
 * @param {boolean} ignoreUserSent - 是否忽略用户发送的消息
 * @returns {string} 提取的聊天记录字符串
 */
-export async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false) {
+async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false) {
     let lastChats = '';
 
     // 忽略用户发送的消息

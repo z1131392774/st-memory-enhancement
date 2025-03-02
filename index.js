@@ -8,6 +8,7 @@ import {openTableSettingPopup} from "./core/derived/tableStructureSetting.js";
 import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.js";
 import {initAllTable} from "./core/source/tableActions.js";
 import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
+import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
 
 console.log("______________________记忆插件：开始加载______________________")
 
@@ -391,23 +392,6 @@ async function onMessageReceived(chat_id) {
             EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message)
         }
     }
-}
-
-/**
- * 执行两步总结
- * */
-async function TableTwoStepSummary() {
-    console.log("执行两步总结")
-    if (EDITOR.data.isExtensionAble === false || EDITOR.data.step_by_step === false) return
-    const chat = EDITOR.getContext().chat;
-    const currentChat = chat[chat.length - 1];
-    if (currentChat.is_user === true) return
-    if (currentChat.enabledTwoStepSummary === true) {
-        console.log("当前消息已执行两步总结")
-        return;
-    }
-    await refreshTableActions(true, true);
-    currentChat.enabledTwoStepSummary = true;
 }
 
 
