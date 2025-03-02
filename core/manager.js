@@ -3,7 +3,8 @@ import { extension_settings, getContext, renderExtensionTemplateAsync } from '..
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../../popup.js';
 import { generateRaw } from '../../../../../../../script.js';
 import { Table } from "./source/table.js";
-import {TableEditAction} from "./source/tableActions.js";
+import { TableEditAction } from "./source/tableActions.js";
+import { consoleMessageToEditor } from "./derived/devConsole.js";
 
 /**
  * 默认插件设置
@@ -242,11 +243,11 @@ export let EDITOR = {
     generateRaw: generateRaw,
     saveSettingsDebounced: saveSettingsDebounced,
 
-    info: toastr.info,
-    success: toastr.success,
-    warning: toastr.warning,
-    error: toastr.error,
-    clear: toastr.clear,
+    info: consoleMessageToEditor.info,
+    success: consoleMessageToEditor.success,
+    warning: consoleMessageToEditor.warning,
+    error: consoleMessageToEditor.error,
+    clear: consoleMessageToEditor.clear,
 
     defaultSettings: defaultSettings,
     data: extension_settings.muyoo_dataTable,

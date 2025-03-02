@@ -95,8 +95,20 @@ td.selected {
 
 
 
+/* popup */
+.popup-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
 
-
+.popup_content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
 
 
 
@@ -280,6 +292,11 @@ td.selected {
     max-height: 400px;
 }
 
+/*.debug-log-scroll-content {*/
+/*    overflow-y: auto;*/
+/*    max-height: 400px;*/
+/*}*/
+
 .operation-confirmation-container {
     display: flex;
     flex-direction: column;
@@ -368,3 +385,80 @@ td.selected {
     word-break: break-word;
 }
 
+
+
+/* 用于debug-log的样式 */
+.debug-log-popup-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.debug-log-title-bar {
+    padding: 10px;
+}
+
+.debug-log-scroll-content {
+    overflow-y: auto;
+    height: 100%;
+    padding: 10px;
+}
+
+.debug-log-item {
+    margin-bottom: 8px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-word;
+    border-radius: 4px;
+    text-align: left;
+}
+
+.log-time {
+    color: #777;
+    margin-right: 8px;
+    font-weight: normal;
+    text-align: left;
+}
+
+.log-type {
+    font-weight: bold;
+    margin-right: 8px;
+    text-align: left;
+}
+
+.log-type-info {
+    color: #eee;
+}
+
+.log-type-success {
+    color: #4caf50;
+}
+
+.log-type-warning {
+    color: #ff9800;
+}
+
+.log-type-error {
+    color: #f44336;
+}
+
+.log-message {
+    color: #888;
+    text-align: left;
+}
+
+.log-stack {
+    background-color: #8881;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #888;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    font-family: monospace;
+    text-align: left;
+}

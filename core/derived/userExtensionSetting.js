@@ -2,6 +2,7 @@ import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {refreshTableActions, updateModelList} from "./absoluteRefresh.js";
 import {generateUniId} from "../../utils/utility.js";
+import {openTableDebugLogPopup} from "./devConsole.js";
 
 /**
  * 表格重置弹出窗
@@ -366,6 +367,12 @@ function InitBinging() {
         EDITOR.success(this.checked ? '插件已开启' : '插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
+    // 插件总体开关
+    $('#table_switch_debug_mode').change(function () {
+        EDITOR.data.tableDebugModeAble = this.checked;
+        EDITOR.saveSettingsDebounced();
+        EDITOR.success(this.checked ? '调试模式已开启' : '调试模式已关闭');
+    });
     // 插件读表开关
     $('#table_read_switch').change(function () {
         EDITOR.data.isAiReadTable = this.checked;
@@ -440,6 +447,7 @@ export function renderSetting() {
     $('#dataTable_deep').val(EDITOR.data.deep);
     $('#dataTable_message_template').val(EDITOR.data.message_template);
     updateSwitch("#table_switch", EDITOR.data.isExtensionAble)
+    updateSwitch("#table_switch_debug_mode", EDITOR.data.tableDebugModeAble)
     updateSwitch("#table_read_switch", EDITOR.data.isAiReadTable)
     updateSwitch("#table_edit_switch", EDITOR.data.isAiWriteTable)
     updateSwitch("#table_to_chat", EDITOR.data.isTableToChat)
