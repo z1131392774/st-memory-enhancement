@@ -136,10 +136,13 @@
                     <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
                         <!-- 高级设置选项 -->
                         <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
-                            <label>整理参考消息数<small>（最近几层楼纳入参考）</small>：<span id="clear_up_stairs_value">9</span></label>
-                            <input type="range" id="clear_up_stairs" min="1" max="99" step="1" value="9" style="width: calc(100% - 20px);">
+                            <label>参考最近聊天记录：<span id="clear_up_stairs_value">9条</span></label>
+                            <input type="range" id="clear_up_stairs" min="1" max="99" step="1" value="9" style="width: 80%;">
                         </div>
                         <div style="height: 20px;"></div>
+                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                            <input type="checkbox" id="ignore_user_sent" checked><span>只参考AI回复的消息</span>
+                        </div>
                         <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
                             <input type="checkbox" id="ignore_del" checked><span>整理时不删除，只修改和添加</span>
                         </div>
