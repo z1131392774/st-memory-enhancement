@@ -37,8 +37,13 @@ function validateActions(actions) {
         return true;
     });
 }
-
-function getRefreshTableConfigStatus() {
+/**
+ * 显示表格刷新配置信息，用于二次确认
+ * @param {*} callerType 用于调用的时候控制显示的信息，
+ * 默认值 0 表示保持原样  1 rebuild 不显示"不允许AI删除"
+ * @returns
+ */
+function getRefreshTableConfigStatus(callerType = 0) {
     // 显示所有相关的配置信息
     const isUseMainAPI = EDITOR.data.use_main_api;
     const userApiUrl = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
@@ -56,7 +61,7 @@ function getRefreshTableConfigStatus() {
                         <tbody>
                         <tr> <td>纳入参考的聊天记录</td> <td>${clearUpStairs}条</td> </tr>
                         <td>忽略用户消息</td> <td>${isIgnoreUserSent ? '是' : '否'}</td>
-                        <tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>
+                        ${callerType === 1 ? '' : `<tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>`}
                         <tr> <td>使用的API</td> <td>${isUseMainAPI ? '主API' : '自定义API'}</td> </tr>
                         ${isUseMainAPI ? '' : `
                         <tr> <td>API URL</td> <td>${userApiUrl}</td> </tr>
@@ -132,7 +137,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
     // 如果不是强制刷新，先确认是否继续
     if (!force) {
         // 显示配置状态
-        const tableRefreshPopup = getRefreshTableConfigStatus();
+        const tableRefreshPopup = getRefreshTableConfigStatus(1);
         const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
         if (!confirmation) return;
     }

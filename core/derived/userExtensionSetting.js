@@ -267,6 +267,10 @@ function InitBinging() {
     $('#ignore_del').change(function() {
         EDITOR.data.bool_ignore_del = $(this).prop('checked');
     });
+    // 忽略用户回复
+    $('#ignore_user_sent').change(function() {
+        EDITOR.data.ignore_user_sent = $(this).prop('checked');
+    });
     // 强制刷新
     $('#bool_force_refresh').change(function() {
         EDITOR.data.bool_force_refresh = $(this).prop('checked');

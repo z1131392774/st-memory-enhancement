@@ -205,99 +205,232 @@ rebuild_user_message_template: `请你根据<整理规则>和<聊天记录>处�
 </当前表格>
 
 <整理规则>
-ProcessingRules = {
-  "workflow": ["SUPPLEMENT", "SIMPLIFY", "CORRECT"],
-
-  "SUPPLEMENT": {
-    "insert_rules": {
-      "characters_table": "IF new_character_detected THEN insert_row",
-      "social_table": "IF new_interaction_with_user THEN insert_row",
-      "quests_table": "IF (new_quest | new_promise) THEN insert_row",
-      "events_table": "IF significant_event THEN insert_row WITH detailed_description",
-      "items_table": "IF (important_item_appeared | symbolic_meaning_added) THEN insert_row"
+{
+  "TableProcessingProtocol": {
+    "languageDirective": {
+      "processingRules": "en-US",
+      "outputSpecification": "zh-CN"
     },
-    "cell_completion": {
-      "allow_unknown": true,
-      "data_source": "ONLY_FROM_CHATLOG",
-      "special_rules": {
-        "physique_description": "MUST_CONTAIN [体型/肤色/发色/瞳色]",
-        "other_info": "IF (服饰|饰品) THEN 补充到其他重要信息",
-        "relationship_tier":  "VALUE_RANGE:[-100, 100]"
-      }
-    }
-  },
-
-  "SIMPLIFY": {
-    "cell_optimization": {
-      "max_length": 20,
-      "feature_merge": {
-        "strategy": "KEEP_UNIQUE + MERGE_SIMILAR",
-        "example": "深褐/浅褐眼睛 → 褐色眼睛"
-      }
-    },
-    "event_compression": {
-      "merge_condition": "SAME_CHARACTER + SAME_DATE + SIMILAR_EMOTION",
-      "keep_criterion": "LONGER_DESCRIPTION"
-    }
-  },
-
-  "CORRECT": {
-    "temporal_rules": {
-      "sorting_logic": "CHRONOLOGICAL_ORDER",
-      "newest_position": "BOTTOM",
-      "ambiguous_time": {
-        "spacetime_table": "KEEP_SINGLE_LATEST",
-        "others": "FOLLOW_DIALOG_ORDER"
-      }
-    },
-    "data_validation": {
-      "duplicate_handling": {
-        "characters": "MERGE_WITH_PRIORITY (新数据覆盖旧数据, 特征用/连接)",
-        "events": "REMOVE_REDUNDANT"
+    "structuralIntegrity": {
+      "tableIndexPolicy": {
+        "creation": "PROHIBITED",
+        "modification": "PROHIBITED",
+        "deletion": "PROHIBITED"
       },
-      "column_validation": {
-        "check_condition": [
+      "columnManagement": {
+        "freezeSchema": true,
+        "allowedOperations": ["valueInsertion", "contentOptimization"]
+      }
+    },
+    "processingWorkflow": ["SUPPLEMENT", "SIMPLIFY", "CORRECT", "SUMMARY"],
+
+    "SUPPLEMENT": {
+      "insertionProtocol": {
+        "characterRegistration": {
+          "triggerCondition": "newCharacterDetection || traitMutation",
+          "attributeCapture": {
+            "scope": "explicitDescriptionsOnly",
+            "protectedDescriptors": ["粗布衣裳", "布条束发"],
+            "mandatoryFields": ["角色名", "身体特征", "其他重要信息"],
+            "validationRules": {
+              "physique_description": "MUST_CONTAIN [体型/肤色/发色/瞳色]",
+              "relationship_tier": "VALUE_RANGE:[-100, 100]"
+            }
+          }
+        },
+        "eventCapture": {
+          "thresholdConditions": ["plotCriticality≥3", "emotionalShift≥2"],
+          "emergencyBreakCondition": "3_consecutiveSimilarEvents"
+        },
+        "itemRegistration": {
+          "significanceThreshold": "symbolicImportance≥5"
+        }
+      },
+      "dataEnrichment": {
+        "dynamicControl": {
+          "costumeDescription": {
+            "detailedModeThreshold": 25,
+            "overflowAction": "SIMPLIFY_TRIGGER"
+          },
+          "eventDrivenUpdates": {
+            "checkInterval": "EVERY_50_EVENTS",
+            "monitoringDimensions": [
+              "TIME_CONTRADICTIONS",
+              "LOCATION_CONSISTENCY",
+              "ITEM_TIMELINE",
+              "CLOTHING_CHANGES"
+            ],
+            "updateStrategy": {
+              "primaryMethod": "APPEND_WITH_MARKERS",
+              "conflictResolution": "PRIORITIZE_CHRONOLOGICAL_ORDER"
+            }
+          },
+          "formatCompatibility": {
+            "timeFormatHandling": "ORIGINAL_PRESERVED_WITH_UTC_CONVERSION",
+            "locationFormatStandard": "HIERARCHY_SEPARATOR(>)_WITH_GEOCODE",
+            "errorCorrectionProtocols": {
+              "dateOverflow": "AUTO_ADJUST_WITH_HISTORIC_PRESERVATION",
+              "spatialConflict": "FLAG_AND_REMOVE_WITH_BACKUP"
+            }
+          }
+        },
+        "traitProtection": {
+          "keyFeatures": ["heterochromia", "scarPatterns"],
+          "lockCondition": "keywordMatch≥2"
+        }
+      }
+    },
+
+    "SIMPLIFY": {
+      "compressionLogic": {
+        "characterDescriptors": {
+          "activationCondition": "wordCount>25 PerCell && !protectedStatus",
+          "optimizationStrategy": {
+            "baseRule": "material + color + style",
+            "prohibitedElements": ["stitchingDetails", "wearMethod"],
+            "mergeExamples": ["深褐/浅褐眼睛 → 褐色眼睛"]
+          }
+        },
+        "eventConsolidation": {
+          "mergeDepth": 2,
+          "mergeRestrictions": ["crossCharacter", "crossTimeline"],
+          "keepCriterion": "LONGER_DESCRIPTION_WITH_KEY_DETAILS"
+        }
+      },
+      "protectionMechanism": {
+        "protectedContent": {
+          "summaryMarkers": ["[TIER1]", "[MILESTONE]"],
+          "criticalTraits": ["异色瞳", "皇室纹章"]
+        }
+      }
+    },
+
+    "CORRECT": {
+      "validationMatrix": {
+        "temporalConsistency": {
+          "checkFrequency": "every10Events",
+          "anomalyResolution": "purgeConflicts"
+        },
+        "columnValidation": {
+          "checkConditions": [
             "NUMERICAL_IN_TEXT_COLUMN",
             "TEXT_IN_NUMERICAL_COLUMN",
             "MISPLACED_FEATURE_DESCRIPTION",
             "WRONG_TABLE_PLACEMENT"
-            ],
-      "correction_method": {
-        "auto_relocation": "MOVE_TO_CORRECT_COLUMN",
-        "type_mismatch": "CONVERT_OR_RELOCATE",
-        "preserve_original": false
-      },
-      "error_handling": {
-        "invalid_relationship_tier": "FORCE_NUMERICAL",
-        "wrong_physique_info": "TRANSFER_TO_other_info"
-      }}
-      "spacetime_table": "ENFORCE_SINGLE_ROW"
-    },
-    "dynamic_updates": {
-      "checklist": [
-        "TIME_CONTRADICTIONS",
-        "LOCATION_CONSISTENCY",
-        "ITEM_TIMELINE",
-        "CLOTHING_CHANGES"
-      ],
-      "update_method": "APPEND_WITH_MARKERS"
-    },
-    "format_relaxation": {
-      "time_format": "ORIGINAL_PRESERVED",
-      "location_format": "HIERARCHY_SEPARATOR(>)",
-      "error_correction": {
-        "date_overflow": "AUTO_ADJUST",
-        "contradictions": "FLAG_AND_REMOVE"
+          ],
+          "correctionProtocol": {
+            "autoRelocation": "MOVE_TO_CORRECT_COLUMN",
+            "typeMismatchHandling": {
+              "primaryAction": "CONVERT_OR_RELOCATE",
+              "fallbackAction": "FLAG_AND_ISOLATE"
+            },
+            "preserveOriginalState": false
+          }
+        },
+        "duplicationControl": {
+          "characterWhitelist": ["Physical Characteristics", "Clothing Details"],
+          "mergeProtocol": {
+            "exactMatch": "purgeRedundant",
+            "sceneConsistency": "actionChaining"
+          }
+        },
+        "exceptionHandlers": {
+          "invalidRelationshipTier": {
+            "operation": "FORCE_NUMERICAL_WITH_LOGGING",
+            "loggingDetails": {
+              "originalData": "Record the original invalid relationship tier data",
+              "conversionStepsAndResults": "The operation steps and results of forced conversion to numerical values",
+              "timestamp": "Operation timestamp",
+              "tableAndRowInfo": "Names of relevant tables and indexes of relevant data rows"
+            }
+          },
+          "physiqueInfoConflict": {
+            "operation": "TRANSFER_TO_other_info_WITH_MARKER",
+            "markerDetails": {
+              "conflictCause": "Mark the specific cause of the conflict",
+              "originalPhysiqueInfo": "Original physique information content",
+              "transferTimestamp": "Transfer operation timestamp"
+            }
+          }
+        }
       }
     },
-    "final_cleanup": {
-      "mandatory_deletion": [
-        "EXACT_DUPLICATES",
-        "USER_IN_SOCIAL_TABLE",
-        "TIMELINE_VIOLATIONS",
-        "EMPTY_ROWS(excluding spacetime)",
-        "EXPIRED_QUESTS(>20d)"
-      ]
+
+    "SUMMARY": {
+      "hierarchicalSystem": {
+        "primaryCompression": {
+          "triggerCondition": "10_rawEvents && unlockStatus",
+          "generationTemplate": "[角色]在[时间段]通过[动作链]展现[特征]",
+          "outputConstraints": {
+            "maxLength": 200,
+            "lockAfterGeneration": true,
+            "placement": "重要事件历史表格",
+            "columns": {
+              "角色": "相关角色",
+              "事件简述": "总结内容",
+              "日期": "相关日期",
+              "地点": "相关地点",
+              "情绪": "相关情绪"
+            }
+          }
+        },
+        "advancedSynthesis": {
+          "triggerCondition": "3_primarySummaries",
+          "synthesisFocus": ["growthArc", "worldRulesManifestation"],
+          "outputConstraints": {
+            "placement": "重要事件历史表格",
+            "columns": {
+              "角色": "相关角色",
+              "事件简述": "总结内容",
+              "日期": "相关日期",
+              "地点": "相关地点",
+              "情绪": "相关情绪"
+            }
+          }
+        }
+      },
+      "safetyOverrides": {
+        "overcompensationGuard": {
+          "detectionCriteria": "compressionArtifacts≥3",
+          "recoveryProtocol": "rollback5Events"
+        }
+      }
+    },
+
+    "SystemSafeguards": {
+      "priorityChannel": {
+        "coreProcesses": ["deduplication", "traitPreservation"],
+        "loadBalancing": {
+          "timeoutThreshold": 15,
+          "degradationProtocol": "basicValidationOnly"
+        }
+      },
+      "paradoxResolution": {
+        "temporalAnomalies": {
+          "resolutionFlow": "freezeAndHighlight",
+          "humanInterventionTag": "⚠️REQUIRES_ADMIN"
+        }
+      },
+      "intelligentCleanupEngine": {
+        "mandatoryPurgeRules": [
+          "EXACT_DUPLICATES_WITH_TIMESTAMP_CHECK",
+          "USER_ENTRIES_IN_SOCIAL_TABLE",
+          "TIMELINE_VIOLATIONS_WITH_CASCADE_DELETION",
+          "EMPTY_ROWS(excluding spacetime)",
+          "EXPIRED_QUESTS(>20d)_WITH_ARCHIVAL"
+        ],
+        "protectionOverrides": {
+          "protectedMarkers": ["[TIER1]", "[MILESTONE]"],
+          "exemptionConditions": [
+            "HAS_PROTECTED_TRAITS",
+            "CRITICAL_PLOT_POINT"
+          ]
+        },
+        "cleanupTriggers": {
+          "eventCountThreshold": 1000,
+          "storageUtilizationThreshold": "85%"
+        }
+      }
     }
   }
 }
