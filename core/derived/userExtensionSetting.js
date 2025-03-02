@@ -437,6 +437,11 @@ export function loadSettings() {
     $('#custom_temperature_value').text(EDITOR.data.custom_temperature);
     $('#bool_force_refresh').prop('checked', EDITOR.data.bool_force_refresh || false);
     $('#bool_silent_refresh').prop('checked', EDITOR.data.bool_silent_refresh || false);
+
+    EDITOR.data.refresh_system_message_template = EDITOR.data.refresh_system_message_template || EDITOR.defaultSettings.refresh_system_message_template;
+    EDITOR.data.refresh_user_message_template = EDITOR.data.refresh_user_message_template || EDITOR.defaultSettings.refresh_user_message_template;
+    EDITOR.data.rebuild_system_message_template = EDITOR.data.rebuild_system_message_template || EDITOR.defaultSettings.rebuild_system_message_template;
+    EDITOR.data.rebuild_user_message_template = EDITOR.data.rebuild_user_message_template || EDITOR.defaultSettings.rebuild_user_message_template;
 }
 
 /**

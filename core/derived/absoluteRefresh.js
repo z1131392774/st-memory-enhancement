@@ -193,9 +193,13 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
                 if (!Array.isArray(cleanContentTable)) {
                     throw new Error("生成的新表格数据不是数组");
                 }
+                //标记改动
+                compareAndMarkChanges(latestTables, cleanContentTable);
+                // console.log('compareAndMarkChanges后的cleanContent:', cleanContentTable);
 
                 // 深拷贝避免引用问题
                 const clonedTables = tableDataToTables(cleanContentTable);
+                console.log('深拷贝后的cleanContent:', clonedTables);
 
                 // 更新聊天记录
                 const chat = EDITOR.getContext().chat;
@@ -520,11 +524,43 @@ function tableDataToTables(tablesData) {
         return new Table(
             item.tableName || '未命名表格', // tableName
             item.tableIndex || 0,          // tableIndex
-            columns,                        // columns
+            columns,                       // columns
             item.content || [],            // content
-            [],                             // insertedRows
-            []                              // updatedRows
+            item.insertedRows || [],       // insertedRows
+            item.updatedRows ||[]          // updatedRows
         );
+    });
+}
+
+/**
+ * 标记表格变动的内容，用于render时标记颜色
+ * @param {*} oldTables
+ * @param {*} newTables  *
+ */
+function compareAndMarkChanges(oldTables, newTables) {
+    newTables.forEach((newTable, tableIndex) => {
+        const oldTable = oldTables[tableIndex];
+        newTable.insertedRows = [];
+        newTable.updatedRows = [];
+
+        // 标记新增行（过滤空行）
+        newTable.content.filter(Boolean).forEach((_, rowIndex) => {
+            if (rowIndex >= oldTable.content.filter(Boolean).length) {
+                newTable.insertedRows.push(rowIndex);
+            }
+        });
+
+        // 标记更新单元格（只比较有效行）
+        oldTable.content.filter(Boolean).forEach((oldRow, rowIndex) => {
+            const newRow = newTable.content[rowIndex];
+            if (newRow) {
+                oldRow.forEach((oldCell, colIndex) => {
+                    if (newRow[colIndex] !== oldCell) {
+                        newTable.updatedRows.push(`${rowIndex}-${colIndex}`);
+                    }
+                });
+            }
+        });
     });
 }
 
