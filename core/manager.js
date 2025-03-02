@@ -5,6 +5,7 @@ import { generateRaw } from '../../../../../../../script.js';
 import { Table } from "./source/table.js";
 import { TableEditAction } from "./source/tableActions.js";
 import { consoleMessageToEditor } from "./derived/devConsole.js";
+import {getRandomNumber, getRandomString} from "../utils/utility.js";
 
 /**
  * 默认插件设置
@@ -29,7 +30,7 @@ const defaultSettings = {
     bool_ignore_del: true,
     ignore_user_sent: false,
     clear_up_stairs:9,
-    step_by_step_threshold: 100,
+    step_by_step_threshold: 1000,
     sum_multiple_rounds: true,
     unusedChatText: '',
     bool_silent_refresh: false,
@@ -437,7 +438,9 @@ export let SYSTEM = {
 
         timer.lastExecutionTime = currentTime;
         return true; // 允许执行
-    }
+    },
+    getRandomString: getRandomString,
+    getRandomNumber: getRandomNumber,
     // readFile: ,
     // writeFile: ,
     //

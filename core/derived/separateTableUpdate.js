@@ -1,50 +1,79 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
 import {refreshTableActions} from "./absoluteRefresh.js";
 
-async function getRecentChatHistoryByWordCount(chat, sumMesLength) {
-    let lastChats = '';
-    let sum = 0;
-    for (let i = chat.length - 1; i >= 0; i--) {
-        const currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
-        sum += currentChat.length;
-        if (sum > sumMesLength) {
-            break;
+let conversationsToBeMarked = [];
+function MarkExecutedChats() {
+    const chats = EDITOR.getContext().chat;
+    for (let i = chats.length - 1; i >= 0; i--) {
+        const chat = chats[i];
+        if (chat.is_user === true) continue;
+
+        if (conversationsToBeMarked.includes(c => c.uid === chat.uid)) {
+            chat.uid_that_references_table_step_update[uid] = true;
         }
-        lastChats += `\n${currentChat}`;
     }
-    return lastChats;
+}
+
+function InitChatForTableTwoStepSummary(chat) {
+    // 如果currentChat.uid未定义，则初始化为随机字符串
+    if (chat.uid === undefined) {
+        chat.uid = SYSTEM.getRandomString();
+    }
+    // 如果currentChat.uid_that_references_table_step_update未定义，则初始化为{}
+    if (chat.uid_that_references_table_step_update === undefined) {
+        chat.uid_that_references_table_step_update = {};
+    }
+    // 如果currentChat.uid_that_references_table_step_update未定义，则初始化为{}
+    if (chat.executedTableTwoStepForward === undefined) {
+        chat.executedTableTwoStepForward = false;
+    }
+}
+
+function GetUnexecutedMarkChats(uid) {
+    const chats = EDITOR.getContext().chat;
+    let r = '';
+    conversationsToBeMarked = [];
+
+    for (let i = chats.length - 1; i >= 0; i--) {
+        const c = chats[i];
+
+        InitChatForTableTwoStepSummary(c);
+
+        if (uid in c.uid_that_references_table_step_update) break;  // 如果已经被当前chat执行过总结，则停止
+        if (c.executedTableTwoStepForward === true) break;   // 如果已经执行过向前的总结，则停止
+        if (c.is_user === true) continue; // 如果是用户对话，则跳过
+
+        // 获取裁切过的对话
+        // 使用正则移除todoChats中所有非正文标签
+        let todoChat = c.mes.replace(/<tableEdit>[\s\S]*?<\/tableEdit>|<think>[\s\S]*?<\/think>|<thinking>[\s\S]*?<\/thinking>/g, '');
+        r = todoChat + r;
+        conversationsToBeMarked.push(c);
+
+        // 如果对话长度超过阈值，则停止
+        if (r.length > EDITOR.data.step_by_step_threshold) break;
+    }
+    return r;
 }
 
 /**
  * 执行两步总结
  * */
 export async function TableTwoStepSummary() {
-    // console.log("执行两步总结")
-    // if (EDITOR.data.isExtensionAble === false || EDITOR.data.step_by_step === false) return
-    //
-    // const chat = EDITOR.getContext().chat;
-    // const currentChat = chat[chat.length - 1];
-    // if (currentChat.is_user === true) return
-    //
-    // // 获取当前消息的数据，检查当前消息的字数是否大于EDITOR.data.step_by_step_threshold
-    // const currentMessage = currentChat.message;
-    // const currentMessageLength = currentMessage.length;
-    //
-    // // 检查是否开启EDITOR.data.sum_multiple_rounds
-    // if (EDITOR.data.sum_multiple_rounds === true) {
-    //
-    // } else {
-    //     if (currentMessageLength < EDITOR.data.step_by_step_threshold) {
-    //         // 拼接EDITOR.data.unusedChatText和当前消息
-    //         EDITOR.data.unusedChatText += currentMessage;
-    //         return;
-    //     }
-    // }
-    //
-    // if (currentChat.enabledTwoStepSummary === true) {
-    //     console.log("当前消息已执行两步总结")
-    //     return;
-    // }
-    // await refreshTableActions(true, true);
-    // currentChat.enabledTwoStepSummary = true;
+    if (EDITOR.data.isExtensionAble === false || EDITOR.data.step_by_step === false) return
+
+    const chats = EDITOR.getContext().chat;
+    const currentChat = chats[chats.length - 1];
+    if (currentChat.is_user === true) return;
+
+    InitChatForTableTwoStepSummary(currentChat);
+    if (currentChat.executedTableTwoStepForward === true) return;
+
+    // 往前找到所有未执行的两步总结
+    let todoChats = GetUnexecutedMarkChats(currentChat.uid);
+    if (todoChats.length === 0) return;
+
+    console.log("执行两步总结");
+    await refreshTableActions(true, true, todoChats);
+    MarkExecutedChats();
+    currentChat.executedTableTwoStepForward = true;
 }
