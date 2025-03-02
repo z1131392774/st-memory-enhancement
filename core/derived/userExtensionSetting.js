@@ -225,122 +225,76 @@ function InitBinging() {
     // 插件总体开关
     $('#table_switch').change(function () {
         EDITOR.data.isExtensionAble = this.checked;
-        EDITOR.saveSettingsDebounced();
         EDITOR.success(this.checked ? '插件已开启' : '插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
     // 调试模式开关
     $('#table_switch_debug_mode').change(function () {
         EDITOR.data.tableDebugModeAble = this.checked;
-        EDITOR.saveSettingsDebounced();
         EDITOR.success(this.checked ? '调试模式已开启' : '调试模式已关闭');
     });
     // 插件读表开关
     $('#table_read_switch').change(function () {
         EDITOR.data.isAiReadTable = this.checked;
-        EDITOR.saveSettingsDebounced();
         EDITOR.success(this.checked ? 'AI现在会读取表格' : 'AI现在将不会读表');
     });
     // 插件写表开关
     $('#table_edit_switch').change(function () {
         EDITOR.data.isAiWriteTable = this.checked;
-        EDITOR.saveSettingsDebounced();
         EDITOR.success(this.checked ? 'AI的更改现在会被写入表格' : 'AI的更改现在不会被写入表格');
     });
 
     // 表格插入模式
-    $('#dataTable_injection_mode').on('change', (event) => {
+    $('#dataTable_injection_mode').change(function (event) {
         EDITOR.data.injection_mode = event.target.value;
-        EDITOR.saveSettingsDebounced();
     });
-    // 表格消息模板
-    $('#dataTable_message_template').on("input", function () {
-        const value = $(this).val();
-        EDITOR.data.message_template = value;
-        EDITOR.saveSettingsDebounced();
-    })
-    // 表格推送至对话
-    $("#dataTable_to_chat_button").on("click", async function () {
-        const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, EDITOR.data.to_chat_container, { rows: 10 })
-        if (result) {
-            EDITOR.data.to_chat_container = result;
-            EDITOR.saveSettingsDebounced()
-            updateSystemMessageTableStatus()
-        }
-    })
-    // 表格深度
-    $('#dataTable_deep').on("input", function () {
-        const value = $(this).val();
-        EDITOR.data.deep = Math.abs(value);
-        EDITOR.saveSettingsDebounced();
-    })
-
-
-
-
-    $('#step_by_step').on('change', function() {
+    // 表格结构编辑
+    $('#step_by_step').change(function() {
         $('#reply_options').toggle(!this.checked);
+        $('#step_by_step_options').toggle(this.checked);
         EDITOR.data.step_by_step = this.checked;
+    });
+    // 开启多轮字数累计
+    $('#sum_multiple_rounds').change(function() {
+        EDITOR.data.sum_multiple_rounds = $(this).prop('checked');
+    })
+    //整理表格相关高级设置
+    $('#advanced_settings').change(function() {
+        $('#advanced_options').toggle(this.checked);
+        EDITOR.data.advanced_settings = this.checked;
+    });
+    // 忽略删除
+    $('#ignore_del').change(function() {
+        EDITOR.data.bool_ignore_del = $(this).prop('checked');
+    });
+    // 强制刷新
+    $('#bool_force_refresh').change(function() {
+        EDITOR.data.bool_force_refresh = $(this).prop('checked');
+    });
+    // 静默刷新
+    $('#bool_silent_refresh').change(function() {
+        EDITOR.data.bool_silent_refresh = $(this).prop('checked');
+    });
+    // 初始化API设置显示状态
+    $('#use_main_api').change(function() {
+        $('#custom_api_settings').toggle(!this.checked);
+        EDITOR.data.use_main_api = this.checked;
+    });
+    // 根据下拉列表选择的模型更新自定义模型名称
+    $('#model_selector').change(function() {
+        const selectedModel = $(this).val();
+        $('#custom_model_name').val(selectedModel);
+        EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = selectedModel;
         EDITOR.saveSettingsDebounced();
     });
-
-
     // 表格推送至对话开关
     $('#table_to_chat').change(function () {
         EDITOR.data.isTableToChat = this.checked;
-        EDITOR.saveSettingsDebounced();
         EDITOR.success(this.checked ? '表格会被推送至对话中' : '关闭表格推送至对话');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
 
 
-    //整理表格相关高级设置
-    $('#advanced_settings').on('change', function() {
-        $('#advanced_options').toggle(this.checked);
-        EDITOR.data.advanced_settings = this.checked;
-        EDITOR.saveSettingsDebounced();
-    });
-    // 忽略删除
-    $('#ignore_del').on('change', function() {
-        EDITOR.data.bool_ignore_del = $(this).prop('checked');
-        EDITOR.saveSettingsDebounced();
-        console.log('bool_ignore_del:' + EDITOR.data.bool_ignore_del);
-    });
-    // 清理聊天记录楼层
-    $('#clear_up_stairs').on('input', function() {
-        const value = $(this).val();
-        $('#clear_up_stairs_value').text(value);
-        EDITOR.data.clear_up_stairs = Number(value);
-        EDITOR.saveSettingsDebounced();
-    });
-    // 模型温度设定
-    $('#custom_temperature').on('input', function() {
-        const value = $(this).val();
-        $('#custom_temperature_value').text(value);
-        EDITOR.data.custom_temperature = Number(value);
-        EDITOR.saveSettingsDebounced();
-    });
-    // 强制刷新
-    $('#bool_force_refresh').on('change', function() {
-        EDITOR.data.bool_force_refresh = $(this).prop('checked');
-        console.log('bool_force_refresh:',EDITOR.data.bool_force_refresh)
-        EDITOR.saveSettingsDebounced();
-    });
-    // 静默刷新
-    $('#bool_silent_refresh').on('change', function() {
-        EDITOR.data.bool_silent_refresh = $(this).prop('checked');
-        console.log('bool_silent_refresh:',EDITOR.data.bool_silent_refresh)
-        EDITOR.saveSettingsDebounced();
-    });
-
-
-    // API设置
-    // 初始化API设置显示状态
-    $('#use_main_api').on('change', function() {
-        $('#custom_api_settings').toggle(!this.checked);
-        EDITOR.data.use_main_api = this.checked;
-        EDITOR.saveSettingsDebounced();
-    });
     // API URL
     $('#custom_api_url').on('input', function() {
         EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = $(this).val();
@@ -360,48 +314,96 @@ function InitBinging() {
             EDITOR.error('未能获取到API KEY，请重新输入~');
         }
     })
-
     // 模型名称
     $('#custom_model_name').on('input', function() {
         EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = $(this).val();
         EDITOR.saveSettingsDebounced();
     });
+    // 表格消息模板
+    $('#dataTable_message_template').on("input", function () {
+        const value = $(this).val();
+        EDITOR.data.message_template = value;
+    })
+    // 表格深度
+    $('#dataTable_deep').on("input", function () {
+        const value = $(this).val();
+        EDITOR.data.deep = Math.abs(value);
+    })
+    // 触发分步总结的字数阈值
+    $('#step_by_step_threshold').on('input', function() {
+        const value = $(this).val();
+        $('#step_by_step_threshold_value').text(value);
+        EDITOR.data.step_by_step_threshold = Number(value);
+    });
+    // 清理聊天记录楼层
+    $('#clear_up_stairs').on('input', function() {
+        const value = $(this).val();
+        $('#clear_up_stairs_value').text(value);
+        EDITOR.data.clear_up_stairs = Number(value);
+    });
+    // 模型温度设定
+    $('#custom_temperature').on('input', function() {
+        const value = $(this).val();
+        $('#custom_temperature_value').text(value);
+        EDITOR.data.custom_temperature = Number(value);
+    });
+
+
+
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
-    // 根据下拉列表选择的模型更新自定义模型名称
-    $('#model_selector').on('change', function() {
-        const selectedModel = $(this).val();
-        $('#custom_model_name').val(selectedModel);
-        EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = selectedModel;
-        EDITOR.saveSettingsDebounced();
-    });
     // 开始整理表格
-    $("#table_clear_up").on('click', () => refreshTableActions(
-        EDITOR.data.bool_force_refresh,
-        EDITOR.data.bool_silent_refresh)
-    );
+    $("#table_clear_up").on('click', () => refreshTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh));
     // 完整重建表格
-    $('#rebuild_table').on('click', () => rebuildTableActions(
-        EDITOR.data.bool_force_refresh,
-        EDITOR.data.bool_silent_refresh)
-    );
+    $('#rebuild_table').on('click', () => rebuildTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh));
+    // 表格推送至对话
+    $("#dataTable_to_chat_button").on("click", async function () {
+        const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, EDITOR.data.to_chat_container, { rows: 10 })
+        if (result) {
+            EDITOR.data.to_chat_container = result;
+            updateSystemMessageTableStatus()
+        }
+    })
 }
 
 /**
  * 渲染设置
  */
 export function renderSetting() {
+    // 初始化数值
     $(`#dataTable_injection_mode option[value="${EDITOR.data.injection_mode}"]`).attr('selected', true);
-    $('#dataTable_deep').val(EDITOR.data.deep);
+    $('#custom_api_url').val(EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
+    $('#custom_api_key').val(EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
+    $('#custom_model_name').val(EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
     $('#dataTable_message_template').val(EDITOR.data.message_template);
-    updateSwitch("#table_switch", EDITOR.data.isExtensionAble)
-    updateSwitch("#table_switch_debug_mode", EDITOR.data.tableDebugModeAble)
-    updateSwitch("#table_read_switch", EDITOR.data.isAiReadTable)
-    updateSwitch("#table_edit_switch", EDITOR.data.isAiWriteTable)
-    updateSwitch("#table_to_chat", EDITOR.data.isTableToChat)
-    updateSwitch("#advanced_settings", EDITOR.data.advanced_settings)
+    $('#dataTable_deep').val(EDITOR.data.deep);
+    $('#clear_up_stairs').val(EDITOR.data.clear_up_stairs);
+    $('#clear_up_stairs_value').text(EDITOR.data.clear_up_stairs);
+    $('#custom_temperature').val(EDITOR.data.custom_temperature);
+    $('#custom_temperature_value').text(EDITOR.data.custom_temperature);
+    $('#step_by_step_threshold').val(EDITOR.data.step_by_step_threshold);
+    $('#step_by_step_threshold_value').text(EDITOR.data.step_by_step_threshold);
+
+    // 初始化开关状态
+    updateSwitch('#table_switch', EDITOR.data.isExtensionAble);
+    updateSwitch('#table_switch_debug_mode', EDITOR.data.tableDebugModeAble);
+    updateSwitch('#table_read_switch', EDITOR.data.isAiReadTable);
+    updateSwitch('#table_edit_switch', EDITOR.data.isAiWriteTable);
+    updateSwitch('#table_to_chat', EDITOR.data.isTableToChat);
+    updateSwitch('#advanced_settings', EDITOR.data.advanced_settings);
+    updateSwitch('#step_by_step', EDITOR.data.step_by_step);
+    updateSwitch('#use_main_api', EDITOR.data.use_main_api);
+    updateSwitch('#ignore_del', EDITOR.data.bool_ignore_del);
+    updateSwitch('#sum_multiple_rounds', EDITOR.data.sum_multiple_rounds);
+    updateSwitch('#bool_force_refresh', EDITOR.data.bool_force_refresh);
+    updateSwitch('#bool_silent_refresh', EDITOR.data.bool_silent_refresh);
+
+    // 设置元素结构可见性
     $('#advanced_options').toggle(EDITOR.data.advanced_settings)
     $('#custom_api_settings').toggle(!EDITOR.data.use_main_api);
+    $('#reply_options').toggle(!EDITOR.data.step_by_step);
+    $('#step_by_step_options').toggle(EDITOR.data.step_by_step);
+
     updateTableStructureDOM()
     console.log("设置已渲染")
 }
@@ -410,14 +412,8 @@ export function renderSetting() {
  * 加载设置
  */
 export function loadSettings() {
-    EDITOR.data = EDITOR.data || {};
     EDITOR.IMPORTANT_USER_PRIVACY_DATA = EDITOR.IMPORTANT_USER_PRIVACY_DATA || {};
 
-    for (const key in EDITOR.defaultSettings) {
-        if (!Object.hasOwn(EDITOR.data, key)) {
-            EDITOR.data[key] = EDITOR.defaultSettings[key];
-        }
-    }
     if (EDITOR.data.updateIndex != 3) {
         EDITOR.data.message_template = EDITOR.defaultSettings.message_template
         EDITOR.data.to_chat_container = EDITOR.defaultSettings.to_chat_container
@@ -426,35 +422,6 @@ export function loadSettings() {
     }
     if (EDITOR.data.deep < 0) formatDeep()
 
+    renderSetting();
     InitBinging();
-    renderSetting()
-
-    //api初始化
-    $('#step_by_step').prop('checked', EDITOR.data.step_by_step ?? true);
-    $('#reply_options').toggle(!EDITOR.data.step_by_step);
-    $('#use_main_api').prop('checked', EDITOR.data.use_main_api ?? true);
-    $('#custom_api_settings').toggle(!EDITOR.data.use_main_api);
-
-    $('#custom_api_url').val(EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
-    $('#custom_api_key').val(EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
-    $('#custom_model_name').val(EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
-
-    if (typeof EDITOR.data.bool_ignore_del === 'undefined') {
-        EDITOR.data.bool_ignore_del = EDITOR.defaultSettings.bool_ignore_del;
-    }
-
-    EDITOR.data.clear_up_stairs = EDITOR.data.clear_up_stairs || 9;
-    $('#clear_up_stairs').val(EDITOR.data.clear_up_stairs);
-    $('#clear_up_stairs_value').text(EDITOR.data.clear_up_stairs);
-
-    EDITOR.data.custom_temperature = EDITOR.data.custom_temperature || 1.0;
-    $('#custom_temperature').val(EDITOR.data.custom_temperature);
-    $('#custom_temperature_value').text(EDITOR.data.custom_temperature);
-    $('#bool_force_refresh').prop('checked', EDITOR.data.bool_force_refresh || false);
-    $('#bool_silent_refresh').prop('checked', EDITOR.data.bool_silent_refresh || false);
-
-    EDITOR.data.refresh_system_message_template = EDITOR.data.refresh_system_message_template || EDITOR.defaultSettings.refresh_system_message_template;
-    EDITOR.data.refresh_user_message_template = EDITOR.data.refresh_user_message_template || EDITOR.defaultSettings.refresh_user_message_template;
-    EDITOR.data.rebuild_system_message_template = EDITOR.data.rebuild_system_message_template || EDITOR.defaultSettings.rebuild_system_message_template;
-    EDITOR.data.rebuild_user_message_template = EDITOR.data.rebuild_user_message_template || EDITOR.defaultSettings.rebuild_user_message_template;
 }

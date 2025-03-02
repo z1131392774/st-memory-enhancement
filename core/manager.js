@@ -14,6 +14,7 @@ const defaultSettings = {
     injection_mode: 'deep_system',
     deep: 2,
     isExtensionAble: true,
+    tableDebugModeAble: false,
     isAiReadTable: true,
     isAiWriteTable: true,
     isTableToChat: false,
@@ -24,9 +25,11 @@ const defaultSettings = {
     custom_temperature: 1.0,
     custom_max_tokens: 2048,
     custom_top_p: 1,
-    tableBackups: {}, // 新增表格备份存储
+    tableBackups: {},
     bool_ignore_del: true,
-    clear_up_stairs:3,//有几层聊天记录纳入范围
+    clear_up_stairs:3,
+    step_by_step_threshold_value: 100,
+    sum_multiple_rounds: 1,
     tableStructure: [
         {
             tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: "记录时空信息的表格，应保持在一行",
@@ -372,15 +375,18 @@ export let EDITOR = {
         get(_, property) {
             // 优先从 extension_settings.muyoo_dataTable 中获取
             if (extension_settings.muyoo_dataTable && property in extension_settings.muyoo_dataTable) {
+                EDITOR.saveSettingsDebounced();
                 return extension_settings.muyoo_dataTable[property];
             }
             // 如果 extension_settings.muyoo_dataTable 中不存在，则从 defaultSettings 中获取
             if (defaultSettings && property in defaultSettings) {
-                consoleMessageToEditor.warning(`Property ${property} not found, using defaultSettings.`)
+                console.log(`变量 ${property} 未找到, 已从默认设置中获取`)
+                EDITOR.saveSettingsDebounced();
                 return defaultSettings[property];
             }
             // 如果 defaultSettings 中也不存在，则返回 undefined
-            consoleMessageToEditor.error(`Property ${property} not found.`)
+            consoleMessageToEditor.error(`变量 ${property} 未在默认设置中找到, 请检查代码`)
+            EDITOR.saveSettingsDebounced();
             return undefined;
         },
         set(_, property, value) {
@@ -389,6 +395,8 @@ export let EDITOR = {
                 extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
             }
             extension_settings.muyoo_dataTable[property] = value;
+            // console.log(`设置变量 ${property} 为 ${value}`)
+            EDITOR.saveSettingsDebounced();
             return true;
         }
     }),
