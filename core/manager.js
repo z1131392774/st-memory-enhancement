@@ -363,35 +363,35 @@ export let EDITOR = {
     clear: consoleMessageToEditor.clear,
 
     defaultSettings: defaultSettings,
-    data: extension_settings.muyoo_dataTable,
+    // data: extension_settings.muyoo_dataTable,
     /**
      * @description 优化的 data 属性，优先从 extension_settings.muyoo_dataTable 获取，
      *              如果不存在则从 defaultSettings 中获取
      */
-    // data: new Proxy({}, {
-    //     get(_, property) {
-    //         // 优先从 extension_settings.muyoo_dataTable 中获取
-    //         if (extension_settings.muyoo_dataTable && property in extension_settings.muyoo_dataTable) {
-    //             return extension_settings.muyoo_dataTable[property];
-    //         }
-    //         // 如果 extension_settings.muyoo_dataTable 中不存在，则从 defaultSettings 中获取
-    //         if (defaultSettings && property in defaultSettings) {
-    //             consoleMessageToEditor.warning(`Property ${property} not found, using defaultSettings.`)
-    //             return defaultSettings[property];
-    //         }
-    //         // 如果 defaultSettings 中也不存在，则返回 undefined
-    //         consoleMessageToEditor.error(`Property ${property} not found.`)
-    //         return undefined;
-    //     },
-    //     set(_, property, value) {
-    //         // 将设置操作直接作用于 extension_settings.muyoo_dataTable
-    //         if (!extension_settings.muyoo_dataTable) {
-    //             extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
-    //         }
-    //         extension_settings.muyoo_dataTable[property] = value;
-    //         return true;
-    //     }
-    // }),
+    data: new Proxy({}, {
+        get(_, property) {
+            // 优先从 extension_settings.muyoo_dataTable 中获取
+            if (extension_settings.muyoo_dataTable && property in extension_settings.muyoo_dataTable) {
+                return extension_settings.muyoo_dataTable[property];
+            }
+            // 如果 extension_settings.muyoo_dataTable 中不存在，则从 defaultSettings 中获取
+            if (defaultSettings && property in defaultSettings) {
+                consoleMessageToEditor.warning(`Property ${property} not found, using defaultSettings.`)
+                return defaultSettings[property];
+            }
+            // 如果 defaultSettings 中也不存在，则返回 undefined
+            consoleMessageToEditor.error(`Property ${property} not found.`)
+            return undefined;
+        },
+        set(_, property, value) {
+            // 将设置操作直接作用于 extension_settings.muyoo_dataTable
+            if (!extension_settings.muyoo_dataTable) {
+                extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
+            }
+            extension_settings.muyoo_dataTable[property] = value;
+            return true;
+        }
+    }),
     IMPORTANT_USER_PRIVACY_DATA: extension_settings.IMPORTANT_USER_PRIVACY_DATA,
 
     getContext: getContext,
