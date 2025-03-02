@@ -31,6 +31,8 @@ const defaultSettings = {
     step_by_step_threshold: 100,
     sum_multiple_rounds: true,
     unusedChatText: '',
+    bool_silent_refresh: false,
+    bool_force_refresh: false,
     tableStructure: [
         {
             tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: "记录时空信息的表格，应保持在一行",
