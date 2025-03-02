@@ -1,3 +1,37 @@
+/* 以下为原有样式，不修改 */
+.__main_text_color {
+    color: var(SmartThemeBodyColor);
+}
+.__italic_text_color {
+    color: var(SmartThemeEmColor);
+}
+.__underlined_text_color {
+    color: var(SmartThemeUnderlineColor);
+}
+.__quote_text_color {
+    color: var(SmartThemeQuoteColor);
+}
+.__shadow_color {
+    color: var(SmartThemeShadowColor);
+}
+.__chat_background_color {
+    color: var(SmartThemeChatTintColor);
+}
+.__ui_background_color {
+    color: var(SmartThemeBlurTintColor);
+}
+.__ui_border_color {
+    color: var(SmartThemeBorderColor);
+}
+.__user_message_blur_tint_color {
+    color: var(SmartThemeUserMesBlurTintColor);
+}
+.__ai_message_blur_tint_color {
+    color: var(SmartThemeBotMesBlurTintColor);
+}
+
+/* 以下用于定义自定义样式，不修改原有样式 */
+/* 新增的自定义样式 */
 .translation_settings .menu_button {
     width: fit-content;
     display: flex;
@@ -454,7 +488,7 @@ td.selected {
 }
 
 .log-message {
-    color: #888;
+    color: var(SmartThemeBodyColor);
     text-align: left;
 }
 

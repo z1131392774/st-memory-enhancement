@@ -14,6 +14,7 @@ const defaultSettings = {
     injection_mode: 'deep_system',
     deep: 2,
     isExtensionAble: true,
+    tableDebugModeAble: false,
     isAiReadTable: true,
     isAiWriteTable: true,
     isTableToChat: false,
@@ -24,9 +25,11 @@ const defaultSettings = {
     custom_temperature: 1.0,
     custom_max_tokens: 2048,
     custom_top_p: 1,
-    tableBackups: {}, // 新增表格备份存储
+    tableBackups: {},
     bool_ignore_del: true,
-    clear_up_stairs:3,//有几层聊天记录纳入范围
+    clear_up_stairs:3,
+    step_by_step_threshold_value: 100,
+    sum_multiple_rounds: 1,
     tableStructure: [
         {
             tableName: "时空表格", tableIndex: 0, columns: ['日期', '时间', '地点（当前描写）', '此地角色'], columnsIndex: [0, 1, 2, 3], enable: true, Required: true, asStatus: true, toChat: true, note: "记录时空信息的表格，应保持在一行",
@@ -363,12 +366,46 @@ export let EDITOR = {
     clear: consoleMessageToEditor.clear,
 
     defaultSettings: defaultSettings,
-    data: extension_settings.muyoo_dataTable,
+    // data: extension_settings.muyoo_dataTable,
+    /**
+     * @description 优化的 data 属性，优先从 extension_settings.muyoo_dataTable 获取，
+     *              如果不存在则从 defaultSettings 中获取
+     */
+    data: new Proxy({}, {
+        get(_, property) {
+            // 优先从 extension_settings.muyoo_dataTable 中获取
+            if (extension_settings.muyoo_dataTable && property in extension_settings.muyoo_dataTable) {
+                EDITOR.saveSettingsDebounced();
+                return extension_settings.muyoo_dataTable[property];
+            }
+            // 如果 extension_settings.muyoo_dataTable 中不存在，则从 defaultSettings 中获取
+            if (defaultSettings && property in defaultSettings) {
+                console.log(`变量 ${property} 未找到, 已从默认设置中获取`)
+                EDITOR.saveSettingsDebounced();
+                return defaultSettings[property];
+            }
+            // 如果 defaultSettings 中也不存在，则返回 undefined
+            consoleMessageToEditor.error(`变量 ${property} 未在默认设置中找到, 请检查代码`)
+            EDITOR.saveSettingsDebounced();
+            return undefined;
+        },
+        set(_, property, value) {
+            // 将设置操作直接作用于 extension_settings.muyoo_dataTable
+            if (!extension_settings.muyoo_dataTable) {
+                extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
+            }
+            extension_settings.muyoo_dataTable[property] = value;
+            // console.log(`设置变量 ${property} 为 ${value}`)
+            EDITOR.saveSettingsDebounced();
+            return true;
+        }
+    }),
     IMPORTANT_USER_PRIVACY_DATA: extension_settings.IMPORTANT_USER_PRIVACY_DATA,
 
     getContext: getContext,
 }
 
+let antiShakeTimers = {};
 /**
  * @description `SYSTEM` 系统控制器 - 用于管理系统的数据，如文件读写、任务计时等
  */
@@ -377,11 +414,28 @@ export let SYSTEM = {
         console.log('getComponent', name);
         return renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
     },
+    /**
+     * 防抖函数，控制某个操作的执行频率
+     * @param {string} uid 唯一标识符，用于区分不同的防抖操作
+     * @param {number} interval 时间间隔，单位毫秒，在这个间隔内只允许执行一次
+     * @returns {boolean} 如果允许执行返回 true，否则返回 false
+     */
+    lazy: function(uid, interval = 100) {
+        if (!antiShakeTimers[uid]) {
+            antiShakeTimers[uid] = { lastExecutionTime: 0 };
+        }
+        const timer = antiShakeTimers[uid];
+        const currentTime = Date.now();
+
+        if (currentTime - timer.lastExecutionTime < interval) {
+            return false; // 时间间隔太短，防抖，不允许执行
+        }
+
+        timer.lastExecutionTime = currentTime;
+        return true; // 允许执行
+    }
     // readFile: ,
     // writeFile: ,
-    // readFilesInDir: ,
     //
     // taskTiming: ,
-
-    createProxy: createProxy,
 };

@@ -51,12 +51,16 @@
 
                 <!-- 表格预设 -->
                 <div class="table_setting_category_container">
+                    <!-- 预设设置 -->
                     <b class="table_setting_category_header">回复设置</b><div style="height: 10px;"></div>
+                    <!-- 分步填表 -->
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="step_by_step"><span>启用分步填表</span><small>(每次对话后自动调用api单独总结表格)</small>
                     </div>
-                    <div style="height: 5px;"></div>
+
+                    <!-- 默认不分步填表 -->
                     <div id="reply_options" style="padding-left: 20px; width: calc(100% - 20px);">
+                        <div style="height: 5px;"></div>
                         <div class="checkbox flex-container">
                             <input type="checkbox" id="table_read_switch"><span>AI读表开关</span>
                         </div>
@@ -83,12 +87,49 @@
                             <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
                         </div>
                     </div>
+
+                    <!-- 分步填表 -->
+                    <div id="step_by_step_options" style="padding-left: 20px; width: calc(100% - 20px);">
+                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
+                            <label>触发分步字数<small>（回复字数大于该值触发分步填表）</small>：<span id="step_by_step_threshold_value">10</span></label>
+                            <input type="range" id="step_by_step_threshold" min="10" max="10000" step="10" value="10" style="width: calc(100% - 20px);">
+                        </div>
+                        <div style="height: 20px;"></div>
+                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                            <input type="checkbox" id="sum_multiple_rounds"><span>字数多轮累计</span>
+                        </div>
+                    </div>
                 </div>
                 <hr/>
 
                 <!-- 重新整理表格 -->
                 <div class="table_setting_category_container">
                     <b class="table_setting_category_header">重新整理表格</b><div style="height: 10px;"></div>
+                    <!-- 自定义API -->
+                    <div class="checkbox flex-container" style="width: 100%;">
+                        <input type="checkbox" id="use_main_api" checked><span>使用主API<small>（取消勾选后可以用自定义的api）</small></span>
+                    </div>
+                    <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; width: calc(100% - 20px); margin-left: 10px">
+                        <div style="height: 10px;"></div>
+                        <!-- 自定义API设置 -->
+                        <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
+                        <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
+                        <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
+                        <div style="margin-top: 10px;">
+                            <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
+                                <option value="">请先获取模型列表</option>
+                            </select>
+                            <div class="menu_button" id="fetch_models_button" style="width: 100%;">
+                                <a>获取模型列表</a>
+                            </div>
+                        </div>
+                        <div class="flex-container slider-container" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                            <label style="min-width: 140px; margin: 0; white-space: nowrap; flex-shrink: 0;">自定义API温度设定：<span id="custom_temperature_value">1.0</span></label>
+                            <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="flex-grow: 1;">
+                        </div>
+                    </div>
+
+                    <!-- 高级设置 -->
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="advanced_settings"><span>查看高级设置</span>
                     </div>
@@ -110,28 +151,6 @@
                         </div>
                         <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
                             <input type="checkbox" id="bool_silent_refresh"><span>跳过整理后的确认弹窗</span>
-                        </div>
-                        <!-- 自定义API -->
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="use_main_api" checked><span>使用主API（取消勾选后可以用自定义的api）</span>
-                        </div>
-                        <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; margin-top: 10px;">
-                            <!-- 自定义API设置 -->
-                            <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
-                            <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
-                            <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
-                            <div style="margin-top: 10px; display: flex; gap: 5px; align-items: center;">
-                                <select id="model_selector" class="text_pole" style="flex-grow: 1; margin-bottom: 0;">
-                                    <option value="">请先获取模型列表</option>
-                                </select>
-                                <div class="menu_button" id="fetch_models_button" style="width: auto; margin-bottom: 0;">
-                                    <a>获取模型列表</a>
-                                </div>
-                            </div>
-                            <div class="flex-container slider-container" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                                <label style="min-width: 140px; margin: 0; white-space: nowrap; flex-shrink: 0;">自定义API温度设定：<span id="custom_temperature_value">1.0</span></label>
-                                <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="flex-grow: 1;">
-                            </div>
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px; margin: 10px 0 0 10px; width: calc(100% - 20px);">

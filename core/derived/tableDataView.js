@@ -447,8 +447,8 @@ export async function openTablePopup(mesId = -1) {
     const tableRebuild = tablePopup.dlg.querySelector('#table_rebuild_button');
 
     $(tableContainer).on('click', hideAllEditPanels)
-    $(tableRefresh).on('click', refreshTableActions)
-    $(tableRebuild).on('click', rebuildTableActions)
+    $(tableRefresh).on('click', () => refreshTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
+    $(tableRebuild).on('click', () => rebuildTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
     // 设置编辑提示
     setTableEditTips(tableEditTips)
     // 开始寻找表格

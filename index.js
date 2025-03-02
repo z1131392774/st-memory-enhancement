@@ -9,6 +9,8 @@ import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.
 import {initAllTable} from "./core/source/tableActions.js";
 import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 
+console.log("______________________记忆插件：开始加载______________________")
+
 const VERSION = '1.3.0'
 
 const editErrorInfo = {
@@ -489,4 +491,5 @@ jQuery(async () => {
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
     eventSource.on(event_types.MESSAGE_SWIPED, onMessageSwiped);
+    console.log("______________________记忆插件：加载完成______________________")
 });
