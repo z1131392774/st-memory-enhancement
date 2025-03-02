@@ -185,7 +185,104 @@ insertRow(5, {"0":"<user>","1":"社团赛奖品","2":"奖杯","3":"比赛第一�
             "rowIndex": 0,
         }
     ]
-</正确格式示例>`
+</正确格式示例>`,
+rebuild_system_message_template: `你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
+rebuild_user_message_template: `请你根据<整理规则>和<聊天记录>处理<当前表格>，并严格按照<当前表格>的格式回复我<新的表格>，回复务必使用中文：
+<聊天记录>
+    $1
+</聊天记录>
+
+<当前表格>
+    $0
+</当前表格>
+
+<整理规则>
+ProcessingRules = {
+  "workflow": ["SUPPLEMENT", "SIMPLIFY", "CORRECT"],
+
+  "SUPPLEMENT": {
+    "insert_rules": {
+      "characters_table": "IF new_character_detected THEN insert_row",
+      "social_table": "IF new_interaction_with_user THEN insert_row",
+      "quests_table": "IF (new_quest | new_promise) THEN insert_row",
+      "events_table": "IF significant_event THEN insert_row WITH detailed_description",
+      "items_table": "IF (important_item_appeared | symbolic_meaning_added) THEN insert_row"
+    },
+    "cell_completion": {
+      "allow_unknown": true,
+      "data_source": "ONLY_FROM_CHATLOG",
+      "special_rules": {
+        "physique_description": "MUST_CONTAIN [体型/肤色/发色/瞳色]",
+        "other_info": "IF (服饰|饰品) THEN 补充到其他重要信息",
+        "relationship_tier":  "VALUE_RANGE:[-100, 100]"
+      }
+    }
+  },
+
+  "SIMPLIFY": {
+    "cell_optimization": {
+      "max_length": 20,
+      "feature_merge": {
+        "strategy": "KEEP_UNIQUE + MERGE_SIMILAR",
+        "example": "深褐/浅褐眼睛 → 褐色眼睛"
+      }
+    },
+    "event_compression": {
+      "merge_condition": "SAME_CHARACTER + SAME_DATE ±2h + SIMILAR_EMOTION",
+      "keep_criterion": "LONGER_DESCRIPTION"
+    }
+  },
+
+  "CORRECT": {
+    "temporal_rules": {
+      "sorting_logic": "CHRONOLOGICAL_ORDER",
+      "newest_position": "BOTTOM",
+      "ambiguous_time": {
+        "spacetime_table": "KEEP_SINGLE_LATEST",
+        "others": "FOLLOW_DIALOG_ORDER"
+      }
+    },
+    "data_validation": {
+      "duplicate_handling": {
+        "characters": "MERGE_WITH_PRIORITY (新数据覆盖旧数据, 特征用/连接)",
+        "events": "REMOVE_REDUNDANT"
+      },
+      "spacetime_table": "ENFORCE_SINGLE_ROW"
+    },
+    "dynamic_updates": {
+      "checklist": [
+        "TIME_CONTRADICTIONS",
+        "LOCATION_CONSISTENCY",
+        "ITEM_TIMELINE",
+        "CLOTHING_CHANGES"
+      ],
+      "update_method": "APPEND_WITH_MARKERS"
+    },
+    "format_relaxation": {
+      "time_format": "ORIGINAL_PRESERVED",
+      "location_format": "HIERARCHY_SEPARATOR(>)",
+      "error_correction": {
+        "date_overflow": "AUTO_ADJUST",
+        "contradictions": "FLAG_AND_REMOVE"
+      }
+    },
+    "final_cleanup": {
+      "mandatory_deletion": [
+        "EXACT_DUPLICATES",
+        "USER_IN_SOCIAL_TABLE",
+        "TIMELINE_VIOLATIONS",
+        "EMPTY_ROWS(excluding spacetime)",
+        "EXPIRED_QUESTS(>20d)"
+      ]
+    }
+  }
+}
+
+回复格式示例：
+<新的表格>
+[{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
+</新的表格>
+`
 };
 
 let derivedData = {}

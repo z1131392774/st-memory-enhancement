@@ -1,7 +1,7 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {findLastestTableData, findNextChatWhitTableData, getTableEditActionsStr, handleEditStrInMessage, parseTableEditTag, replaceTableEditTag,} from "../../index.js";
-import {refreshTableActions} from "./absoluteRefresh.js";
+import {rebuildTableActions, refreshTableActions} from "./absoluteRefresh.js";
 import {initAllTable} from "../source/tableActions.js";
 
 let tablePopup = null
@@ -78,7 +78,7 @@ function saveTdData(data) {
  * 复制表格
  * @param {*} tables 所有表格数据
  */
-async function copyTable(tables = []) {
+export async function copyTable(tables = []) {
     copyTableData = JSON.stringify(tables)
     EDITOR.success('已复制')
 }
@@ -88,7 +88,7 @@ async function copyTable(tables = []) {
  * @param {number} mesId 需要粘贴到的消息id
  * @param {Element} tableContainer 表格容器DOM
  */
-async function pasteTable(mesId, tableContainer) {
+export async function pasteTable(mesId, tableContainer) {
     if (mesId === -1) {
         EDITOR.error("请至少让ai回复一条消息作为表格载体")
         return
@@ -444,9 +444,11 @@ export async function openTablePopup(mesId = -1) {
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
     const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
     const tableRefresh = tablePopup.dlg.querySelector('#table_clear_up_button');
+    const tableRebuild = tablePopup.dlg.querySelector('#table_rebuild_button');
 
     $(tableContainer).on('click', hideAllEditPanels)
     $(tableRefresh).on('click', refreshTableActions)
+    $(tableRebuild).on('click', rebuildTableActions)
     // 设置编辑提示
     setTableEditTips(tableEditTips)
     // 开始寻找表格
