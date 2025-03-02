@@ -46,7 +46,7 @@ function getRefreshTableConfigStatus() {
     const userApiTemperature = EDITOR.data.custom_temperature;
     const clearUpStairs = EDITOR.data.clear_up_stairs;
     const isIgnoreDel = EDITOR.data.bool_ignore_del;
-
+    const isIgnoreUserSent = EDITOR.data.ignore_user_sent;
 
     return `<div class="wide100p padding5 dataBankAttachments">
                 <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
@@ -55,6 +55,7 @@ function getRefreshTableConfigStatus() {
                         <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
                         <tbody>
                         <tr> <td>纳入参考的聊天记录</td> <td>${clearUpStairs}条</td> </tr>
+                        <td>忽略用户消息</td> <td>${isIgnoreUserSent ? '是' : '否'}</td>
                         <tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>
                         <tr> <td>使用的API</td> <td>${isUseMainAPI ? '主API' : '自定义API'}</td> </tr>
                         ${isUseMainAPI ? '' : `
@@ -159,7 +160,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = EDITOR.getContext().chat;
-        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs) : chatToBeUsed;
+        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs, EDITOR.data.ignore_user_sent) : chatToBeUsed;
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.rebuild_system_message_template||EDITOR.data.rebuild_system_message;
@@ -285,7 +286,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 
         // 获取最近clear_up_stairs条聊天记录
         let chat = EDITOR.getContext().chat;
-        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs) : chatToBeUsed;
+        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs, EDITOR.data.ignore_user_sent) : chatToBeUsed;
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.refresh_system_message_template;
