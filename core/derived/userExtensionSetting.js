@@ -1,7 +1,7 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {refreshTableActions, updateModelList} from "./absoluteRefresh.js";
-import {generateUniId} from "../../utils/utility.js";
+import {refreshTableActions, updateModelList,rebuildTableActions,encryptXor} from "./absoluteRefresh.js";
+import {generateDeviceId} from "../../utils/utility.js";
 
 /**
  * 表格重置弹出窗
@@ -175,9 +175,13 @@ async function resetSettings() {
         if (tableInitPopup.find('#table_init_refresh_template').prop('checked')) {
             newSettings.refresh_system_message_template = EDITOR.defaultSettings.refresh_system_message_template;
             newSettings.refresh_user_message_template = EDITOR.defaultSettings.refresh_user_message_template;
+            newSettings.rebuild_system_message_template = EDITOR.defaultSettings.rebuild_system_message_template;
+            newSettings.rebuild_user_message_template = EDITOR.defaultSettings.rebuild_user_message_template;
         } else {
             newSettings.refresh_system_message_template = EDITOR.data.refresh_system_message_template;
             newSettings.refresh_user_message_template = EDITOR.data.refresh_user_message_template;
+            newSettings.rebuild_system_message_template = EDITOR.data.rebuild_system_message_template;
+            newSettings.rebuild_user_message_template = EDITOR.data.rebuild_user_message_template;
         }
         // 判断是否重置所有表格结构
         if (tableInitPopup.find('#table_init_structure').prop('checked')) {
@@ -312,20 +316,9 @@ function InitBinging() {
     $('#custom_api_key').on('input', async function() {
         try {
             const rawKey = $(this).val();
-
-            // 获取或生成设备ID
-            let deviceId = localStorage.getItem('st_device_id') || generateUniId();
-            if (!localStorage.getItem('st_device_id')) {
-                localStorage.setItem('st_device_id', deviceId);
-            }
-
             // 加密
-            const xorEncrypted = Array.from(rawKey).map((c, i) =>
-                c.charCodeAt(0) ^ deviceId.charCodeAt(i % deviceId.length)
-            ).map(c => c.toString(16).padStart(2, '0')).join('');
-
-            EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = xorEncrypted;
-            console.log('加密后的API密钥:', xorEncrypted);
+            EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = encryptXor(rawKey, generateDeviceId());
+            // console.log('加密后的API密钥:', EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key);
             EDITOR.saveSettingsDebounced();
 
         } catch (error) {
@@ -353,6 +346,12 @@ function InitBinging() {
         EDITOR.data.bool_force_refresh,
         EDITOR.data.bool_silent_refresh)
     );
+    // 完整重建表格
+    $('#rebuild_table').on('click', () => rebuildTableActions(
+        EDITOR.data.bool_force_refresh,
+        EDITOR.data.bool_silent_refresh)
+    );
+
     // 导入预设
     $('#table-set-import').on('click', () => importTableDataFile());
     // 导出
@@ -421,7 +420,7 @@ export function loadSettings() {
         EDITOR.data.bool_ignore_del = EDITOR.defaultSettings.bool_ignore_del;
     }
 
-    EDITOR.data.clear_up_stairs = EDITOR.data.clear_up_stairs || 3;
+    EDITOR.data.clear_up_stairs = EDITOR.data.clear_up_stairs || 9;
     $('#clear_up_stairs').val(EDITOR.data.clear_up_stairs);
     $('#clear_up_stairs_value').text(EDITOR.data.clear_up_stairs);
 

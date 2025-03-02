@@ -5,37 +5,6 @@ import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {renderTablesDOM} from "./tableDataView.js";
 
-
-// 解密
-async function decryptXor(encrypted, deviceId) {
-    try {
-        const bytes = encrypted.match(/.{1,2}/g).map(b =>
-            parseInt(b, 16)
-        );
-        return String.fromCharCode(...bytes.map((b, i) =>
-            b ^ deviceId.charCodeAt(i % deviceId.length)
-        ));
-    } catch(e) {
-        console.error('解密失败:', e);
-        return null;
-    }
-}
-
-// api解密
-async function getDecryptedApiKey() {
-    try {
-        const encrypted = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
-        const deviceId = localStorage.getItem('st_device_id');
-        if (!encrypted || !deviceId) return null;
-
-        return await decryptXor(encrypted, deviceId);
-    } catch (error) {
-        console.error('API Key 解密失败:', error);
-        return null;
-    }
-}
-
-
 // 在解析响应后添加验证
 function validateActions(actions) {
     if (!Array.isArray(actions)) {
@@ -148,6 +117,51 @@ function confirmTheOperationPerformed(content) {
 `;
 }
 
+
+/**
+ * 重新生成完整表格
+ * @param {*} force 是否强制刷新
+ * @param {*} silentUpdate  是否静默更新
+ * @returns
+ */
+export async function rebuildTableActions(force = false, silentUpdate = false) {
+    console.log('开始重新生成完整表格');
+    const tableRefreshPopup = (getRefreshTableConfigStatus());
+
+    // // 如果不是强制刷新，先确认是否继续
+    // if (!force) {
+    //     // 显示配置状态
+    //     const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    //     if (!confirmation) return;
+    // }
+
+    // // 开始重新生成完整表格
+    // let response;
+    // const isUseMainAPI = $('#use_main_api').prop('checked');
+    // const loadingToast = EDITOR.info(isUseMainAPI
+    //       ? '正在使用【主API】重新生成完整表格...'
+    //         : '正在使用【自定义API】重新生成完整表格...',
+    //     '',
+    //     { timeOut: 0 }
+    // );
+
+    try {
+        const latestData = findLastestTableData(true);
+        if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
+            throw new Error('findLastestTableData 未返回有效的表格数据');
+        }
+        const { tables: latestTables } = latestData;
+        DERIVED.any.waitingTable = copyTableList(latestTables);
+
+        let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
+        console.log('最新的表格数据:', originText);
+
+    }catch (e) {
+
+        return;
+    }
+}
+
 export async function refreshTableActions(force = false, silentUpdate = false) {
     const tableRefreshPopup = (getRefreshTableConfigStatus());
 
@@ -180,20 +194,8 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
             .join("\n");
 
         // 获取最近clear_up_stairs条聊天记录
-        let chat = EDITOR.getContext().chat;
-        let lastChats = '';
-        if (chat.length < EDITOR.data.clear_up_stairs) {
-            EDITOR.success(`当前聊天记录只有${chat.length}条，小于设置的${EDITOR.data.clear_up_stairs}条`);
-            for (let i = 0; i < chat.length; i++) {  // 从0开始遍历所有现有消息
-                let currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
-                lastChats += `\n${currentChat}`;
-            }
-        } else {
-            for (let i = Math.max(0, chat.length - EDITOR.data.clear_up_stairs); i < chat.length; i++) {
-                let currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
-                lastChats += `\n${currentChat}`;
-            }
-        }
+        const chat = EDITOR.getContext().chat;
+        const lastChats = getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.refresh_system_message_template;
@@ -208,70 +210,15 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
         userPrompt = userPrompt.replace(/\$1/g, lastChats);
 
         // 生成响应内容
-        let cleanContent;
+        let rawContent;
         if (isUseMainAPI) {
-            // 主API
-            response = await EDITOR.generateRaw(
-                userPrompt,
-                '',
-                false,
-                false,
-                systemPrompt,
-            )
-            console.log('原始响应内容:', response);
-
-            // 清洗响应内容
-            cleanContent = response
-                .replace(/```json|```/g, '')
-                .trim();
+            rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
         } else {
-            // 自定义API
-            const USER_API_URL = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
-            const USER_API_KEY = await getDecryptedApiKey(); // 使用解密后的密钥
-            const USER_API_MODEL = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-
-            if (!USER_API_URL || !USER_API_KEY || !USER_API_MODEL) {
-                EDITOR.error('请填写完整的自定义API配置');
-                return;
-            }
-            const apiUrl = new URL(USER_API_URL);
-            apiUrl.pathname = '/v1/chat/completions';
-
-            response = await fetch(apiUrl.href, { // <--- 使用 apiUrl.href 作为 URL
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: USER_API_MODEL,
-                    messages: [
-                        { role: "system", content: systemPrompt },
-                        { role: "user", content: userPrompt }
-                    ],
-                    temperature: EDITOR.data.custom_temperature
-                })
-            }).catch(error => {
-                throw new Error(`网络连接失败: ${error.message}`);
-            });
-
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`API请求失败 [${response.status}]: ${errorBody}`);
-            }
-
-            const result = await response.json();
-            const rawContent = result.choices[0].message.content;
-
-            console.log('原始响应内容:', rawContent);
-            // 清洗响应内容
-            cleanContent = rawContent
-                .replace(/```json|```/g, '') // 移除JSON代码块标记
-                .replace(/([{,]\s*)(?:"?([a-zA-Z_]\w*)"?\s*:)/g, '$1"$2":') // 严格限定键名格式
-                .replace(/'/g, '"') // 单引号转双引号
-                .replace(/\/\*.*?\*\//g, '') // 移除块注释
-                .trim();
+            rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
         }
+
+        //统一清洗
+        let cleanContent = cleanApiResponse(rawContent);
 
         // 解析响应内容
         let actions;
@@ -290,7 +237,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
                 .replace(/\\\//g, '/')
                 .replace(/\/\/.*/g, ''); // 行注释移除
 
-            // 新增安全校验
+            // 安全校验
             if (!cleanContent || typeof cleanContent !== 'string') {
                 throw new Error('无效的响应内容');
             }
@@ -432,6 +379,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
     }
 }
 
+//请求模型列表
 export async function updateModelList(){
     const apiUrl = $('#custom_api_url').val().trim();
     const apiKey = await getDecryptedApiKey();// 使用解密后的API密钥
@@ -474,4 +422,245 @@ export async function updateModelList(){
         console.error('模型获取失败:', error);
         EDITOR.error(`模型获取失败: ${error.message}`);
     }
+}
+
+
+//=================================================================
+//========================以下是辅助函数============================
+//=================================================================
+
+
+
+// 将Table数组序列化为字符串
+function tablesToString(tables) {
+    return JSON.stringify(tables.map(table => ({
+      tableName: table.tableName,
+      tableIndex: table.tableIndex,
+      columns: table.columns,
+      content: table.content
+    })));
+  }
+
+// 将字符串解析回Table数组
+function stringToTables(str) {
+    return JSON.parse(str).map(item => ({
+        tableName: item.tableName,
+        tableIndex: item.tableIndex,
+        columns: item.columns,
+        content: item.content,
+        insertedRows: [],       // 变更记录暂时不管
+        updatedRows: []
+    }));
+}
+
+
+/**
+ * 加密
+ * @param {*} rawKey - 原始密钥
+ * @param {*} deviceId - 设备ID
+ * @returns {string} 加密后的字符串
+ */
+export function encryptXor(rawKey, deviceId) {
+    return Array.from(rawKey).map((c, i) =>
+        c.charCodeAt(0) ^ deviceId.charCodeAt(i % deviceId.length)
+    ).map(c => c.toString(16).padStart(2, '0')).join('');
+}
+
+
+/**
+ * 解密
+ * @param {string} encrypted - 加密的字符串
+ * @param {string} deviceId - 设备ID
+ * @returns {string|null} 解密后的字符串
+ */
+export async function decryptXor(encrypted, deviceId) {
+    try {
+        const bytes = encrypted.match(/.{1,2}/g).map(b =>
+            parseInt(b, 16)
+        );
+        return String.fromCharCode(...bytes.map((b, i) =>
+            b ^ deviceId.charCodeAt(i % deviceId.length)
+        ));
+    } catch(e) {
+        console.error('解密失败:', e);
+        return null;
+    }
+}
+
+/**
+ * API KEY解密
+ * @returns {string|null} 解密后的API密钥
+ */
+async function getDecryptedApiKey() {
+    try {
+        const encrypted = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
+        const deviceId = localStorage.getItem('st_device_id');
+        if (!encrypted || !deviceId) return null;
+
+        return await decryptXor(encrypted, deviceId);
+    } catch (error) {
+        console.error('API Key 解密失败:', error);
+        return null;
+    }
+}
+
+/**
+* 提取聊天记录获取功能
+* 提取最近的chatStairs条聊天记录
+* @param {Array} chat - 聊天记录数组
+* @param {number} chatStairs - 要提取的聊天记录数量
+* @param {boolean} ignoreUserSent - 是否忽略用户发送的消息
+* @returns {string} 提取的聊天记录字符串
+*/
+export async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false) {
+    let lastChats = '';
+
+    // 忽略用户发送的消息
+    if (ignoreUserSent) {
+        //假定最后一层是收到的消息，只有这个名字保留
+        const senderName = chat[chat.length - 1].name
+        // 过滤出相同发送者的记录
+        const filteredChat = chat.filter(c => c.name === senderName);
+
+        if (filteredChat.length < chatStairs) {
+            EDITOR.success(`当前有效记录${filteredChat.length}条，小于设置的${chatStairs}条`);
+        }
+
+        for (let i = Math.max(0, filteredChat.length - chatStairs); i < filteredChat.length; i++) {
+            const currentChat = `${filteredChat[i].name}: ${filteredChat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
+            lastChats += `\n${currentChat}`;
+        }
+        return lastChats;
+    };
+
+
+    if (chat.length < chatStairs) {
+        EDITOR.success(`当前聊天记录只有${chat.length}条，小于设置的${chatStairs}条`);
+        for (let i = 0; i < chat.length; i++) {
+            const currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
+            lastChats += `\n${currentChat}`;
+        }
+    } else {
+        for (let i = Math.max(0, chat.length - chatStairs); i < chat.length; i++) {
+            const currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
+            lastChats += `\n${currentChat}`;
+        }
+    }
+    return lastChats;
+}
+
+/**
+ * 清洗API返回的原始内容
+ * @param {string} rawContent - 原始API响应内容
+ * @param {Object} [options={}] - 清洗配置选项
+ * @param {boolean} [options.removeCodeBlock=true] - 是否移除JSON代码块标记
+ * @param {boolean} [options.extractJson=true] - 是否提取第一个JSON数组/对象
+ * @param {boolean} [options.normalizeKeys=true] - 是否统一键名格式
+ * @param {boolean} [options.convertSingleQuotes=true] - 是否转换单引号为双引号
+ * @param {boolean} [options.removeBlockComments=true] - 是否移除块注释
+ * @returns {string} 清洗后的标准化内容
+ */
+export function cleanApiResponse(rawContent, options = {}) {
+    const {
+        removeCodeBlock = true,       // 移除代码块标记
+        extractJson = true,           // 提取JSON部分
+        normalizeKeys = true,         // 统一键名格式
+        convertSingleQuotes = true,   // 单引号转双引号
+        removeBlockComments = true    // 移除块注释
+    } = options;
+
+    let content = rawContent;
+
+    // 按顺序执行清洗步骤
+    if (removeCodeBlock) {
+        // 移除 ```json 和 ``` 代码块标记
+        content = content.replace(/```json|```/g, '');
+    }
+
+    if (extractJson) {
+        // 提取第一个完整的JSON数组/对象（支持跨行匹配）
+        content = content.replace(/^[^[]*(\[.*\])[^]]*$/s, '$1');
+    }
+
+    if (normalizeKeys) {
+        // 统一键名格式：将带引号或不带引号的键名标准化为带双引号
+        content = content.replace(/([{,]\s*)(?:"?([a-zA-Z_]\w*)"?\s*:)/g, '$1"$2":');
+    }
+
+    if (convertSingleQuotes) {
+        // 将单引号转换为双引号（JSON标准要求双引号）
+        content = content.replace(/'/g, '"');
+    }
+
+    if (removeBlockComments) {
+        // 移除 /* ... */ 形式的块注释
+        content = content.replace(/\/\*.*?\*\//g, '');
+    }
+
+    // 去除首尾空白
+    content = content.trim();
+    console.log('清洗前的内容:', rawContent);
+    console.log('清洗后的内容:', content);
+
+    return content;
+}
+
+/**主API调用
+ * @param {string} systemPrompt - 系统提示
+ * @param {string} userPrompt - 用户提示
+ * @returns {Promise<string>} 生成的响应内容
+ */
+export async function handleMainAPIRequest(systemPrompt, userPrompt) {
+    const response = await EDITOR.generateRaw(
+        userPrompt,
+        '',
+        false,
+        false,
+        systemPrompt,
+    );
+    return response;
+}
+
+/**自定义API调用
+ * @param {string} systemPrompt - 系统提示
+ * @param {string} userPrompt - 用户提示
+ * @returns {Promise<string>} 生成的响应内容
+ */
+export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
+    const USER_API_URL = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
+    const USER_API_KEY = await getDecryptedApiKey();
+    const USER_API_MODEL = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
+
+    if (!USER_API_URL || !USER_API_MODEL) {// 移除!USER_API_KEY检测，兼容本地模型和部分渠道
+        EDITOR.error('请填写完整的自定义API配置');
+        return;
+    }
+
+    const apiUrl = new URL(USER_API_URL);
+    apiUrl.pathname = '/v1/chat/completions';
+
+    const response = await fetch(apiUrl.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${USER_API_KEY}`
+        },
+        body: JSON.stringify({
+            model: USER_API_MODEL,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ],
+            temperature: EDITOR.data.custom_temperature
+        })
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`API请求失败 [${response.status}]: ${errorBody}`);
+    }
+
+    const result = await response.json();
+    const rawContent = result.choices[0].message.content;
+    return rawContent;
 }
