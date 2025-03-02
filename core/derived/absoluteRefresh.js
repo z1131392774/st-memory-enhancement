@@ -160,7 +160,9 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         const { tables: latestTables } = latestData;
         DERIVED.any.waitingTable = copyTableList(latestTables);
 
-        let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
+        let originText = tablesToString(latestTables);
+        // let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
+
         // console.log('最新的表格数据:', originText);
 
         // 获取最近clear_up_stairs条聊天记录
