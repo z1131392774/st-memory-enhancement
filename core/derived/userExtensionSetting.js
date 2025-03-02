@@ -268,6 +268,12 @@ function InitBinging() {
         EDITOR.data.advanced_settings = this.checked;
         EDITOR.saveSettingsDebounced();
     });
+    // 忽略用户信息
+    $('#ignore_user_sent').on('change', function() {
+        EDITOR.data.ignore_user_sent = $(this).prop('checked');
+        EDITOR.saveSettingsDebounced();
+        console.log('ignore_user_sent:' + EDITOR.data.ignore_user_sent);
+    });
     // 忽略删除
     $('#ignore_del').on('change', function() {
         EDITOR.data.bool_ignore_del = $(this).prop('checked');
@@ -427,6 +433,8 @@ export function loadSettings() {
     if (typeof EDITOR.data.bool_ignore_del === 'undefined') {
         EDITOR.data.bool_ignore_del = EDITOR.defaultSettings.bool_ignore_del;
     }
+
+    $('#ignore_user_sent ').prop('checked', EDITOR.data.ignore_user_sent  || false);
 
     EDITOR.data.clear_up_stairs = EDITOR.data.clear_up_stairs || 9;
     $('#clear_up_stairs').val(EDITOR.data.clear_up_stairs);

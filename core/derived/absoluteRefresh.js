@@ -46,7 +46,7 @@ function getRefreshTableConfigStatus() {
     const userApiTemperature = EDITOR.data.custom_temperature;
     const clearUpStairs = EDITOR.data.clear_up_stairs;
     const isIgnoreDel = EDITOR.data.bool_ignore_del;
-
+    const isIgnoreUserSent = EDITOR.data.ignore_user_sent;
 
     return `<div class="wide100p padding5 dataBankAttachments">
                 <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
@@ -55,6 +55,7 @@ function getRefreshTableConfigStatus() {
                         <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
                         <tbody>
                         <tr> <td>纳入参考的聊天记录</td> <td>${clearUpStairs}条</td> </tr>
+                        <td>忽略用户消息</td> <td>${isIgnoreUserSent ? '是' : '否'}</td>
                         <tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>
                         <tr> <td>使用的API</td> <td>${isUseMainAPI ? '主API' : '自定义API'}</td> </tr>
                         ${isUseMainAPI ? '' : `
@@ -128,12 +129,12 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
     console.log('开始重新生成完整表格');
     const tableRefreshPopup = (getRefreshTableConfigStatus());
 
-    // // 如果不是强制刷新，先确认是否继续
-    // if (!force) {
-    //     // 显示配置状态
-    //     const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
-    //     if (!confirmation) return;
-    // }
+    // 如果不是强制刷新，先确认是否继续
+    if (!force) {
+        // 显示配置状态
+        const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+        if (!confirmation) return;
+    }
 
     // 开始重新生成完整表格
     const isUseMainAPI = $('#use_main_api').prop('checked');
@@ -157,7 +158,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = EDITOR.getContext().chat;
-        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
+        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs,EDITOR.data.ignore_user_sent);
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.rebuild_system_message_template||EDITOR.data.rebuild_system_message;
@@ -268,7 +269,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = EDITOR.getContext().chat;
-        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
+        const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs,EDITOR.data.ignore_user_sent);
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.refresh_system_message_template;
