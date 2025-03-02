@@ -85,6 +85,8 @@ function renderDebugLogs($container, logs, onlyError) {
         return;
     }
 
+    const urlRegex = /(https?:\/\/[^\s)]+)|(http?:\/\/[^\s)]+)|(www\.[^\s)]+)/g; // 匹配 http://, https://, www. 开头的链接
+
     logs.forEach(log => {
         if (onlyError && log.type !== 'error') {
             return; // 如果只显示错误日志且当前日志不是 error 类型，则跳过
@@ -103,13 +105,18 @@ function renderDebugLogs($container, logs, onlyError) {
         })
 
         if (log.stack) { // 如果 log 对象有 stack 属性 (error 类型的 log)
-            const stackPre = $('<pre class="log-stack"></pre>').text(log.stack); // 使用 <pre> 标签保留堆栈格式
+            // 使用正则表达式替换 URL 并包裹在 div 中
+            const formattedStack = log.stack.replace(urlRegex, (url) => {
+                return `<div style="color: rgb(126, 187, 231)">${url}</div>`;
+            });
+            const stackPre = $('<pre class="log-stack"></pre>').html(formattedStack); // 使用 .html() 而不是 .text()，以渲染 HTML 标签
             logElement.append(stackPre); // 将堆栈信息添加到 logElement
         }
 
         $container.append(logElement);
     });
 }
+
 
 
 /**
