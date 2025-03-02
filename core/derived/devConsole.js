@@ -44,14 +44,6 @@ function updateTableDebugLog(type, message) {
     DERIVED.any.tableDebugLog.unshift(newLog);
 }
 
-export const consoleMessageToEditor = {
-    info: message => updateTableDebugLog('info', message),
-    success: message => updateTableDebugLog('success', message),
-    warning: message => updateTableDebugLog('warning', message),
-    error: message => updateTableDebugLog('error', message),
-    clear: () => updateTableDebugLog('clear', ''),
-}
-
 const copyButtonStyle = `
 <div class="menu_button log-copy-button">
     <i class="fa-solid fa-copy"></i>
@@ -117,13 +109,21 @@ function renderDebugLogs($container, logs, onlyError) {
     });
 }
 
-
+export const consoleMessageToEditor = {
+    info: message => updateTableDebugLog('info', message),
+    success: message => updateTableDebugLog('success', message),
+    warning: message => updateTableDebugLog('warning', message),
+    error: message => updateTableDebugLog('error', message),
+    clear: () => updateTableDebugLog('clear', ''),
+}
 
 /**
  * +.新增代码，打开自定义表格推送渲染器弹窗
  * @returns {Promise<void>}
  */
 export async function openTableDebugLogPopup() {
+    if (!SYSTEM.lazy('openTableDebugLogPopup')) return;
+
     isPopupOpening = true;
     const manager = await SYSTEM.getComponent('debugLog');
     const tableDebugLogPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
@@ -133,12 +133,10 @@ export async function openTableDebugLogPopup() {
     const $exportButton = $dlg.find('#table_debug_log_export_button'); // 获取导出按钮
 
     $debugLogContainer.empty(); // 清空容器，避免重复显示旧日志
-    setTimeout(() => {toastr.clear()}, 0)
-
+    toastr.clear()
 
     // 初始化渲染日志，根据 checkbox 状态决定是否只显示 error
     renderDebugLogs($debugLogContainer, DERIVED.any.tableDebugLog, $onlyErrorLogCheckbox.is(':checked'));
-
 
     $onlyErrorLogCheckbox.off('change').on('change', function () { // 移除之前的事件监听，避免重复绑定
         const onlyError = $(this).is(':checked'); // 获取 checkbox 的选中状态

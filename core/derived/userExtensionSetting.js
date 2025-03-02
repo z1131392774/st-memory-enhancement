@@ -388,6 +388,25 @@ function InitBinging() {
 }
 
 /**
+ * 渲染设置
+ */
+export function renderSetting() {
+    $(`#dataTable_injection_mode option[value="${EDITOR.data.injection_mode}"]`).attr('selected', true);
+    $('#dataTable_deep').val(EDITOR.data.deep);
+    $('#dataTable_message_template').val(EDITOR.data.message_template);
+    updateSwitch("#table_switch", EDITOR.data.isExtensionAble)
+    updateSwitch("#table_switch_debug_mode", EDITOR.data.tableDebugModeAble)
+    updateSwitch("#table_read_switch", EDITOR.data.isAiReadTable)
+    updateSwitch("#table_edit_switch", EDITOR.data.isAiWriteTable)
+    updateSwitch("#table_to_chat", EDITOR.data.isTableToChat)
+    updateSwitch("#advanced_settings", EDITOR.data.advanced_settings)
+    $('#advanced_options').toggle(EDITOR.data.advanced_settings)
+    $('#custom_api_settings').toggle(!EDITOR.data.use_main_api);
+    updateTableStructureDOM()
+    console.log("设置已渲染")
+}
+
+/**
  * 加载设置
  */
 export function loadSettings() {
@@ -407,12 +426,8 @@ export function loadSettings() {
     }
     if (EDITOR.data.deep < 0) formatDeep()
 
-
-
-    renderSetting()
-
     InitBinging();
-
+    renderSetting()
 
     //api初始化
     $('#step_by_step').prop('checked', EDITOR.data.step_by_step ?? true);
@@ -437,23 +452,4 @@ export function loadSettings() {
     $('#custom_temperature_value').text(EDITOR.data.custom_temperature);
     $('#bool_force_refresh').prop('checked', EDITOR.data.bool_force_refresh || false);
     $('#bool_silent_refresh').prop('checked', EDITOR.data.bool_silent_refresh || false);
-}
-
-/**
- * 渲染设置
- */
-export function renderSetting() {
-    $(`#dataTable_injection_mode option[value="${EDITOR.data.injection_mode}"]`).attr('selected', true);
-    $('#dataTable_deep').val(EDITOR.data.deep);
-    $('#dataTable_message_template').val(EDITOR.data.message_template);
-    updateSwitch("#table_switch", EDITOR.data.isExtensionAble)
-    updateSwitch("#table_switch_debug_mode", EDITOR.data.tableDebugModeAble)
-    updateSwitch("#table_read_switch", EDITOR.data.isAiReadTable)
-    updateSwitch("#table_edit_switch", EDITOR.data.isAiWriteTable)
-    updateSwitch("#table_to_chat", EDITOR.data.isTableToChat)
-    updateSwitch("#advanced_settings", EDITOR.data.advanced_settings)
-    $('#advanced_options').toggle(EDITOR.data.advanced_settings)
-    $('#custom_api_settings').toggle(!EDITOR.data.use_main_api);
-    updateTableStructureDOM()
-    console.log("设置已渲染")
 }

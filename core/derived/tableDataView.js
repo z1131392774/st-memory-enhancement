@@ -448,7 +448,7 @@ export async function openTablePopup(mesId = -1) {
 
     $(tableContainer).on('click', hideAllEditPanels)
     $(tableRefresh).on('click', () => refreshTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
-    $(tableRebuild).on('click', rebuildTableActions)
+    $(tableRebuild).on('click', () => rebuildTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
     // 设置编辑提示
     setTableEditTips(tableEditTips)
     // 开始寻找表格

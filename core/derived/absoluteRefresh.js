@@ -125,17 +125,18 @@ function confirmTheOperationPerformed(content) {
  * @returns
  */
 export async function rebuildTableActions(force = false, silentUpdate = false) {
-    console.log('开始重新生成完整表格');
-    const tableRefreshPopup = (getRefreshTableConfigStatus());
+    if (!SYSTEM.lazy('rebuildTableActions', 1000)) return;
 
-    // // 如果不是强制刷新，先确认是否继续
-    // if (!force) {
-    //     // 显示配置状态
-    //     const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
-    //     if (!confirmation) return;
-    // }
+    // 如果不是强制刷新，先确认是否继续
+    if (!force) {
+        // 显示配置状态
+        const tableRefreshPopup = getRefreshTableConfigStatus();
+        const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+        if (!confirmation) return;
+    }
 
     // 开始重新生成完整表格
+    console.log('开始重新生成完整表格');
     const isUseMainAPI = $('#use_main_api').prop('checked');
     const loadingToast = EDITOR.info(isUseMainAPI
           ? '正在使用【主API】重新生成完整表格...'
@@ -197,6 +198,19 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
                 // 深拷贝避免引用问题
                 const clonedTables = tableDataToTables(cleanContentTable);
 
+                // 如果不是静默更新，显示操作确认
+                if (!silentUpdate){
+                    // 将uniqueActions内容推送给用户确认是否继续
+                    const confirmContent = confirmTheOperationPerformed(clonedTables);
+                    const tableRefreshPopup = new EDITOR.Popup(confirmContent, EDITOR.POPUP_TYPE.TEXT, '', { okButton: "继续", cancelButton: "取消" });
+                    EDITOR.clear();
+                    await tableRefreshPopup.show();
+                    if (!tableRefreshPopup.result) {
+                        EDITOR.info('操作已取消');
+                        return;
+                    }
+                }
+
                 // 更新聊天记录
                 const chat = EDITOR.getContext().chat;
                 const lastIndex = chat.length - 1;
@@ -214,7 +228,8 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
                     updateSystemMessageTableStatus();
                     EDITOR.success('生成表格成功！');
                 } else {
-                    console.error("无法刷新表格：容器未找到");
+                    // console.error("无法刷新表格：容器未找到");
+                    // EDITOR.error('生成表格失败：容器未找到');
                 }
             } catch (error) {
                 console.error('保存表格时出错:', error);
@@ -233,11 +248,12 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
 }
 
 export async function refreshTableActions(force = false, silentUpdate = false) {
-    const tableRefreshPopup = (getRefreshTableConfigStatus());
+    if (!SYSTEM.lazy('refreshTableActions', 1000)) return;
 
     // 如果不是强制刷新，先确认是否继续
     if (!force) {
         // 显示配置状态
+        const tableRefreshPopup = getRefreshTableConfigStatus();
         const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
         if (!confirmation) return;
     }
@@ -263,7 +279,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
             .join("\n");
 
         // 获取最近clear_up_stairs条聊天记录
-        const chat = EDITOR.getContext().chat;
+        let chat = EDITOR.getContext().chat;
         const lastChats = await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs);
 
         // 构建AI提示
@@ -383,7 +399,7 @@ export async function refreshTableActions(force = false, silentUpdate = false) {
             // 将uniqueActions内容推送给用户确认是否继续
             const confirmContent = confirmTheOperationPerformed(uniqueActions);
             const tableRefreshPopup = new EDITOR.Popup(confirmContent, EDITOR.POPUP_TYPE.TEXT, '', { okButton: "继续", cancelButton: "取消" });
-            EDITOR.clear(loadingToast);
+            EDITOR.clear();
             await tableRefreshPopup.show();
             if (!tableRefreshPopup.result) {
                 EDITOR.info('操作已取消');

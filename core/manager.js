@@ -348,11 +348,40 @@ export let EDITOR = {
 
     defaultSettings: defaultSettings,
     data: extension_settings.muyoo_dataTable,
+    /**
+     * @description 优化的 data 属性，优先从 extension_settings.muyoo_dataTable 获取，
+     *              如果不存在则从 defaultSettings 中获取
+     */
+    // data: new Proxy({}, {
+    //     get(_, property) {
+    //         // 优先从 extension_settings.muyoo_dataTable 中获取
+    //         if (extension_settings.muyoo_dataTable && property in extension_settings.muyoo_dataTable) {
+    //             return extension_settings.muyoo_dataTable[property];
+    //         }
+    //         // 如果 extension_settings.muyoo_dataTable 中不存在，则从 defaultSettings 中获取
+    //         if (defaultSettings && property in defaultSettings) {
+    //             consoleMessageToEditor.warning(`Property ${property} not found, using defaultSettings.`)
+    //             return defaultSettings[property];
+    //         }
+    //         // 如果 defaultSettings 中也不存在，则返回 undefined
+    //         consoleMessageToEditor.error(`Property ${property} not found.`)
+    //         return undefined;
+    //     },
+    //     set(_, property, value) {
+    //         // 将设置操作直接作用于 extension_settings.muyoo_dataTable
+    //         if (!extension_settings.muyoo_dataTable) {
+    //             extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
+    //         }
+    //         extension_settings.muyoo_dataTable[property] = value;
+    //         return true;
+    //     }
+    // }),
     IMPORTANT_USER_PRIVACY_DATA: extension_settings.IMPORTANT_USER_PRIVACY_DATA,
 
     getContext: getContext,
 }
 
+let antiShakeTimers = {};
 /**
  * @description `SYSTEM` 系统控制器 - 用于管理系统的数据，如文件读写、任务计时等
  */
@@ -361,11 +390,28 @@ export let SYSTEM = {
         console.log('getComponent', name);
         return renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
     },
+    /**
+     * 防抖函数，控制某个操作的执行频率
+     * @param {string} uid 唯一标识符，用于区分不同的防抖操作
+     * @param {number} interval 时间间隔，单位毫秒，在这个间隔内只允许执行一次
+     * @returns {boolean} 如果允许执行返回 true，否则返回 false
+     */
+    lazy: function(uid, interval = 100) {
+        if (!antiShakeTimers[uid]) {
+            antiShakeTimers[uid] = { lastExecutionTime: 0 };
+        }
+        const timer = antiShakeTimers[uid];
+        const currentTime = Date.now();
+
+        if (currentTime - timer.lastExecutionTime < interval) {
+            return false; // 时间间隔太短，防抖，不允许执行
+        }
+
+        timer.lastExecutionTime = currentTime;
+        return true; // 允许执行
+    }
     // readFile: ,
     // writeFile: ,
-    // readFilesInDir: ,
     //
     // taskTiming: ,
-
-    createProxy: createProxy,
 };
