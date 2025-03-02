@@ -199,23 +199,45 @@ export async function rebuildTableActions(force = false, silentUpdate = false) {
 
         //将表格保存回去
         if (cleanContent) {
-            let newTables = tableDataToTables(JSON5.parse(cleanContent));
-            // mesId获取
-            const chat = EDITOR.getContext().chat;
-            const lastIndex = chat.length - 1; // 直接获取最后一个元素的索引
-            if (lastIndex >= 0) {
-                chat[lastIndex].dataTable = newTables; // 通过索引直接操作数组元素
-                EDITOR.getContext().saveChat();
-            } else {
-              console.error("聊天记录为空，无法设置dataTable");
+            try {
+                // 解析并转换数据
+                const parsedData = JSON5.parse(cleanContent);
+                console.log('解析后的 cleanContent:', JSON.stringify(parsedData, null, 2));
+                let newTables = tableDataToTables(parsedData);
+
+                // 验证数据格式
+                if (!Array.isArray(newTables)) {
+                    throw new Error("生成的新表格数据不是数组");
+                }
+
+                // 深拷贝避免引用问题
+                const clonedTables = JSON.parse(JSON.stringify(newTables));
+
+                // 更新聊天记录
+                const chat = EDITOR.getContext().chat;
+                const lastIndex = chat.length - 1;
+                if (lastIndex >= 0) {
+                    chat[lastIndex].dataTable = clonedTables;
+                    await EDITOR.getContext().saveChat(); // 等待保存完成
+                } else {
+                    throw new Error("聊天记录为空");
+                }
+
+                // 刷新 UI
+                const tableContainer = document.querySelector('#tableContainer');
+                if (tableContainer) {
+                    renderTablesDOM(clonedTables, tableContainer, true);
+                    updateSystemMessageTableStatus();
+                    EDITOR.success('生成表格成功！');
+                } else {
+                    console.error("无法刷新表格：容器未找到");
+                }
+            } catch (error) {
+                console.error('保存表格时出错:', error);
+                EDITOR.error(`生成表格失败：${error.message}`);
             }
-            // 刷新 UI
-            const tableContainer = document.querySelector('#tableContainer');
-            renderTablesDOM(newTables, tableContainer, true);
-            updateSystemMessageTableStatus()
-            EDITOR.success('生成表格成功！');
         } else {
-            EDITOR.error("生成表格保存失败！")
+            EDITOR.error("生成表格保存失败：内容为空");
         }
 
     }catch (e) {
@@ -505,16 +527,28 @@ function tablesToString(tables) {
 
 // 将tablesData解析回Table数组
 function tableDataToTables(tablesData) {
-    return tablesData.map(item => new Table({
-        tableName: item.tableName,
-        tableIndex: item.tableIndex,
-        columns: item.columns,
-        content: item.content,
-        insertedRows: [],
-        updatedRows: []
-    }));
+    return tablesData.map(item => {
+        // 强制确保 columns 是数组，且元素为字符串
+        const columns = Array.isArray(item.columns)
+            ? item.columns.map(col => String(col)) // 强制转换为字符串
+            : inferColumnsFromContent(item.content); // 从 content 推断
+
+        return new Table(
+            item.tableName || '未命名表格', // tableName
+            item.tableIndex || 0,          // tableIndex
+            columns,                        // columns
+            item.content || [],            // content
+            [],                             // insertedRows
+            []                              // updatedRows
+        );
+    });
 }
 
+function inferColumnsFromContent(content) {
+    if (!content || content.length === 0) return [];
+    const firstRow = content[0];
+    return firstRow.map((_, index) => `列${index + 1}`);
+}
 
 /**
  * 加密
