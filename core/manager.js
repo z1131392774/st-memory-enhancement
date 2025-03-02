@@ -228,7 +228,7 @@ ProcessingRules = {
       }
     },
     "event_compression": {
-      "merge_condition": "SAME_CHARACTER + SAME_DATE ±2h + SIMILAR_EMOTION",
+      "merge_condition": "SAME_CHARACTER + SAME_DATE + SIMILAR_EMOTION",
       "keep_criterion": "LONGER_DESCRIPTION"
     }
   },
@@ -247,6 +247,22 @@ ProcessingRules = {
         "characters": "MERGE_WITH_PRIORITY (新数据覆盖旧数据, 特征用/连接)",
         "events": "REMOVE_REDUNDANT"
       },
+      "column_validation": {
+        "check_condition": [
+            "NUMERICAL_IN_TEXT_COLUMN",
+            "TEXT_IN_NUMERICAL_COLUMN",
+            "MISPLACED_FEATURE_DESCRIPTION",
+            "WRONG_TABLE_PLACEMENT"
+            ],
+      "correction_method": {
+        "auto_relocation": "MOVE_TO_CORRECT_COLUMN",
+        "type_mismatch": "CONVERT_OR_RELOCATE",
+        "preserve_original": false
+      },
+      "error_handling": {
+        "invalid_relationship_tier": "FORCE_NUMERICAL",
+        "wrong_physique_info": "TRANSFER_TO_other_info"
+      }}
       "spacetime_table": "ENFORCE_SINGLE_ROW"
     },
     "dynamic_updates": {
