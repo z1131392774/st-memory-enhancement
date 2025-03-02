@@ -405,7 +405,7 @@ export let EDITOR = {
     }),
     IMPORTANT_USER_PRIVACY_DATA: extension_settings.IMPORTANT_USER_PRIVACY_DATA,
 
-    getContext: () => getContext,
+    getContext: getContext,
 }
 
 let antiShakeTimers = {};
