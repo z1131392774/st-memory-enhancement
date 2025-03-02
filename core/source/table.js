@@ -34,8 +34,12 @@ function getTableEditRules(structure, isEmpty) {
  * 替换字符串中的user标签
  */
 function replaceUserTag(str) {
-    if (str == null) return
-    return str.replace(/<user>/g, EDITOR.getContext().name1)
+    if (str == null) return ''; // 处理 null 或 undefined
+    if (typeof str !== 'string') {
+        console.warn('非字符串输入:', str);
+        str = String(str); // 强制转换为字符串
+    }
+    return str.replace(/<user>/g, EDITOR.getContext().name1);
 }
 
 /**
@@ -57,12 +61,12 @@ export function handleCellValue(cell) {
  */
 export class Table {
     constructor(tableName, tableIndex, columns, content = [], insertedRows = [], updatedRows = []) {
-        this.tableName = tableName
-        this.tableIndex = tableIndex
-        this.columns = columns
-        this.content = content
-        this.insertedRows = insertedRows
-        this.updatedRows = updatedRows
+        this.tableName = tableName;
+        this.tableIndex = tableIndex;
+        this.columns = Array.isArray(columns) ? columns.map(col => String(col)) : [];
+        this.content = content;
+        this.insertedRows = insertedRows;
+        this.updatedRows = updatedRows;
     }
 
     /**
@@ -231,11 +235,11 @@ export class Table {
         const thead = document.createElement('thead')
         const titleTr = document.createElement('tr')
         this.columns.forEach(colName => {
-            const th = document.createElement('th')
-            $(th).data("tableData", this.tableIndex + '-0-0')
-            th.innerText = replaceUserTag(colName)
-            titleTr.appendChild(th)
-        })
+            const th = document.createElement('th');
+            $(th).data("tableData", this.tableIndex + '-0-0');
+            th.innerText = replaceUserTag(colName); // 已通过函数内部处理非字符串
+            titleTr.appendChild(th);
+        });
         thead.appendChild(titleTr)
         table.appendChild(thead)
         const tbody = document.createElement('tbody')

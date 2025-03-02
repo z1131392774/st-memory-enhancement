@@ -109,6 +109,10 @@
                                 <a>获取模型列表</a>
                             </div>
                         </div>
+                        <div class="flex-container slider-container" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                            <label style="min-width: 140px; margin: 0; white-space: nowrap; flex-shrink: 0;">自定义API温度设定：<span id="custom_temperature_value">1.0</span></label>
+                            <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="flex-grow: 1;">
+                        </div>
                     </div>
                     <div class="checkbox flex-container">
                         <input type="checkbox" id="advanced_settings"><span>查看高级设置</span>
@@ -116,18 +120,13 @@
                     <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
                         <!-- 高级设置选项 -->
                         <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
-                            <label>整理参考消息数（最近几层楼纳入参考）：<span id="clear_up_stairs_value">3</span></label>
+                            <label>整理参考消息数（最近几层楼纳入参考）：<span id="clear_up_stairs_value">9</span></label>
                             <input type="range" id="clear_up_stairs" min="1" max="99" step="1" value="9" style="width: 80%;">
-                        </div>
-                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
-                            <label>API温度设定（只对自定义API生效）：<span id="custom_temperature_value">1.0</span></label>
-                            <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="width: 80%;">
                         </div>
                         <div style="height: 20px;"></div>
                         <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
                             <input type="checkbox" id="ignore_del" checked><span>整理时不删除，只修改和添加</span>
                         </div>
-
                         <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
                             <input type="checkbox" id="bool_force_refresh"><span>跳过整理前的确认弹窗</span>
                         </div>
@@ -135,8 +134,13 @@
                             <input type="checkbox" id="bool_silent_refresh"><span>跳过整理后的确认弹窗</span>
                         </div>
                     </div>
-                    <div class="menu_button" id="table_clear_up" style="margin-left: 10px; width: calc(100% - 20px)">
-                        <i class="fa-solid fa-arrows-rotate"></i><a>立即重新整理表格</a>
+                    <div style="display: flex; gap: 10px; margin: 10px 0 0 10px; width: calc(100% - 20px);">
+                        <div class="menu_button" id="table_clear_up" style="flex: 1;">
+                            <i class="fa-solid fa-arrows-rotate"></i><a>立即整理表格</a>
+                        </div>
+                        <div class="menu_button" id="rebuild_table" style="flex: 1;">
+                            <i class="fa-solid fa-recycle"></i><a>完整重建表格</a>
+                        </div>
                     </div>
                 </div>
                 <hr/>

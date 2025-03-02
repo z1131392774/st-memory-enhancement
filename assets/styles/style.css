@@ -286,7 +286,15 @@ td.selected {
 #use_main_api:not(:checked) ~ #custom_api_settings {
     display: flex;
 }
+#custom_api_settings .slider-container {
+    width: auto;
+    display: flex !important; /* 强制弹性布局 */
+}
 
+#custom_temperature {
+    flex: 1;
+    min-width: 150px; /* 防止过小时换行 */
+}
 .refresh-scroll-content {
     overflow-y: auto;
     max-height: 400px;
