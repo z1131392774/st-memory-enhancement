@@ -279,6 +279,12 @@ function InitBinging() {
     $('#bool_silent_refresh').change(function() {
         EDITOR.data.bool_silent_refresh = $(this).prop('checked');
     });
+    //token限制代替楼层限制
+    $('#use_token_limit').change(function() {
+        $('#token_limit_container').toggle(this.checked);
+        $('#clear_up_stairs_container').toggle(!this.checked);
+        EDITOR.data.use_token_limit = this.checked;
+    });
     // 初始化API设置显示状态
     $('#use_main_api').change(function() {
         $('#custom_api_settings').toggle(!this.checked);
@@ -345,6 +351,12 @@ function InitBinging() {
         $('#clear_up_stairs_value').text(value);
         EDITOR.data.clear_up_stairs = Number(value);
     });
+    // token限制
+    $('#rebuild_token_limit').on('input', function() {
+        const value = $(this).val();
+        $('#rebuild_token_limit_value').text(value);
+        EDITOR.data.rebuild_token_limit_value = Number(value);
+    });
     // 模型温度设定
     $('#custom_temperature').on('input', function() {
         const value = $(this).val();
@@ -383,6 +395,8 @@ export function renderSetting() {
     $('#dataTable_deep').val(EDITOR.data.deep);
     $('#clear_up_stairs').val(EDITOR.data.clear_up_stairs);
     $('#clear_up_stairs_value').text(EDITOR.data.clear_up_stairs);
+    $('#rebuild_token_limit').val(EDITOR.data.rebuild_token_limit_value);
+    $('#rebuild_token_limit_value').text(EDITOR.data.rebuild_token_limit_value);
     $('#custom_temperature').val(EDITOR.data.custom_temperature);
     $('#custom_temperature_value').text(EDITOR.data.custom_temperature);
     $('#step_by_step_threshold').val(EDITOR.data.step_by_step_threshold);
@@ -401,9 +415,11 @@ export function renderSetting() {
     updateSwitch('#sum_multiple_rounds', EDITOR.data.sum_multiple_rounds);
     updateSwitch('#bool_force_refresh', EDITOR.data.bool_force_refresh);
     updateSwitch('#bool_silent_refresh', EDITOR.data.bool_silent_refresh);
+    updateSwitch('#use_token_limit', EDITOR.data.use_token_limit);
+    updateSwitch('#ignore_user_sent', EDITOR.data.ignore_user_sent);
 
     // 设置元素结构可见性
-    $('#advanced_options').toggle(EDITOR.data.advanced_settings)
+    $('#advanced_options').toggle(EDITOR.data.advanced_settings);
     $('#custom_api_settings').toggle(!EDITOR.data.use_main_api);
     $('#reply_options').toggle(!EDITOR.data.step_by_step);
     $('#step_by_step_options').toggle(EDITOR.data.step_by_step);

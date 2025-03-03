@@ -167,7 +167,11 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = EDITOR.getContext().chat;
-        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs, EDITOR.data.ignore_user_sent) : chatToBeUsed;
+        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat,
+            EDITOR.data.clear_up_stairs,
+            EDITOR.data.ignore_user_sent,
+            EDITOR.data.use_token_limit ? EDITOR.data.rebuild_token_limit_value:0
+        ) : chatToBeUsed;
 
         // 构建AI提示
         let systemPrompt = EDITOR.data.rebuild_system_message_template||EDITOR.data.rebuild_system_message;
@@ -181,6 +185,8 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
 
         console.log('systemPrompt:', systemPrompt);
         console.log('userPrompt:', userPrompt);
+
+        console.log('预估token数量为：'+estimateTokenCount(systemPrompt+userPrompt));
 
         // 生成响应内容
         let rawContent;
@@ -608,44 +614,66 @@ async function getDecryptedApiKey() {
 * @param {Array} chat - 聊天记录数组
 * @param {number} chatStairs - 要提取的聊天记录数量
 * @param {boolean} ignoreUserSent - 是否忽略用户发送的消息
+* @param {number|null} tokenLimit - 最大token限制，null表示无限制，优先级高于chatStairs
 * @returns {string} 提取的聊天记录字符串
 */
-async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false) {
-    let lastChats = '';
+async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false, tokenLimit = 0) {
+    let filteredChat = chat;
 
-    // 忽略用户发送的消息
-    if (ignoreUserSent) {
-        //假定最后一层是收到的消息，只有这个名字保留
-        const senderName = chat[chat.length - 1].name
-        // 过滤出相同发送者的记录
-        const filteredChat = chat.filter(c => c.name === senderName);
+    // 处理忽略用户发送消息的情况
+    if (ignoreUserSent && chat.length > 0) {
+        const senderName = chat[chat.length - 1].name;
+        filteredChat = chat.filter(c => c.name === senderName);
+    }
 
-        if (filteredChat.length < chatStairs) {
-            EDITOR.success(`当前有效记录${filteredChat.length}条，小于设置的${chatStairs}条`);
+    // 有效记录提示
+    if (filteredChat.length < chatStairs && tokenLimit === 0) {
+        EDITOR.success(`当前有效记录${filteredChat.length}条，小于设置的${chatStairs}条`);
+    }
+
+    const collected = [];
+    let totalTokens = 0;
+
+    // 从最新记录开始逆序遍历
+    for (let i = filteredChat.length - 1; i >= 0; i--) {
+        // 格式化消息并清理标签
+        const currentStr = `${filteredChat[i].name}: ${filteredChat[i].mes}`
+           .replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
+
+        // 计算Token
+        const tokens = await estimateTokenCount(currentStr);
+
+        // 如果是第一条消息且token数超过限制，直接添加该消息
+        if (i === filteredChat.length - 1 && tokenLimit!== 0 && tokens > tokenLimit) {
+            totalTokens = tokens;
+            EDITOR.success(`最近的聊天记录Token数为${tokens}，超过设置的${tokenLimit}限制，将直接使用该聊天记录`);
+            console.log(`最近的聊天记录Token数为${tokens}，超过设置的${tokenLimit}限制，将直接使用该聊天记录`);
+            collected.push(currentStr);
+            break;
         }
 
-        for (let i = Math.max(0, filteredChat.length - chatStairs); i < filteredChat.length; i++) {
-            const currentChat = `${filteredChat[i].name}: ${filteredChat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
-            lastChats += `\n${currentChat}`;
+        // Token限制检查
+        if (tokenLimit!== 0 && (totalTokens + tokens) > tokenLimit) {
+            EDITOR.success(`本次发送的聊天记录Token数约为${totalTokens}，共计${collected.length}条`);
+            console.log(`本次发送的聊天记录Token数约为${totalTokens}，共计${collected.length}条`);
+            break;
         }
-        return lastChats;
-    };
 
+        // 更新计数
+        totalTokens += tokens;
+        collected.push(currentStr);
 
-    if (chat.length < chatStairs) {
-        EDITOR.success(`当前聊天记录只有${chat.length}条，小于设置的${chatStairs}条`);
-        for (let i = 0; i < chat.length; i++) {
-            const currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
-            lastChats += `\n${currentChat}`;
-        }
-    } else {
-        for (let i = Math.max(0, chat.length - chatStairs); i < chat.length; i++) {
-            const currentChat = `${chat[i].name}: ${chat[i].mes}`.replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
-            lastChats += `\n${currentChat}`;
+        // 当 tokenLimit 为 0 时，进行聊天记录数量限制检查
+        if (tokenLimit === 0 && collected.length >= chatStairs) {
+            break;
         }
     }
-    return lastChats;
+
+    // 按时间顺序排列并拼接
+    const chatHistory = collected.reverse().join('\n');
+    return chatHistory;
 }
+
 
 /**
  * 清洗API返回的原始内容
@@ -919,4 +947,17 @@ export async function updateModelList(){
         console.error('模型获取失败:', error);
         EDITOR.error(`模型获取失败: ${error.message}`);
     }
+}
+// 估算 Token 数量
+function estimateTokenCount(text) {
+    // 统计中文字符数量
+    let chineseCount = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+
+    // 统计英文单词数量
+    let englishWords = text.match(/\b\w+\b/g) || [];
+    let englishCount = englishWords.length;
+
+    // 估算 token 数量
+    let estimatedTokenCount = chineseCount + Math.floor(englishCount * 1.2);
+    return estimatedTokenCount;
 }
