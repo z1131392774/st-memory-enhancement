@@ -62,8 +62,10 @@ function handleMessages(string) {
 }
 
 function MarkChatAsWaiting(chat, swipeUid) {
+    console.log(EDITOR.getContext().chat);
+    console.log(chat.two_step_links);
+    console.log(chat.two_step_waiting);
     chat.two_step_waiting[swipeUid] = true;
-    return false;
 }
 
 /**
@@ -91,6 +93,9 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
         if (isExecutedBySelf) break;
         const isExecutedByParent = checkIfChatIsExecuted(chat, parentSwipeUid);
         if (isExecutedByParent) break;
+
+        // 将当前对话加入待执行列表
+        toBeExecuted.unshift(chat);
 
         // 如果对话长度未达到阈值，则直接继续往前找
         if (r.length < EDITOR.data.step_by_step_threshold) continue;

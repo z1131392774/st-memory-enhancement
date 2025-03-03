@@ -89,6 +89,8 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  * @returns 生成的完整提示词
  */
 export function initTableData() {
+    if (EDITOR.data.step_by_step === true) return '';
+
     const { tables } = findLastestTableData(true)
     const promptContent = getAllPrompt(tables)
     console.log("完整提示", promptContent)
