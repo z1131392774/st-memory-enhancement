@@ -476,50 +476,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
     }
 }
 
-//请求模型列表
-export async function updateModelList(){
-    const apiUrl = $('#custom_api_url').val().trim();
-    const apiKey = await getDecryptedApiKey();// 使用解密后的API密钥
 
-    if (!apiKey) {
-        EDITOR.error('API key解密失败，请重新输入API key吧！');
-        return;
-    }
-    if (!apiUrl) {
-        EDITOR.error('请输入API URL');
-        return;
-    }
-
-    try {
-        // 规范化URL路径
-        const normalizedUrl = new URL(apiUrl);
-        normalizedUrl.pathname = '/v1/models';
-
-        const response = await fetch(normalizedUrl, {
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) throw new Error(`请求失败: ${response.status}`);
-
-        const data = await response.json();
-        const $selector = $('#model_selector').empty();
-
-        data.data.forEach(model => {
-            $selector.append($('<option>', {
-                value: model.id,
-                text: model.id
-            }));
-        });
-
-        EDITOR.success('成功获取模型列表');
-    } catch (error) {
-        console.error('模型获取失败:', error);
-        EDITOR.error(`模型获取失败: ${error.message}`);
-    }
-}
 
 
 //=================================================================
@@ -752,136 +709,87 @@ export function cleanApiResponse(rawContent, options = {}) {
  * @returns {string} 修复后的文本
  * */
 function fixTableFormat(inputText) {
-    // 增强内容提取逻辑
-    const extractTable = (text) => {
-        // 优先匹配标签内的JSON数组（严格模式）
-        const strictTagRegex = /<新的表格>\s*(\[\s*(?:[\s\S]*?)\s*\])\s*<\/新的表格>/gis;
-        const tagMatch = text.match(strictTagRegex);
-
-        if (tagMatch) {
-            try {
-                // 提取并清理标签内容
-                const innerJSON = tagMatch[0]
-                    .replace(/<\/?新的表格>/gi, '') // 移除标签
-                    .trim();                       // 去除首尾空白
-                return JSON.parse(innerJSON);      // 直接返回解析结果
-            } catch (error) {
-                console.error("标签内JSON解析失败:", error);
-                return null; // 明确返回null，避免继续错误匹配
-            }
-        }
-
-        // 若无标签，尝试匹配严格格式的独立JSON数组
-        const standaloneJSONRegex = /^\s*(\[\s*(?:[\s\S]*?)\s*\])\s*$/s;
-        const jsonMatch = text.match(standaloneJSONRegex);
-        if (jsonMatch) {
-            try {
-                return JSON.parse(jsonMatch[0].trim());
-            } catch (error) {
-                console.error("独立JSON解析失败:", error);
-                return null;
-            }
-        }
-
-        // 最后兜底：匹配任意位置的数组结构（非严格）
-        const fallbackRegex = /(\[\s*(?:[\s\S]*?)\s*\])/;
-        const fallbackMatch = text.match(fallbackRegex);
-        if (fallbackMatch) {
-            try {
-                return JSON.parse(fallbackMatch[0]);
-            } catch (error) {
-                console.error("兜底匹配解析失败:", error);
-                return text; // 返回原始文本或根据需求调整
-            }
-        }
-
-        // 完全无法匹配时返回null
-        return null;
-    };
-
-    // 增强JSON解析容错
     const safeParse = (str) => {
         try {
-            // 第一次尝试直接解析
             return JSON.parse(str);
         } catch (primaryError) {
-            console.log('首次解析失败，尝试深度清洗:', primaryError);
-
-            // 深度清洗：移除非JSON结构和注释
+            // 深度清洗：处理未闭合引号和注释
             const deepClean = str
-                .replace(/^[^{[]*([{[])/, '$1')  // 去除前缀
-                .replace(/([}\]])[^}\]]*$/, '$1') // 去除后缀
-                .replace(/\/\*[\s\S]*?\*\//g, '') // 移除块注释
-                .replace(/,\s*([}\]])/g, '$1');   // 修复尾逗号
+                .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')  // 修复键名引号
+                .replace(/\/\/.*?\n/g, '')    // 移除行注释
+                .replace(/([:,])\s*([^"{[\s-]+)(\s*[}\]])/g, '$1 "$2"$3') // 补全缺失引号
+                .replace(/'/g, '"')           // 单引号转双引号
+                .replace(/(\w)\s*"/g, '$1"')  // 清理键名后多余空格
+                .replace(/,\s*]/g, ']')       // 移除尾逗号
+                .replace(/}\s*{/g, '},{');    // 修复缺失的数组分隔符
 
             try {
                 return JSON.parse(deepClean);
             } catch (fallbackError) {
-                console.error('深度清洗后解析失败:', fallbackError);
-                throw new Error(`无法解析表格数据: ${fallbackError.message}`);
+                throw new Error(`解析失败: ${fallbackError.message}`);
             }
         }
     };
 
+    const extractTable = (text) => {
+        // 匹配包含6个表格的特征（如"tableIndex":5）
+        const comprehensiveRegex = /(\[\s*{[\s\S]*?"tableIndex":\s*5[\s\S]*?}\s*\])/;
+        const match = text.match(comprehensiveRegex);
+        if (match) return match[1];
+
+        // 兜底：直接提取最长的疑似JSON数组
+        const candidates = text.match(/\[[^\[\]]*\]/g) || [];
+        return candidates.sort((a, b) => b.length - a.length)[0];
+    };
+
+    // 主流程
     try {
-        // 通用符号标准化
-        const normalizeSymbols = (str) => str
-            .replace(/[“”]/g, '"')          // 中文引号
-            .replace(/‘’/g, "'")            // 中文单引号
-            .replace(/，/g, ',')            // 中文逗号
-            .replace(/（/g, '(').replace(/）/g, ')')  // 中文括号
-            .replace(/；/g, ';')             // 中文分号
-            .replace(/？/g, '?')            // 中文问号
-            .replace(/！/g, '!')            // 中文叹号
-            .replace(/\/\//g, '/');         // 错误斜杠
+        let jsonStr = cleanApiResponse(inputText)
+        console.log('cleanApiResponse预处理后:', jsonStr);
+        jsonStr = extractTable(jsonStr);
+        console.log('extractTable提取后:', jsonStr);
+        if (!jsonStr) throw new Error("未找到有效表格数据");
 
-        // 智能括号修复
-        const fixBrackets = (str) => {
-            const stack = [];
-            return str.split('').map(char => {
-                if (char === '[' || char === '{') stack.push(char);
-                if (char === ']' && stack[stack.length-1] === '[') stack.pop();
-                if (char === '}' && stack[stack.length-1] === '{') stack.pop();
-                return char;
-            }).join('') + stack.map(c => c === '[' ? ']' : '}').join('');
-        };
+        // 关键预处理：修复常见格式错误
+        jsonStr = jsonStr
+            .replace(/(\w)\s*"/g, '$1"')       // 键名后空格
+            .replace(/:\s*([^"{\[]+)(\s*[,}])/g, ': "$1"$2')  // 值缺失引号
+            .replace(/"tableIndex":\s*"(\d+)"/g, '"tableIndex": $1')  // 移除tableIndex的引号
+            .replace(/"\s*\+\s*"/g, '')         // 拼接字符串残留
+            .replace(/\\n/g, '')                // 移除换行转义
+            .replace(/({|,)\s*([a-zA-Z_]+)\s*:/g, '$1"$2":') // 键名标准化
+            .replace(/"(\d+)":/g, '$1:')  // 修复数字键格式
 
-        // 列内容对齐修正
-        const alignColumns = (tables) => tables.map(table => {
+        console.log('关键预处理修复常见格式错误后:', jsonStr);
+
+        // 强约束解析
+        let tables = safeParse(jsonStr);
+        console.log('safeParse强约束解析后:', tables);
+
+        if (tables.length < 6) throw new Error("提取的表格数量不足");
+        tables = tables.map(table => ({  // 新增：类型转换
+            ...table,
+            tableIndex: parseInt(table.tableIndex) || 0
+        }));
+
+
+        // 列对齐修正（原逻辑保留）
+        return tables.map(table => {
             const columnCount = table.columns.length;
             table.content = table.content.map(row =>
-                Array.from({ length: columnCount }, (_, i) =>
-                    (row[i] || "").toString().trim() // 自动填充缺失列
-                )
+                Array.from({ length: columnCount }, (_, i) => row[i]?.toString().trim() || "")
             );
             return table;
         });
-
-        // 执行修正流程
-        let jsonStr = extractTable(inputText);
-        jsonStr = normalizeSymbols(jsonStr);
-        jsonStr = fixBrackets(jsonStr);
-
-        // 智能引号修复（处理未闭合引号）
-        jsonStr = jsonStr.replace(/([:,]\s*)([^"{\[\]]+?)(\s*[}\]],?)/g, '$1"$2"$3')
-                        .replace(/'/g, '"');
-
-        // 解析时使用新的安全方法
-        const tables = safeParse(jsonStr);
-        return alignColumns(tables);
     } catch (error) {
-        console.error("格式修正失败，尝试容错解析:", error);
-
-        // 最后尝试：提取所有疑似数组的部分
-        const arrayCandidates = inputText.match(/\[[^\[\]]*\]/g) || [];
-        if (arrayCandidates.length > 0) {
-            try {
-                return JSON.parse(arrayCandidates[arrayCandidates.length - 1]);
-            } catch {
-                throw new Error("无法自动恢复表格格式，请检查AI返回内容");
-            }
-        }
-        throw error;
+        console.error("修复失败:", error);
+        console.error("修复失败，尝试最后手段...");
+        // 暴力提取所有可能表格
+        const rawTables = inputText.match(/{[^}]*?"tableIndex":\s*\d+[^}]*}/g) || [];
+        console.log('暴力提取所有可能表格:', rawTables);
+        const sixTables = rawTables.slice(0,6).map(t => JSON.parse(t.replace(/'/g, '"')));
+        console.log('前6个表格为:', sixTables);
+        return sixTables
     }
 }
 
@@ -916,10 +824,8 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         return;
     }
 
-    const apiUrl = new URL(USER_API_URL);
-    apiUrl.pathname = '/v1/chat/completions';
-
-    const response = await fetch(apiUrl.href, {
+    // 公共请求配置
+    const requestConfig = {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -933,14 +839,84 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
             ],
             temperature: EDITOR.data.custom_temperature
         })
-    });
+    };
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`API请求失败 [${response.status}]: ${errorBody}`);
+    // 通用请求函数
+    const makeRequest = async (url) => {
+        const response = await fetch(url, requestConfig);
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw { status: response.status, message: errorBody };
+        }
+        return response.json();
+    };
+
+    let firstError;
+    try {
+        // 第一次尝试补全/chat/completions
+        const modifiedUrl = new URL(USER_API_URL);
+        modifiedUrl.pathname = modifiedUrl.pathname.replace(/\/$/, '') + '/chat/completions';
+        const result = await makeRequest(modifiedUrl.href);
+        return result.choices[0].message.content;
+    } catch (error) {
+        firstError = error;
     }
 
-    const result = await response.json();
-    const rawContent = result.choices[0].message.content;
-    return rawContent;
+    try {
+        // 第二次尝试原始URL
+        const result = await makeRequest(USER_API_URL);
+        return result.choices[0].message.content;
+    } catch (secondError) {
+        const combinedError = new Error('API请求失败');
+        combinedError.details = {
+            firstAttempt: firstError?.message || '第一次请求无错误信息',
+            secondAttempt: secondError.message
+        };
+        throw combinedError;
+    }
+}
+
+//请求模型列表
+export async function updateModelList(){
+    const apiUrl = $('#custom_api_url').val().trim();
+    const apiKey = await getDecryptedApiKey();// 使用解密后的API密钥
+
+    if (!apiKey) {
+        EDITOR.error('API key解密失败，请重新输入API key吧！');
+        return;
+    }
+    if (!apiUrl) {
+        EDITOR.error('请输入API URL');
+        return;
+    }
+
+    try {
+        // 规范化URL路径
+        const normalizedUrl = new URL(apiUrl);
+        normalizedUrl.pathname = normalizedUrl.pathname.replace(/\/$/, '')+'/models';
+
+        const response = await fetch(normalizedUrl, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+
+        const data = await response.json();
+        const $selector = $('#model_selector').empty();
+
+        data.data.forEach(model => {
+            $selector.append($('<option>', {
+                value: model.id,
+                text: model.id
+            }));
+        });
+
+        EDITOR.success('成功获取模型列表');
+    } catch (error) {
+        console.error('模型获取失败:', error);
+        EDITOR.error(`模型获取失败: ${error.message}`);
+    }
 }
