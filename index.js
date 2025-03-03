@@ -8,6 +8,7 @@ import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.
 import {initAllTable} from "./core/source/tableActions.js";
 import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
+import {openDraggableSpacePopup} from "./core/derived/draggable/dragManager.js";
 
 console.log("______________________记忆插件：开始加载______________________")
 
@@ -296,6 +297,9 @@ function getMesRole() {
  * @returns
  */
 async function onChatCompletionPromptReady(eventData) {
+    // 用于测试
+    // await openDraggableSpacePopup();
+
     try {
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
         if (eventData.dryRun === true || EDITOR.data.isExtensionAble === false || EDITOR.data.isAiReadTable === false) return

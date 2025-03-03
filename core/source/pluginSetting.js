@@ -5,9 +5,6 @@ import {EDITOR} from "../manager.js";
  * 表格重置弹出窗
  */
 const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
-<!--<div class="checkbox flex-container" id="basic">-->
-<!--    <input type="checkbox" id="table_init_basic"><span>基础设置</span>-->
-<!--</div>-->
 <div class="checkbox flex-container">
     <input type="checkbox" id="table_init_message_template"><span>回复设置</span>
 </div>
@@ -23,9 +20,6 @@ const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</
 <div class="checkbox flex-container">
     <input type="checkbox" id="table_init_structure"><span>所有表格结构与提示词</span>
 </div>
-<!--<div class="checkbox flex-container">-->
-<!--    <input type="checkbox" id="table_init_api"><span>个人API配置</span>-->
-<!--</div>-->
 `;
 
 
@@ -66,7 +60,6 @@ export async function filterTableDataPopup(originalData) {
     });
 
 
-
     // 设置不同部分的默认复选框
     // 回复设置
     waitingRegister.isAiReadTable = '#table_init_message_template';
@@ -96,12 +89,6 @@ export async function filterTableDataPopup(originalData) {
     waitingRegister.tableStructure = '#table_init_structure';
 
 
-
-    // !.基础设置，有bug不要打开，注释掉
-    // for (let key in originalData) {
-    //     if (key in waitingRegister) continue;
-    //     waitingRegister[key] = '#table_init_basic';
-    // }
 
     // 显示确认弹出窗口，并等待用户操作
     await confirmation.show();

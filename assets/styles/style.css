@@ -511,3 +511,40 @@ td.selected {
     font-family: monospace;
     text-align: left;
 }
+
+
+
+/* 可拖拽的弹窗 */
+.drag-space-container {
+    user-select: none;
+    -webkit-user-select: none;
+    height: 100%;
+}
+
+.space-title-bar {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.drag-layer {
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+    cursor: grab;
+    border: 2px solid #41b681;
+}
+
+.space-content {
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background-color: #4e4848;
+    transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.space-content.dragging {
+    cursor: grabbing; /* 拖拽时的鼠标样式 */
+    transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
