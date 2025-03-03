@@ -5,7 +5,7 @@ import { generateRaw } from '../../../../../../../script.js';
 import { Table } from "./source/table.js";
 import { TableEditAction } from "./source/tableActions.js";
 import { consoleMessageToEditor } from "./derived/devConsole.js";
-import {getRandomNumber, getRandomString} from "../utils/utility.js";
+import {calculateStringHash, generateDeviceId, generateRandomNumber, generateRandomString} from "../utils/utility.js";
 
 /**
  * 默认插件设置
@@ -572,8 +572,9 @@ export let SYSTEM = {
         timer.lastExecutionTime = currentTime;
         return true; // 允许执行
     },
-    getRandomString: getRandomString,
-    getRandomNumber: getRandomNumber,
+    generateRandomString: generateRandomString,
+    generateRandomNumber: generateRandomNumber,
+    calculateStringHash: calculateStringHash,
     // readFile: ,
     // writeFile: ,
     //
