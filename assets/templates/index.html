@@ -91,12 +91,12 @@
                     <!-- 分步填表 -->
                     <div id="step_by_step_options" style="padding-left: 20px; width: calc(100% - 20px);">
                         <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
-                            <label>触发阈值字数<small>（回复字数大于该值触发分步填表）</small>：<span id="step_by_step_threshold_value">10</span></label>
+                            <label>触发阈值字数<small>（回复字数大于该值触发分步填表）</small>：<span id="step_by_step_threshold_value">500</span></label>
                             <input type="range" id="step_by_step_threshold" min="10" max="10000" step="10" value="10" style="width: calc(100% - 20px);">
                         </div>
                         <div style="height: 20px;"></div>
                         <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="sum_multiple_rounds"><span>字数多轮累计</span><small>(累计多轮未触发字数参与阈值比较)</small>
+                            <input type="checkbox" id="sum_multiple_rounds" checked><span>字数多轮累计</span><small>(累计多轮未触发字数参与阈值比较)</small>
                         </div>
                     </div>
                 </div>

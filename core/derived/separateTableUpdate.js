@@ -82,7 +82,10 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
 
     for (let i = chats.length - 1; i >= 0; i--) {
         const chat = chats[i];
-        if (chat.is_user === true) continue; // 如果节点类型是用户对话，则跳过
+        if (chat.is_user === true) {
+            toBeExecuted.unshift(chat);
+            continue;
+        }
         lastChat = cacheChat;
         cacheChat = chat;
         round++;

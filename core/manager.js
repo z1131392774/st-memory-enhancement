@@ -30,7 +30,7 @@ const defaultSettings = {
     bool_ignore_del: true,
     ignore_user_sent: false,
     clear_up_stairs:9,
-    step_by_step_threshold: 1000,
+    step_by_step_threshold: 500,
     sum_multiple_rounds: true,
     unusedChatText: '',
     bool_silent_refresh: false,

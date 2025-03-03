@@ -16,6 +16,25 @@ const userTableEditInfo = {
     colIndex: null,
 }
 
+/**
+ * 表格编辑浮窗
+ */
+const tableEditToolbarDom = `<div class="popup popup--animation-fast tableToolbar" id="tableToolbar">
+    <button id="editCell" class="menu_button">编辑</button>
+    <button id="deleteRow" class="menu_button">删除行</button>
+    <button id="insertRow" class="menu_button">下方插入行</button>
+</div>`
+
+/**
+ * 表头编辑浮窗
+ */
+const tableHeaderEditToolbarDom = `
+<div class="popup popup--animation-fast tableToolbar" id="tableHeaderToolbar">
+    <button id="insertRow" class="menu_button">下方插入行</button>
+</div>`
+
+
+
 export function tableCellClickEvent(table) {
     if (userTableEditInfo.editAble) {
         $(table).on('click', 'td', onTdClick)
@@ -207,25 +226,6 @@ async function clearTable(mesId, tableContainer) {
 }
 
 
-
-/**
- * 表格编辑浮窗
- */
-const tableEditToolbarDom = `<div class="tableToolbar" id="tableToolbar">
-    <button id="editCell" class="menu_button">编辑</button>
-    <button id="deleteRow" class="menu_button">删除行</button>
-    <button id="insertRow" class="menu_button">下方插入行</button>
-</div>`
-
-/**
- * 表头编辑浮窗
- */
-const tableHeaderEditToolbarDom = `
-<div class="tableToolbar" id="tableHeaderToolbar">
-    <button id="insertRow" class="menu_button">下方插入行</button>
-</div>
-`
-
 /**
  * 在actions中插入值
  */
@@ -234,7 +234,6 @@ function addActionForInsert() {
     newAction.setActionInfo("Insert", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex, {})
     DERIVED.any.tableEditActions.push(newAction)
 }
-
 
 /**
  * 下方插入行事件
