@@ -30,6 +30,8 @@ const defaultSettings = {
     bool_ignore_del: true,
     ignore_user_sent: false,
     clear_up_stairs:9,
+    use_token_limit:false,
+    rebuild_token_limit_value:10000,
     step_by_step_threshold: 1000,
     sum_multiple_rounds: true,
     unusedChatText: '',

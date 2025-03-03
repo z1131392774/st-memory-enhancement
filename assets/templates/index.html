@@ -135,11 +135,18 @@
                     </div>
                     <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
                         <!-- 高级设置选项 -->
-                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
+                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%; " id="clear_up_stairs_container">
                             <label>参考最近聊天记录：<span id="clear_up_stairs_value">9条</span></label>
                             <input type="range" id="clear_up_stairs" min="1" max="99" step="1" value="9" style="width: 80%;">
                         </div>
+                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%; display: none;" id="token_limit_container">
+                            <label>Token限制：<span id="rebuild_token_limit_value">10000</span></label>
+                            <input type="range" id="rebuild_token_limit" min="1000" max="100000" step="1000" value="10000" style="width: 80%;">
+                        </div>
                         <div style="height: 20px;"></div>
+                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                            <input type="checkbox" id="use_token_limit"><span>用token代替聊天记录限制</span>
+                        </div>
                         <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
                             <input type="checkbox" id="ignore_user_sent" checked><span>只参考AI回复的消息</span>
                         </div>
