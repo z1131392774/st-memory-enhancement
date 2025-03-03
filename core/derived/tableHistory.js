@@ -3,162 +3,6 @@ import { deleteRow, insertRow, updateRow } from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
 /**
- * 打开表格编辑历史记录弹窗
- * */
-export async function openTableHistoryPopup(){
-    const manager = await SYSTEM.getComponent('history');
-    const tableHistoryPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    const tableEditHistory = EDITOR.getContext().chat;
-    const $dlg = $(tableHistoryPopup.dlg);
-    const $tableHistory = $dlg.find('#tableHistory');
-    $tableHistory.empty();
-    console.log(tableEditHistory);
-
-    if (tableEditHistory && tableEditHistory.length > 0) {
-        // 倒序遍历聊天记录，从最新的消息开始处理
-        for (let i = tableEditHistory.length - 1; i >= 0; i--) {
-            const item = tableEditHistory[i];
-            // 过滤掉用户消息
-            if (!item.is_user) {
-                const mesContent = item.mes;
-                // 解析消息内容，提取表格编辑信息
-                if (mesContent) {
-                    const tableEditMatch = mesContent.match(/<tableEdit>(.*?)<\/tableEdit>/s);
-                    // 如果匹配到表格编辑信息
-                    if (tableEditMatch) {
-                        const tableEditBlock = tableEditMatch[1].trim();
-                        const commentMatch = tableEditBlock.match(/<!--(.*?)-->/s);
-                        // 如果匹配到注释信息
-                        if (commentMatch) {
-                            const commentContent = commentMatch[1].trim();
-                            const functions = commentContent.split('\n')
-                                .map(line => line.trim())
-                                .filter(line => line.startsWith('insertRow') || line.startsWith('updateRow') || line.startsWith('deleteRow'));
-                            // 处理函数列表
-                            if (functions.length > 0) {
-                                const $historyGroup = $('<div>').addClass('history-group');
-                                // 如果不是最后一条消息，添加可折叠 class
-                                if (i < tableEditHistory.length - 1) {
-                                    $historyGroup.addClass('collapsible-history-group');
-                                }
-                                // 在 history-group 级别创建原始消息按钮 和 折叠按钮
-                                const $buttonGroup = $('<div>').addClass('history-button-group'); // 创建按钮组容器
-                                const $originalButton = $('<button><i class="fa-solid fa-quote-left"></i>')
-                                    .addClass('original-message-button')
-                                    .on('click', function(e) {
-                                        e.stopPropagation(); // 阻止事件冒泡
-                                        const $currentHistoryGroup = $(this).closest('.history-group');
-                                        const $originalMessageDisplay = $currentHistoryGroup.find('.original-message-display');
-
-                                        if ($originalMessageDisplay.is(':visible')) {
-                                            // 如果原始消息当前是显示的，切换回表格视图
-                                            $originalMessageDisplay.hide();
-                                            $currentHistoryGroup.find('.history-item').show();
-                                            $currentHistoryGroup.find('.params-table').show(); // 确保参数表格也显示出来
-                                        } else {
-                                            // 如果原始消息当前是隐藏的，显示原始消息
-                                            $currentHistoryGroup.find('.history-item').hide();
-                                            $currentHistoryGroup.find('.params-table').hide();
-                                            if ($originalMessageDisplay.length === 0) { // 避免重复添加
-                                                const $newMessageDisplay = $('<div>').addClass('original-message-display').text(`原始消息内容:\n\n${mesContent}`);
-                                                $currentHistoryGroup.append($newMessageDisplay); // 添加原始消息展示
-                                            } else {
-                                                $originalMessageDisplay.show(); // 如果已存在则显示
-                                            }
-                                        }
-                                    });
-                                const $collapseButton = $('<button><i class="fa-solid fa-square-caret-down"></i></button>')
-                                    .addClass('collapse-button')
-                                    .on('click', function(e) {
-                                        e.stopPropagation(); // 阻止事件冒泡
-                                        const $currentHistoryGroup = $(this).closest('.history-group');
-                                        const $paramsTable = $currentHistoryGroup.find('.params-table');
-                                        const $indexPreview = $currentHistoryGroup.find('.index-preview'); // 获取预览元素
-                                        const $icon = $(this).find('i');
-
-                                        $paramsTable.slideToggle();
-                                        $indexPreview.slideToggle(); // 同时切换预览元素的显示
-
-                                        if ($paramsTable.is(':visible')) {
-                                            $icon.removeClass('fa-square-caret-down').addClass('fa-square-caret-up');
-                                        } else {
-                                            $icon.removeClass('fa-square-caret-up').addClass('fa-square-caret-down');
-                                        }
-                                    });
-                                $buttonGroup.append($collapseButton); // 将折叠按钮添加到按钮组
-                                $buttonGroup.append($originalButton); // 将原始消息按钮添加到按钮组
-                                $historyGroup.append($buttonGroup); // 将按钮组添加到 history-group
-
-                                functions.forEach((func, funcIndex) => { // functions.forEach 添加 index
-                                    const isValidFormat = validateFunctionFormat(func);
-                                    const $funcItem = $('<div>').addClass('history-item');
-                                    const $leftRectangle = $('<div>').addClass('left-rectangle');
-                                    if (isValidFormat) {
-                                        const funcDetails = parseFunctionDetails(func);
-                                        const $itemIndex = $('<div>').addClass('item-index').text(`${funcIndex}`);
-                                        const renderResult = renderParamsTable(funcDetails.name, funcDetails.params); // 获取 renderParamsTable 的返回结果
-                                        const $paramsTable = renderResult.$table; // 从返回结果中获取 $table
-                                        const indexData = renderResult.indexData; // 从返回结果中获取 indexData
-                                        const funcIcon = renderWithType();
-
-                                        // 根据函数类型添加不同的背景色和图标
-                                        function renderWithType() {
-                                            if (func.startsWith('insertRow')) {
-                                                $leftRectangle.addClass('insert-item');
-                                                return `<i class="fa-solid fa-plus"></i>`;
-                                            } else if (func.startsWith('updateRow')) {
-                                                $leftRectangle.addClass('update-item');
-                                                return `<i class="fa-solid fa-pen"></i>`;
-                                            } else if (func.startsWith('deleteRow')) {
-                                                $leftRectangle.addClass('delete-item');
-                                                return `<i class="fa-solid fa-trash"></i>`;
-                                            }
-                                            return '';
-                                        }
-                                        $funcItem.append($leftRectangle);
-                                        $funcItem.append($itemIndex); // 将序号添加到 history-item 的最前面
-                                        $funcItem.append($paramsTable);
-
-                                        if (i < tableEditHistory.length - 1) $paramsTable.hide();   // 如果是可折叠的 history-group，初始隐藏参数表格
-                                    } else {
-                                        // 添加序号 div，即使是错误格式也添加序号
-                                        const $itemIndex = $('<div>').addClass('item-index').addClass('error-index').text(`${funcIndex}`); // 错误格式序号添加 error-index class
-                                        $funcItem.addClass('error-item');
-                                        $funcItem.append($itemIndex);
-                                        $funcItem.append($('<div>').addClass('function-name error-function').text('Error Format: ' + func));
-                                    }
-                                    $historyGroup.append($funcItem);
-                                });
-                                $tableHistory.prepend($historyGroup);
-                            } else {
-                                $tableHistory.append($('<p>').text('注释信息中没有匹配到有效的表格编辑函数。'));
-                            }
-                        } else {
-                            $tableHistory.append($('<p>').text('表格编辑标签中没有匹配到注释信息。'));
-                        }
-                    } else {
-                        $tableHistory.append($('<p>').text('本轮对话消息中没有发现表格编辑标签。'));
-                    }
-                } else {
-                    $tableHistory.append($('<p>').text('没有找到可解析的消息内容。'));
-                }
-            }
-        }
-        if ($tableHistory.is(':empty')) {
-            $tableHistory.append($('<p>').text('没有找到数据表编辑历史。'));
-        }
-    } else {
-        $tableHistory.append($('<p>').text('聊天记录为空，无法查看数据表编辑历史。'));
-    }
-    setTimeout(() => {
-        // 确保在 DOM 更新后执行滚动到底部
-        $tableHistory.scrollTop($tableHistory[0].scrollHeight);
-    }, 0);
-
-    await tableHistoryPopup.show();
-}
-
-/**
  * 验证函数字符串格式是否正确
  * @param {string} funcStr 函数字符串
  * @returns {boolean} true 如果格式正确，false 否则
@@ -351,4 +195,160 @@ function createRawParamsRow(params) {
     $tr.append($('<th>').text('Raw Parameters'));
     $tr.append($('<td>').text(JSON.stringify(params)));
     return $tr;
+}
+
+/**
+ * 打开表格编辑历史记录弹窗
+ * */
+export async function openTableHistoryPopup(){
+    const manager = await SYSTEM.getComponent('history');
+    const tableHistoryPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
+    const tableEditHistory = EDITOR.getContext().chat;
+    const $dlg = $(tableHistoryPopup.dlg);
+    const $tableHistory = $dlg.find('#tableHistory');
+    $tableHistory.empty();
+    console.log(tableEditHistory);
+
+    if (tableEditHistory && tableEditHistory.length > 0) {
+        // 倒序遍历聊天记录，从最新的消息开始处理
+        for (let i = tableEditHistory.length - 1; i >= 0; i--) {
+            const item = tableEditHistory[i];
+            // 过滤掉用户消息
+            if (!item.is_user) {
+                const mesContent = item.mes;
+                // 解析消息内容，提取表格编辑信息
+                if (mesContent) {
+                    const tableEditMatch = mesContent.match(/<tableEdit>(.*?)<\/tableEdit>/s);
+                    // 如果匹配到表格编辑信息
+                    if (tableEditMatch) {
+                        const tableEditBlock = tableEditMatch[1].trim();
+                        const commentMatch = tableEditBlock.match(/<!--(.*?)-->/s);
+                        // 如果匹配到注释信息
+                        if (commentMatch) {
+                            const commentContent = commentMatch[1].trim();
+                            const functions = commentContent.split('\n')
+                                .map(line => line.trim())
+                                .filter(line => line.startsWith('insertRow') || line.startsWith('updateRow') || line.startsWith('deleteRow'));
+                            // 处理函数列表
+                            if (functions.length > 0) {
+                                const $historyGroup = $('<div>').addClass('history-group');
+                                // 如果不是最后一条消息，添加可折叠 class
+                                if (i < tableEditHistory.length - 1) {
+                                    $historyGroup.addClass('collapsible-history-group');
+                                }
+                                // 在 history-group 级别创建原始消息按钮 和 折叠按钮
+                                const $buttonGroup = $('<div>').addClass('history-button-group'); // 创建按钮组容器
+                                const $originalButton = $('<button><i class="fa-solid fa-quote-left"></i>')
+                                    .addClass('original-message-button')
+                                    .on('click', function(e) {
+                                        e.stopPropagation(); // 阻止事件冒泡
+                                        const $currentHistoryGroup = $(this).closest('.history-group');
+                                        const $originalMessageDisplay = $currentHistoryGroup.find('.original-message-display');
+
+                                        if ($originalMessageDisplay.is(':visible')) {
+                                            // 如果原始消息当前是显示的，切换回表格视图
+                                            $originalMessageDisplay.hide();
+                                            $currentHistoryGroup.find('.history-item').show();
+                                            $currentHistoryGroup.find('.params-table').show(); // 确保参数表格也显示出来
+                                        } else {
+                                            // 如果原始消息当前是隐藏的，显示原始消息
+                                            $currentHistoryGroup.find('.history-item').hide();
+                                            $currentHistoryGroup.find('.params-table').hide();
+                                            if ($originalMessageDisplay.length === 0) { // 避免重复添加
+                                                const $newMessageDisplay = $('<div>').addClass('original-message-display').text(`原始消息内容:\n\n${mesContent}`);
+                                                $currentHistoryGroup.append($newMessageDisplay); // 添加原始消息展示
+                                            } else {
+                                                $originalMessageDisplay.show(); // 如果已存在则显示
+                                            }
+                                        }
+                                    });
+                                const $collapseButton = $('<button><i class="fa-solid fa-square-caret-down"></i></button>')
+                                    .addClass('collapse-button')
+                                    .on('click', function(e) {
+                                        e.stopPropagation(); // 阻止事件冒泡
+                                        const $currentHistoryGroup = $(this).closest('.history-group');
+                                        const $paramsTable = $currentHistoryGroup.find('.params-table');
+                                        const $indexPreview = $currentHistoryGroup.find('.index-preview'); // 获取预览元素
+                                        const $icon = $(this).find('i');
+
+                                        $paramsTable.slideToggle();
+                                        $indexPreview.slideToggle(); // 同时切换预览元素的显示
+
+                                        if ($paramsTable.is(':visible')) {
+                                            $icon.removeClass('fa-square-caret-down').addClass('fa-square-caret-up');
+                                        } else {
+                                            $icon.removeClass('fa-square-caret-up').addClass('fa-square-caret-down');
+                                        }
+                                    });
+                                $buttonGroup.append($collapseButton); // 将折叠按钮添加到按钮组
+                                $buttonGroup.append($originalButton); // 将原始消息按钮添加到按钮组
+                                $historyGroup.append($buttonGroup); // 将按钮组添加到 history-group
+
+                                functions.forEach((func, funcIndex) => { // functions.forEach 添加 index
+                                    const isValidFormat = validateFunctionFormat(func);
+                                    const $funcItem = $('<div>').addClass('history-item');
+                                    const $leftRectangle = $('<div>').addClass('left-rectangle');
+                                    if (isValidFormat) {
+                                        const funcDetails = parseFunctionDetails(func);
+                                        const $itemIndex = $('<div>').addClass('item-index').text(`${funcIndex}`);
+                                        const renderResult = renderParamsTable(funcDetails.name, funcDetails.params); // 获取 renderParamsTable 的返回结果
+                                        const $paramsTable = renderResult.$table; // 从返回结果中获取 $table
+                                        const indexData = renderResult.indexData; // 从返回结果中获取 indexData
+                                        const funcIcon = renderWithType();
+
+                                        // 根据函数类型添加不同的背景色和图标
+                                        function renderWithType() {
+                                            if (func.startsWith('insertRow')) {
+                                                $leftRectangle.addClass('insert-item');
+                                                return `<i class="fa-solid fa-plus"></i>`;
+                                            } else if (func.startsWith('updateRow')) {
+                                                $leftRectangle.addClass('update-item');
+                                                return `<i class="fa-solid fa-pen"></i>`;
+                                            } else if (func.startsWith('deleteRow')) {
+                                                $leftRectangle.addClass('delete-item');
+                                                return `<i class="fa-solid fa-trash"></i>`;
+                                            }
+                                            return '';
+                                        }
+                                        $funcItem.append($leftRectangle);
+                                        $funcItem.append($itemIndex); // 将序号添加到 history-item 的最前面
+                                        $funcItem.append($paramsTable);
+
+                                        if (i < tableEditHistory.length - 1) $paramsTable.hide();   // 如果是可折叠的 history-group，初始隐藏参数表格
+                                    } else {
+                                        // 添加序号 div，即使是错误格式也添加序号
+                                        const $itemIndex = $('<div>').addClass('item-index').addClass('error-index').text(`${funcIndex}`); // 错误格式序号添加 error-index class
+                                        $funcItem.addClass('error-item');
+                                        $funcItem.append($itemIndex);
+                                        $funcItem.append($('<div>').addClass('function-name error-function').text('Error Format: ' + func));
+                                    }
+                                    $historyGroup.append($funcItem);
+                                });
+                                $tableHistory.prepend($historyGroup);
+                            } else {
+                                $tableHistory.append($('<p>').text('注释信息中没有匹配到有效的表格编辑函数。'));
+                            }
+                        } else {
+                            $tableHistory.append($('<p>').text('表格编辑标签中没有匹配到注释信息。'));
+                        }
+                    } else {
+                        $tableHistory.append($('<p>').text('本轮对话消息中没有发现表格编辑标签。'));
+                    }
+                } else {
+                    $tableHistory.append($('<p>').text('没有找到可解析的消息内容。'));
+                }
+            }
+        }
+        if ($tableHistory.is(':empty')) {
+            $tableHistory.append($('<p>').text('没有找到数据表编辑历史。'));
+        }
+    } else {
+        $tableHistory.append($('<p>').text('聊天记录为空，无法查看数据表编辑历史。'));
+    }
+    setTimeout(() => {
+        // 确保在 DOM 更新后执行滚动到底部
+        $tableHistory.scrollTop($tableHistory[0].scrollHeight);
+    }, 0);
+
+    await tableHistoryPopup.show();
 }

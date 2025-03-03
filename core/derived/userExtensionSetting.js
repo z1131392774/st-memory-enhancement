@@ -3,30 +3,7 @@ import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {refreshTableActions, rebuildTableActions} from "./absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
 import {encryptXor, updateModelList} from "../source/standaloneAPI.js";
-
-/**
- * 表格重置弹出窗
- */
-const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
-<div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_basic" checked><span>基础设置</span>
-</div>
-<div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_message_template"><span>消息模板</span>
-</div>
-<div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_refresh_template"><span>重新整理表格设置与消息模板</span>
-</div>
-<div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_to_chat_container"><span>对话中的面板样式</span>
-</div>
-<div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_structure"><span>所有表格结构数据</span>
-</div>
-<div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_api"><span>个人API配置</span>
-</div>
-`
+import {filterTableDataPopup} from "../source/pluginSetting.js";
 
 /**
  * 格式化深度设置
@@ -44,19 +21,6 @@ function updateSwitch(selector, switchValue) {
     } else {
         $(selector).prop('checked', false);
     }
-}
-
-/**
- * 导出插件设置
- */
-function exportTableSet() {
-    const blob = new Blob([JSON.stringify(EDITOR.data)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a')
-    a.href = url;
-    a.download = `tableExtensionPrompt.json`;
-    a.click();
-    URL.revokeObjectURL(url);
 }
 
 /**
@@ -95,62 +59,152 @@ function tableStructureToSettingDOM(tableStructure) {
     return $item;
 }
 
+// /**
+//  * 导入表格数据文件
+//  * */
+// async function importTableDataFile(){
+//     const importFileElement = document.querySelector('#table-set-importFile'); // 获取文件输入元素
+//
+//     // 定义一个具名的事件处理函数
+//     async function changeEventHandler(event) {
+//         const files = event.target.files; // 从事件对象中获取 files 列表
+//         console.log("选择的文件列表:", files);
+//
+//         if (files && files.length > 0) { // 确保用户选择了文件
+//             await importTableSet(files); // 调用 importTableSet 函数处理文件
+//             importFileElement.value = null; // 清空文件输入框的值，以便下次可以选择相同文件
+//         } else {
+//             console.log("用户取消了文件选择或未选择文件。");
+//         }
+//
+//         // 移除事件监听器
+//         importFileElement.removeEventListener('change', changeEventHandler); // 使用具名函数引用移除
+//     }
+//
+//     // 添加 change 事件监听器，使用具名函数引用
+//     importFileElement.addEventListener('change', changeEventHandler);
+//
+//     importFileElement.click(); // 触发文件选择对话框
+// }
+
+
+// async function importSingleTableSet(/**@type {File}*/file) {
+//     try {
+//         const text = await file.text()
+//         const props = JSON.parse(text)
+//         console.log(props)
+//         if (props.message_template && props.tableStructure) {
+//             EDITOR.data.tableStructure = props.tableStructure
+//             EDITOR.data.message_template = props.message_template
+//             EDITOR.data.to_chat_container = props.to_chat_container
+//             EDITOR.data.deep = props.deep
+//             EDITOR.data.injection_mode = props.injection_mode
+//             EDITOR.saveSettingsDebounced()
+//             renderSetting()
+//             EDITOR.success('导入成功')
+//         } else EDITOR.error('导入失败，非记忆插件预设')
+//     } catch (e) {
+//         EDITOR.error('导入失败，请检查文件格式')
+//     }
+// }
+
+
+// /**
+//  * 导入插件设置
+//  */
+// async function importTableSet(/**@type {FileList}*/files) {
+//     for (let i = 0; i < files.length; i++) {
+//         await importSingleTableSet(files.item(i))
+//     }
+// }
+
 /**
  * 导入插件设置
  */
-async function importTableSet(/**@type {FileList}*/files) {
-    for (let i = 0; i < files.length; i++) {
-        await importSingleTableSet(files.item(i))
-    }
-}
+async function importTableSet() {
+    // 创建一个 input 元素，用于选择文件
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json'; // 限制文件类型为 JSON
 
-/**
- * 导入表格数据文件
- * */
-async function importTableDataFile(){
-    const importFileElement = document.querySelector('#table-set-importFile'); // 获取文件输入元素
+    // 监听 input 元素的 change 事件，当用户选择文件后触发
+    input.addEventListener('change', async (event) => {
+        const file = event.target.files[0]; // 获取用户选择的文件
 
-    // 定义一个具名的事件处理函数
-    async function changeEventHandler(event) {
-        const files = event.target.files; // 从事件对象中获取 files 列表
-        console.log("选择的文件列表:", files);
-
-        if (files && files.length > 0) { // 确保用户选择了文件
-            await importTableSet(files); // 调用 importTableSet 函数处理文件
-            importFileElement.value = null; // 清空文件输入框的值，以便下次可以选择相同文件
-        } else {
-            console.log("用户取消了文件选择或未选择文件。");
+        if (!file) {
+            return; // 用户未选择文件，直接返回
         }
 
-        // 移除事件监听器
-        importFileElement.removeEventListener('change', changeEventHandler); // 使用具名函数引用移除
-    }
+        const reader = new FileReader(); // 创建 FileReader 对象来读取文件内容
 
-    // 添加 change 事件监听器，使用具名函数引用
-    importFileElement.addEventListener('change', changeEventHandler);
+        reader.onload = async (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result); // 解析 JSON 文件内容
 
-    importFileElement.click(); // 触发文件选择对话框
+                // 获取导入 JSON 的第一级 key
+                const firstLevelKeys = Object.keys(importedData);
+
+                // 构建展示第一级 key 的 HTML 结构
+                let keyListHTML = '<ul>';
+                firstLevelKeys.forEach(key => {
+                    keyListHTML += `<li>${key}</li>`;
+                });
+                keyListHTML += '</ul>';
+
+                const tableInitPopup = $(`<div>
+                    <p>即将导入的设置项 (第一级):</p>
+                    ${keyListHTML}
+                    <p>是否继续导入并重置这些设置？</p>
+                </div>`);
+
+                const confirmation = await EDITOR.callGenericPopup(tableInitPopup, EDITOR.POPUP_TYPE.CONFIRM, '导入设置确认', { okButton: "继续导入", cancelButton: "取消" });
+                if (!confirmation) return; // 用户取消导入
+
+                // 用户确认导入后，进行数据应用
+                // 注意：这里假设你需要将 importedData 的所有内容都合并到 EDITOR.data 中
+                // 你可能需要根据实际需求调整数据合并逻辑，例如只合并第一级 key 对应的数据，或者进行更细粒度的合并
+                for (let key in importedData) {
+                    EDITOR.data[key] = importedData[key];
+                }
+
+                renderSetting(); // 重新渲染设置界面，应用新的设置
+                EDITOR.success('导入成功并已重置所选设置'); // 提示用户导入成功
+
+            } catch (error) {
+                EDITOR.error('JSON 文件解析失败，请检查文件格式是否正确。'); // 提示 JSON 解析失败
+                console.error("文件读取或解析错误:", error); // 打印详细错误信息到控制台
+            }
+        };
+
+        reader.onerror = (error) => {
+            EDITOR.error(`文件读取失败: ${error}`); // 提示文件读取失败
+        };
+
+        reader.readAsText(file); // 以文本格式读取文件内容
+    });
+
+    input.click(); // 模拟点击 input 元素，弹出文件选择框
 }
 
 
+/**
+ * 导出插件设置
+ */
+async function exportTableSet() {
+    const { filterData, confirmation } = await filterTableDataPopup(EDITOR.allData)
+    if (!confirmation) return;
 
-async function importSingleTableSet(/**@type {File}*/file) {
     try {
-        const text = await file.text()
-        const props = JSON.parse(text)
-        console.log(props)
-        if (props.message_template && props.tableStructure) {
-            EDITOR.data.tableStructure = props.tableStructure
-            EDITOR.data.message_template = props.message_template
-            EDITOR.data.to_chat_container = props.to_chat_container
-            EDITOR.data.deep = props.deep
-            EDITOR.data.injection_mode = props.injection_mode
-            EDITOR.saveSettingsDebounced()
-            renderSetting()
-            EDITOR.success('导入成功')
-        } else EDITOR.error('导入失败，非记忆插件预设')
-    } catch (e) {
-        EDITOR.error('导入失败，请检查文件格式')
+        const blob = new Blob([JSON.stringify(filterData)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a')
+        a.href = url;
+        a.download = `tableCustomConfig-${SYSTEM.generateRandomString(8)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        EDITOR.success('导出成功');
+    } catch (error) {
+        EDITOR.error(`导出失败: ${error}`);
     }
 }
 
@@ -158,57 +212,17 @@ async function importSingleTableSet(/**@type {File}*/file) {
  * 重置设置
  */
 async function resetSettings() {
-    const tableInitPopup = $(tableInitPopupDom)
-    const confirmation = await EDITOR.callGenericPopup(tableInitPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
-    if (confirmation) {
-        // 千万不要简化以下的三元表达式和赋值顺序！！！，否则会导致重置设置无法正确运行
-        // 判断是否重置所有基础设置(这条判断语句必须放在第一行)
-        let newSettings = tableInitPopup.find('#table_init_basic').prop('checked') ? {...EDITOR.data, ...EDITOR.defaultSettings} : {...EDITOR.data};
+    const { filterData, confirmation } = await filterTableDataPopup(EDITOR.defaultSettings)
+    if (!confirmation) return;
 
-        // 以下的赋值顺序可以改变
-        // 判断是否重置消息模板
-        if (tableInitPopup.find('#table_init_message_template').prop('checked')) {
-            newSettings.message_template = EDITOR.defaultSettings.message_template;
-        } else {
-            newSettings.message_template = EDITOR.data.message_template;
+    try {
+        for (let key in filterData) {
+            EDITOR.data[key] = filterData[key]
         }
-        // 判断是否重置重新整理表格的提示词
-        if (tableInitPopup.find('#table_init_refresh_template').prop('checked')) {
-            newSettings.refresh_system_message_template = EDITOR.defaultSettings.refresh_system_message_template;
-            newSettings.refresh_user_message_template = EDITOR.defaultSettings.refresh_user_message_template;
-            newSettings.rebuild_system_message_template = EDITOR.defaultSettings.rebuild_system_message_template;
-            newSettings.rebuild_user_message_template = EDITOR.defaultSettings.rebuild_user_message_template;
-        } else {
-            newSettings.refresh_system_message_template = EDITOR.data.refresh_system_message_template;
-            newSettings.refresh_user_message_template = EDITOR.data.refresh_user_message_template;
-            newSettings.rebuild_system_message_template = EDITOR.data.rebuild_system_message_template;
-            newSettings.rebuild_user_message_template = EDITOR.data.rebuild_user_message_template;
-        }
-        // 判断是否重置所有表格结构
-        if (tableInitPopup.find('#table_init_structure').prop('checked')) {
-            newSettings.tableStructure = EDITOR.defaultSettings.tableStructure;
-        } else {
-            newSettings.tableStructure = EDITOR.data.tableStructure;
-        }
-        // 判断是否重置推送到聊天框的内容样式
-        if (tableInitPopup.find('#table_init_to_chat_container').prop('checked')) {
-            newSettings.to_chat_container = EDITOR.defaultSettings.to_chat_container;
-        } else {
-            newSettings.to_chat_container = EDITOR.data.to_chat_container;
-        }
-
-        // 以下为独立的赋值，不会影响其他设置
-        // 判断是否重置用户个人API设置
-        if (tableInitPopup.find('#table_init_api').prop('checked')) {
-            EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = '';
-            EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = '';
-            EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = '';
-        }
-
-        EDITOR.data = newSettings;
-        EDITOR.saveSettingsDebounced();
         renderSetting()
         EDITOR.success('已重置所选设置');
+    } catch (error) {
+        EDITOR.error(`重置设置失败: ${error}`);
     }
 }
 
@@ -216,7 +230,7 @@ function InitBinging() {
     console.log('初始化绑定')
     // 开始绑定事件
     // 导入预设
-    $('#table-set-import').on('click', () => importTableDataFile());
+    $('#table-set-import').on('click', () => importTableSet());
     // 导出
     $("#table-set-export").on('click', () => exportTableSet());
     // 重置设置
