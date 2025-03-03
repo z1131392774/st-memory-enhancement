@@ -1,6 +1,5 @@
 import { eventSource, event_types } from '../../../../script.js';
 import {DERIVED, EDITOR, SYSTEM} from './core/manager.js';
-import { refreshTableActions, updateModelList } from './core/derived/absoluteRefresh.js';
 import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/derived/tablePushToChat.js";
 import {openTableHistoryPopup} from "./core/derived/tableHistory.js";
 import {loadSettings} from "./core/derived/userExtensionSetting.js";
@@ -401,18 +400,14 @@ async function onMessageReceived(chat_id) {
  * 滑动切换消息事件
  */
 async function onMessageSwiped(chat_id) {
-    if (EDITOR.data.isExtensionAble === false) return
-    if (EDITOR.data.step_by_step === true) {
-        await TableTwoStepSummary();
-    } else {
-        if (EDITOR.data.isAiWriteTable === false) return
-        const chat = EDITOR.getContext().chat[chat_id];
-        if (!chat.swipe_info[chat.swipe_id]) return
-        try {
-            handleEditStrInMessage(chat)
-        } catch (error) {
-            EDITOR.error("记忆插件：swipe切换失败\n原因：", error.message)
-        }
+    if (EDITOR.data.isExtensionAble === false || EDITOR.data.isAiWriteTable === false) return
+
+    const chat = EDITOR.getContext().chat[chat_id];
+    if (!chat.swipe_info[chat.swipe_id]) return
+    try {
+        handleEditStrInMessage(chat)
+    } catch (error) {
+        EDITOR.error("记忆插件：swipe切换失败\n原因：", error.message)
     }
 }
 

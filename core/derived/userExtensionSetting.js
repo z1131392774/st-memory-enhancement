@@ -1,9 +1,8 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-
-import {refreshTableActions, updateModelList,rebuildTableActions,encryptXor} from "./absoluteRefresh.js";
+import {refreshTableActions, rebuildTableActions} from "./absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
-import {openTableDebugLogPopup} from "./devConsole.js";
+import {encryptXor, updateModelList} from "../source/standaloneAPI.js";
 
 /**
  * 表格重置弹出窗
