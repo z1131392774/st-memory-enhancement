@@ -4,59 +4,6 @@ import {tableCellClickEvent} from "../derived/tableDataView.js";
 import {findTableStructureByIndex} from "../../index.js";
 
 /**
- * 获取表格为空时的提示词
- * @param {boolean} Required 此表格是否为必填表格
- * @param {string} node 此表格的初始化提示词
- * @returns
- */
-function getEmptyTablePrompt(Required, node) {
-    return '（此表格为空' + (Required ? (node ? ('，' + node) : '') : '') + '）\n'
-}
-
-/**
- * 获取表格编辑规则提示词
- * @param {Structure} structure 表格结构信息
- * @param {boolean} isEmpty 表格是否为空
- * @returns
- */
-function getTableEditRules(structure, isEmpty) {
-    if (structure.Required && isEmpty) return '【增删改触发条件】\n插入：' + replaceUserTag(structure.initNode) + '\n'
-    else {
-        let editRules = '【增删改触发条件】\n'
-        if (structure.insertNode) editRules += ('插入：' + replaceUserTag(structure.insertNode) + '\n')
-        if (structure.updateNode) editRules += ('更新：' + replaceUserTag(structure.updateNode) + '\n')
-        if (structure.deleteNode) editRules += ('删除：' + replaceUserTag(structure.deleteNode) + '\n')
-        return editRules
-    }
-}
-
-/**
- * 替换字符串中的user标签
- */
-function replaceUserTag(str) {
-    if (str == null) return ''; // 处理 null 或 undefined
-    if (typeof str !== 'string') {
-        console.warn('非字符串输入:', str);
-        str = String(str); // 强制转换为字符串
-    }
-    return str.replace(/<user>/g, EDITOR.getContext().name1);
-}
-
-/**
- * 将单元格中的逗号替换为/符号
- * @param {string | number} cell
- * @returns 处理后的单元格值
- */
-export function handleCellValue(cell) {
-    if (typeof cell === 'string') {
-        return cell.replace(/,/g, "/")
-    } else if (typeof cell === 'number') {
-        return cell
-    }
-    return ''
-}
-
-/**
  * 表格类
  */
 export class Table {
@@ -262,4 +209,57 @@ export class Table {
         container.appendChild(table)
         return container
     }
+}
+
+/**
+ * 获取表格为空时的提示词
+ * @param {boolean} Required 此表格是否为必填表格
+ * @param {string} node 此表格的初始化提示词
+ * @returns
+ */
+function getEmptyTablePrompt(Required, node) {
+    return '（此表格为空' + (Required ? (node ? ('，' + node) : '') : '') + '）\n'
+}
+
+/**
+ * 获取表格编辑规则提示词
+ * @param {Structure} structure 表格结构信息
+ * @param {boolean} isEmpty 表格是否为空
+ * @returns
+ */
+function getTableEditRules(structure, isEmpty) {
+    if (structure.Required && isEmpty) return '【增删改触发条件】\n插入：' + replaceUserTag(structure.initNode) + '\n'
+    else {
+        let editRules = '【增删改触发条件】\n'
+        if (structure.insertNode) editRules += ('插入：' + replaceUserTag(structure.insertNode) + '\n')
+        if (structure.updateNode) editRules += ('更新：' + replaceUserTag(structure.updateNode) + '\n')
+        if (structure.deleteNode) editRules += ('删除：' + replaceUserTag(structure.deleteNode) + '\n')
+        return editRules
+    }
+}
+
+/**
+ * 替换字符串中的user标签
+ */
+function replaceUserTag(str) {
+    if (str == null) return ''; // 处理 null 或 undefined
+    if (typeof str !== 'string') {
+        console.warn('非字符串输入:', str);
+        str = String(str); // 强制转换为字符串
+    }
+    return str.replace(/<user>/g, EDITOR.getContext().name1);
+}
+
+/**
+ * 将单元格中的逗号替换为/符号
+ * @param {string | number} cell
+ * @returns 处理后的单元格值
+ */
+export function handleCellValue(cell) {
+    if (typeof cell === 'string') {
+        return cell.replace(/,/g, "/")
+    } else if (typeof cell === 'number') {
+        return cell
+    }
+    return ''
 }

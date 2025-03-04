@@ -3,7 +3,7 @@ import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {findLastestTableData, findNextChatWhitTableData, getTableEditActionsStr, handleEditStrInMessage, parseTableEditTag, replaceTableEditTag,} from "../../index.js";
 import {rebuildTableActions, refreshTableActions} from "./absoluteRefresh.js";
 import {initAllTable} from "../source/tableActions.js";
-import {openTableEditorPopup} from "./tableEditView.js";
+import {openTablePopup} from "./tableDataView.js";
 
 let tablePopup = null
 let copyTableData = null
@@ -16,31 +16,31 @@ const userTableEditInfo = {
     rowIndex: null,
     colIndex: null,
 }
-
-/**
- * 表格编辑浮窗
- */
-const tableEditToolbarDom = `<div class="popup popup--animation-fast tableToolbar" id="tableToolbar">
-    <button id="editCell" class="menu_button">编辑</button>
-    <button id="deleteRow" class="menu_button">删除行</button>
-    <button id="insertRow" class="menu_button">下方插入行</button>
-</div>`
+let drag = null
 
 /**
  * 表头编辑浮窗
  */
 const tableHeaderEditToolbarDom = `
 <div class="popup popup--animation-fast tableToolbar" id="tableHeaderToolbar">
-    <button id="insertRow" class="menu_button">下方插入行</button>
+    <button id="insertColumnLeft" class="menu_button">左侧插入列</button>
+    <button id="insertColumnRight" class="menu_button">右侧插入列</button>
+    <button id="deleteColumn" class="menu_button">删除列</button>
+    <button id="renameColumn" class="menu_button">重命名列</button>
+    <button id="sortColumnAsc" class="menu_button">升序排序</button>
+    <button id="sortColumnDesc" class="menu_button">降序排序</button>
+    <button id="filterColumn" class="menu_button">筛选列</button>
 </div>`
 
 
+let tableHeaderToolbar = null;
 
-export function tableCellClickEvent(table) {
-    if (userTableEditInfo.editAble) {
-        $(table).on('click', 'td', onTdClick)
-        $(table).on('click', 'th', onTdClick)
-    }
+
+/**
+ * 隐藏所有的编辑浮窗
+ */
+function hideAllEditPanels() {
+    $(tableHeaderToolbar).hide();
 }
 
 /**
@@ -56,32 +56,27 @@ function onTdClick(event) {
     saveTdData(selectedCell.data("tableData"))
     // 计算工具栏位置
     const cellOffset = selectedCell.offset();
-    const containerOffset = $("#tableContainer").offset();
-    const relativeX = cellOffset.left - containerOffset.left;
-    const relativeY = cellOffset.top - containerOffset.top;
+    const dragSpaceOffset = $(drag.dragSpace).offset(); // Get offset of dragSpace
+    let relativeX = cellOffset.left - dragSpaceOffset.left; // Calculate relative to dragSpace (scaled)
+    let relativeY = cellOffset.top - dragSpaceOffset.top;   // Calculate relative to dragSpace (scaled)
+
+    // Correct for scale: divide by drag.scale to get position in unscaled dragSpace coordinates
+    relativeX = relativeX / drag.scale;
+    relativeY = relativeY / drag.scale;
+
+
     const clickedElement = event.target;
     hideAllEditPanels()
     if (clickedElement.tagName.toLowerCase() === "td") {
-        $("#tableToolbar").css({
-            top: relativeY + 32 + "px",
-            left: relativeX + "px"
-        }).show();
+        // drag.move('tableToolbar', [relativeX, relativeY + 32]); // Use drag.move with corrected position
+        // $(tableToolbar).show();
     } else if (clickedElement.tagName.toLowerCase() === "th") {
-        $("#tableHeaderToolbar").css({
-            top: relativeY + 32 + "px",
-            left: relativeX + "px"
-        }).show();
+        drag.move('tableHeaderToolbar', [relativeX, relativeY + 32]); // Use drag.move with corrected position
+        $(tableHeaderToolbar).show();
     }
     event.stopPropagation(); // 阻止事件冒泡
 }
 
-/**
- * 隐藏所有的编辑浮窗
- */
-function hideAllEditPanels() {
-    $("#tableToolbar").hide();
-    $("#tableHeaderToolbar").hide();
-}
 
 /**
  * 将保存的data数据字符串保存到设置中
@@ -237,32 +232,6 @@ function addActionForInsert() {
 }
 
 /**
- * 下方插入行事件
- */
-async function onInsertRow() {
-    const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
-    const button = { text: '直接插入', result: 3 }
-    const result = await EDITOR.callGenericPopup("请选择插入方式，目前伪装插入只能插入在表格底部<br/>注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", EDITOR.POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI插入", cancelButton: "取消", customButtons: [button] })
-    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    if (result) {
-        // 伪装输出
-        if (result !== 3) {
-            addActionForInsert()
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
-            replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
-            userTableEditInfo.tables = DERIVED.any.waitingTable
-        } else {
-            table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
-        }
-        renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-        updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
-        EDITOR.success('已插入')
-    }
-}
-
-/**
  * 首行插入事件
  */
 async function onInsertFirstRow() {
@@ -289,71 +258,6 @@ async function onInsertFirstRow() {
 }
 
 /**
- * 寻找actions中是否有与修改值相关的行动，有则修改
- */
-function findAndEditOrAddActionsForUpdate(newValue) {
-    let haveAction = false
-    DERIVED.any.tableEditActions.forEach((action) => {
-        if (action.type === 'Update' || action.type === 'Insert') {
-            if (action.tableIndex === userTableEditInfo.tableIndex && action.rowIndex === userTableEditInfo.rowIndex) {
-                action.data[userTableEditInfo.colIndex] = newValue
-                haveAction = true
-            }
-        }
-    })
-    if (!haveAction) {
-        const newAction = new DERIVED.TableEditAction()
-        const data = {}
-        data[userTableEditInfo.colIndex] = newValue
-        newAction.setActionInfo("Update", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex, data)
-        DERIVED.any.tableEditActions.push(newAction)
-    }
-}
-
-/**
- * 寻找actions中是否有与删除值相关的行动，有则删除
- */
-function findAndDeleteActionsForDelete() {
-    let haveAction = false
-    DERIVED.any.tableEditActions.forEach(action => {
-        if (action.tableIndex === userTableEditInfo.tableIndex && action.rowIndex === userTableEditInfo.rowIndex) {
-            action.able = false
-            haveAction = true
-            if (action.type === 'Update') {
-                const newAction = new DERIVED.TableEditAction()
-                newAction.setActionInfo("Delete", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex)
-                DERIVED.any.tableEditActions.push(newAction)
-            }
-        }
-    })
-    DERIVED.any.tableEditActions = DERIVED.any.tableEditActions.filter(action => action.able)
-    if (!haveAction) {
-        const newAction = new DERIVED.TableEditAction()
-        newAction.setActionInfo("Delete", userTableEditInfo.tableIndex, userTableEditInfo.rowIndex)
-        DERIVED.any.tableEditActions.push(newAction)
-    }
-}
-
-/**
- * 设置表格编辑Tips
- * @param {Element} tableEditTips 表格编辑提示DOM
- */
-function setTableEditTips(tableEditTips) {
-    const tips = $(tableEditTips)
-    tips.empty()
-    if (EDITOR.data.isExtensionAble === false) {
-        tips.append('目前插件已关闭，将不会要求AI更新表格。')
-        tips.css("color", "rgb(211 39 39)")
-    } else if (userTableEditInfo.editAble) {
-        tips.append('点击单元格选择编辑操作。绿色单元格为本轮插入，蓝色单元格为本轮修改。')
-        tips.css("color", "lightgreen")
-    } else {
-        tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑')
-        tips.css("color", "lightyellow")
-    }
-}
-
-/**
  * 渲染所有表格DOM及编辑栏
  * @param {Array} tables 所有表格数据
  * @param {Element} tableContainer 表格DOM容器
@@ -361,74 +265,8 @@ function setTableEditTips(tableEditTips) {
  */
 export function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
     $(tableContainer).empty()
-    if (isEdit) {
-        const tableToolbar = $(tableEditToolbarDom)
-        const tableHeaderToolbar = $(tableHeaderEditToolbarDom)
-        tableToolbar.on('click', '#deleteRow', onDeleteRow)
-        tableToolbar.on('click', '#editCell', onModifyCell)
-        tableToolbar.on('click', '#insertRow', onInsertRow)
-        tableHeaderToolbar.on('click', '#insertRow', onInsertFirstRow)
-        $(tableContainer).append(tableToolbar)
-        $(tableContainer).append(tableHeaderToolbar)
-    }
     for (let table of tables) {
         $(tableContainer).append(table.render()).append(`<hr />`)
-    }
-}
-
-/**
- * 删除行事件
- */
-async function onDeleteRow() {
-    const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
-    const button = { text: '直接修改', result: 3 }
-    const result = await EDITOR.callGenericPopup("请选择删除方式<br/>注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", EDITOR.POPUP_TYPE.CONFIRM, "", { okButton: "伪装为AI删除", cancelButton: "取消", customButtons: [button] })
-    if (result) {
-        // 伪装修改
-        if (result !== 3) {
-            if (!table.insertedRows || !table.updatedRows)
-                return EDITOR.error("由于旧数据兼容性问题，请再聊一次后再使用此功能")
-            findAndDeleteActionsForDelete()
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
-            replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
-            userTableEditInfo.tables = DERIVED.any.waitingTable
-        } else {
-            table.delete(userTableEditInfo.rowIndex)
-        }
-        const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-        renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-        updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
-        EDITOR.success('已删除')
-    }
-}
-
-/**
- * 修改单元格事件
- */
-async function onModifyCell() {
-    const table = userTableEditInfo.tables[userTableEditInfo.tableIndex]
-    const cellValue = table.getCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex)
-    const button = { text: '直接修改', result: 3 }
-    const tableEditPopup = new EDITOR.Popup("注意：如果你本轮需要使用直接和伪装两种方式，请先做完所有伪装操作，再做直接操作，以避免表格混乱", EDITOR.POPUP_TYPE.INPUT, cellValue, { okButton: "伪装为AI修改", cancelButton: "取消", customButtons: [button], rows: 5 });
-    const newValue = await tableEditPopup.show()
-    if (newValue) {
-        const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-        // 伪装修改
-        if (tableEditPopup.result !== 3) {
-            findAndEditOrAddActionsForUpdate(newValue)
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
-            replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
-            userTableEditInfo.tables = DERIVED.any.waitingTable
-        } else {
-            table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
-        }
-        renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
-        updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
-        EDITOR.success('已修改')
     }
 }
 
@@ -436,13 +274,14 @@ async function onModifyCell() {
  * 打开表格展示/编辑弹窗
  * @param {number} mesId 需要打开的消息ID，-1为最新一条
  */
-export async function openTablePopup(mesId = -1) {
-    const manager = await SYSTEM.getComponent('manager');
+export async function openTableEditorPopup(mesId = -1) {
+    const manager = await SYSTEM.getComponent('editor');
     tablePopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     // 是否可编辑
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
+    const contentContainer = tablePopup.dlg.querySelector('#contentContainer');
     const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
+    // const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
     const tableRefresh = tablePopup.dlg.querySelector('#table_clear_up_button');
     const tableRebuild = tablePopup.dlg.querySelector('#table_rebuild_button');
     const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
@@ -450,13 +289,22 @@ export async function openTablePopup(mesId = -1) {
     const clearTableButton = tablePopup.dlg.querySelector('#clear_table_button');
     const importTableButton = tablePopup.dlg.querySelector('#import_clear_up_button');
     const exportTableButton = tablePopup.dlg.querySelector('#export_table_button');
-    const tableEditModeButton = tablePopup.dlg.querySelector('#table_edit_mode_button');
+    const tableEditModeQuitButton = tablePopup.dlg.querySelector('#table_view_mode_quit_button');
 
+    tableHeaderToolbar = $(tableHeaderEditToolbarDom).hide();
+    tableHeaderToolbar.on('click', '#insertRow', onInsertFirstRow);
     $(tableContainer).on('click', hideAllEditPanels)
     $(tableRefresh).on('click', () => refreshTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
     $(tableRebuild).on('click', () => rebuildTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
-    // 设置编辑提示
-    setTableEditTips(tableEditTips)
+
+    // 初始化可拖动空间
+    $(contentContainer).empty()
+    drag = new EDITOR.Drag();
+    contentContainer.append(drag.render);
+    drag.add('tableContainer', tableContainer);
+    drag.add('tableHeaderToolbar', tableHeaderToolbar[0]);
+
+
     // 开始寻找表格
     const { tables, index } = findLastestTableData(true, mesId)
     userTableEditInfo.chatIndex = index
@@ -476,9 +324,9 @@ export async function openTablePopup(mesId = -1) {
     clearTableButton.addEventListener('click', () => clearTable(index, tableContainer))
     importTableButton.addEventListener('click', () => importTable(index, tableContainer))
     exportTableButton.addEventListener('click', () => exportTable(tables))
-    tableEditModeButton.addEventListener('click', () => {
+    tableEditModeQuitButton.addEventListener('click', () => {
         document.querySelector('.popup-button-ok').click()
-        openTableEditorPopup()
+        openTablePopup()
     })
     await tablePopup.show()
 }

@@ -7,6 +7,8 @@ import { TableEditAction } from "./source/tableActions.js";
 import { consoleMessageToEditor } from "./derived/devConsole.js";
 import {calculateStringHash, generateDeviceId, generateRandomNumber, generateRandomString} from "../utils/utility.js";
 import {defaultSettings} from "./source/pluginSetting.js";
+import {Drag} from "./source/dragManager.js";
+import {PopupMenu} from "./source/popupMenu.js";
 
 let derivedData = {}
 /**
@@ -57,6 +59,8 @@ export let DERIVED = {
  * @description 提供给用户的用户原始数据（资产）的编辑操作请通过 `FocusedFile` 控制器提供的方法进行访问和修改
  * */
 export let EDITOR = {
+    Drag: Drag,
+    PopupMenu: PopupMenu,
     Popup: Popup,
     callGenericPopup: callGenericPopup,
     POPUP_TYPE: POPUP_TYPE,

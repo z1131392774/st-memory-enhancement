@@ -3,6 +3,91 @@ import JSON5 from '../../utils/json5.min.mjs'
 import {handleCellValue} from "./table.js";
 
 /**
+ * 命令执行对象
+ */
+export class TableEditAction {
+    constructor(str) {
+        this.able = true
+        if (!str) return
+        this.str = str.trim()
+        this.parsingFunctionStr()
+    }
+
+    setActionInfo(type, tableIndex, rowIndex, data) {
+        this.type = type
+        this.tableIndex = tableIndex
+        this.rowIndex = rowIndex
+        this.data = data
+    }
+
+    parsingFunctionStr() {
+        const { type, newFunctionStr } = isTableEditFunction(this.str)
+        this.type = type
+        if (this.type === 'Comment') {
+            if (!this.str.startsWith('//')) this.str = '// ' + this.str
+        }
+        this.params = ParseFunctionParams(newFunctionStr)
+        this.AssignParams()
+    }
+
+    AssignParams() {
+        for (const paramIndex in this.params) {
+            if (typeof this.params[paramIndex] === 'number')
+                switch (paramIndex) {
+                    case '0':
+                        this.tableIndex = this.params[paramIndex]
+                        break
+                    case '1':
+                        this.rowIndex = this.params[paramIndex]
+                        break
+                    default:
+                        break
+                }
+            else if (typeof this.params[paramIndex] === 'string') {
+                // 暂时处理第二位参数为undefined的情况
+                if (paramIndex == '1') this.rowIndex = 0
+            }
+            else if (typeof this.params[paramIndex] === 'object' && this.params[paramIndex] !== null) {
+                this.data = this.params[paramIndex]
+            }
+        }
+    }
+
+    execute() {
+        try {
+            switch (this.type) {
+                case 'Update':
+                    updateRow(this.tableIndex, this.rowIndex, this.data)
+                    break
+                case 'Insert':
+                    const newRowIndex = insertRow(this.tableIndex, this.data)
+                    this.rowIndex = newRowIndex
+                    break
+                case 'Delete':
+                    deleteRow(this.tableIndex, this.rowIndex)
+                    break
+            }
+        } catch (err) {
+            EDITOR.error('表格操作函数执行错误，请重新生成本轮文本\n错误语句：' + this.str + '\n错误信息：' + err.message);
+        }
+    }
+
+    format() {
+        switch (this.type) {
+            case 'Update':
+                return `updateRow(${this.tableIndex}, ${this.rowIndex}, ${JSON.stringify(this.data).replace(/\\"/g, '"')})`
+            case 'Insert':
+                return `insertRow(${this.tableIndex}, ${JSON.stringify(this.data).replace(/\\"/g, '"')})`
+            case 'Delete':
+                return `deleteRow(${this.tableIndex}, ${this.rowIndex})`
+            default:
+                return this.str
+        }
+    }
+
+}
+
+/**
  * 初始化所有表格
  * @returns 所有表格对象数组
  */
@@ -145,89 +230,4 @@ function handleJsonStr(str) {
     // console.log("asasasa", str);
 
     return JSON5.parse(jsonStr);
-}
-
-/**
- * 命令执行对象
- */
-export class TableEditAction {
-    constructor(str) {
-        this.able = true
-        if (!str) return
-        this.str = str.trim()
-        this.parsingFunctionStr()
-    }
-
-    setActionInfo(type, tableIndex, rowIndex, data) {
-        this.type = type
-        this.tableIndex = tableIndex
-        this.rowIndex = rowIndex
-        this.data = data
-    }
-
-    parsingFunctionStr() {
-        const { type, newFunctionStr } = isTableEditFunction(this.str)
-        this.type = type
-        if (this.type === 'Comment') {
-            if (!this.str.startsWith('//')) this.str = '// ' + this.str
-        }
-        this.params = ParseFunctionParams(newFunctionStr)
-        this.AssignParams()
-    }
-
-    AssignParams() {
-        for (const paramIndex in this.params) {
-            if (typeof this.params[paramIndex] === 'number')
-                switch (paramIndex) {
-                    case '0':
-                        this.tableIndex = this.params[paramIndex]
-                        break
-                    case '1':
-                        this.rowIndex = this.params[paramIndex]
-                        break
-                    default:
-                        break
-                }
-            else if (typeof this.params[paramIndex] === 'string') {
-                // 暂时处理第二位参数为undefined的情况
-                if (paramIndex == '1') this.rowIndex = 0
-            }
-            else if (typeof this.params[paramIndex] === 'object' && this.params[paramIndex] !== null) {
-                this.data = this.params[paramIndex]
-            }
-        }
-    }
-
-    execute() {
-        try {
-            switch (this.type) {
-                case 'Update':
-                    updateRow(this.tableIndex, this.rowIndex, this.data)
-                    break
-                case 'Insert':
-                    const newRowIndex = insertRow(this.tableIndex, this.data)
-                    this.rowIndex = newRowIndex
-                    break
-                case 'Delete':
-                    deleteRow(this.tableIndex, this.rowIndex)
-                    break
-            }
-        } catch (err) {
-            EDITOR.error('表格操作函数执行错误，请重新生成本轮文本\n错误语句：' + this.str + '\n错误信息：' + err.message);
-        }
-    }
-
-    format() {
-        switch (this.type) {
-            case 'Update':
-                return `updateRow(${this.tableIndex}, ${this.rowIndex}, ${JSON.stringify(this.data).replace(/\\"/g, '"')})`
-            case 'Insert':
-                return `insertRow(${this.tableIndex}, ${JSON.stringify(this.data).replace(/\\"/g, '"')})`
-            case 'Delete':
-                return `deleteRow(${this.tableIndex}, ${this.rowIndex})`
-            default:
-                return this.str
-        }
-    }
-
 }
