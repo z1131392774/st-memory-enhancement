@@ -1,6 +1,5 @@
 import {DERIVED, EDITOR, SYSTEM} from '../manager.js'
 import JSON5 from '../../utils/json5.min.mjs'
-import {tableCellClickEvent} from "../derived/tableDataView.js";
 import {findTableStructureByIndex} from "../../index.js";
 
 /**
@@ -14,6 +13,8 @@ export class Table {
         this.content = content;
         this.insertedRows = insertedRows;
         this.updatedRows = updatedRows;
+        this.cellClickCallback = null; // Store the callback function
+        this.cellData = null; // Store the data of the clicked cell
     }
 
     /**
@@ -167,6 +168,14 @@ export class Table {
     }
 
     /**
+     * 单元格点击事件注册
+     * @param {function} callback 点击单元格后的回调函数，参数为{rowIndex, colIndex, cellContent}
+     */
+    cellClickEvent(callback) {
+        this.cellClickCallback = callback;
+    }
+
+    /**
      * 把表格数据渲染成DOM元素
      * @returns DOM容器元素
      */
@@ -177,14 +186,23 @@ export class Table {
         const title = document.createElement('h3')
         title.innerText = replaceUserTag(this.tableName)
         const table = document.createElement('table')
-        tableCellClickEvent(table)  // 添加单元格点击事件
         table.classList.add('tableDom')
         const thead = document.createElement('thead')
         const titleTr = document.createElement('tr')
-        this.columns.forEach(colName => {
+        this.columns.forEach((colName, colIndex) => { // Added colIndex here
             const th = document.createElement('th');
             $(th).data("tableData", this.tableIndex + '-0-0');
-            th.innerText = replaceUserTag(colName); // 已通过函数内部处理非字符串
+            th.innerText = replaceUserTag(colName);
+            // Add click event listener to header cells (<th>)
+            th.onclick = () => {
+                if (this.cellClickCallback) {
+                    this.cellClickCallback({
+                        rowIndex: -1, // Use -1 to indicate header row
+                        colIndex: colIndex,
+                        cellContent: colName // Or th.innerText if you prefer
+                    });
+                }
+            };
             titleTr.appendChild(th);
         });
         thead.appendChild(titleTr)
@@ -197,6 +215,16 @@ export class Table {
                 $(td).data("tableData", this.tableIndex + '-' + rowIndex + '-' + cellIndex)
                 td.innerText = this.content[rowIndex][cellIndex]
                 if (this.updatedRows && this.updatedRows.includes(rowIndex + '-' + cellIndex)) $(td).css('background-color', 'rgba(0, 98, 128, 0.2)')
+                // Add click event listener to data cells (<td>) - already present, keeping it
+                td.onclick = () => {
+                    if (this.cellClickCallback) {
+                        this.cellClickCallback({
+                            rowIndex: parseInt(rowIndex),
+                            colIndex: parseInt(cellIndex),
+                            cellContent: this.content[rowIndex][cellIndex]
+                        });
+                    }
+                };
                 tr.appendChild(td)
             }
             if (this.insertedRows && this.insertedRows.includes(parseInt(rowIndex))) {

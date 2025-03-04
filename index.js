@@ -30,7 +30,7 @@ export function findTableStructureByIndex(index) {
 
 /**
  * 检查数据是否为Table实例，不是则重新创建
- * @param {Table[]} dataTable 所有表格对象数组
+ * @param {DERIVED.Table[]} dataTable 所有表格对象数组
  */
 function checkPrototype(dataTable) {
     for (let i = 0; i < dataTable.length; i++) {
@@ -99,7 +99,7 @@ export function initTableData() {
 
 /**
  * 获取所有的完整提示词
- * @param {Table[]} tables 所有表格对象数组
+ * @param {DERIVED.Table[]} tables 所有表格对象数组
  * @returns 完整提示词
  */
 function getAllPrompt(tables) {
@@ -109,7 +109,7 @@ function getAllPrompt(tables) {
 
 /**
  * 深拷贝所有表格数据，拷贝时保留 Table 类的原型链
- * @param {Table[]} tableList 要拷贝的表格对象数组
+ * @param {DERIVED.Table[]} tableList 要拷贝的表格对象数组
  * @returns 拷贝后的表格对象数组
  */
 export function copyTableList(tableList) {
@@ -299,6 +299,30 @@ function getMesRole() {
 async function onChatCompletionPromptReady(eventData) {
     // 用于测试
     await openTestPopup();
+
+    EDITOR.logAll()
+    // test()
+    // function test() {
+    //     const array = [];
+    //     const targetIndex = 9;
+    //     let target = '';
+    //     for (let i = 0; i < 100; i++) {
+    //         const r = SYSTEM.generateRandomString(16);
+    //         array.push(r);
+    //         if (i === targetIndex) target = r;
+    //     }
+    //
+    //     // 1. 使用array的find方法查找目标元素
+    //     console.log(array.find(item => item === target));
+    //     // 2. 使用array的map方法查找目标元素
+    //     console.log(array.map(item => item === target).indexOf(true));
+    //     // 3. 将arry转换为Map对象，然后使用Map对象的get方法查找目标元素
+    //     const map = new Map(array.map(item => [item, item]));
+    //     console.log(map.get(target));
+    //     // 4. 将arry转换为Set对象，然后使用Set对象的has方法查找目标元素
+    //     const set = new Set(array);
+    //     console.log(set.has(target));
+    // }
 
     try {
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中

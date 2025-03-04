@@ -9,6 +9,8 @@ import {calculateStringHash, generateDeviceId, generateRandomNumber, generateRan
 import {defaultSettings} from "./source/pluginSetting.js";
 import {Drag} from "./source/dragManager.js";
 import {PopupMenu} from "./source/popupMenu.js";
+import {TableBase} from "./source/tableBase.js";
+import {findLastestTableData} from "../index.js";
 
 let derivedData = {}
 /**
@@ -49,6 +51,7 @@ export let DERIVED = {
         return createProxy(data);
     },
     Table: Table,
+    TableBase: TableBase,
     TableEditAction: TableEditAction,
 };
 
@@ -72,6 +75,14 @@ export let EDITOR = {
     warning: consoleMessageToEditor.warning,
     error: consoleMessageToEditor.error,
     clear: consoleMessageToEditor.clear,
+    logAll: () => {
+        const r = {
+            lastTable: findLastestTableData(true),
+            setting: extension_settings.muyoo_dataTable,
+            context: getContext(),
+        }
+        console.log(r)
+    },
 
     defaultSettings: defaultSettings,
     allData: extension_settings.muyoo_dataTable,

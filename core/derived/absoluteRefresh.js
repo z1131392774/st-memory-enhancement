@@ -4,7 +4,6 @@ import {insertRow, updateRow, deleteRow} from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {renderTablesDOM,pasteTable} from "./tableDataView.js";
-import { Table } from "../source/table.js";
 import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../source/standaloneAPI.js";
 
 // 在解析响应后添加验证
@@ -510,7 +509,7 @@ function tableDataToTables(tablesData) {
             ? item.columns.map(col => String(col)) // 强制转换为字符串
             : inferColumnsFromContent(item.content); // 从 content 推断
 
-        return new Table(
+        return new DERIVED.Table(
             item.tableName || '未命名表格', // tableName
             item.tableIndex || 0,          // tableIndex
             columns,                       // columns

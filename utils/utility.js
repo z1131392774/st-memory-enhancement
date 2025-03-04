@@ -7,6 +7,15 @@ function stepRandom(bias = step) {
     return r;
 }
 
+/**
+ * 生成一个随机字符串
+ * @description 请注意，该函数不适用于安全敏感的场景，在长度低于 12 时有碰撞的风险
+ * @description 在 length = 8 时有 0.000023% (1,000,000次实验) 的可能性会出现重复
+ * @param length
+ * @param bias
+ * @param characters
+ * @returns {string}
+ */
 export function generateRandomString(length = 12, bias = step, characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
     let result = '';
     for (let i = 0; i < length; i++) {
@@ -15,6 +24,13 @@ export function generateRandomString(length = 12, bias = step, characters = 'ABC
     return result;
 }
 
+/**
+ * 生成一个随机数字
+ * @description 请注意，该函数不适用于安全敏感的场景，且在 length = 8 时有 0.00005% (1,000,000次实验) 的可能性会出现重复
+ * @param length
+ * @param forceLength
+ * @returns {number}
+ */
 export function generateRandomNumber(length = 12, forceLength = true) {
     let randomNumber;
 

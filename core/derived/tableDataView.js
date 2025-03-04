@@ -1,6 +1,14 @@
 import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {findLastestTableData, findNextChatWhitTableData, getTableEditActionsStr, handleEditStrInMessage, parseTableEditTag, replaceTableEditTag,} from "../../index.js";
+import {
+    copyTableList,
+    findLastestTableData,
+    findNextChatWhitTableData,
+    getTableEditActionsStr,
+    handleEditStrInMessage,
+    parseTableEditTag,
+    replaceTableEditTag,
+} from "../../index.js";
 import {rebuildTableActions, refreshTableActions} from "./absoluteRefresh.js";
 import {initAllTable} from "../source/tableActions.js";
 import {openTableEditorPopup} from "./tableEditView.js";
@@ -469,6 +477,10 @@ export async function openTablePopup(mesId = -1) {
     // 渲染
     renderTablesDOM(userTableEditInfo.tables, tableContainer, userTableEditInfo.editAble)
     // 拷贝粘贴
+
+    tables[0].cellClickEvent(callback => {
+        console.log(callback)
+    })
 
     if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
     else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
