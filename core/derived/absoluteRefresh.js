@@ -53,6 +53,8 @@ function getRefreshTableConfigStatus(callerType = 0) {
     const clearUpStairs = EDITOR.data.clear_up_stairs;
     const isIgnoreDel = EDITOR.data.bool_ignore_del;
     const isIgnoreUserSent = EDITOR.data.ignore_user_sent;
+    const isUseTokenLimit = EDITOR.data.use_token_limit;
+    const rebuild_token_limit_value = EDITOR.data.rebuild_token_limit_value;
 
     return `<div class="wide100p padding5 dataBankAttachments">
                 <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
@@ -60,7 +62,11 @@ function getRefreshTableConfigStatus(callerType = 0) {
                     <table class="table table-bordered table-striped">
                         <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
                         <tbody>
+                        ${isUseTokenLimit ? `
+                        <tr> <td>发送的聊天记录token数限制</td> <td>${rebuild_token_limit_value}</td> </tr>
+                        ` : `
                         <tr> <td>纳入参考的聊天记录</td> <td>${clearUpStairs}条</td> </tr>
+                        `}
                         <td>忽略用户消息</td> <td>${isIgnoreUserSent ? '是' : '否'}</td>
                         ${callerType === 1 ? '' : `<tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>`}
                         <tr> <td>使用的API</td> <td>${isUseMainAPI ? '主API' : '自定义API'}</td> </tr>
