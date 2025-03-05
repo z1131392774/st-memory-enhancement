@@ -2,15 +2,18 @@ import { saveSettingsDebounced, } from '../../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../../popup.js';
 import { generateRaw } from '../../../../../../../script.js';
+import { power_user, applyPowerUserSettings, getContextSettings, loadPowerUserSettings } from "../../../../../scripts/power-user.js";
 import { Table } from "./source/table.js";
 import { TableEditAction } from "./source/tableActions.js";
 import { consoleMessageToEditor } from "./derived/devConsole.js";
-import {calculateStringHash, generateDeviceId, generateRandomNumber, generateRandomString} from "../utils/utility.js";
+import {calculateStringHash, generateRandomNumber, generateRandomString, lazy,} from "../utils/utility.js";
 import {defaultSettings} from "./source/pluginSetting.js";
 import {Drag} from "./source/dragManager.js";
 import {PopupMenu} from "./source/popupMenu.js";
-import {TableBase} from "./source/tableBase.js";
+import {tableBase} from "./source/tableBase.js";
 import {findLastestTableData} from "../index.js";
+import {getRelativePositionOfCurrentCode} from "../utils/codePathProcessing.js";
+import {fileManager} from "../services/router.js";
 
 let derivedData = {}
 /**
@@ -34,6 +37,19 @@ const createProxy = (obj) => {
     });
 }
 
+export const BASE = tableBase;
+
+export const USER = {
+    getSettingValueByKey: getContextSettings,
+    modifySetting: applyPowerUserSettings,
+    projectHistory: extension_settings.projectHistory,
+    config: extension_settings.config,
+    cacheFile: extension_settings.userCache,
+    fastCacheFile: extension_settings.binaryCacheFile,
+    // fastCache: userManager.fastCache,
+
+}
+
 /**
  * @description `DerivedData` 项目派生数据管理器
  * @description 该管理器用于管理项目派生数据，包括项目配置信息、用户构建的项目内容等
@@ -41,7 +57,7 @@ const createProxy = (obj) => {
  * @description 用户直接访问派生数据可能会导致数据不一致，因为编辑器内部可能会对数据进行缓存、计算等操作
  * @description 用户通过 `Editor` 的任何操作应尽量通过提供事件的方式返回并自动执行对派生数据的修改，以保证数据的一致性和该环境中定义的数据单向流动的结构
  * */
-export let DERIVED = {
+export const DERIVED = {
     get any() {
         let data = derivedData;
         if (!data) {
@@ -51,7 +67,6 @@ export let DERIVED = {
         return createProxy(data);
     },
     Table: Table,
-    TableBase: TableBase,
     TableEditAction: TableEditAction,
 };
 
@@ -61,7 +76,7 @@ export let DERIVED = {
  * @description 编辑器自身数据相对于其他数据相互独立，对于修改编辑器自身数据不会影响派生数据和用户数据，反之亦然
  * @description 提供给用户的用户原始数据（资产）的编辑操作请通过 `FocusedFile` 控制器提供的方法进行访问和修改
  * */
-export let EDITOR = {
+export const EDITOR = {
     Drag: Drag,
     PopupMenu: PopupMenu,
     Popup: Popup,
@@ -76,36 +91,32 @@ export let EDITOR = {
     error: consoleMessageToEditor.error,
     clear: consoleMessageToEditor.clear,
     logAll: () => {
-        const r = {
-            lastTable: findLastestTableData(true),
-            setting: extension_settings.muyoo_dataTable,
-            context: getContext(),
-        }
-        console.log(r)
+        SYSTEM.codePathLog({
+            'last_table': findLastestTableData(true),
+            'user_setting': extension_settings.muyoo_dataTable,
+            'context': getContext(),
+        }, 3);
     },
 
     defaultSettings: defaultSettings,
     allData: extension_settings.muyoo_dataTable,
-    /**
-     * @description 优化的 data 属性，优先从 extension_settings.muyoo_dataTable 获取，
-     *              如果不存在则从 defaultSettings 中获取
-     */
     data: new Proxy({}, {
         get(_, property) {
-            // 如果property为空，则返回所有数据
-            // if (!property) {
-            //     return extension_settings.muyoo_dataTable;
+            // 最优先从用户数据中获取配置
+            // const user_data = fileManager.readFile('muyoo_dataTable');
+            // if (user_data !== null) {
+            //     console.log(`变量 ${property} 未找到, 已从用户数据中获取`)
+            //     return user_data[property];
             // }
-
             // 优先从 extension_settings.muyoo_dataTable 中获取
             if (extension_settings.muyoo_dataTable && property in extension_settings.muyoo_dataTable) {
-                EDITOR.saveSettingsDebounced();
+                // EDITOR.saveSettingsDebounced();
                 return extension_settings.muyoo_dataTable[property];
             }
             // 如果 extension_settings.muyoo_dataTable 中不存在，则从 defaultSettings 中获取
             if (defaultSettings && property in defaultSettings) {
                 console.log(`变量 ${property} 未找到, 已从默认设置中获取`)
-                EDITOR.saveSettingsDebounced();
+                // EDITOR.saveSettingsDebounced();
                 return defaultSettings[property];
             }
             // 如果 defaultSettings 中也不存在，则返回 undefined
@@ -114,6 +125,21 @@ export let EDITOR = {
             return undefined;
         },
         set(_, property, value) {
+            try {
+                // 写入fileManager.writeFile
+                fileManager.writeFile('muyoo_dataTable', extension_settings.muyoo_dataTable);
+                console.log(`设置变量 ${property} 为 ${value}`)
+                return true;
+            } catch (e) {
+                // 将设置操作直接作用于 extension_settings.muyoo_dataTable
+                if (!extension_settings.muyoo_dataTable) {
+                    extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
+                }
+                extension_settings.muyoo_dataTable[property] = value;
+                console.log(`设置变量 ${property} 为 ${value}`)
+                EDITOR.saveSettingsDebounced();
+                return true;
+            }
             // 将设置操作直接作用于 extension_settings.muyoo_dataTable
             if (!extension_settings.muyoo_dataTable) {
                 extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
@@ -129,40 +155,27 @@ export let EDITOR = {
     getContext: getContext,
 }
 
-let antiShakeTimers = {};
+
 /**
  * @description `SYSTEM` 系统控制器 - 用于管理系统的数据，如文件读写、任务计时等
  */
-export let SYSTEM = {
+export const SYSTEM = {
     getComponent: (name) => {
         console.log('getComponent', name);
         return renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
     },
-    /**
-     * 防抖函数，控制某个操作的执行频率
-     * @param {string} uid 唯一标识符，用于区分不同的防抖操作
-     * @param {number} interval 时间间隔，单位毫秒，在这个间隔内只允许执行一次
-     * @returns {boolean} 如果允许执行返回 true，否则返回 false
-     */
-    lazy: function(uid, interval = 100) {
-        if (!antiShakeTimers[uid]) {
-            antiShakeTimers[uid] = { lastExecutionTime: 0 };
-        }
-        const timer = antiShakeTimers[uid];
-        const currentTime = Date.now();
-
-        if (currentTime - timer.lastExecutionTime < interval) {
-            return false; // 时间间隔太短，防抖，不允许执行
-        }
-
-        timer.lastExecutionTime = currentTime;
-        return true; // 允许执行
+    lazy: lazy,
+    codePathLog: function (context = '', deep = 2) {
+        const r = getRelativePositionOfCurrentCode(deep);
+        const rs = `${r.codeFileRelativePathWithRoot}[${r.codePositionInFile}] `;
+        console.log(`%c${rs}${r.codeAbsolutePath}`, 'color: red', context);
     },
     generateRandomString: generateRandomString,
     generateRandomNumber: generateRandomNumber,
     calculateStringHash: calculateStringHash,
-    // readFile: ,
-    // writeFile: ,
-    //
+
+    readFile: fileManager.readFile,
+    writeFile: fileManager.writeFile,
+
     // taskTiming: ,
 };

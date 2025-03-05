@@ -1,5 +1,8 @@
-import { eventSource, event_types } from '../../../../script.js';
-import {DERIVED, EDITOR, SYSTEM} from './core/manager.js';
+import { eventSource, event_types, getRequestHeaders } from '../../../../script.js';
+import {uploadFileAttachment} from "../../../../scripts/chats.js";
+import {getBase64Async} from "../../../../scripts/utils.js";
+// import {currentUser} from "../../../../scripts/user.js";
+import {BASE, DERIVED, EDITOR, SYSTEM} from './core/manager.js';
 import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/derived/tablePushToChat.js";
 import {openTableHistoryPopup} from "./core/derived/tableHistory.js";
 import {loadSettings} from "./core/derived/userExtensionSetting.js";
@@ -9,6 +12,8 @@ import {initAllTable} from "./core/source/tableActions.js";
 import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
 import {openTestPopup} from "./core/derived/_fotTest.js";
+import JSON5 from './utils/json5.min.mjs'
+
 
 console.log("______________________记忆插件：开始加载______________________")
 
@@ -299,30 +304,30 @@ function getMesRole() {
 async function onChatCompletionPromptReady(eventData) {
     // 用于测试
     await openTestPopup();
+    EDITOR.logAll();
 
-    EDITOR.logAll()
-    // test()
-    // function test() {
-    //     const array = [];
-    //     const targetIndex = 9;
-    //     let target = '';
-    //     for (let i = 0; i < 100; i++) {
-    //         const r = SYSTEM.generateRandomString(16);
-    //         array.push(r);
-    //         if (i === targetIndex) target = r;
-    //     }
-    //
-    //     // 1. 使用array的find方法查找目标元素
-    //     console.log(array.find(item => item === target));
-    //     // 2. 使用array的map方法查找目标元素
-    //     console.log(array.map(item => item === target).indexOf(true));
-    //     // 3. 将arry转换为Map对象，然后使用Map对象的get方法查找目标元素
-    //     const map = new Map(array.map(item => [item, item]));
-    //     console.log(map.get(target));
-    //     // 4. 将arry转换为Set对象，然后使用Set对象的has方法查找目标元素
-    //     const set = new Set(array);
-    //     console.log(set.has(target));
-    // }
+    console.log("tableBase", BASE.Instance)
+    BASE.save()
+
+    // let testData = {}
+    // fetch('/user/files/test.json')
+    //     .then(response => response.json())
+    //     .then(configData => {
+    //         testData = configData
+    //         console.log('Loaded plugin configuration:', configData);
+    //         // 在插件中使用 configData 配置插件
+    //         // 例如: 设置插件的 UI 样式，初始化插件参数等等
+    //     })
+    //     .catch(error => {
+    //         console.error('Error loading plugin config:', error);
+    //     });
+
+    // testData = {}
+    // testData.newSetting = "newValue";
+    // console.log("testData", testData)
+
+    // const a = await getRequestHeaders()
+
 
     try {
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中

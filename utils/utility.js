@@ -61,6 +61,30 @@ export function generateDeviceId() {
     return deviceId;
 }
 
+
+let antiShakeTimers = {};
+/**
+ * 防抖函数，控制某个操作的执行频率
+ * @param {string} uid 唯一标识符，用于区分不同的防抖操作
+ * @param {number} interval 时间间隔，单位毫秒，在这个间隔内只允许执行一次
+ * @returns {boolean} 如果允许执行返回 true，否则返回 false
+ */
+export function lazy(uid, interval = 100) {
+    if (!antiShakeTimers[uid]) {
+        antiShakeTimers[uid] = { lastExecutionTime: 0 };
+    }
+    const timer = antiShakeTimers[uid];
+    const currentTime = Date.now();
+
+    if (currentTime - timer.lastExecutionTime < interval) {
+        return false; // 时间间隔太短，防抖，不允许执行
+    }
+
+    timer.lastExecutionTime = currentTime;
+    return true; // 允许执行
+}
+
+
 /**
  * 使用原生 JavaScript 方法计算字符串的 MD5 哈希值
  * @param {string} string 要计算哈希的字符串
@@ -88,3 +112,4 @@ export async function calculateStringHash(string) {
 
     return hashHex;
 }
+
