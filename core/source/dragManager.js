@@ -2,7 +2,7 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 /**
- * @description 拖拽管理器 - 用于管理拖拽操作
+ * @description 拖拽管理器 - 用于管理拖拽操作，支持鼠标拖拽、触摸拖拽和双指缩放
  */
 export class Drag {
     constructor() {
@@ -18,10 +18,15 @@ export class Drag {
         this.zoomRange = [-5, 10];
         this.elements = new Map();
 
-        // 新增阈值变量
-        this.dragThreshold = 10; // 移动超过10px视为拖拽
+        // 拖拽阈值
+        this.dragThreshold = 10;
         this.initialPosition = { x: 0, y: 0 };
         this.shouldDrag = false;
+
+        // 双指缩放相关状态
+        this.isPinching = false; // 新增：是否正在进行双指缩放
+        this.initialPinchDistance = null; // 新增：初始双指距离
+        this.initialPinchCenter = null; // 新增：初始双指中心点
 
         // 创建容器结构
         this.dragContainer = document.createElement('div');
@@ -60,6 +65,10 @@ export class Drag {
         // 绑定事件处理
         this.dragLayer.addEventListener('mousedown', this.handleMouseDown);
         this.dragLayer.addEventListener('wheel', this.handleWheel, { passive: false });
+
+        // 移动端事件绑定
+        this.dragLayer.addEventListener('touchstart', this.handleTouchStart);
+        this.dragLayer.addEventListener('wheel', this.handleWheel, { passive: false }); // wheel 事件保持不变，移动端也可能支持滚轮缩放
     }
 
 
@@ -122,62 +131,230 @@ export class Drag {
 
 
     /** ------------------ 以下为拖拽功能实现，为事件处理函数，不需要手动调用 ------------------ */
+        // 统一获取坐标的函数
+    getPointFromEvent = (e) => {
+        if (e.touches && e.touches.length > 0) { // 触摸事件
+            return {
+                clientX: e.touches[0].clientX,
+                clientY: e.touches[0].clientY
+            };
+        } else { // 鼠标事件
+            return {
+                clientX: e.clientX,
+                clientY: e.clientY
+            };
+        }
+    }
+
     // 鼠标按下事件
     handleMouseDown = (e) => {
-        if (e.button === 0) {
-            // 保存初始位置
-            this.initialPosition.x = e.clientX;
-            this.initialPosition.y = e.clientY;
+        if (e.button !== 0) return; // 鼠标事件只处理左键
 
-            // 临时禁用指针事件
-            this.dragLayer.style.pointerEvents = 'none';
-            const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
-            this.dragLayer.style.pointerEvents = 'auto';
+        const point = this.getPointFromEvent(e); // 获取统一的坐标
 
-            // 如果点击的是可交互元素则直接返回
-            if (elementUnderMouse?.closest('button, [onclick], a')) {
-                elementUnderMouse.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                return;
-            }
+        // 保存初始位置
+        this.initialPosition.x = point.clientX;
+        this.initialPosition.y = point.clientY;
 
-            // 初始化拖拽状态
-            this.isDragging = false;
-            this.shouldDrag = false;
-            this.startX = e.clientX;
-            this.startY = e.clientY;
+        // 临时禁用指针事件，检测下方元素是否可交互
+        this.dragLayer.style.pointerEvents = 'none';
+        const elementUnderMouse = document.elementFromPoint(point.clientX, point.clientY);
+        this.dragLayer.style.pointerEvents = 'auto';
 
-            // 添加事件监听
-            document.addEventListener('mousemove', this.handleFirstMove);
-            document.addEventListener('mouseup', this.handleMouseUp);
+        // 如果点击的是可交互元素则直接返回，不进行拖拽
+        if (elementUnderMouse?.closest('button, [onclick], a')) {
+            elementUnderMouse.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            return;
         }
+
+        // 初始化拖拽状态
+        this.isDragging = false;
+        this.shouldDrag = false;
+        this.startX = point.clientX;
+        this.startY = point.clientY;
+
+        // 添加事件监听
+        document.addEventListener('mousemove', this.handleFirstMove);
+        document.addEventListener('mouseup', this.handleMouseUp);
+
+        e.preventDefault(); // 阻止默认的鼠标事件行为，例如文本选中
     };
 
-    // 在 handleFirstMove 方法中添加拖拽状态标记
+    // 触摸开始事件
+    handleTouchStart = (e) => {
+        if (e.touches.length === 2) {
+            // 双指操作，进入双指缩放逻辑
+            this.handlePinchStart(e);
+        } else if (e.touches.length === 1) {
+            // 单指操作，进入单指拖拽逻辑
+            this.handleDragStart(e);
+        }
+
+        e.preventDefault(); // 阻止默认的触摸事件行为，例如页面滚动
+    };
+
+    // 处理单指拖拽开始
+    handleDragStart = (e) => {
+        const point = this.getPointFromEvent(e); // 获取统一的坐标
+
+        // 保存初始位置
+        this.initialPosition.x = point.clientX;
+        this.initialPosition.y = point.clientY;
+
+        // 初始化拖拽状态
+        this.isDragging = false;
+        this.shouldDrag = false;
+        this.startX = point.clientX;
+        this.startY = point.clientY;
+
+        // 添加事件监听
+        document.addEventListener('touchmove', this.handleTouchMove);
+        document.addEventListener('touchend', this.handleTouchEnd);
+        document.addEventListener('touchcancel', this.handleTouchEnd);
+    };
+
+    // 处理双指缩放开始
+    handlePinchStart = (e) => {
+        this.isPinching = true; // 标记为正在进行双指缩放
+
+        // 计算初始双指距离
+        this.initialPinchDistance = Math.hypot(
+            e.touches[1].clientX - e.touches[0].clientX,
+            e.touches[1].clientY - e.touches[0].clientY
+        );
+
+        // 计算初始双指中心点
+        this.initialPinchCenter = {
+            x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+            y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+
+        // 添加事件监听
+        document.addEventListener('touchmove', this.handleTouchMove);
+        document.addEventListener('touchend', this.handleTouchEnd);
+        document.addEventListener('touchcancel', this.handleTouchEnd);
+    };
+
+
+    // 添加拖拽状态标记 (鼠标和触摸共用)
     handleFirstMove = (e) => {
-        const dx = e.clientX - this.initialPosition.x;
-        const dy = e.clientY - this.initialPosition.y;
+        const point = this.getPointFromEvent(e); // 获取统一的坐标
+        const dx = point.clientX - this.initialPosition.x;
+        const dy = point.clientY - this.initialPosition.y;
 
         if (Math.sqrt(dx * dx + dy * dy) > this.dragThreshold) {
-            this.isDragging = true; // 新增这行
+            this.isDragging = true;
             this.shouldDrag = true;
             this.dragLayer.style.cursor = 'grabbing';
 
-            // 初始化画布坐标（从原handleMouseDown移动过来）
+            // 初始化画布坐标
             this.canvasStartX = (this.startX - this.translateX) / this.scale;
             this.canvasStartY = (this.startY - this.translateY) / this.scale;
 
-            document.removeEventListener('mousemove', this.handleFirstMove);
-            document.addEventListener('mousemove', this.handleMouseMove);
-            this.handleMouseMove(e);
+            document.removeEventListener('mousemove', this.handleFirstMove); // 移除 mousemove firstMove 监听
+            document.removeEventListener('touchmove', this.handleFirstMove); // 移除 touchmove firstMove 监听 (避免重复添加)
+
+            if (e.type === 'mousemove') {
+                document.addEventListener('mousemove', this.handleMouseMove); // 添加 mousemove 监听
+                this.handleMouseMove(e); // 立即执行 mouse move
+            } else if (e.type === 'touchmove') {
+                document.addEventListener('touchmove', this.handleDragMove); // 添加 touchmove 监听 (注意这里是 handleDragMove)
+                this.handleDragMove(e); // 立即执行 touch move
+            }
         }
     };
 
-    // 修改 handleMouseMove 方法
-    handleMouseMove = (e) => {
-        if (!this.isDragging) return; // 保持原有判断
+    // 支持触摸和鼠标移动
+    handleTouchMove = (e) => {
+        if (this.isPinching && e.touches.length === 2) {
+            // 双指缩放
+            this.handlePinchMove(e);
+        } else if (!this.isPinching && e.touches.length === 1) {
+            // 单指拖拽
+            if (!this.isDragging) {
+                // 首次 move 判断是否触发拖拽
+                this.handleFirstMove({ ...e, type: 'touchmove' });
+                if (!this.isDragging) return; // 未触发拖拽则直接返回
+            }
+            this.handleDragMove(e);
+        }
+        e.preventDefault(); // 阻止默认的触摸事件行为，例如页面滚动
+    };
 
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
+    // 处理单指拖拽移动
+    handleDragMove = (e) => {
+        if (!this.isDragging) return;
+
+        const point = this.getPointFromEvent(e); // 获取统一的坐标
+        const mouseX = point.clientX;
+        const mouseY = point.clientY;
+
+        // 修正坐标计算逻辑
+        const deltaX = (mouseX - this.translateX) / this.scale - this.canvasStartX;
+        const deltaY = (mouseY - this.translateY) / this.scale - this.canvasStartY;
+
+        this.mergeOffset(deltaX * this.scale, deltaY * this.scale);
+    };
+
+    // 处理双指缩放移动
+    handlePinchMove = (e) => {
+        if (!this.isPinching) return;
+
+        // 获取两个触摸点
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+
+        // 计算当前双指距离
+        const currentPinchDistance = Math.hypot(
+            touch2.clientX - touch1.clientX,
+            touch2.clientY - touch1.clientY
+        );
+
+        // 计算当前双指中心点
+        const currentPinchCenterX = (touch1.clientX + touch2.clientX) / 2;
+        const currentPinchCenterY = (touch1.clientY + touch2.clientY) / 2;
+
+        if (!this.initialPinchDistance) { // 首次双指移动, ...
+            this.initialPinchDistance = currentPinchDistance;
+            this.initialPinchCenter = { x: currentPinchCenterX, y: currentPinchCenterY };
+            return;
+        }
+
+        // 计算缩放比例
+        const scaleFactor = currentPinchDistance / this.initialPinchDistance;
+        let newScale = this.scale * scaleFactor;
+
+        // 限制缩放范围
+        newScale = Math.min(
+            Math.max(newScale, Math.pow(this.zoomValue, this.zoomRange[1])),
+            Math.pow(this.zoomValue, this.zoomRange[0])
+        );
+        newScale = Math.round(newScale * 100) / 100;
+
+        // 计算缩放中心的世界坐标 - 使用 *当前* 中心点
+        const worldX = (currentPinchCenterX - this.translateX) / this.scale; // 修改为 currentPinchCenterX
+        const worldY = (currentPinchCenterY - this.translateY) / this.scale; // 修改为 currentPinchCenterY
+
+        // 计算新的位移值，保持缩放中心在屏幕上的位置不变
+        const targetTranslateX = currentPinchCenterX - worldX * newScale;
+        const targetTranslateY = currentPinchCenterY - worldY * newScale;
+
+        this.scale = newScale;
+        this.mergeOffset(targetTranslateX - this.translateX, targetTranslateY - this.translateY);
+        this.updateTransform();
+
+        this.initialPinchDistance = currentPinchDistance; // 更新初始距离，用于下次计算
+        this.initialPinchCenter = { x: currentPinchCenterX, y: currentPinchCenterY }; // 更新中心点
+    };
+
+
+    // 鼠标移动事件
+    handleMouseMove = (e) => {
+        if (!this.isDragging) return;
+
+        const point = this.getPointFromEvent(e); // 获取统一的坐标
+        const mouseX = point.clientX;
+        const mouseY = point.clientY;
 
         // 修正坐标计算逻辑
         const deltaX = (mouseX - this.translateX) / this.scale - this.canvasStartX;
@@ -188,13 +365,13 @@ export class Drag {
 
     // 鼠标释放事件
     handleMouseUp = (e) => {
-        // 清理事件监听
+        // 清理鼠标事件监听
         document.removeEventListener('mousemove', this.handleFirstMove);
         document.removeEventListener('mousemove', this.handleMouseMove);
         document.removeEventListener('mouseup', this.handleMouseUp);
 
-        // 如果没有触发拖拽则执行点击
         if (!this.shouldDrag) {
+            // 如果没有触发拖拽，则模拟点击
             this.dragLayer.style.pointerEvents = 'none';
             const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
             this.dragLayer.style.pointerEvents = 'auto';
@@ -203,11 +380,34 @@ export class Drag {
             }
         }
 
-        // 重置状态
+        // 重置拖拽状态
         this.isDragging = false;
         this.shouldDrag = false;
         this.dragLayer.style.cursor = 'grab';
     };
+
+    // 触摸结束事件
+    handleTouchEnd = (e) => {
+        // 清理触摸事件监听
+        document.removeEventListener('touchmove', this.handleTouchMove);
+        document.removeEventListener('touchend', this.handleTouchEnd);
+        document.removeEventListener('touchcancel', this.handleTouchEnd);
+
+        // 重置拖拽和缩放状态
+        this.isDragging = false;
+        this.shouldDrag = false;
+        this.isPinching = false; // 重置双指缩放状态
+        this.initialPinchDistance = null;
+        this.initialPinchCenter = null;
+        this.dragLayer.style.cursor = 'grab';
+    };
+
+    // 触摸取消事件 (例如触摸点超出屏幕)
+    handleTouchCancel = (e) => {
+        // 触摸取消时，也需要重置状态，与 touchEnd 类似
+        this.handleTouchEnd(e);
+    };
+
 
     // 滚轮缩放事件
     handleWheel = (e) => {
@@ -236,8 +436,6 @@ export class Drag {
         const targetTranslateX = mouseX - worldX * this.scale;
         const targetTranslateY = mouseY - worldY * this.scale;
 
-        // const dynamicThreshold = this.threshold;
-
         this.mergeOffset(targetTranslateX - this.translateX, targetTranslateY - this.translateY);
         this.updateTransform();
     };
@@ -262,51 +460,9 @@ export class Drag {
 
     // 更新变换样式
     updateTransform() {
-        this.dragSpace.style.transform =
-            `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+        requestAnimationFrame(() => {
+            this.dragSpace.style.transform =
+                `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+        });
     }
 }
-
-const styleElement = document.createElement('style');
-styleElement.textContent = `
-/*!* 可拖拽的弹窗 *!*/
-/*.drag-space-container {*/
-/*    user-select: none;*/
-/*    -webkit-user-select: none;*/
-/*    height: 100%;*/
-/*}*/
-
-/*.space-title-bar {*/
-/*    user-select: none;*/
-/*    -webkit-user-select: none;*/
-/*}*/
-
-.drag-layer {
-    /*user-select: none;*/
-    /*-webkit-user-select: none;*/
-    overflow: hidden;
-    cursor: grab;
-    border: 2px solid #41b681;
-}
-
-/*.space-content {*/
-/*    user-select: none;*/
-/*    -webkit-user-select: none;*/
-/*    overflow: hidden;*/
-/*    transform-origin: 0 0;*/
-/*    background-color: #4e4848;*/
-/*    display: flex;*/
-/*    flex-grow: 1;*/
-/*    flex-shrink: 0;*/
-/*    height: 100%;*/
-/*    width: 100%;*/
-/*    transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);*/
-/*}*/
-
-/*.space-content.dragging {*/
-/*    cursor: grabbing; !* 拖拽时的鼠标样式 *!*/
-/*    transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);*/
-/*}*/
-`
-
-document.head.appendChild(styleElement);
