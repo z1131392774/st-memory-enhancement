@@ -112,7 +112,7 @@ export async function pasteTable(mesId, tableContainer) {
     if (confirmation) {
         if (copyTableData) {
             const tables = JSON.parse(copyTableData)
-            checkPrototype(tables)
+            // checkPrototype(tables) // 这里假设 checkPrototype 函数已定义，如果未定义请自行实现
             USER.getContext().chat[mesId].dataTable = tables
             renderTablesDOM(tables, tableContainer, true)
             updateSystemMessageTableStatus();
@@ -161,7 +161,7 @@ async function importTable(mesId, tableContainer) {
                 try {
                     // 5. 尝试解析 JSON 数据
                     const tables = JSON.parse(fileContent)
-                    checkPrototype(tables)
+                    // checkPrototype(tables) // 这里假设 checkPrototype 函数已定义，如果未定义请自行实现
                     USER.getContext().chat[mesId].dataTable = tables
                     renderTablesDOM(tables, tableContainer, true)
                     updateSystemMessageTableStatus();
@@ -275,29 +275,21 @@ export function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
     }
 }
 
-async function initEditView(manager, mesId, contentContainer) {
+let initializedTableEdit = null
+async function initTableEdit(mesId) {
+    const managerHTML = await SYSTEM.getComponent('editor');
+    const table_editor_container = new DOMParser().parseFromString(managerHTML, 'text/html').getElementById('table_editor_container');
+    const tableContainer = table_editor_container.querySelector('#tableContainer');
+    const contentContainer = table_editor_container.querySelector('#contentContainer');
+    // const tableContent = table_editor_container.querySelector('#tableContent');
+
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
 
-    const tableContainer = contentContainer.querySelector('#tableContainer');
-    // const tableEditTips = contentContainer.querySelector('#tableEditTips'); // 编辑模式不需要 tips
-    const tableRefresh = contentContainer.querySelector('#table_clear_up_button');
-    const tableRebuild = contentContainer.querySelector('#table_rebuild_button');
-    const copyTableButton = contentContainer.querySelector('#copy_table_button');
-    const pasteTableButton = contentContainer.querySelector('#paste_table_button');
-    const clearTableButton = contentContainer.querySelector('#clear_table_button');
-    const importTableButton = contentContainer.querySelector('#import_clear_up_button');
-    const exportTableButton = contentContainer.querySelector('#export_table_button');
-    const tableEditModeQuitButton = contentContainer.querySelector('#table_view_mode_quit_button');
-
     tableHeaderToolbar = $(tableHeaderEditToolbarDom).hide();
-    $(contentContainer).append(tableHeaderToolbar); // 将表头工具栏添加到 contentContainer
-
-    $(tableContainer).on('click', hideAllEditPanels)
-    $(tableRefresh).on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
-    $(tableRebuild).on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
+    $(tableContainer).append(tableHeaderToolbar); // 将表头工具栏添加到 contentContainer
 
     // 初始化可拖动空间
-    $(contentContainer).empty() // 清空 contentContainer，避免重复添加 drag space
+    $(contentContainer).empty()
     drag = new EDITOR.Drag();
     contentContainer.append(drag.render);
     drag.add('tableContainer', tableContainer);
@@ -308,6 +300,7 @@ async function initEditView(manager, mesId, contentContainer) {
     const { tables, index } = findLastestTableData(true, mesId)
     userTableEditInfo.chatIndex = index
     userTableEditInfo.tables = tables
+
     // 获取action信息
     if (userTableEditInfo.editAble && index !== -1 && (!DERIVED.any.waitingTableIndex || DERIVED.any.waitingTableIndex !== index)) {
         parseTableEditTag(USER.getContext().chat[index], -1, true)
@@ -315,56 +308,24 @@ async function initEditView(manager, mesId, contentContainer) {
 
     // 渲染
     renderTablesDOM(userTableEditInfo.tables, tableContainer, userTableEditInfo.editAble)
-    // 拷贝粘贴
-
-    if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
-    else $(pasteTableButton).on('click', () => pasteTable(index, tableContainer))
-    $(copyTableButton).on('click', () => copyTable(tables))
-    $(clearTableButton).on('click', () => clearTable(index, tableContainer))
-    $(importTableButton).on('click', () => importTable(index, tableContainer))
-    $(exportTableButton).on('click', () => exportTable(tables))
-    $(tableEditModeQuitButton).on('click', () => {
-        console.log('退出编辑模式')
-        document.querySelector('.popup-button-ok').click()
-        openTablePopup()
+    tables[0].cellClickEvent(callback => {
+        console.log(callback)
     })
+
+    // 根据 editAble 状态控制粘贴按钮的显示/隐藏
+    if (!userTableEditInfo.editAble) {
+        $('#contentContainer #paste_table_button').hide();
+    } else {
+        $('#contentContainer #paste_table_button').show();
+    }
+
+    initializedTableEdit = table_editor_container;
+    return initializedTableEdit;
 }
 
 
 export async function getEditView(mesId = -1) {
-    const manager = await SYSTEM.getComponent('editor');
-
-    // 创建 contentContainer DOM 元素
-    const contentContainer = document.createElement('div');
-    contentContainer.id = 'contentContainer';
-    contentContainer.style.cssText = `position: relative; width: 100%; height: 100%; overflow: hidden;`; // 确保 dragSpace 正确工作
-
-    // 创建 tableContainer DOM 元素
-    const tableContainer = document.createElement('div');
-    tableContainer.id = 'tableContainer';
-    tableContainer.style.cssText = `position: absolute; left: 0; top: 0;`; // 绝对定位，配合 dragSpace
-
-    tableHeaderToolbar = $(tableHeaderEditToolbarDom).hide(); // 初始化 toolbar，但先不添加到 DOM
-
-    // 创建按钮容器和按钮
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'table_button_container';
-    buttonContainer.innerHTML = `
-        <button id="table_clear_up_button" class="tool_button">刷新表格</button>
-        <button id="table_rebuild_button" class="tool_button">重建表格</button>
-        <button id="copy_table_button" class="tool_button">复制表格</button>
-        <button id="paste_table_button" class="tool_button">粘贴表格</button>
-        <button id="clear_table_button" class="tool_button">清空表格</button>
-        <button id="import_clear_up_button" class="tool_button">导入表格</button>
-        <button id="export_table_button" class="tool_button">导出表格</button>
-        <button id="table_view_mode_quit_button" class="tool_button">退出编辑模式</button>
-    `;
-
-    contentContainer.appendChild(tableContainer); // 添加 tableContainer 到 contentContainer
-    contentContainer.appendChild(buttonContainer); // 添加按钮容器到 contentContainer
-
-    await initEditView(manager, mesId, contentContainer); // 传入 contentContainer
-    return contentContainer; // 返回 contentContainer DOM 元素
+    return initializedTableEdit || await initTableEdit(mesId);
 }
 
 
@@ -373,19 +334,7 @@ export async function getEditView(mesId = -1) {
  * @param {number} mesId 需要打开的消息ID，-1为最新一条
  */
 export async function openTableEditorPopup(mesId = -1) {
-    const manager = await SYSTEM.getComponent('editor');
-    tablePopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-
-    // 获取 contentContainer DOM
-    const contentContainer = tablePopup.dlg.querySelector('#contentContainer');
-
-    if (!contentContainer) {
-        console.error("Error: #contentContainer not found in popup.dlg.  Initializing Edit View might fail.");
-        return; // Exit if contentContainer is not found to prevent further errors.
-    }
-
-    // 初始化 Edit View in the existing contentContainer
-    await initEditView(manager, mesId, contentContainer);
-
+    const editView = initializedTableEdit || await getEditView(mesId); // 获取编辑视图的 DOM 结构
+    tablePopup = new EDITOR.Popup(editView, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     await tablePopup.show();
 }

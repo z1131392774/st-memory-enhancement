@@ -9,13 +9,20 @@ let appHeaderTableContainer = null;
 let databaseButton = null;
 let editorButton = null;
 let settingButton = null;
+let inlineDrawerHeaderContent = null;
+let tableDrawerContentHeader = null;
+
+let tableViewDom = null;
+let tableEditDom = null;
+let settingContainer = null;
+const timeOut = 100;
 
 let isEventListenersBound = false; // 添加一个标志来跟踪事件监听器是否已绑定
 
 /**
  * 初始化应用头部表格抽屉 (只调用一次)
  */
-async function initAppHeaderTableDrawer() {
+export async function initAppHeaderTableDrawer() {
     if (isEventListenersBound) {
         return; // 如果事件监听器已绑定，则直接返回，避免重复绑定
     }
@@ -27,6 +34,24 @@ async function initAppHeaderTableDrawer() {
     databaseButton = $('#database_button');
     editorButton = $('#editor_button');
     settingButton = $('#setting_button');
+    inlineDrawerHeaderContent = $('#inline_drawer_header_content');     // 获取插件设置中展开项的标题
+    tableDrawerContentHeader = $('#table_drawer_content_header');       // 获取抽屉内容的标题
+
+    if (tableViewDom === null) {
+        tableViewDom = await getTableView(-1);
+    }
+    if (tableEditDom === null) {
+        // 使用 jQuery 将 HTML 字符串转换为 jQuery 对象 (代表 DOM 元素)
+        tableEditDom = $(`<div style=""></div>`);
+        tableEditDom.append(await getEditView(-1));
+    }
+    if (settingContainer === null) {
+        const header = $(`<div></div>`).append($(`<div style="margin: 10px 0;"></div>`).append(inlineDrawerHeaderContent));
+        settingContainer = header.append($('.memory_enhancement_container').find('#memory_enhancement_settings_inline_drawer_content'));
+    }
+
+    // tableDrawerContentHeader.empty(); // 清空抽屉内容的标题
+    // tableDrawerContentHeader.before(inlineDrawerHeaderContent);
 
     // 添加按钮点击事件监听器 (只绑定一次)
     databaseButton.on('click', function() {
@@ -50,7 +75,6 @@ export async function openAppHeaderTableDrawer() {
     if (!isEventListenersBound) {
         await initAppHeaderTableDrawer();
     }
-
 
 
     if (tableDrawerIcon.hasClass('closedIcon')) {
@@ -97,47 +121,25 @@ export async function openAppHeaderTableDrawer() {
     }
 }
 
-let tableViewDom = null;
-let tableEditDom = null;
-let settingContainer = null;
+
 // 定义加载不同内容的函数
 async function loadDatabaseContent() {
-    // 淡出当前内容
-    appHeaderTableContainer.fadeOut('fast', async function() { // 'fast' 是一个预设的动画速度，你也可以使用毫秒值，例如 200
-        appHeaderTableContainer.empty(); // 清空之前的内容
-        if (tableViewDom === null) {
-            tableViewDom = await getTableView(-1);
-        }
-        appHeaderTableContainer.append(tableViewDom);
-        // 淡入新内容
-        appHeaderTableContainer.fadeIn('fast');
+    appHeaderTableContainer.fadeOut(timeOut, async function() {
+        appHeaderTableContainer.html(tableViewDom); // 直接使用 html() 替换内容
+        appHeaderTableContainer.fadeIn(timeOut);
     });
 }
 
 async function loadEditorContent() {
-    // 淡出当前内容
-    appHeaderTableContainer.fadeOut('fast', async function() {
-        appHeaderTableContainer.empty();
-        if (tableEditDom === null) {
-            // 使用 jQuery 将 HTML 字符串转换为 jQuery 对象 (代表 DOM 元素)
-            tableEditDom = $(`<div style="height: 100%; overflow: auto; outline: 3px solid #41b681; border-radius: 3px"></div>`);
-            tableEditDom.append(await getEditView(-1));
-        }
-        appHeaderTableContainer.append(tableEditDom);
-        // 淡入新内容
-        appHeaderTableContainer.fadeIn('fast');
+    appHeaderTableContainer.fadeOut(timeOut, async function() {
+        appHeaderTableContainer.html(tableEditDom);
+        appHeaderTableContainer.fadeIn(timeOut);
     });
 }
 
 async function loadSettingContent() {
-    // 淡出当前内容
-    appHeaderTableContainer.fadeOut('fast', async function() {
-        appHeaderTableContainer.empty();
-        if (settingContainer === null) {
-            settingContainer = $('.memory_enhancement_container').find('#memory_enhancement_settings_inline_drawer_content');
-        }
-        appHeaderTableContainer.append(settingContainer);
-        // 淡入新内容
-        appHeaderTableContainer.fadeIn('fast');
+    appHeaderTableContainer.fadeOut(timeOut, async function() {
+        appHeaderTableContainer.html(settingContainer);
+        appHeaderTableContainer.fadeIn(timeOut);
     });
 }

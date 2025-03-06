@@ -457,7 +457,7 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
 
 
     // 开始寻找表格
-    const { tables, index } = findLastestTableData(true, mesId)
+    const { tables, index } = await findLastestTableData(true, mesId)
     userTableEditInfo.chatIndex = index
     userTableEditInfo.tables = tables
 
@@ -525,51 +525,6 @@ export async function getTableView(mesId = -1) {
  */
 export async function openTablePopup(mesId = -1) {
     const tableContainer = initializedTableView || await initTableView(mesId);
-    tablePopup = new EDITOR.Popup(initializedTableView, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    // 是否可编辑
-    // userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
-    // const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    // const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
-    // const tableRefresh = tablePopup.dlg.querySelector('#table_clear_up_button');
-    // const tableRebuild = tablePopup.dlg.querySelector('#table_rebuild_button');
-    // const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
-    // const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
-    // const clearTableButton = tablePopup.dlg.querySelector('#clear_table_button');
-    // const importTableButton = tablePopup.dlg.querySelector('#import_clear_up_button');
-    // const exportTableButton = tablePopup.dlg.querySelector('#export_table_button');
-    // const tableEditModeButton = tablePopup.dlg.querySelector('#table_edit_mode_button');
-    //
-    // $(tableContainer).on('click', hideAllEditPanels)
-    // $(tableRefresh).on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
-    // $(tableRebuild).on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
-    // // 设置编辑提示
-    // setTableEditTips(tableEditTips)
-    // // 开始寻找表格
-    // const { tables, index } = findLastestTableData(true, mesId)
-    // userTableEditInfo.chatIndex = index
-    // userTableEditInfo.tables = tables
-    // // 获取action信息
-    // if (userTableEditInfo.editAble && index !== -1 && (!DERIVED.any.waitingTableIndex || DERIVED.any.waitingTableIndex !== index)) {
-    //     parseTableEditTag(USER.getContext().chat[index], -1, true)
-    // }
-    //
-    // // 渲染
-    // renderTablesDOM(userTableEditInfo.tables, tableContainer, userTableEditInfo.editAble)
-    // // 拷贝粘贴
-    //
-    // tables[0].cellClickEvent(callback => {
-    //     console.log(callback)
-    // })
-    //
-    // if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
-    // else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
-    // copyTableButton.addEventListener('click', () => copyTable(tables))
-    // clearTableButton.addEventListener('click', () => clearTable(index, tableContainer))
-    // importTableButton.addEventListener('click', () => importTable(index, tableContainer))
-    // exportTableButton.addEventListener('click', () => exportTable(tables))
-    // tableEditModeButton.addEventListener('click', () => {
-    //     document.querySelector('.popup-button-ok').click()
-    //     openTableEditorPopup()
-    // })
+    tablePopup = new EDITOR.Popup(tableContainer, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     await tablePopup.show()
 }
