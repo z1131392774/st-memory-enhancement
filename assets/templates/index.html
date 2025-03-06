@@ -1,208 +1,213 @@
-<div class="translation_settings">
-    <div class="inline-drawer">
-        <div class="inline-drawer-toggle inline-drawer-header">
-            <div><b>记忆增强（表格）</b><span id="tableUpdateTag">有更新</span></div>
-            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-        </div>
-        <div class="inline-drawer-content">
-            <!-- 记忆增强表格管理 -->
-            <div id="table_message_tip"></div>
-            <div style=" display: flex;">
-                <div class="menu_button">
-                    <i class="fa-solid fa-window-restore"></i>
-                    <a href="https://muyoo.com.cn/2025/01/26/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%95%99%E7%A8%8B/">阅读教程</a>
-                </div>
-                <div class="menu_button">
-                    <i class="fa-solid fa-window-restore"></i>
-                    <a href="https://muyoo.com.cn/2025/01/27/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97/">更新日志</a>
-                </div>
-                <div class="menu_button" id="table_debug_log_button">
-                    <i class="fa-solid fa-file-waveform"></i>
-                    <a>错误日志</a>
-                </div>
+<div class="memory_enhancement_container">
+    <div class="memory_enhancement_settings">
+        <div class="inline-drawer">
+            <div class="inline-drawer-toggle inline-drawer-header">
+                <div><b>记忆增强（表格）</b><span id="tableUpdateTag">有更新</span></div>
+                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
             </div>
-
-            <!-- 子设置 -->
-            <div style="padding: 10px 0; gap: 10px">
-                <!-- 插件预设 -->
-                <div class="table_setting_category_container" style="display: flex; align-items: center; gap: 6px;">
-                    <b class="table_setting_category_header">导入导出与重置插件</b><div style="height: 10px;"></div>
-                    <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
-                    </div>
-                    <input type="file" id="table-set-importFile" accept=".json" hidden>
-                    <div class="menu_button menu_button_icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设">
-                    </div>
-                    <div class="menu_button menu_button_icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
-                </div>
-                <hr/>
-
-                <!-- 基础设置 -->
-                <div class="table_setting_category_container">
-                    <b class="table_setting_category_header">基础设置</b><div style="height: 10px;"></div>
-                    <div class="checkbox flex-container">
-                        <input type="checkbox" id="table_switch"><span>插件启用</span>
-                    </div>
-                    <div class="checkbox flex-container">
-                        <input type="checkbox" id="table_switch_debug_mode"><span>调试模式</span>
-                    </div>
-
-                </div>
-                <hr/>
-
-                <!-- 表格预设 -->
-                <div class="table_setting_category_container">
-                    <!-- 预设设置 -->
-                    <b class="table_setting_category_header">回复设置</b><div style="height: 10px;"></div>
-                    <!-- 分步填表 -->
-                    <div class="checkbox flex-container">
-                        <input type="checkbox" id="step_by_step"><span>启用分步填表</span><small>(每次对话后自动调用api单独总结表格)</small>
-                    </div>
-
-                    <!-- 默认不分步填表 -->
-                    <div id="reply_options" style="padding-left: 20px; width: calc(100% - 20px);">
-                        <div style="height: 5px;"></div>
-                        <div class="checkbox flex-container">
-                            <input type="checkbox" id="table_read_switch"><span>AI读表开关</span>
+            <div class="inline-drawer-content">
+                <div id="memory_enhancement_settings_inline_drawer_content">
+                    <!-- 记忆增强表格管理 -->
+                    <div id="table_message_tip"></div>
+                    <div style=" display: flex; flex-direction: row; gap: 10px;">
+                        <div class="menu_button_icon menu_button interactable">
+                            <i class="fa-solid fa-window-restore"></i>
+                            <a href="https://muyoo.com.cn/2025/01/26/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%95%99%E7%A8%8B/">阅读教程</a>
                         </div>
-                        <div class="checkbox flex-container">
-                            <input type="checkbox" id="table_edit_switch"><span>AI改表开关</span>
+                        <div class="menu_button_icon menu_button interactable">
+                            <i class="fa-solid fa-window-restore"></i>
+                            <a href="https://muyoo.com.cn/2025/01/27/SillyTavern%E9%85%92%E9%A6%86%E8%AE%B0%E5%BF%86%E5%A2%9E%E5%BC%BA%E6%8F%92%E4%BB%B6%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97/">更新日志</a>
                         </div>
-                        <div style="height: 10px;"></div>
-                        <!-- 高级设置选项 -->
-                        <div style="padding-left: 10px;">
-                            <div style=" display: flex;">
-                                <label for="dataTable_injection_mode" style="min-width: 50px">注入：</label>
-                                <select id="dataTable_injection_mode">
-                                    <option value="deep_system">@D ⚙</option>
-                                    <option value="deep_user">@D 👤</option>
-                                    <option value="deep_assistant">@D 🤖</option>
-                                </select>
-                                <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep">深度：</label>
-                                <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
+                        <div class="menu_button_icon menu_button interactable" id="table_debug_log_button">
+                            <i class="fa-solid fa-file-waveform"></i>
+                            <a>错误日志</a>
+                        </div>
+                    </div>
+
+                    <!-- 子设置 -->
+                    <div style="padding: 10px 0; gap: 10px">
+                        <!-- 插件预设 -->
+                        <div class="table_setting_category_container" style="display: flex; align-items: center; gap: 6px;">
+                            <b class="table_setting_category_header">导入导出与重置插件</b><div style="height: 10px;"></div>
+                            <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
+                            </div>
+                            <input type="file" id="table-set-importFile" accept=".json" hidden>
+                            <div class="menu_button menu_button_icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设">
+                            </div>
+                            <div class="menu_button menu_button_icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
+                        </div>
+                        <hr/>
+
+                        <!-- 基础设置 -->
+                        <div class="table_setting_category_container">
+                            <b class="table_setting_category_header">基础设置</b><div style="height: 10px;"></div>
+                            <div class="checkbox flex-container">
+                                <input type="checkbox" id="table_switch"><span>插件启用</span>
+                            </div>
+                            <div class="checkbox flex-container">
+                                <input type="checkbox" id="table_switch_debug_mode"><span>调试模式</span>
+                            </div>
+
+                        </div>
+                        <hr/>
+
+                        <!-- 表格预设 -->
+                        <div class="table_setting_category_container">
+                            <!-- 预设设置 -->
+                            <b class="table_setting_category_header">回复设置</b><div style="height: 10px;"></div>
+                            <!-- 分步填表 -->
+                            <div class="checkbox flex-container">
+                                <input type="checkbox" id="step_by_step"><span>启用分步填表</span><small>(每次对话后自动调用api单独总结表格)</small>
+                            </div>
+
+                            <!-- 默认不分步填表 -->
+                            <div id="reply_options" style="padding-left: 20px; width: calc(100% - 20px);">
+                                <div style="height: 5px;"></div>
+                                <div class="checkbox flex-container">
+                                    <input type="checkbox" id="table_read_switch"><span>AI读表开关</span>
+                                </div>
+                                <div class="checkbox flex-container">
+                                    <input type="checkbox" id="table_edit_switch"><span>AI改表开关</span>
+                                </div>
+                                <div style="height: 10px;"></div>
+                                <!-- 高级设置选项 -->
+                                <div style="padding-left: 10px;">
+                                    <div style=" display: flex;">
+                                        <label for="dataTable_injection_mode" style="min-width: 50px">注入：</label>
+                                        <select id="dataTable_injection_mode">
+                                            <option value="deep_system">@D ⚙</option>
+                                            <option value="deep_user">@D 👤</option>
+                                            <option value="deep_assistant">@D 🤖</option>
+                                        </select>
+                                        <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep">深度：</label>
+                                        <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"></input>
+                                    </div>
+                                </div>
+                                <div style="padding-left: 10px;">
+                                    <label for="dataTable_message_template">消息模板</label><small>
+                                    (用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
+                                    <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- 分步填表 -->
+                            <div id="step_by_step_options" style="padding-left: 20px; width: calc(100% - 20px);">
+                                <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
+                                    <label>触发阈值字数<small>（回复字数大于该值触发分步填表）</small>：<span id="step_by_step_threshold_value">500</span></label>
+                                    <input type="range" id="step_by_step_threshold" min="10" max="10000" step="10" value="10" style="width: calc(100% - 20px);">
+                                </div>
+                                <div style="height: 20px;"></div>
+                                <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                                    <input type="checkbox" id="sum_multiple_rounds" checked><span>字数多轮累计</span><small>(累计多轮未触发字数参与阈值比较)</small>
+                                </div>
                             </div>
                         </div>
-                        <div style="padding-left: 10px;">
-                            <label for="dataTable_message_template">消息模板</label><small>
-                            (用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
-                            <textarea id="dataTable_message_template" class="wide100p" rows="5"></textarea>
-                        </div>
-                    </div>
+                        <hr/>
 
-                    <!-- 分步填表 -->
-                    <div id="step_by_step_options" style="padding-left: 20px; width: calc(100% - 20px);">
-                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%;">
-                            <label>触发阈值字数<small>（回复字数大于该值触发分步填表）</small>：<span id="step_by_step_threshold_value">500</span></label>
-                            <input type="range" id="step_by_step_threshold" min="10" max="10000" step="10" value="10" style="width: calc(100% - 20px);">
-                        </div>
-                        <div style="height: 20px;"></div>
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="sum_multiple_rounds" checked><span>字数多轮累计</span><small>(累计多轮未触发字数参与阈值比较)</small>
-                        </div>
-                    </div>
-                </div>
-                <hr/>
+                        <!-- 重新整理表格 -->
+                        <div class="table_setting_category_container">
+                            <b class="table_setting_category_header">重新整理表格</b><div style="height: 10px;"></div>
+                            <!-- 自定义API -->
+                            <div class="checkbox flex-container" style="width: 100%;">
+                                <input type="checkbox" id="use_main_api" checked><span>使用主API<small>（取消勾选后可以用自定义的api）</small></span>
+                            </div>
+                            <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; width: calc(100% - 20px); margin-left: 10px">
+                                <div style="height: 10px;"></div>
+                                <!-- 自定义API设置 -->
+                                <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
+                                <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
+                                <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
+                                <div style="margin-top: 10px;">
+                                    <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
+                                        <option value="">请先获取模型列表</option>
+                                    </select>
+                                    <div class="menu_button" id="fetch_models_button" style="width: 100%;">
+                                        <a>获取模型列表</a>
+                                    </div>
+                                </div>
+                                <div class="flex-container slider-container" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                                    <label style="min-width: 140px; margin: 0; white-space: nowrap; flex-shrink: 0;">自定义API温度设定：<span id="custom_temperature_value">1.0</span></label>
+                                    <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="flex-grow: 1;">
+                                </div>
+                            </div>
 
-                <!-- 重新整理表格 -->
-                <div class="table_setting_category_container">
-                    <b class="table_setting_category_header">重新整理表格</b><div style="height: 10px;"></div>
-                    <!-- 自定义API -->
-                    <div class="checkbox flex-container" style="width: 100%;">
-                        <input type="checkbox" id="use_main_api" checked><span>使用主API<small>（取消勾选后可以用自定义的api）</small></span>
-                    </div>
-                    <div id="custom_api_settings" style="display: none; flex-direction: column; gap: 5px; width: calc(100% - 20px); margin-left: 10px">
-                        <div style="height: 10px;"></div>
-                        <!-- 自定义API设置 -->
-                        <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
-                        <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
-                        <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
-                        <div style="margin-top: 10px;">
-                            <select id="model_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
-                                <option value="">请先获取模型列表</option>
-                            </select>
-                            <div class="menu_button" id="fetch_models_button" style="width: 100%;">
-                                <a>获取模型列表</a>
+                            <!-- 高级设置 -->
+                            <div class="checkbox flex-container">
+                                <input type="checkbox" id="advanced_settings"><span>查看高级设置</span>
+                            </div>
+                            <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
+                                <!-- 高级设置选项 -->
+                                <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%; " id="clear_up_stairs_container">
+                                    <label>参考最近聊天记录：<span id="clear_up_stairs_value">9条</span></label>
+                                    <input type="range" id="clear_up_stairs" min="1" max="99" step="1" value="9" style="width: 80%;">
+                                </div>
+                                <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%; display: none;" id="token_limit_container">
+                                    <label>Token限制：<span id="rebuild_token_limit_value">10000</span></label>
+                                    <input type="range" id="rebuild_token_limit" min="1000" max="100000" step="1000" value="10000" style="width: 80%;">
+                                </div>
+                                <div style="height: 20px;"></div>
+                                <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                                    <input type="checkbox" id="use_token_limit"><span>用token代替聊天记录限制</span>
+                                </div>
+                                <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                                    <input type="checkbox" id="ignore_user_sent" checked><span>只参考AI回复的消息</span>
+                                </div>
+                                <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                                    <input type="checkbox" id="ignore_del" checked><span>整理时不删除，只修改和添加</span>
+                                </div>
+                                <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                                    <input type="checkbox" id="bool_force_refresh"><span>跳过整理前的确认弹窗</span>
+                                </div>
+                                <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
+                                    <input type="checkbox" id="bool_silent_refresh"><span>跳过整理后的确认弹窗</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; margin: 10px 0 0 10px; width: calc(100% - 20px);">
+                                <div class="menu_button" id="table_clear_up" style="flex: 1;">
+                                    <i class="fa-solid fa-arrows-rotate"></i><a>立即整理表格</a>
+                                </div>
+                                <div class="menu_button" id="rebuild_table" style="flex: 1;">
+                                    <i class="fa-solid fa-recycle"></i><a>完整重建表格</a>
+                                </div>
                             </div>
                         </div>
-                        <div class="flex-container slider-container" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                            <label style="min-width: 140px; margin: 0; white-space: nowrap; flex-shrink: 0;">自定义API温度设定：<span id="custom_temperature_value">1.0</span></label>
-                            <input type="range" id="custom_temperature" min="0.1" max="2.0" step="0.1" value="1.0" style="flex-grow: 1;">
+                        <hr/>
+
+                        <!-- 表格推送至对话 -->
+                        <div class="table_setting_category_container">
+                            <b class="table_setting_category_header">表格推送至对话</b><div style="height: 10px;"></div>
+                            <div class="checkbox flex-container">
+                                <input type="checkbox" id="table_to_chat"><span>表格推送至对话</span>
+                            </div>
+                            <!--                    <div style="padding-left: 10px">-->
+                            <!--                        <label for="dataTable_to_chat_button">对话中的面板样式</label>-->
+                            <!--                    </div>-->
+                            <!--                    <small>(使用HTML、CSS自定义推送至对话的表格整体样式，用<code>$0</code>表示表格整体的插入位置)</small>-->
+                            <div class="menu_button" id="dataTable_to_chat_button" style="margin-left: 10px; width: calc(100% - 20px)">
+                                <i class="fa-solid fa-pen-to-square"></i><a>编辑对话中的面板样式</a>
+                            </div>
+                        </div>
+                        <hr/>
+
+                        <div class="table_setting_category_container"><!-- 表格结构 -->
+                            <b class="table_setting_category_header">表格结构</b><div style="height: 10px;"></div>
+                            <div style="padding-left: 10px;">
+                                <label>所有表格</label><small> (目前用于修改表格的说明及各种表格操作的触发提示词)</small>
+                                <div id="dataTable_tableEditor_list">
+                                </div>
+                            </div>
+                            <!-- <div style="padding-left: 10px;">
+                                <label>表格提示词组装函数</label><small> (用于指定表格提示词的组装方式的js函数)</small>
+                                <textarea id="dataTable_table_function" class="wide100p" rows="3"></textarea>
+                            </div> -->
                         </div>
                     </div>
 
-                    <!-- 高级设置 -->
-                    <div class="checkbox flex-container">
-                        <input type="checkbox" id="advanced_settings"><span>查看高级设置</span>
-                    </div>
-                    <div id="advanced_options" style="display: none; padding-left: 20px; width: calc(100% - 20px);">
-                        <!-- 高级设置选项 -->
-                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%; " id="clear_up_stairs_container">
-                            <label>参考最近聊天记录：<span id="clear_up_stairs_value">9条</span></label>
-                            <input type="range" id="clear_up_stairs" min="1" max="99" step="1" value="9" style="width: 80%;">
-                        </div>
-                        <div class="flex-container slider-container" style="margin: 5px 0 5px 20px; width: 90%; display: none;" id="token_limit_container">
-                            <label>Token限制：<span id="rebuild_token_limit_value">10000</span></label>
-                            <input type="range" id="rebuild_token_limit" min="1000" max="100000" step="1000" value="10000" style="width: 80%;">
-                        </div>
-                        <div style="height: 20px;"></div>
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="use_token_limit"><span>用token代替聊天记录限制</span>
-                        </div>
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="ignore_user_sent" checked><span>只参考AI回复的消息</span>
-                        </div>
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="ignore_del" checked><span>整理时不删除，只修改和添加</span>
-                        </div>
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="bool_force_refresh"><span>跳过整理前的确认弹窗</span>
-                        </div>
-                        <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                            <input type="checkbox" id="bool_silent_refresh"><span>跳过整理后的确认弹窗</span>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 10px; margin: 10px 0 0 10px; width: calc(100% - 20px);">
-                        <div class="menu_button" id="table_clear_up" style="flex: 1;">
-                            <i class="fa-solid fa-arrows-rotate"></i><a>立即整理表格</a>
-                        </div>
-                        <div class="menu_button" id="rebuild_table" style="flex: 1;">
-                            <i class="fa-solid fa-recycle"></i><a>完整重建表格</a>
-                        </div>
-                    </div>
-                </div>
-                <hr/>
 
-                <!-- 表格推送至对话 -->
-                <div class="table_setting_category_container">
-                    <b class="table_setting_category_header">表格推送至对话</b><div style="height: 10px;"></div>
-                    <div class="checkbox flex-container">
-                        <input type="checkbox" id="table_to_chat"><span>表格推送至对话</span>
-                    </div>
-<!--                    <div style="padding-left: 10px">-->
-<!--                        <label for="dataTable_to_chat_button">对话中的面板样式</label>-->
-<!--                    </div>-->
-<!--                    <small>(使用HTML、CSS自定义推送至对话的表格整体样式，用<code>$0</code>表示表格整体的插入位置)</small>-->
-                    <div class="menu_button" id="dataTable_to_chat_button" style="margin-left: 10px; width: calc(100% - 20px)">
-                        <i class="fa-solid fa-pen-to-square"></i><a>编辑对话中的面板样式</a>
-                    </div>
-                </div>
-                <hr/>
-
-                <div class="table_setting_category_container"><!-- 表格结构 -->
-                    <b class="table_setting_category_header">表格结构</b><div style="height: 10px;"></div>
-                    <div style="padding-left: 10px;">
-                        <label>所有表格</label><small> (目前用于修改表格的说明及各种表格操作的触发提示词)</small>
-                        <div id="dataTable_tableEditor_list">
-                        </div>
-                    </div>
-                    <!-- <div style="padding-left: 10px;">
-                        <label>表格提示词组装函数</label><small> (用于指定表格提示词的组装方式的js函数)</small>
-                        <textarea id="dataTable_table_function" class="wide100p" rows="3"></textarea>
-                    </div> -->
+                    <div style="height: 20px;"></div>
                 </div>
             </div>
-
-
-            <div style="height: 20px;"></div>
         </div>
     </div>
+
 </div>

@@ -44,7 +44,7 @@ const createProxyWithUserSetting = (target) => {
         get: (_, property) => {
             // 最优先从用户设置数据中获取
             if (power_user[target] && property in power_user[target]) {
-                console.log(`变量 ${property} 已从用户设置中获取`)
+                // console.log(`变量 ${property} 已从用户设置中获取`)
                 return power_user[target][property];
             }
             // 尝试从老版本的数据位置 extension_settings.muyoo_dataTable 中获取

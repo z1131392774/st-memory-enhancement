@@ -12,6 +12,7 @@ import {
 import {rebuildTableActions, refreshTableActions} from "./absoluteRefresh.js";
 import {initAllTable} from "../source/tableActions.js";
 import {openTableEditorPopup} from "./tableEditView.js";
+import {openTableHistoryPopup} from "./tableHistory.js";
 
 let tablePopup = null
 let copyTableData = null
@@ -43,7 +44,6 @@ const tableHeaderEditToolbarDom = `
 </div>`
 
 
-
 export function tableCellClickEvent(table) {
     if (userTableEditInfo.editAble) {
         $(table).on('click', 'td', onTdClick)
@@ -64,7 +64,7 @@ function onTdClick(event) {
     saveTdData(selectedCell.data("tableData"))
     // 计算工具栏位置
     const cellOffset = selectedCell.offset();
-    const containerOffset = $("#tableContainer").offset();
+    const containerOffset = $("#tableContainer").offset(); // 这里假设 #tableContainer 存在于页面中，如果不在页面中，需要调整 offset 计算方式
     const relativeX = cellOffset.left - containerOffset.left;
     const relativeY = cellOffset.top - containerOffset.top;
     const clickedElement = event.target;
@@ -347,17 +347,21 @@ function findAndDeleteActionsForDelete() {
  * @param {Element} tableEditTips 表格编辑提示DOM
  */
 function setTableEditTips(tableEditTips) {
-    const tips = $(tableEditTips)
-    tips.empty()
+    if (!tableEditTips || tableEditTips.length === 0) {
+        console.error('tableEditTips is null or empty jQuery object');
+        return;
+    }
+    const tips = $(tableEditTips); // 确保 tableEditTips 是 jQuery 对象
+    tips.empty();
     if (USER.tableBaseConfig.isExtensionAble === false) {
-        tips.append('目前插件已关闭，将不会要求AI更新表格。')
-        tips.css("color", "rgb(211 39 39)")
+        tips.append('目前插件已关闭，将不会要求AI更新表格。');
+        tips.css("color", "rgb(211 39 39)");
     } else if (userTableEditInfo.editAble) {
-        tips.append('点击单元格选择编辑操作。绿色单元格为本轮插入，蓝色单元格为本轮修改。')
-        tips.css("color", "lightgreen")
+        tips.append('点击单元格选择编辑操作。绿色单元格为本轮插入，蓝色单元格为本轮修改。');
+        tips.css("color", "lightgreen");
     } else {
-        tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑')
-        tips.css("color", "lightyellow")
+        tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑');
+        tips.css("color", "lightyellow");
     }
 }
 
@@ -440,35 +444,23 @@ async function onModifyCell() {
     }
 }
 
-/**
- * 打开表格展示/编辑弹窗
- * @param {number} mesId 需要打开的消息ID，-1为最新一条
- */
-export async function openTablePopup(mesId = -1) {
-    const manager = await SYSTEM.getComponent('manager');
-    tablePopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    // 是否可编辑
-    userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
-    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
-    const tableRefresh = tablePopup.dlg.querySelector('#table_clear_up_button');
-    const tableRebuild = tablePopup.dlg.querySelector('#table_rebuild_button');
-    const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
-    const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
-    const clearTableButton = tablePopup.dlg.querySelector('#clear_table_button');
-    const importTableButton = tablePopup.dlg.querySelector('#import_clear_up_button');
-    const exportTableButton = tablePopup.dlg.querySelector('#export_table_button');
-    const tableEditModeButton = tablePopup.dlg.querySelector('#table_edit_mode_button');
+let initializedTableView = null
+async function initTableView(mesId) { // 增加 table_manager_container 参数
+    const managerHTML = await SYSTEM.getComponent('manager');
+    const table_manager_container = new DOMParser().parseFromString(managerHTML, 'text/html').getElementById('table_manager_container');
+    const tableContainer = table_manager_container.querySelector('#tableContainer');
 
-    $(tableContainer).on('click', hideAllEditPanels)
-    $(tableRefresh).on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
-    $(tableRebuild).on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
-    // 设置编辑提示
-    setTableEditTips(tableEditTips)
+    userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
+
+    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
+    setTableEditTips($(table_manager_container).find('#tableEditTips'));
+
+
     // 开始寻找表格
     const { tables, index } = findLastestTableData(true, mesId)
     userTableEditInfo.chatIndex = index
     userTableEditInfo.tables = tables
+
     // 获取action信息
     if (userTableEditInfo.editAble && index !== -1 && (!DERIVED.any.waitingTableIndex || DERIVED.any.waitingTableIndex !== index)) {
         parseTableEditTag(USER.getContext().chat[index], -1, true)
@@ -476,21 +468,108 @@ export async function openTablePopup(mesId = -1) {
 
     // 渲染
     renderTablesDOM(userTableEditInfo.tables, tableContainer, userTableEditInfo.editAble)
-    // 拷贝粘贴
-
     tables[0].cellClickEvent(callback => {
         console.log(callback)
     })
 
-    if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
-    else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
-    copyTableButton.addEventListener('click', () => copyTable(tables))
-    clearTableButton.addEventListener('click', () => clearTable(index, tableContainer))
-    importTableButton.addEventListener('click', () => importTable(index, tableContainer))
-    exportTableButton.addEventListener('click', () => exportTable(tables))
-    tableEditModeButton.addEventListener('click', () => {
-        document.querySelector('.popup-button-ok').click()
-        openTableEditorPopup()
+
+    // 设置编辑提示
+    // 点击打开查看表格历史按钮
+    $(document).on('click', '#dataTable_history_button', function () {
+        openTableHistoryPopup();
     })
+    // 点击清空表格按钮
+    $(document).on('click', '#clear_table_button', function () {
+        clearTable(userTableEditInfo.chatIndex, tableContainer);
+    })
+    // 点击重新整理表格按钮
+    $(document).on('click', '#table_clear_up_button', function () {
+        refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
+    })
+    // 点击重建表格按钮
+    $(document).on('click', '#table_rebuild_button', function () {
+        rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
+    })
+    // 点击编辑表格按钮
+    $(document).on('click', '#table_edit_mode_button', function () {
+        // openTableEditorPopup();
+    })
+    // 点击复制表格按钮
+    $(document).on('click', '#copy_table_button', function () {
+        copyTable(userTableEditInfo.tables);
+    })
+    // 点击粘贴表格按钮
+    $(document).on('click', '#paste_table_button', function () {
+        pasteTable(userTableEditInfo.chatIndex, tableContainer);
+    })
+    // 点击导入表格按钮
+    $(document).on('click', '#import_clear_up_button', function () {
+        importTable(userTableEditInfo.chatIndex, tableContainer);
+    })
+    // 点击导出表格按钮
+    $(document).on('click', '#export_table_button', function () {
+        exportTable(userTableEditInfo.tables);
+    })
+
+    initializedTableView = table_manager_container;
+    return initializedTableView;
+}
+
+export async function getTableView(mesId = -1) {
+    return initializedTableView || await initTableView(mesId);
+}
+
+/**
+ * 打开表格展示/编辑弹窗
+ * @param {number} mesId 需要打开的消息ID，-1为最新一条
+ */
+export async function openTablePopup(mesId = -1) {
+    const tableContainer = initializedTableView || await initTableView(mesId);
+    tablePopup = new EDITOR.Popup(initializedTableView, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
+    // 是否可编辑
+    // userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
+    // const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
+    // const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
+    // const tableRefresh = tablePopup.dlg.querySelector('#table_clear_up_button');
+    // const tableRebuild = tablePopup.dlg.querySelector('#table_rebuild_button');
+    // const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
+    // const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
+    // const clearTableButton = tablePopup.dlg.querySelector('#clear_table_button');
+    // const importTableButton = tablePopup.dlg.querySelector('#import_clear_up_button');
+    // const exportTableButton = tablePopup.dlg.querySelector('#export_table_button');
+    // const tableEditModeButton = tablePopup.dlg.querySelector('#table_edit_mode_button');
+    //
+    // $(tableContainer).on('click', hideAllEditPanels)
+    // $(tableRefresh).on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
+    // $(tableRebuild).on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
+    // // 设置编辑提示
+    // setTableEditTips(tableEditTips)
+    // // 开始寻找表格
+    // const { tables, index } = findLastestTableData(true, mesId)
+    // userTableEditInfo.chatIndex = index
+    // userTableEditInfo.tables = tables
+    // // 获取action信息
+    // if (userTableEditInfo.editAble && index !== -1 && (!DERIVED.any.waitingTableIndex || DERIVED.any.waitingTableIndex !== index)) {
+    //     parseTableEditTag(USER.getContext().chat[index], -1, true)
+    // }
+    //
+    // // 渲染
+    // renderTablesDOM(userTableEditInfo.tables, tableContainer, userTableEditInfo.editAble)
+    // // 拷贝粘贴
+    //
+    // tables[0].cellClickEvent(callback => {
+    //     console.log(callback)
+    // })
+    //
+    // if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
+    // else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
+    // copyTableButton.addEventListener('click', () => copyTable(tables))
+    // clearTableButton.addEventListener('click', () => clearTable(index, tableContainer))
+    // importTableButton.addEventListener('click', () => importTable(index, tableContainer))
+    // exportTableButton.addEventListener('click', () => exportTable(tables))
+    // tableEditModeButton.addEventListener('click', () => {
+    //     document.querySelector('.popup-button-ok').click()
+    //     openTableEditorPopup()
+    // })
     await tablePopup.show()
 }

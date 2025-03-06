@@ -36,7 +36,7 @@
 
 /* 以下用于定义自定义样式，不修改原有样式 */
 /* 新增的自定义样式 */
-.translation_settings .menu_button {
+.memory_enhancement_settings .menu_button {
     width: fit-content;
     display: flex;
     gap: 10px;

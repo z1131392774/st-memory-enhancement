@@ -59,65 +59,6 @@ function tableStructureToSettingDOM(tableStructure) {
     return $item;
 }
 
-// /**
-//  * 导入表格数据文件
-//  * */
-// async function importTableDataFile(){
-//     const importFileElement = document.querySelector('#table-set-importFile'); // 获取文件输入元素
-//
-//     // 定义一个具名的事件处理函数
-//     async function changeEventHandler(event) {
-//         const files = event.target.files; // 从事件对象中获取 files 列表
-//         console.log("选择的文件列表:", files);
-//
-//         if (files && files.length > 0) { // 确保用户选择了文件
-//             await importTableSet(files); // 调用 importTableSet 函数处理文件
-//             importFileElement.value = null; // 清空文件输入框的值，以便下次可以选择相同文件
-//         } else {
-//             console.log("用户取消了文件选择或未选择文件。");
-//         }
-//
-//         // 移除事件监听器
-//         importFileElement.removeEventListener('change', changeEventHandler); // 使用具名函数引用移除
-//     }
-//
-//     // 添加 change 事件监听器，使用具名函数引用
-//     importFileElement.addEventListener('change', changeEventHandler);
-//
-//     importFileElement.click(); // 触发文件选择对话框
-// }
-
-
-// async function importSingleTableSet(/**@type {File}*/file) {
-//     try {
-//         const text = await file.text()
-//         const props = JSON.parse(text)
-//         console.log(props)
-//         if (props.message_template && props.tableStructure) {
-//             USER.tableBaseConfig.tableStructure = props.tableStructure
-//             USER.tableBaseConfig.message_template = props.message_template
-//             USER.tableBaseConfig.to_chat_container = props.to_chat_container
-//             USER.tableBaseConfig.deep = props.deep
-//             USER.tableBaseConfig.injection_mode = props.injection_mode
-//             EDITOR.saveSettingsDebounced()
-//             renderSetting()
-//             EDITOR.success('导入成功')
-//         } else EDITOR.error('导入失败，非记忆插件预设')
-//     } catch (e) {
-//         EDITOR.error('导入失败，请检查文件格式')
-//     }
-// }
-
-
-// /**
-//  * 导入插件设置
-//  */
-// async function importTableSet(/**@type {FileList}*/files) {
-//     for (let i = 0; i < files.length; i++) {
-//         await importSingleTableSet(files.item(i))
-//     }
-// }
-
 /**
  * 导入插件设置
  */

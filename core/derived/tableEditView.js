@@ -268,37 +268,36 @@ export function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
     for (let table of tables) {
         $(tableContainer).append(table.render()).append(`<hr />`)
     }
+    if (userTableEditInfo.editAble) {
+        for (let table of tables) {
+            table.cellClickEvent(onTdClick) // 绑定单元格点击事件
+        }
+    }
 }
 
-/**
- * 打开表格展示/编辑弹窗
- * @param {number} mesId 需要打开的消息ID，-1为最新一条
- */
-export async function openTableEditorPopup(mesId = -1) {
-    const manager = await SYSTEM.getComponent('editor');
-    tablePopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    // 是否可编辑
+async function initEditView(manager, mesId, contentContainer) {
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
-    const contentContainer = tablePopup.dlg.querySelector('#contentContainer');
-    const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
-    // const tableEditTips = tablePopup.dlg.querySelector('#tableEditTips');
-    const tableRefresh = tablePopup.dlg.querySelector('#table_clear_up_button');
-    const tableRebuild = tablePopup.dlg.querySelector('#table_rebuild_button');
-    const copyTableButton = tablePopup.dlg.querySelector('#copy_table_button');
-    const pasteTableButton = tablePopup.dlg.querySelector('#paste_table_button');
-    const clearTableButton = tablePopup.dlg.querySelector('#clear_table_button');
-    const importTableButton = tablePopup.dlg.querySelector('#import_clear_up_button');
-    const exportTableButton = tablePopup.dlg.querySelector('#export_table_button');
-    const tableEditModeQuitButton = tablePopup.dlg.querySelector('#table_view_mode_quit_button');
+
+    const tableContainer = contentContainer.querySelector('#tableContainer');
+    // const tableEditTips = contentContainer.querySelector('#tableEditTips'); // 编辑模式不需要 tips
+    const tableRefresh = contentContainer.querySelector('#table_clear_up_button');
+    const tableRebuild = contentContainer.querySelector('#table_rebuild_button');
+    const copyTableButton = contentContainer.querySelector('#copy_table_button');
+    const pasteTableButton = contentContainer.querySelector('#paste_table_button');
+    const clearTableButton = contentContainer.querySelector('#clear_table_button');
+    const importTableButton = contentContainer.querySelector('#import_clear_up_button');
+    const exportTableButton = contentContainer.querySelector('#export_table_button');
+    const tableEditModeQuitButton = contentContainer.querySelector('#table_view_mode_quit_button');
 
     tableHeaderToolbar = $(tableHeaderEditToolbarDom).hide();
-    tableHeaderToolbar.on('click', '#insertRow', onInsertFirstRow);
+    $(contentContainer).append(tableHeaderToolbar); // 将表头工具栏添加到 contentContainer
+
     $(tableContainer).on('click', hideAllEditPanels)
     $(tableRefresh).on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
     $(tableRebuild).on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
 
     // 初始化可拖动空间
-    $(contentContainer).empty()
+    $(contentContainer).empty() // 清空 contentContainer，避免重复添加 drag space
     drag = new EDITOR.Drag();
     contentContainer.append(drag.render);
     drag.add('tableContainer', tableContainer);
@@ -319,14 +318,74 @@ export async function openTableEditorPopup(mesId = -1) {
     // 拷贝粘贴
 
     if (!userTableEditInfo.editAble) $(pasteTableButton).hide()
-    else pasteTableButton.addEventListener('click', () => pasteTable(index, tableContainer))
-    copyTableButton.addEventListener('click', () => copyTable(tables))
-    clearTableButton.addEventListener('click', () => clearTable(index, tableContainer))
-    importTableButton.addEventListener('click', () => importTable(index, tableContainer))
-    exportTableButton.addEventListener('click', () => exportTable(tables))
-    tableEditModeQuitButton.addEventListener('click', () => {
+    else $(pasteTableButton).on('click', () => pasteTable(index, tableContainer))
+    $(copyTableButton).on('click', () => copyTable(tables))
+    $(clearTableButton).on('click', () => clearTable(index, tableContainer))
+    $(importTableButton).on('click', () => importTable(index, tableContainer))
+    $(exportTableButton).on('click', () => exportTable(tables))
+    $(tableEditModeQuitButton).on('click', () => {
+        console.log('退出编辑模式')
         document.querySelector('.popup-button-ok').click()
         openTablePopup()
     })
-    await tablePopup.show()
+}
+
+
+export async function getEditView(mesId = -1) {
+    const manager = await SYSTEM.getComponent('editor');
+
+    // 创建 contentContainer DOM 元素
+    const contentContainer = document.createElement('div');
+    contentContainer.id = 'contentContainer';
+    contentContainer.style.cssText = `position: relative; width: 100%; height: 100%; overflow: hidden;`; // 确保 dragSpace 正确工作
+
+    // 创建 tableContainer DOM 元素
+    const tableContainer = document.createElement('div');
+    tableContainer.id = 'tableContainer';
+    tableContainer.style.cssText = `position: absolute; left: 0; top: 0;`; // 绝对定位，配合 dragSpace
+
+    tableHeaderToolbar = $(tableHeaderEditToolbarDom).hide(); // 初始化 toolbar，但先不添加到 DOM
+
+    // 创建按钮容器和按钮
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'table_button_container';
+    buttonContainer.innerHTML = `
+        <button id="table_clear_up_button" class="tool_button">刷新表格</button>
+        <button id="table_rebuild_button" class="tool_button">重建表格</button>
+        <button id="copy_table_button" class="tool_button">复制表格</button>
+        <button id="paste_table_button" class="tool_button">粘贴表格</button>
+        <button id="clear_table_button" class="tool_button">清空表格</button>
+        <button id="import_clear_up_button" class="tool_button">导入表格</button>
+        <button id="export_table_button" class="tool_button">导出表格</button>
+        <button id="table_view_mode_quit_button" class="tool_button">退出编辑模式</button>
+    `;
+
+    contentContainer.appendChild(tableContainer); // 添加 tableContainer 到 contentContainer
+    contentContainer.appendChild(buttonContainer); // 添加按钮容器到 contentContainer
+
+    await initEditView(manager, mesId, contentContainer); // 传入 contentContainer
+    return contentContainer; // 返回 contentContainer DOM 元素
+}
+
+
+/**
+ * 打开表格展示/编辑弹窗
+ * @param {number} mesId 需要打开的消息ID，-1为最新一条
+ */
+export async function openTableEditorPopup(mesId = -1) {
+    const manager = await SYSTEM.getComponent('editor');
+    tablePopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
+
+    // 获取 contentContainer DOM
+    const contentContainer = tablePopup.dlg.querySelector('#contentContainer');
+
+    if (!contentContainer) {
+        console.error("Error: #contentContainer not found in popup.dlg.  Initializing Edit View might fail.");
+        return; // Exit if contentContainer is not found to prevent further errors.
+    }
+
+    // 初始化 Edit View in the existing contentContainer
+    await initEditView(manager, mesId, contentContainer);
+
+    await tablePopup.show();
 }

@@ -306,13 +306,13 @@ async function onChatCompletionPromptReady(eventData) {
     // 用于测试
     await openTestPopup();
     EDITOR.logAll();
-
-    console.log("tableBase", BASE.object())
-    BASE.save()
-
-    console.log('USER.getSettings(): ', JSON.stringify(USER.getSettings()).length, USER.getSettings())
-    console.log('USER.getContext(): ', JSON.stringify(USER.getContext()).length, USER.getContext())
-    console.log('USER.getChatPiece(): ', JSON.stringify(USER.getChatPiece()).length, USER.getChatPiece())
+    //
+    // console.log("tableBase", BASE.object())
+    // BASE.save()
+    //
+    // console.log('USER.getSettings(): ', JSON.stringify(USER.getSettings()).length, USER.getSettings())
+    // console.log('USER.getContext(): ', JSON.stringify(USER.getContext()).length, USER.getContext())
+    // console.log('USER.getChatPiece(): ', JSON.stringify(USER.getChatPiece()).length, USER.getChatPiece())
 
     try {
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
@@ -444,7 +444,7 @@ jQuery(async () => {
 
     // 开始添加各部分的根DOM
     // 添加表格编辑工具栏
-    $('#translation_container').append(await SYSTEM.getComponent('index'));
+    $('#translation_container').after(await SYSTEM.getComponent('index'));
     // 添加顶部表格管理工具弹窗
     $('#extensions-settings-button').after(await SYSTEM.getComponent('appHeaderTableDrawer'));
     // 添加进入表格编辑按钮
@@ -469,10 +469,6 @@ jQuery(async () => {
     // 点击表格渲染样式设置按钮
     $(document).on('click', '.tableEditor_renderButton', function () {
         openTableRendererPopup();
-    })
-    // 点击打开查看表格历史按钮
-    $(document).on('click', '#dataTable_history_button', function () {
-        openTableHistoryPopup();
     })
     // 点击打开查看表格日志按钮
     $(document).on('click', '#table_debug_log_button', function () {
