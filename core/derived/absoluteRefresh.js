@@ -1,4 +1,4 @@
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {copyTableList, findLastestTableData, findTableStructureByIndex } from "../../index.js";
 import {insertRow, updateRow, deleteRow} from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
@@ -45,13 +45,13 @@ function validateActions(actions) {
  */
 function getRefreshTableConfigStatus(callerType = 0) {
     // 显示所有相关的配置信息
-    const isUseMainAPI = EDITOR.data.use_main_api;
-    const userApiUrl = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
-    const userApiModel = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-    const userApiTemperature = EDITOR.data.custom_temperature;
-    const clearUpStairs = EDITOR.data.clear_up_stairs;
-    const isIgnoreDel = EDITOR.data.bool_ignore_del;
-    const isIgnoreUserSent = EDITOR.data.ignore_user_sent;
+    const isUseMainAPI = USER.tableBaseConfig.use_main_api;
+    const userApiUrl = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
+    const userApiModel = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
+    const userApiTemperature = USER.tableBaseConfig.custom_temperature;
+    const clearUpStairs = USER.tableBaseConfig.clear_up_stairs;
+    const isIgnoreDel = USER.tableBaseConfig.bool_ignore_del;
+    const isIgnoreUserSent = USER.tableBaseConfig.ignore_user_sent;
 
     return `<div class="wide100p padding5 dataBankAttachments">
                 <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
@@ -166,16 +166,16 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         // console.log('最新的表格数据:', originText);
 
         // 获取最近clear_up_stairs条聊天记录
-        const chat = EDITOR.getContext().chat;
+        const chat = USER.getContext().chat;
         const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat,
-            EDITOR.data.clear_up_stairs,
-            EDITOR.data.ignore_user_sent,
-            EDITOR.data.use_token_limit ? EDITOR.data.rebuild_token_limit_value:0
+            USER.tableBaseConfig.clear_up_stairs,
+            USER.tableBaseConfig.ignore_user_sent,
+            USER.tableBaseConfig.use_token_limit ? USER.tableBaseConfig.rebuild_token_limit_value:0
         ) : chatToBeUsed;
 
         // 构建AI提示
-        let systemPrompt = EDITOR.data.rebuild_system_message_template||EDITOR.data.rebuild_system_message;
-        let userPrompt = EDITOR.data.rebuild_user_message_template;
+        let systemPrompt = USER.tableBaseConfig.rebuild_system_message_template||USER.tableBaseConfig.rebuild_system_message;
+        let userPrompt = USER.tableBaseConfig.rebuild_user_message_template;
         // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
         systemPrompt = systemPrompt.replace(/\$0/g, originText);
         systemPrompt = systemPrompt.replace(/\$1/g, lastChats);
@@ -231,11 +231,11 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                 }
 
                 // 更新聊天记录
-                const chat = EDITOR.getContext().chat;
+                const chat = USER.getContext().chat;
                 const lastIndex = chat.length - 1;
                 if (lastIndex >= 0) {
                     chat[lastIndex].dataTable = clonedTables;
-                    await EDITOR.getContext().saveChat(); // 等待保存完成
+                    await USER.getContext().saveChat(); // 等待保存完成
                 } else {
                     throw new Error("聊天记录为空");
                 }
@@ -298,12 +298,12 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
             .join("\n");
 
         // 获取最近clear_up_stairs条聊天记录
-        let chat = EDITOR.getContext().chat;
-        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, EDITOR.data.clear_up_stairs, EDITOR.data.ignore_user_sent) : chatToBeUsed;
+        let chat = USER.getContext().chat;
+        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, USER.tableBaseConfig.clear_up_stairs, USER.tableBaseConfig.ignore_user_sent) : chatToBeUsed;
 
         // 构建AI提示
-        let systemPrompt = EDITOR.data.refresh_system_message_template;
-        let userPrompt = EDITOR.data.refresh_user_message_template;
+        let systemPrompt = USER.tableBaseConfig.refresh_system_message_template;
+        let userPrompt = USER.tableBaseConfig.refresh_user_message_template;
 
         // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
         systemPrompt = systemPrompt.replace(/\$0/g, originText);
@@ -453,7 +453,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
                     insertRow(action.tableIndex, action.data);
                     break;
                 case 'delete':
-                    if (action.tableIndex === 0 || !EDITOR.data.bool_ignore_del) {
+                    if (action.tableIndex === 0 || !USER.tableBaseConfig.bool_ignore_del) {
                         const deletedRow = DERIVED.any.waitingTable[action.tableIndex].content[action.rowIndex];
                         deleteRow(action.tableIndex, action.rowIndex);
                         console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
@@ -466,9 +466,9 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         });
 
         // 更新聊天数据
-        chat = EDITOR.getContext().chat[EDITOR.getContext().chat.length - 1];
+        chat = USER.getContext().chat[USER.getContext().chat.length - 1];
         chat.dataTable = DERIVED.any.waitingTable;
-        EDITOR.getContext().saveChat();
+        USER.getContext().saveChat();
         // 刷新 UI
         const tableContainer = document.querySelector('#tableContainer');
         renderTablesDOM(DERIVED.any.waitingTable, tableContainer, true);

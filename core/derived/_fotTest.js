@@ -1,5 +1,5 @@
 // _fotTest.js
-import {DERIVED, EDITOR, SYSTEM} from "../manager.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 /**
  * @description 测试模块 - 用于测试功能

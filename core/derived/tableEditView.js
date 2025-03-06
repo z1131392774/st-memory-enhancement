@@ -1,4 +1,4 @@
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {findLastestTableData, findNextChatWhitTableData, getTableEditActionsStr, handleEditStrInMessage, parseTableEditTag, replaceTableEditTag,} from "../../index.js";
 import {rebuildTableActions, refreshTableActions} from "./absoluteRefresh.js";
@@ -113,7 +113,7 @@ export async function pasteTable(mesId, tableContainer) {
         if (copyTableData) {
             const tables = JSON.parse(copyTableData)
             checkPrototype(tables)
-            EDITOR.getContext().chat[mesId].dataTable = tables
+            USER.getContext().chat[mesId].dataTable = tables
             renderTablesDOM(tables, tableContainer, true)
             updateSystemMessageTableStatus();
             EDITOR.success('粘贴成功')
@@ -162,7 +162,7 @@ async function importTable(mesId, tableContainer) {
                     // 5. 尝试解析 JSON 数据
                     const tables = JSON.parse(fileContent)
                     checkPrototype(tables)
-                    EDITOR.getContext().chat[mesId].dataTable = tables
+                    USER.getContext().chat[mesId].dataTable = tables
                     renderTablesDOM(tables, tableContainer, true)
                     updateSystemMessageTableStatus();
                     EDITOR.success('导入成功')
@@ -214,7 +214,7 @@ async function clearTable(mesId, tableContainer) {
     const confirmation = await EDITOR.callGenericPopup('清空此条的所有表格数据，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         const emptyTable = initAllTable()
-        EDITOR.getContext().chat[mesId].dataTable = emptyTable
+        USER.getContext().chat[mesId].dataTable = emptyTable
         renderTablesDOM(emptyTable, tableContainer, true)
         updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         EDITOR.success('清空成功')
@@ -243,16 +243,16 @@ async function onInsertFirstRow() {
         // 伪装输出
         if (result !== 3) {
             addActionForInsert()
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
+            const chat = USER.getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(USER.getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = DERIVED.any.waitingTable
         } else {
             table.insertEmptyRow(0)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
         updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
+        USER.getContext().saveChat()
         EDITOR.success('已插入')
     }
 }
@@ -294,8 +294,8 @@ export async function openTableEditorPopup(mesId = -1) {
     tableHeaderToolbar = $(tableHeaderEditToolbarDom).hide();
     tableHeaderToolbar.on('click', '#insertRow', onInsertFirstRow);
     $(tableContainer).on('click', hideAllEditPanels)
-    $(tableRefresh).on('click', () => refreshTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
-    $(tableRebuild).on('click', () => rebuildTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
+    $(tableRefresh).on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
+    $(tableRebuild).on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
 
     // 初始化可拖动空间
     $(contentContainer).empty()
@@ -311,7 +311,7 @@ export async function openTableEditorPopup(mesId = -1) {
     userTableEditInfo.tables = tables
     // 获取action信息
     if (userTableEditInfo.editAble && index !== -1 && (!DERIVED.any.waitingTableIndex || DERIVED.any.waitingTableIndex !== index)) {
-        parseTableEditTag(EDITOR.getContext().chat[index], -1, true)
+        parseTableEditTag(USER.getContext().chat[index], -1, true)
     }
 
     // 渲染

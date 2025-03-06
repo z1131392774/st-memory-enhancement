@@ -1,5 +1,5 @@
 // standaloneAPI.js
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 /**
  * 加密
@@ -40,7 +40,7 @@ async function decryptXor(encrypted, deviceId) {
  */
 async function getDecryptedApiKey() {
     try {
-        const encrypted = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
+        const encrypted = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
         const deviceId = localStorage.getItem('st_device_id');
         if (!encrypted || !deviceId) return null;
 
@@ -73,9 +73,9 @@ export async function handleMainAPIRequest(systemPrompt, userPrompt) {
  * @returns {Promise<string>} 生成的响应内容
  */
 export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
-    const USER_API_URL = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
+    const USER_API_URL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
     const USER_API_KEY = await getDecryptedApiKey(); // 调用传入的 getDecryptedApiKey 函数
-    const USER_API_MODEL = EDITOR.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
+    const USER_API_MODEL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
 
     if (!USER_API_URL || !USER_API_MODEL) {// 移除!USER_API_KEY检测，兼容本地模型和部分渠道
         EDITOR.error('请填写完整的自定义API配置');
@@ -95,7 +95,7 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            temperature: EDITOR.data.custom_temperature
+            temperature: USER.tableBaseConfig.custom_temperature
         })
     };
 

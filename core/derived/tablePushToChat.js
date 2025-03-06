@@ -1,4 +1,4 @@
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {findLastestTableData, findTableStructureByIndex} from "../../index.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
@@ -32,7 +32,7 @@ function parseTableRender(html, table) {
  * @param tableStatusHTML 表格状态html
  */
 function replaceTableToStatusTag(tableStatusHTML) {
-    const r = EDITOR.data.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
+    const r = USER.tableBaseConfig.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
     const chatContainer = window.document.querySelector('#chat');
     let tableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
 
@@ -73,7 +73,7 @@ function replaceTableToStatusTag(tableStatusHTML) {
  * 更新最后一条 System 消息的 <tableStatus> 标签内容
  */
 export function updateSystemMessageTableStatus(eventData) {
-    if (EDITOR.data.isExtensionAble === false || EDITOR.dataisTableToChat === false) {
+    if (USER.tableBaseConfig.isExtensionAble === false || USER.tableBaseConfig.isTableToChat === false) {
         window.document.querySelector('#tableStatusContainer')?.remove();
         return;
     }

@@ -1,4 +1,4 @@
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import { deleteRow, insertRow, updateRow } from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
@@ -203,7 +203,7 @@ function createRawParamsRow(params) {
 export async function openTableHistoryPopup(){
     const manager = await SYSTEM.getComponent('history');
     const tableHistoryPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    const tableEditHistory = EDITOR.getContext().chat;
+    const tableEditHistory = USER.getContext().chat;
     const $dlg = $(tableHistoryPopup.dlg);
     const $tableHistory = $dlg.find('#tableHistory');
     $tableHistory.empty();

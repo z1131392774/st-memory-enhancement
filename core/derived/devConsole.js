@@ -1,10 +1,10 @@
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {findLastestTableData, findTableStructureByIndex} from "../../index.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
 let isPopupOpening = false; // 防止在弹窗打开时推送日志导致循环
 
-function updateTableDebugLog(type, message) {
+function updateTableDebugLog(type, message, detail, timeout) {
     const newLog = {
         time: new Date().toLocaleTimeString(),
         type: type,
@@ -12,21 +12,21 @@ function updateTableDebugLog(type, message) {
     };
     switch (type) {
         case 'info':
-            toastr.info(message);
+            toastr.info(message, detail, timeout);
             break;
         case 'success':
-            toastr.success(message);
+            toastr.success(message, detail, timeout);
             break;
         case 'warning':
-            toastr.warning(message);
+            toastr.warning(message, detail, timeout);
             break;
         case 'error':
-            toastr.error(message);
+            toastr.error(message, detail, timeout);
             if (isPopupOpening) break;
 
             // 获取堆栈回调，将堆栈回调信息记录到newLog
             newLog.stack = new Error().stack;
-            if (EDITOR.data.tableDebugModeAble) {
+            if (USER.tableBaseConfig.tableDebugModeAble) {
                 setTimeout(() => {
                     openTableDebugLogPopup().then(r => {});
                 }, 0);
@@ -110,10 +110,10 @@ function renderDebugLogs($container, logs, onlyError) {
 }
 
 export const consoleMessageToEditor = {
-    info: message => updateTableDebugLog('info', message),
-    success: message => updateTableDebugLog('success', message),
-    warning: message => updateTableDebugLog('warning', message),
-    error: message => updateTableDebugLog('error', message),
+    info: (message, detail, timeout) => updateTableDebugLog('info', message, detail, timeout),
+    success: (message, detail, timeout) => updateTableDebugLog('success', message, detail, timeout),
+    warning: (message, detail, timeout) => updateTableDebugLog('warning', message, detail, timeout),
+    error: (message, detail, timeout) => updateTableDebugLog('error', message, detail, timeout),
     clear: () => updateTableDebugLog('clear', ''),
 }
 

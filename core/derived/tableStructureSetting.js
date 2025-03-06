@@ -1,4 +1,4 @@
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {renderSetting} from "./userExtensionSetting.js";
 import {findTableStructureByIndex} from "../../index.js";
@@ -46,8 +46,6 @@ export async function openTableSettingPopup(tableIndex) {
     $toChat.on('change', function () { tableStructure.toChat = $(this).prop('checked'); });
     $tableRender.on('change', function () { changeEvent("tableRender", $(this).val()); });
     await tableSettingPopup.show();
-    console.log("保持", EDITOR.data.tableStructure);
-    EDITOR.saveSettingsDebounced();
     renderSetting();
     updateSystemMessageTableStatus();
 }

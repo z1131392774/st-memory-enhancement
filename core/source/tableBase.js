@@ -1,5 +1,6 @@
 import { extension_settings, getContext } from '../../../../../extensions.js';
-import { EDITOR, SYSTEM } from "../manager.js"; // 假设 JSON5 仍然用于某些配置或属性解析
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import {defaultSettings} from "./pluginSetting.js";
 
 const SheetDomain = {
     global: 'global',   // 全局表
@@ -43,7 +44,8 @@ const EventDirection = {
 let _tableBaseInstance = null;
 
 export const tableBase = {
-    get Instance() {
+    defaultSettings: defaultSettings,
+    object:() => {
         if (_tableBaseInstance === null) _tableBaseInstance = new TableBase();
         return _tableBaseInstance;
     },

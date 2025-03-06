@@ -1,8 +1,10 @@
-import { saveSettingsDebounced, } from '../../../../../script.js';
+import { saveSettingsDebounced, saveSettings, getSlideToggleOptions, } from '../../../../../script.js';
+import { DOMPurify, Bowser, slideToggle } from '../../../../../../../lib.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../../extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../../popup.js';
 import { generateRaw } from '../../../../../../../script.js';
 import { power_user, applyPowerUserSettings, getContextSettings, loadPowerUserSettings } from "../../../../../scripts/power-user.js";
+import { LoadLocal, SaveLocal, LoadLocalBool } from '../../../../../scripts/f-localStorage.js';
 import { Table } from "./source/table.js";
 import { TableEditAction } from "./source/tableActions.js";
 import { consoleMessageToEditor } from "./derived/devConsole.js";
@@ -37,17 +39,58 @@ const createProxy = (obj) => {
     });
 }
 
+const createProxyWithUserSetting = (target) => {
+    return new Proxy({}, {
+        get: (_, property) => {
+            // 最优先从用户设置数据中获取
+            if (power_user[target] && property in power_user[target]) {
+                console.log(`变量 ${property} 已从用户设置中获取`)
+                return power_user[target][property];
+            }
+            // 尝试从老版本的数据位置 extension_settings.muyoo_dataTable 中获取
+            if (extension_settings[target] && property in extension_settings[target]) {
+                console.log(`变量 ${property} 未在用户配置中找到, 已从老版本数据中获取`)
+                const value = extension_settings[target][property];
+                if (!power_user[target]) {
+                    power_user[target] = {}; // 初始化，如果不存在
+                }
+                power_user[target][property] = value;
+                return value;
+            }
+            // 如果 extension_settings.muyoo_dataTable 中也不存在，则从 defaultSettings 中获取
+            if (defaultSettings && property in defaultSettings) {
+                console.log(`变量 ${property} 未找到, 已从默认设置中获取`)
+                return defaultSettings[property];
+            }
+            // 如果 defaultSettings 中也不存在，则返回 undefined
+            EDITOR.error(`变量 ${property} 未在默认设置中找到, 请检查代码`)
+            return undefined;
+        },
+        set: (_, property, value) => {
+            console.log(`设置变量 ${property} 为 ${value}`)
+            if (!power_user[target]) {
+                power_user[target] = {}; // 初始化，如果不存在
+            }
+            power_user[target][property] = value;
+            saveSettings();
+            return true;
+        },
+    })
+}
+
 export const BASE = tableBase;
 
 export const USER = {
-    getSettingValueByKey: getContextSettings,
-    modifySetting: applyPowerUserSettings,
-    projectHistory: extension_settings.projectHistory,
-    config: extension_settings.config,
-    cacheFile: extension_settings.userCache,
-    fastCacheFile: extension_settings.binaryCacheFile,
-    // fastCache: userManager.fastCache,
-
+    applyPowerUserSettings: applyPowerUserSettings,
+    getSettings: () => power_user,
+    getContext: () => getContext(),
+    getChatPiece: (deep = 0) => {
+        const chat = getContext().chat;
+        if (!chat || chat.length === 0 || deep >= chat.length) return null;
+        return chat[chat.length - 1 - deep]
+    },
+    tableBaseConfig: createProxyWithUserSetting('muyoo_dataTable'),
+    IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA'),
 }
 
 /**
@@ -83,78 +126,22 @@ export const EDITOR = {
     callGenericPopup: callGenericPopup,
     POPUP_TYPE: POPUP_TYPE,
     generateRaw: generateRaw,
-    saveSettingsDebounced: saveSettingsDebounced,
+    getSlideToggleOptions: getSlideToggleOptions,
+    slideToggle: slideToggle,
 
-    info: consoleMessageToEditor.info,
-    success: consoleMessageToEditor.success,
-    warning: consoleMessageToEditor.warning,
-    error: consoleMessageToEditor.error,
-    clear: consoleMessageToEditor.clear,
+    info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),
+    success: (message, detail = '', timeout = 500) => consoleMessageToEditor.success(message, detail, timeout),
+    warning: (message, detail = '', timeout = 2000) => consoleMessageToEditor.warning(message, detail, timeout),
+    error: (message, detail = '', timeout = 2000) => consoleMessageToEditor.error(message, detail, timeout),
+    clear: () => consoleMessageToEditor.clear(),
     logAll: () => {
         SYSTEM.codePathLog({
             'last_table': findLastestTableData(true),
-            'user_setting': extension_settings.muyoo_dataTable,
-            'context': getContext(),
+            'user_setting': USER.getSettings(),
+            'context': USER.getContext(),
         }, 3);
     },
-
-    defaultSettings: defaultSettings,
-    allData: extension_settings.muyoo_dataTable,
-    data: new Proxy({}, {
-        get(_, property) {
-            // 最优先从用户数据中获取配置
-            // const user_data = fileManager.readFile('muyoo_dataTable');
-            // if (user_data !== null) {
-            //     console.log(`变量 ${property} 未找到, 已从用户数据中获取`)
-            //     return user_data[property];
-            // }
-            // 优先从 extension_settings.muyoo_dataTable 中获取
-            if (extension_settings.muyoo_dataTable && property in extension_settings.muyoo_dataTable) {
-                // EDITOR.saveSettingsDebounced();
-                return extension_settings.muyoo_dataTable[property];
-            }
-            // 如果 extension_settings.muyoo_dataTable 中不存在，则从 defaultSettings 中获取
-            if (defaultSettings && property in defaultSettings) {
-                console.log(`变量 ${property} 未找到, 已从默认设置中获取`)
-                // EDITOR.saveSettingsDebounced();
-                return defaultSettings[property];
-            }
-            // 如果 defaultSettings 中也不存在，则返回 undefined
-            consoleMessageToEditor.error(`变量 ${property} 未在默认设置中找到, 请检查代码`)
-            EDITOR.saveSettingsDebounced();
-            return undefined;
-        },
-        set(_, property, value) {
-            try {
-                // 写入fileManager.writeFile
-                fileManager.writeFile('muyoo_dataTable', extension_settings.muyoo_dataTable);
-                console.log(`设置变量 ${property} 为 ${value}`)
-                return true;
-            } catch (e) {
-                // 将设置操作直接作用于 extension_settings.muyoo_dataTable
-                if (!extension_settings.muyoo_dataTable) {
-                    extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
-                }
-                extension_settings.muyoo_dataTable[property] = value;
-                console.log(`设置变量 ${property} 为 ${value}`)
-                EDITOR.saveSettingsDebounced();
-                return true;
-            }
-            // 将设置操作直接作用于 extension_settings.muyoo_dataTable
-            if (!extension_settings.muyoo_dataTable) {
-                extension_settings.muyoo_dataTable = {}; // 初始化，如果不存在
-            }
-            extension_settings.muyoo_dataTable[property] = value;
-            // console.log(`设置变量 ${property} 为 ${value}`)
-            EDITOR.saveSettingsDebounced();
-            return true;
-        }
-    }),
-    IMPORTANT_USER_PRIVACY_DATA: extension_settings.IMPORTANT_USER_PRIVACY_DATA,
-
-    getContext: getContext,
 }
-
 
 /**
  * @description `SYSTEM` 系统控制器 - 用于管理系统的数据，如文件读写、任务计时等

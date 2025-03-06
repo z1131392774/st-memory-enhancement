@@ -1,4 +1,4 @@
-import {DERIVED, EDITOR, SYSTEM} from '../manager.js'
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import JSON5 from '../../utils/json5.min.mjs'
 import {handleCellValue} from "./table.js";
 
@@ -92,7 +92,7 @@ export class TableEditAction {
  * @returns 所有表格对象数组
  */
 export function initAllTable() {
-    return EDITOR.data.tableStructure.map(data => new DERIVED.Table(data.tableName, data.tableIndex, data.columns))
+    return USER.tableBaseConfig.tableStructure.map(data => new DERIVED.Table(data.tableName, data.tableIndex, data.columns))
 }
 
 /**

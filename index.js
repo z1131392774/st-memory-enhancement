@@ -2,7 +2,7 @@ import { eventSource, event_types, getRequestHeaders } from '../../../../script.
 import {uploadFileAttachment} from "../../../../scripts/chats.js";
 import {getBase64Async} from "../../../../scripts/utils.js";
 // import {currentUser} from "../../../../scripts/user.js";
-import {BASE, DERIVED, EDITOR, SYSTEM} from './core/manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from './core/manager.js';
 import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/derived/tablePushToChat.js";
 import {openTableHistoryPopup} from "./core/derived/tableHistory.js";
 import {loadSettings} from "./core/derived/userExtensionSetting.js";
@@ -13,6 +13,7 @@ import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
 import {openTestPopup} from "./core/derived/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
+import {openAppHeaderTableDrawer} from "./core/derived/appHeaderTableDrawer.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -30,7 +31,7 @@ const editErrorInfo = {
  * @returns 此索引的表格结构
  */
 export function findTableStructureByIndex(index) {
-    return EDITOR.data.tableStructure.find(table => table.tableIndex === index);
+    return USER.tableBaseConfig.tableStructure.find(table => table.tableIndex === index);
 }
 
 /**
@@ -53,7 +54,7 @@ function checkPrototype(dataTable) {
  * @returns 自结束索引向上寻找，最近的表格数据
  */
 export function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
-    let chat = EDITOR.getContext().chat
+    let chat = USER.getContext().chat
     if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
     else chat = chat.slice(0, isIncludeEndIndex ? endIndex + 1 : endIndex)
     for (let i = chat.length - 1; i >= 0; i--) {
@@ -79,7 +80,7 @@ export function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
  */
 export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = false) {
     if (startIndex === -1) return { index: - 1, chat: null }
-    const chat = EDITOR.getContext().chat
+    const chat = USER.getContext().chat
     for (let i = isIncludeStartIndex ? startIndex : startIndex + 1; i < chat.length; i++) {
         if (chat[i].is_user === false && chat[i].dataTable) {
             checkPrototype(chat[i].dataTable)
@@ -94,7 +95,7 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  * @returns 生成的完整提示词
  */
 export function initTableData() {
-    if (EDITOR.data.step_by_step === true) return '';
+    if (USER.tableBaseConfig.step_by_step === true) return '';
 
     const { tables } = findLastestTableData(true)
     const promptContent = getAllPrompt(tables)
@@ -109,7 +110,7 @@ export function initTableData() {
  */
 function getAllPrompt(tables) {
     const tableDataPrompt = tables.map(table => table.getTableText()).join('\n')
-    return EDITOR.data.message_template.replace('{{tableData}}', tableDataPrompt)
+    return USER.tableBaseConfig.message_template.replace('{{tableData}}', tableDataPrompt)
 }
 
 /**
@@ -278,7 +279,7 @@ export function replaceTableEditTag(chat, newContent) {
         } else {
             chat.swipes[chat.swipe_id] += `\n<tableEdit>${newContent}</tableEdit>`;
         }
-    EDITOR.getContext().saveChat();
+    USER.getContext().saveChat();
 }
 
 /**
@@ -286,7 +287,7 @@ export function replaceTableEditTag(chat, newContent) {
  * @returns 注入角色
  */
 function getMesRole() {
-    switch (EDITOR.data.injection_mode) {
+    switch (USER.tableBaseConfig.injection_mode) {
         case 'deep_system':
             return 'system'
         case 'deep_user':
@@ -306,38 +307,22 @@ async function onChatCompletionPromptReady(eventData) {
     await openTestPopup();
     EDITOR.logAll();
 
-    console.log("tableBase", BASE.Instance)
+    console.log("tableBase", BASE.object())
     BASE.save()
 
-    // let testData = {}
-    // fetch('/user/files/test.json')
-    //     .then(response => response.json())
-    //     .then(configData => {
-    //         testData = configData
-    //         console.log('Loaded plugin configuration:', configData);
-    //         // 在插件中使用 configData 配置插件
-    //         // 例如: 设置插件的 UI 样式，初始化插件参数等等
-    //     })
-    //     .catch(error => {
-    //         console.error('Error loading plugin config:', error);
-    //     });
-
-    // testData = {}
-    // testData.newSetting = "newValue";
-    // console.log("testData", testData)
-
-    // const a = await getRequestHeaders()
-
+    console.log('USER.getSettings(): ', JSON.stringify(USER.getSettings()).length, USER.getSettings())
+    console.log('USER.getContext(): ', JSON.stringify(USER.getContext()).length, USER.getContext())
+    console.log('USER.getChatPiece(): ', JSON.stringify(USER.getChatPiece()).length, USER.getChatPiece())
 
     try {
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
-        if (eventData.dryRun === true || EDITOR.data.isExtensionAble === false || EDITOR.data.isAiReadTable === false) return
+        if (eventData.dryRun === true || USER.tableBaseConfig.isExtensionAble === false || USER.tableBaseConfig.isAiReadTable === false) return
 
         const promptContent = initTableData()
-        if (EDITOR.data.deep === 0)
+        if (USER.tableBaseConfig.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
         else
-            eventData.chat.splice(-EDITOR.data.deep, 0, { role: getMesRole(), content: promptContent })
+            eventData.chat.splice(-USER.tableBaseConfig.deep, 0, { role: getMesRole(), content: promptContent })
     } catch (error) {
         // 获取堆栈信息
         const stack = error.stack;
@@ -394,12 +379,12 @@ function getTableEditTag(mes) {
  * @param this_edit_mes_id 此消息的ID
  */
 async function onMessageEdited(this_edit_mes_id) {
-    if (EDITOR.data.isExtensionAble === false) return
-    if (EDITOR.data.step_by_step === true) {
+    if (USER.tableBaseConfig.isExtensionAble === false) return
+    if (USER.tableBaseConfig.step_by_step === true) {
 
     } else {
-        const chat = EDITOR.getContext().chat[this_edit_mes_id]
-        if (chat.is_user === true ||EDITOR.data.isAiWriteTable === false) return
+        const chat = USER.getContext().chat[this_edit_mes_id]
+        if (chat.is_user === true ||USER.tableBaseConfig.isAiWriteTable === false) return
         try {
             handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
         } catch (error) {
@@ -413,12 +398,12 @@ async function onMessageEdited(this_edit_mes_id) {
  * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
-    if (EDITOR.data.isExtensionAble === false) return
-    if (EDITOR.data.step_by_step === true) {
+    if (USER.tableBaseConfig.isExtensionAble === false) return
+    if (USER.tableBaseConfig.step_by_step === true) {
         await TableTwoStepSummary();
     } else {
-        if (EDITOR.data.isAiWriteTable === false) return
-        const chat = EDITOR.getContext().chat[chat_id];
+        if (USER.tableBaseConfig.isAiWriteTable === false) return
+        const chat = USER.getContext().chat[chat_id];
         console.log("收到消息", chat_id)
         try {
             handleEditStrInMessage(chat)
@@ -433,9 +418,9 @@ async function onMessageReceived(chat_id) {
  * 滑动切换消息事件
  */
 async function onMessageSwiped(chat_id) {
-    if (EDITOR.data.isExtensionAble === false || EDITOR.data.isAiWriteTable === false) return
+    if (USER.tableBaseConfig.isExtensionAble === false || USER.tableBaseConfig.isAiWriteTable === false) return
 
-    const chat = EDITOR.getContext().chat[chat_id];
+    const chat = USER.getContext().chat[chat_id];
     if (!chat.swipe_info[chat.swipe_id]) return
     try {
         handleEditStrInMessage(chat)
@@ -448,7 +433,7 @@ async function onMessageSwiped(chat_id) {
 
 jQuery(async () => {
     fetch("http://api.muyoo.com.cn/check-version", {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: VERSION, user: EDITOR.getContext().name1 })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: VERSION, user: USER.getContext().name1 })
     }).then(res => res.json()).then(res => {
         if (res.success) {
             if (!res.isLatest) $("#tableUpdateTag").show()
@@ -460,6 +445,8 @@ jQuery(async () => {
     // 开始添加各部分的根DOM
     // 添加表格编辑工具栏
     $('#translation_container').append(await SYSTEM.getComponent('index'));
+    // 添加顶部表格管理工具弹窗
+    $('#extensions-settings-button').after(await SYSTEM.getComponent('appHeaderTableDrawer'));
     // 添加进入表格编辑按钮
     $('.extraMesButtons').append(`<div title="查看表格" class="mes_button fa-solid fa-table open_table_by_id" />`);
     // 添加表格编辑浮窗
@@ -470,6 +457,10 @@ jQuery(async () => {
     // 应用程序启动时加载设置
     loadSettings();
 
+    // 设置表格编辑按钮
+    $(document).on('click', '#table_drawer_icon', function () {
+        openAppHeaderTableDrawer();
+    })
     // 设置表格编辑按钮
     $(document).on('click', '.tableEditor_editButton', function () {
         let index = $(this).data('index'); // 获取当前点击的索引
@@ -497,7 +488,6 @@ jQuery(async () => {
         let index = $(this).data('index'); // 获取当前点击的索引
         const tableStructure = findTableStructureByIndex(index);
         tableStructure.enable = $(this).prop('checked');
-        EDITOR.saveSettingsDebounced();
     })
 
     // 监听主程序事件

@@ -1,4 +1,4 @@
-import {DERIVED, EDITOR, SYSTEM} from '../manager.js'
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import JSON5 from '../../utils/json5.min.mjs'
 import {findTableStructureByIndex} from "../../index.js";
 
@@ -275,7 +275,7 @@ function replaceUserTag(str) {
         console.warn('非字符串输入:', str);
         str = String(str); // 强制转换为字符串
     }
-    return str.replace(/<user>/g, EDITOR.getContext().name1);
+    return str.replace(/<user>/g, USER.getContext().name1);
 }
 
 /**

@@ -1,4 +1,4 @@
-import {EDITOR} from "../manager.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 
 /**

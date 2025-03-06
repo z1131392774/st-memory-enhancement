@@ -1,4 +1,4 @@
-import { DERIVED, EDITOR, SYSTEM } from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {
     copyTableList,
@@ -126,7 +126,7 @@ export async function pasteTable(mesId, tableContainer) {
         if (copyTableData) {
             const tables = JSON.parse(copyTableData)
             checkPrototype(tables)
-            EDITOR.getContext().chat[mesId].dataTable = tables
+            USER.getContext().chat[mesId].dataTable = tables
             renderTablesDOM(tables, tableContainer, true)
             updateSystemMessageTableStatus();
             EDITOR.success('粘贴成功')
@@ -175,7 +175,7 @@ async function importTable(mesId, tableContainer) {
                     // 5. 尝试解析 JSON 数据
                     const tables = JSON.parse(fileContent)
                     checkPrototype(tables)
-                    EDITOR.getContext().chat[mesId].dataTable = tables
+                    USER.getContext().chat[mesId].dataTable = tables
                     renderTablesDOM(tables, tableContainer, true)
                     updateSystemMessageTableStatus();
                     EDITOR.success('导入成功')
@@ -227,7 +227,7 @@ async function clearTable(mesId, tableContainer) {
     const confirmation = await EDITOR.callGenericPopup('清空此条的所有表格数据，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         const emptyTable = initAllTable()
-        EDITOR.getContext().chat[mesId].dataTable = emptyTable
+        USER.getContext().chat[mesId].dataTable = emptyTable
         renderTablesDOM(emptyTable, tableContainer, true)
         updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         EDITOR.success('清空成功')
@@ -256,16 +256,16 @@ async function onInsertRow() {
         // 伪装输出
         if (result !== 3) {
             addActionForInsert()
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
+            const chat = USER.getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(USER.getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = DERIVED.any.waitingTable
         } else {
             table.insertEmptyRow(userTableEditInfo.rowIndex + 1)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
         updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
+        USER.getContext().saveChat()
         EDITOR.success('已插入')
     }
 }
@@ -282,16 +282,16 @@ async function onInsertFirstRow() {
         // 伪装输出
         if (result !== 3) {
             addActionForInsert()
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
+            const chat = USER.getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(USER.getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = DERIVED.any.waitingTable
         } else {
             table.insertEmptyRow(0)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
         updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
+        USER.getContext().saveChat()
         EDITOR.success('已插入')
     }
 }
@@ -349,7 +349,7 @@ function findAndDeleteActionsForDelete() {
 function setTableEditTips(tableEditTips) {
     const tips = $(tableEditTips)
     tips.empty()
-    if (EDITOR.data.isExtensionAble === false) {
+    if (USER.tableBaseConfig.isExtensionAble === false) {
         tips.append('目前插件已关闭，将不会要求AI更新表格。')
         tips.css("color", "rgb(211 39 39)")
     } else if (userTableEditInfo.editAble) {
@@ -397,9 +397,9 @@ async function onDeleteRow() {
             if (!table.insertedRows || !table.updatedRows)
                 return EDITOR.error("由于旧数据兼容性问题，请再聊一次后再使用此功能")
             findAndDeleteActionsForDelete()
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
+            const chat = USER.getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(USER.getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = DERIVED.any.waitingTable
         } else {
             table.delete(userTableEditInfo.rowIndex)
@@ -407,7 +407,7 @@ async function onDeleteRow() {
         const tableContainer = tablePopup.dlg.querySelector('#tableContainer');
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
         updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
+        USER.getContext().saveChat()
         EDITOR.success('已删除')
     }
 }
@@ -426,16 +426,16 @@ async function onModifyCell() {
         // 伪装修改
         if (tableEditPopup.result !== 3) {
             findAndEditOrAddActionsForUpdate(newValue)
-            const chat = EDITOR.getContext().chat[userTableEditInfo.chatIndex]
+            const chat = USER.getContext().chat[userTableEditInfo.chatIndex]
             replaceTableEditTag(chat, getTableEditActionsStr())
-            handleEditStrInMessage(EDITOR.getContext().chat[userTableEditInfo.chatIndex], -1)
+            handleEditStrInMessage(USER.getContext().chat[userTableEditInfo.chatIndex], -1)
             userTableEditInfo.tables = DERIVED.any.waitingTable
         } else {
             table.setCellValue(userTableEditInfo.rowIndex, userTableEditInfo.colIndex, newValue)
         }
         renderTablesDOM(userTableEditInfo.tables, tableContainer, true)
         updateSystemMessageTableStatus();
-        EDITOR.getContext().saveChat()
+        USER.getContext().saveChat()
         EDITOR.success('已修改')
     }
 }
@@ -461,8 +461,8 @@ export async function openTablePopup(mesId = -1) {
     const tableEditModeButton = tablePopup.dlg.querySelector('#table_edit_mode_button');
 
     $(tableContainer).on('click', hideAllEditPanels)
-    $(tableRefresh).on('click', () => refreshTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
-    $(tableRebuild).on('click', () => rebuildTableActions(EDITOR.data.bool_force_refresh, EDITOR.data.bool_silent_refresh))
+    $(tableRefresh).on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
+    $(tableRebuild).on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh))
     // 设置编辑提示
     setTableEditTips(tableEditTips)
     // 开始寻找表格
@@ -471,7 +471,7 @@ export async function openTablePopup(mesId = -1) {
     userTableEditInfo.tables = tables
     // 获取action信息
     if (userTableEditInfo.editAble && index !== -1 && (!DERIVED.any.waitingTableIndex || DERIVED.any.waitingTableIndex !== index)) {
-        parseTableEditTag(EDITOR.getContext().chat[index], -1, true)
+        parseTableEditTag(USER.getContext().chat[index], -1, true)
     }
 
     // 渲染
