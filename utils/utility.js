@@ -1,5 +1,20 @@
 // 生成或获取设备ID（从用户代码中提取）
 
+/**
+ * 创建一个只读属性
+ * @param {object} obj 要在其上定义属性的对象
+ * @param {string} propertyName 属性名称
+ * @param {function} getter 获取属性值的函数
+ */
+export function readonly(obj, propertyName, getter) {
+    Object.defineProperty(obj, propertyName, {
+        get: getter,
+        set(value) {
+            throw new Error(`${propertyName} 属性是只读的，不允许写入。`);
+        }
+    });
+}
+
 let step = 0;  // 保证每次调用该函数时绝对能生成不一样的随机数
 function stepRandom(bias = step) {
     // console.log('stepRandom');

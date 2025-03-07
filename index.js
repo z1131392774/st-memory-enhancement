@@ -19,7 +19,7 @@ import { initRefreshTypeSelector } from './core/derived/initRefreshTypeSelector.
 
 console.log("______________________记忆插件：开始加载______________________")
 
-const VERSION = '1.3.0'
+const VERSION = '1.4.0-alpha'
 
 const editErrorInfo = {
     forgotCommentTag: false,
@@ -488,6 +488,16 @@ jQuery(async () => {
     })
 
     initAppHeaderTableDrawer();
+
+    SYSTEM.f(()=>{
+        BASE.templates = []
+        USER.saveSettings()
+        console.log(BASE.templates)
+        // for (let i = 0; i < BASE.templates.length; i++) {
+        //     BASE.TableTemplate(BASE.templates[i].uid).delete()
+        //     console.log(BASE.templates)
+        // }
+    })
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);

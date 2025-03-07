@@ -14,40 +14,16 @@ export function initTest() {
     if (!testTestSidebarEnabled) openTestSidebar();
 }
 
-async function testingProcess() {
-    if (codeQueue.length === 0) {
-        console.log('没有注册任何 debugCode，无法执行。');
-        return;
-    }
-    console.log('__________________ 开始执行所有注册的 Code...__________________');
-    for (const func of codeQueue) {
-        const index = codeQueue.indexOf(func);
-        try {
-            console.log(`______________ 开始执行 ${index + 1} ______________`);
-            const result = await func(); // 执行函数并等待 Promise 完成
-            if (result !== undefined) {
-                console.log(`______________ 函数 ${index + 1} 返回值:`, result);
-            }
-            console.log(`______________ 执行 ${index + 1} 完毕 ______________`);
-        } catch (error) {
-            console.error(`debugCode ${index + 1} 执行出错:`, error);
-        }
-    }
-    console.log('__________________ 所有注册的 debugCode 执行完毕。__________________');
-}
-
 
 let testTestSidebarEnabled = false;
 let testSidebarContainer = null;
 let isDragging = false;
 let offsetX, offsetY;
 
-
 function openTestSidebar(){
     testTestSidebarEnabled = true;
     testSidebarContainer = createSidebarContainer();
-    const toolBar = createToolBar();
-    testSidebarContainer.appendChild(toolBar);
+    testSidebarContainer.appendChild(createToolBar());
     loadAndAppendTestContent(testSidebarContainer);
     addDragListeners();
     // 添加窗口 resize 事件监听器
@@ -58,13 +34,38 @@ function openTestSidebar(){
     adjustSidebarPositionWithinBounds();
 }
 
+async function testingProcess() {
+    if (codeQueue.length === 0) {
+        console.log(`[${new Date().toLocaleTimeString()}] 没有注册任何 code，无法执行，请使用 SYSTEM.f(()=>{需要测试的代码}) 注册测试代码。`);
+        return;
+    }
+
+    const startTime = performance.now();
+
+    console.log(`%c[${new Date().toLocaleTimeString()}] START [SYSTEM.f()...`, 'color: blue; font-weight: bold');
+    for (const func of codeQueue) {
+        const startTimeI = performance.now();
+        const index = codeQueue.indexOf(func);
+        try {
+            await func();    // 执行函数并等待 Promise 完成
+            console.log(`%c[${new Date().toLocaleTimeString()}] f[${index}] END (用时: ${performance.now() - startTimeI.toFixed(2)}ms)`, 'color: green');
+        } catch (error) {
+            console.error(`%c[${new Date().toLocaleTimeString()}] f[${index}] ERROR:`, 'color: red; font-weight: bold', error);
+        }
+    }
+
+    const endTime = performance.now();
+    const elapsedTime = endTime - startTime;
+
+    console.log(`%c[${new Date().toLocaleTimeString()}] SYSTEM.f()] END (总用时: ${elapsedTime.toFixed(2)}ms)`, 'color: green; font-weight: bold');
+}
 
 function createSidebarContainer() {
     const container = document.createElement('div');
     container.id = 'test-floating-sidebar';
     Object.assign(container.style, {
         position: 'fixed',
-        top: '100px',
+        top: '200px',
         right: '20px', // 初始位置可以放在右侧，窗口resize时会调整
         backgroundColor: '#c00',
         maxWidth: '200px',
@@ -121,7 +122,7 @@ function createToolButton(text, onClickHandler) {
 
 
 function loadAndAppendTestContent(container) {
-    appendTestOutput(container, 'SYSTEM.code(()=>{测试代码})');
+    appendTestOutput(container, 'SYSTEM.f(()=>{添加测试代码})');
 }
 
 

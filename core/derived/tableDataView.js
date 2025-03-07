@@ -11,7 +11,6 @@ import {
 } from "../../index.js";
 import {rebuildTableActions, refreshTableActions,getPromptAndRebuildTable} from "./absoluteRefresh.js";
 import {initAllTable} from "../source/tableActions.js";
-import {openTableEditorPopup} from "./tableEditView.js";
 import {openTableHistoryPopup} from "./tableHistory.js";
 import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
 

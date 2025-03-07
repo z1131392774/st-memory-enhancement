@@ -1,2 +1,5 @@
 # 忽略 .idea 文件夹
 .idea/
+.tmp/
+temp/
+test/

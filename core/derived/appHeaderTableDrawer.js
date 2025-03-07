@@ -15,7 +15,7 @@ let tableDrawerContentHeader = null;
 let tableViewDom = null;
 let tableEditDom = null;
 let settingContainer = null;
-const timeOut = 100;
+const timeOut = 200; // 稍微增加 timeOut 以适应高度动画，可以根据效果调整
 
 let isEventListenersBound = false; // 添加一个标志来跟踪事件监听器是否已绑定
 
@@ -41,6 +41,7 @@ export async function initAppHeaderTableDrawer() {
     $('.fa-panorama').removeClass('fa-panorama').addClass('fa-image');
     $('.fa-user-cog').removeClass('fa-user-cog').addClass('fa-user');
 
+    // 获取表格视图、编辑视图和设置容器的内容
     if (tableViewDom === null) {
         tableViewDom = await getTableView(-1);
     }
@@ -53,6 +54,22 @@ export async function initAppHeaderTableDrawer() {
         const header = $(`<div></div>`).append($(`<div style="margin: 10px 0;"></div>`).append(inlineDrawerHeaderContent));
         settingContainer = header.append($('.memory_enhancement_container').find('#memory_enhancement_settings_inline_drawer_content'));
     }
+
+    // 创建容器 div 并将内容包裹起来，并赋予唯一的 ID，添加 overflow: hidden
+    const databaseContentDiv = $(`<div id="database-content" style="width: 100%; height: 100%; overflow: hidden;"></div>`).append(tableViewDom);
+    const editorContentDiv = $(`<div id="editor-content" style="width: 100%; height: 100%; display: none; overflow: hidden;"></div>`).append(tableEditDom); // 初始隐藏
+    const settingContentDiv = $(`<div id="setting-content" style="width: 100%; height: 100%; display: none; overflow: hidden;"></div>`).append(settingContainer); // 初始隐藏
+
+    // 将所有内容容器添加到 appHeaderTableContainer 中
+    appHeaderTableContainer.append(databaseContentDiv);
+    appHeaderTableContainer.append(editorContentDiv);
+    appHeaderTableContainer.append(settingContentDiv);
+
+    // 初始时显示数据库内容，隐藏编辑器和设置内容
+    $('#database-content').show();
+    $('#editor-content').hide();
+    $('#setting-content').hide();
+
 
     // tableDrawerContentHeader.empty(); // 清空抽屉内容的标题
     // tableDrawerContentHeader.before(inlineDrawerHeaderContent);
@@ -125,24 +142,39 @@ export async function openAppHeaderTableDrawer() {
 }
 
 
-// 定义加载不同内容的函数
+// 定义加载不同内容的函数 (修改为同时执行展开和折叠)
 async function loadDatabaseContent() {
-    appHeaderTableContainer.fadeOut(timeOut, async function() {
-        appHeaderTableContainer.html(tableViewDom); // 直接使用 html() 替换内容
-        appHeaderTableContainer.fadeIn(timeOut);
-    });
+    const currentContent = appHeaderTableContainer.children(':visible'); // 获取当前可见的内容
+    const targetContent = $('#database-content');
+
+    if (currentContent.length > 0) {
+        currentContent.slideUp(timeOut).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏
+        targetContent.slideDown(timeOut); // 同时 slideDown 目标内容
+    } else {
+        targetContent.slideDown(timeOut); // 如果没有内容，直接 slideDown 目标内容
+    }
 }
 
 async function loadEditorContent() {
-    appHeaderTableContainer.fadeOut(timeOut, async function() {
-        appHeaderTableContainer.html(tableEditDom);
-        appHeaderTableContainer.fadeIn(timeOut);
-    });
+    const currentContent = appHeaderTableContainer.children(':visible');
+    const targetContent = $('#editor-content');
+
+    if (currentContent.length > 0) {
+        currentContent.slideUp(timeOut).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏
+        targetContent.slideDown(timeOut); // 同时 slideDown 目标内容
+    } else {
+        targetContent.slideDown(timeOut);
+    }
 }
 
 async function loadSettingContent() {
-    appHeaderTableContainer.fadeOut(timeOut, async function() {
-        appHeaderTableContainer.html(settingContainer);
-        appHeaderTableContainer.fadeIn(timeOut);
-    });
+    const currentContent = appHeaderTableContainer.children(':visible');
+    const targetContent = $('#setting-content');
+
+    if (currentContent.length > 0) {
+        currentContent.slideUp(timeOut).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏
+        targetContent.slideDown(timeOut); // 同时 slideDown 目标内容
+    } else {
+        targetContent.slideDown(timeOut);
+    }
 }

@@ -2,6 +2,9 @@ import { extension_settings, getContext } from '../../../../../extensions.js';
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {defaultSettings} from "./pluginSetting.js";
 
+const BaseConfig = {
+    enable_storage_in_user_piece: false,  // 是否储存于用户数据片段
+}
 const SheetDomain = {
     global: 'global',   // 全局表
     role: 'role',       // 该表被储存于角色
@@ -41,97 +44,156 @@ const EventDirection = {
     left: 'left',
 }
 
+
 let _tableBaseInstance = null;
+let _tableTemplateInstance = null;
 
 export const tableBase = {
-    object:() => {
+    Table:() => {
         if (_tableBaseInstance === null) _tableBaseInstance = new TableBase();
         return _tableBaseInstance;
     },
-    save: () => _tableBaseInstance.save(),
-    // destroy: () => {
-    //     if (confirm("确定要销毁整个事件表数据库吗？将只会保持插件配置文件。") === false) return;
-    //     delete extension_settings.muyoo_dataTable.tableBase;
-    // },
+    TableTemplate: (target) => {
+        if (_tableTemplateInstance === null) {
+            _tableTemplateInstance = new TableTemplate();
+        } else {
+            _tableTemplateInstance.init(target);
+        }
+        return _tableTemplateInstance;
+    },
+    templates: () => {
+        if (!USER.getSettings().table_database_templates) {
+            USER.getSettings().table_database_templates = [];
+        }
+        return USER.getSettings().table_database_templates;
+    },
 }
 
+class TableTemplate {
+    constructor(target = null) {
+        this.uid = '';
+        this.name = '';
+        this.domain = SheetDomain.global;
+        this.type = SheetType.free;
+
+        this.eventHistory = [];     // 所有事件按照发生顺序推入历史记录，方便回溯
+        this.eventSheet = [];       // 以表格结构可视化事件，包括列属性、行属性、单元格数据
+
+        // 初始化工具函数
+        this.init(target);
+    }
+
+    init(target) {
+        if (target === null) {
+            console.log('未指定模板，可以使用 create() 方法创建新的模板实例');
+            return;
+        }
+        if (typeof target === 'string') {
+            target = BASE.templates?.find(t => t.uid === target);
+            if (target === undefined) {
+                EDITOR.error(`未找到指定的模板：${target}`);
+                return;
+            }
+        }
+        try {
+            this.uid = target.uid;
+            this.name = target.name;
+            this.domain = target.domain;
+            this.type = target.type;
+            this.eventHistory = target.eventHistory;
+            this.eventSheet = target.eventSheet;
+        } catch (e) {
+            EDITOR.error(`初始化模板失败：${e}`);
+        }
+        return this;
+    }
+
+    create() {
+        this.uid = `template_${SYSTEM.generateRandomString(8)}`;
+        this.name = `新模板_${this.uid.slice(-4)}`;
+        this.save();
+        EDITOR.info('创建了新的 TableTemplate 实例')
+        return this;
+    }
+
+    save() {
+        if (!BASE.templates) {
+            BASE.templates = [];
+        }
+        try {
+            BASE.templates.forEach((t, i) => {
+                if (t.uid === this.uid) {
+                    BASE.templates[i] = this;
+                    EDITOR.success(`成功更新模板：${this}`);
+                    return true;
+                }
+            })
+            BASE.templates.push(this);
+            EDITOR.success(`成功添加新模板：${this}`);
+            return true;
+        } catch (e) {
+            EDITOR.error(`保存模板失败：${e}`);
+            return false;
+        }
+    }
+
+    delete() {
+        BASE.templates = BASE.templates.filter(t => t.uid !== this.uid);
+        return BASE.templates;
+    }
+}
 
 /**
  * 表格基类，用于管理所有表格数据
  */
 class TableBase {
-    constructor(uid = '') {
+    constructor() {
         this.uid = '';
+        this.config = null;
         this.tables = new Map();
         // this.vars = new Map();  // 保留，但暂不开发该功能
         // this.functions = new Map();  // 保留，但暂不开发该功能
 
-        this.init(uid);
+        this.init();
     }
 
     /**
      * 初始化 TableBase 实例，如果目标数据为空则创建新的 TableBase 实例，并初始化本地保存
      * @param targetUid
      */
-    init(targetUid) {
-        const local = extension_settings.muyoo_dataTable.tableBase;
-        if (local === undefined) {
-            // 创建新的 TableBase 实例
+    init() {
+        if (USER.getContext().table_database === undefined) {       // 如果目标数据为空则创建新的 TableBase 实例，并初始化本地保存
+            EDITOR.info('创建新的 TableBase 实例');
             this.uid = `db_${SYSTEM.generateRandomString(8)}`;
             this.tables = new Map();
-            extension_settings.muyoo_dataTable.tableBase = {}
-
-            EDITOR.info(`创建新的 TableBase 实例：${this.uid}`);
-            return;
-        } else if (targetUid === '' || local[targetUid] === undefined) {
-            // 加载第一个 TableBase 实例
-            this.uid = Object.keys(local)[0];
-            this.tables = local[this.uid].tables;
+            this.config = {...BaseConfig};
+            this.save();
         } else {
-            // 加载指定 TableBase 实例
-            this.uid = targetUid;
-            this.tables = local[this.uid].tables;
+            const r = USER.getContext().table_database;
+            this.uid = r.uid;
+            this.tables = r.tables;
+            this.config = r.config;
         }
-
-        console.log(this)
     }
-    newTable(name, size = [0, 0]) {
-        const table = new Table(name, size, this);
-        this.tables.set(table.uid, table);
-        return table;
+    object(table) {
+
     }
     load(uid = '') {
-        // 如果 uid 为空，则加载所有数据，否则加载指定 uid 的数据
-        if (uid === '') {
-            // 加载所有数据
-            return this.tables;
-        }
 
-        // 匹配 uid 首字母识别符
-        const uidPrefix = uid.split('_')[0];
-        switch (uidPrefix) {
-            case 't':
-
-            case 'e':
-
-            default:
-                console.error(`无法识别的 uid 类型：${uid}`);
-                return null;
-        }
     }
     save() {
-        // 保存 tableBase 实例到 EDITOR.data 本地存储中
-        extension_settings.muyoo_dataTable.tableBase[this.uid] = {
-            tables: this.tables,
+        USER.getContext().table_database = {
+            uid: this.uid,
+            data: this.tables,
+            config: this.config,
         };
     }
     clear() {
         if (confirm("确定要清除所有表格数据吗？") === false) return;
-        this.tables.clear();
     }
     destroy() {
-        if (confirm("确定要销毁整个事件表数据库吗？将只会保持插件配置文件。") === false) return;
-        USER.getContext().table_database = {};
+        if (confirm("确定要销毁本对话整个事件表数据库吗？将只会保留在本对话中创建的全局模板。") === false) return;
+        delete USER.getContext().table_database;
     }
 
     tablesToTableBase(chat) {
@@ -140,7 +202,7 @@ class TableBase {
 }
 
 class Table {
-    constructor(name, size = [0, 0], parent) {
+    constructor(table, parent) {
         this.uid = `t_${SYSTEM.generateRandomString(16)}`;
         this.name = name || '';
         this.domain = SheetDomain.global;
@@ -149,23 +211,28 @@ class Table {
         this.events = new Map();    // 记录所有事件，方便以O(1)时间复杂度查找
         this.eventHistory = [];     // 所有事件按照发生顺序推入历史记录，方便回溯
         this.eventSheet = [];       // 以表格结构可视化事件，包括列属性、行属性、单元格数据
+        this.parent = parent;
 
         // 初始化工具函数
         this.init();
     }
 
     init() {
-
+        const currentChatPiece = USER.getChatPiece();
+        if (currentChatPiece === null) {
+            EDITOR.warning('当前对话数据为空，无法创建表格');
+            return;
+        }
+        if (currentChatPiece.is_user === true && this.parent.config.enable_storage_in_user_piece === false) {
+            EDITOR.warning('当前对话为用户数据片段，未开启在用户的对话回合中保存表格');
+            return;
+        }
     }
     clear() {
         if (confirm("确定要清除所有事件数据吗？") === false) return;
         this.events.clear();
         this.eventHistory = [];
         this.eventSheet = [];
-    }
-
-    setSize(size = [0, 0]) {
-        size = size.map(v => parseInt(v) + 1);
     }
 
     /**
