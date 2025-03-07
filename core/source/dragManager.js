@@ -14,8 +14,8 @@ export class Drag {
         this.accumulatedX = 0;
         this.accumulatedY = 0;
         this.threshold = 1;
-        this.zoomValue = 0.9;
-        this.zoomRange = [-5, 10];
+        this.zoomValue = 0.8;
+        this.zoomRange = [-2, 5];
         this.elements = new Map();
 
         // 新增阈值变量

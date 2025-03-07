@@ -101,7 +101,7 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
         toBeExecuted.unshift(chat);
 
         // 如果对话长度未达到阈值，则直接继续往前找
-        if (r.length < USER.tableBaseConfig.step_by_step_threshold) continue;
+        if (r.length < USER.tableBaseSetting.step_by_step_threshold) continue;
 
         // 如果对话长度达到阈值，则通过标识符判断是否需要继续往前找
         const lastChatSwipeUid = getSwipeUid(lastChat);
@@ -115,7 +115,7 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
  * 执行两步总结
  * */
 export async function TableTwoStepSummary() {
-    if (USER.tableBaseConfig.isExtensionAble === false || USER.tableBaseConfig.step_by_step === false) return
+    if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === false) return
 
     // 获取当前对话
     const chats = USER.getContext().chat;
@@ -130,9 +130,9 @@ export async function TableTwoStepSummary() {
     }
 
     // 如果不开启多轮累计
-    if (USER.tableBaseConfig.sum_multiple_rounds === false) {
+    if (USER.tableBaseSetting.sum_multiple_rounds === false) {
         // 如果当前对话长度未达到阈值，则跳过，待出现能够执行的对话时再一起执行
-        if (currentChat.mes.length < USER.tableBaseConfig.step_by_step_threshold) {
+        if (currentChat.mes.length < USER.tableBaseSetting.step_by_step_threshold) {
             console.log('当前对话长度未达到阈值, 跳过执行分步总结: ', currentChat.mes);
             MarkChatAsWaiting(currentChat, swipeUid);
             return;
@@ -154,7 +154,7 @@ export async function TableTwoStepSummary() {
         todoChats += handleMessages(chat.mes);
     })
 
-    if (todoChats.length < USER.tableBaseConfig.step_by_step_threshold) {
+    if (todoChats.length < USER.tableBaseSetting.step_by_step_threshold) {
         currentChat.two_step_waiting[swipeUid] = true;
         console.log('需要执行两步总结的对话长度未达到阈值: ', `(${todoChats.length}) `, toBeExecuted);
         MarkChatAsWaiting(currentChat, swipeUid);

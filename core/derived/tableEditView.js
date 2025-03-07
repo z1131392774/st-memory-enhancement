@@ -277,8 +277,7 @@ export function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
 
 let initializedTableEdit = null
 async function initTableEdit(mesId) {
-    const managerHTML = await SYSTEM.getComponent('editor');
-    const table_editor_container = new DOMParser().parseFromString(managerHTML, 'text/html').getElementById('table_editor_container');
+    const table_editor_container = await SYSTEM.htmlToDom(await SYSTEM.getComponent('editor'), 'table_editor_container');
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');
     // const tableContent = table_editor_container.querySelector('#tableContent');

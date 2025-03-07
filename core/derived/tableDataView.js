@@ -353,7 +353,7 @@ function setTableEditTips(tableEditTips) {
     }
     const tips = $(tableEditTips); // 确保 tableEditTips 是 jQuery 对象
     tips.empty();
-    if (USER.tableBaseConfig.isExtensionAble === false) {
+    if (USER.tableBaseSetting.isExtensionAble === false) {
         tips.append('目前插件已关闭，将不会要求AI更新表格。');
         tips.css("color", "rgb(211 39 39)");
     } else if (userTableEditInfo.editAble) {
@@ -446,8 +446,7 @@ async function onModifyCell() {
 
 let initializedTableView = null
 async function initTableView(mesId) { // 增加 table_manager_container 参数
-    const managerHTML = await SYSTEM.getComponent('manager');
-    const table_manager_container = new DOMParser().parseFromString(managerHTML, 'text/html').getElementById('table_manager_container');
+    const table_manager_container = await SYSTEM.htmlToDom(await SYSTEM.getComponent('manager'), 'table_manager_container');
     const tableContainer = table_manager_container.querySelector('#tableContainer');
 
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
@@ -484,11 +483,11 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
     })
     // 点击重新整理表格按钮
     $(document).on('click', '#table_clear_up_button', function () {
-        refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
+        refreshTableActions(USER.tableBaseSetting.bool_force_refresh, USER.tableBaseSetting.bool_silent_refresh);
     })
     // 点击重建表格按钮
     $(document).on('click', '#table_rebuild_button', function () {
-        rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
+        rebuildTableActions(USER.tableBaseSetting.bool_force_refresh, USER.tableBaseSetting.bool_silent_refresh);
     })
     // 点击编辑表格按钮
     $(document).on('click', '#table_edit_mode_button', function () {

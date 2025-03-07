@@ -92,7 +92,7 @@ export class TableEditAction {
  * @returns 所有表格对象数组
  */
 export function initAllTable() {
-    return USER.tableBaseConfig.tableStructure.map(data => new DERIVED.Table(data.tableName, data.tableIndex, data.columns))
+    return USER.tableBaseSetting.tableStructure.map(data => new DERIVED.Table(data.tableName, data.tableIndex, data.columns))
 }
 
 /**

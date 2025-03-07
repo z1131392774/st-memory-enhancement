@@ -95,7 +95,7 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            temperature: USER.tableBaseConfig.custom_temperature
+            temperature: USER.tableBaseSetting.custom_temperature
         })
     };
 
