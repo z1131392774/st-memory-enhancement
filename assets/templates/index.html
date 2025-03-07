@@ -107,6 +107,10 @@
                         <!-- 重新整理表格 -->
                         <div class="table_setting_category_container">
                             <b class="table_setting_category_header">重新整理表格</b><div style="height: 10px;"></div>
+                            <select id="table_refresh_type_selector" class="text_pole" style="width: 100%; margin-bottom: 5px;">
+                                <option value="rebuild_base">完整重建（推荐）</option>
+                                <option value="">~~~看到这个选项说明出问题了~~~~</option>
+                            </select>
                             <!-- 自定义API -->
                             <div class="checkbox flex-container" style="width: 100%;">
                                 <input type="checkbox" id="use_main_api" checked><span>使用主API<small>（取消勾选后可以用自定义的api）</small></span>
@@ -153,7 +157,7 @@
                                     <input type="checkbox" id="ignore_user_sent" checked><span>只参考AI回复的消息</span>
                                 </div>
                                 <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
-                                    <input type="checkbox" id="ignore_del" checked><span>整理时不删除，只修改和添加</span>
+                                    <input type="checkbox" id="ignore_del" checked><span>整理时不删除，只修改和添加（仅标记为旧的方式生效）</span>
                                 </div>
                                 <div class="checkbox flex-container" style="margin-left: 10px; width: 100%;">
                                     <input type="checkbox" id="bool_force_refresh"><span>跳过整理前的确认弹窗</span>
@@ -166,9 +170,10 @@
                                 <div class="menu_button" id="table_clear_up" style="flex: 1;">
                                     <i class="fa-solid fa-arrows-rotate"></i><a>立即整理表格</a>
                                 </div>
-                                <div class="menu_button" id="rebuild_table" style="flex: 1;">
+                                <!--（合并到上面的下拉框内）-->
+                                <!-- <div class="menu_button" id="rebuild_table" style="flex: 1;">
                                     <i class="fa-solid fa-recycle"></i><a>完整重建表格</a>
-                                </div>
+                                </div> -->
                             </div>
                         </div>
                         <hr/>

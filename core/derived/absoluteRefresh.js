@@ -5,6 +5,7 @@ import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {renderTablesDOM,pasteTable} from "./tableDataView.js";
 import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../source/standaloneAPI.js";
+import {profile_prompts} from "../../data/profile_prompts.js";
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -53,6 +54,15 @@ function getRefreshTableConfigStatus(callerType = 0) {
     const isIgnoreUserSent = USER.tableBaseConfig.ignore_user_sent;
     const isUseTokenLimit = USER.tableBaseConfig.use_token_limit;
     const rebuild_token_limit_value = USER.tableBaseConfig.rebuild_token_limit_value;
+    const isUseMainAPI = USER.tableBaseConfig.use_main_api;
+
+    const refreshType = $('#table_refresh_type_selector').val();
+    const selectedPrompt = profile_prompts[refreshType];
+    if(selectedPrompt === undefined) {
+        EDITOR.error(`未找到对应的提示模板: ${refreshType}`);
+        console.error(`未找到对应的提示模板: ${refreshType}`);
+        return;
+    }
 
     return `<div class="wide100p padding5 dataBankAttachments">
                 <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
@@ -60,6 +70,7 @@ function getRefreshTableConfigStatus(callerType = 0) {
                     <table class="table table-bordered table-striped">
                         <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
                         <tbody>
+                        <tr> <td>当前整理方式</td> <td>${selectedPrompt.name}</td> </tr>
                         ${isUseTokenLimit ? `
                         <tr> <td>发送的聊天记录token数限制</td> <td>${rebuild_token_limit_value}</td> </tr>
                         ` : `
@@ -129,6 +140,66 @@ function confirmTheOperationPerformed(content) {
 }
 
 
+
+/**
+ * 根据选择的刷新类型获取对应的提示模板并调用rebuildTableActions
+ * @returns {Promise<void>}
+ */
+export async function getPromptAndRebuildTable() {
+    // 获取选择的刷新类型
+    const refreshType = $('#table_refresh_type_selector').val();
+    
+    // 从profile_prompts中获取对应类型的提示模板
+    let systemPrompt = '';
+    let userPrompt = '';
+    
+    try {
+        // 根据刷新类型获取对应的提示模板
+        const selectedPrompt = profile_prompts[refreshType];
+        if (!selectedPrompt) {
+            throw new Error('未找到对应的提示模板');
+        }
+        console.log('选择的提示模板名称:', selectedPrompt.name);
+        
+        systemPrompt = selectedPrompt.system_prompt;        
+        // 构建userPrompt，由四部分组成：user_prompt_begin、history、last_table和core_rules
+        userPrompt = selectedPrompt.user_prompt_begin || '';        
+        // 根据include_history决定是否包含聊天记录部分
+        if (selectedPrompt.include_history) {
+            userPrompt += `\n<聊天记录>\n    $1\n</聊天记录>\n`;
+        }        
+        // 根据include_last_table决定是否包含当前表格部分
+        if (selectedPrompt.include_last_table) {
+            userPrompt += `\n<当前表格>\n    $0\n</当前表格>\n`;
+        }        
+        // 添加core_rules部分
+        if (selectedPrompt.core_rules) {
+            userPrompt += `\n${selectedPrompt.core_rules}`;
+        }
+        
+        // 将获取到的提示模板设置到USER.tableBaseConfig中
+        USER.tableBaseConfig.rebuild_system_message_template = systemPrompt;
+        USER.tableBaseConfig.rebuild_user_message_template = userPrompt;
+        
+        console.log('获取到的提示模板:', systemPrompt, userPrompt);
+
+        // 根据提示模板类型选择不同的表格处理函数
+        const force = $('#bool_force_refresh').prop('checked');
+        const silentUpdate = $('#bool_silent_refresh').prop('checked');
+        if (selectedPrompt.type === 'rebuild') {
+            await rebuildTableActions(force, silentUpdate);
+        } else if (selectedPrompt.type === 'refresh') {
+            await refreshTableActions(force, silentUpdate);
+        } else {
+            // 默认使用rebuildTableActions
+            await rebuildTableActions(force, silentUpdate);
+        }
+    } catch (error) {
+        console.error('获取提示模板失败:', error);
+        EDITOR.error(`获取提示模板失败: ${error.message}`);
+    }
+}
+
 /**
  * 重新生成完整表格
  * @param {*} force 是否强制刷新
@@ -188,8 +259,8 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         userPrompt = userPrompt.replace(/\$0/g, originText);
         userPrompt = userPrompt.replace(/\$1/g, lastChats);
 
-        console.log('systemPrompt:', systemPrompt);
-        console.log('userPrompt:', userPrompt);
+        // console.log('systemPrompt:', systemPrompt);
+        // console.log('userPrompt:', userPrompt);
 
         console.log('预估token数量为：'+estimateTokenCount(systemPrompt+userPrompt));
 
