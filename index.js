@@ -13,7 +13,7 @@ import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
 import {openTestPopup} from "./core/derived/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
-import {openAppHeaderTableDrawer} from "./core/derived/appHeaderTableDrawer.js";
+import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/derived/appHeaderTableDrawer.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -446,7 +446,7 @@ jQuery(async () => {
     // 添加表格编辑工具栏
     $('#translation_container').after(await SYSTEM.getComponent('index'));
     // 添加顶部表格管理工具弹窗
-    $('#extensions-settings-button').after(await SYSTEM.getComponent('appHeaderTableDrawer'));
+    $('#extensions-settings-button').before(await SYSTEM.getComponent('appHeaderTableDrawer'));
     // 添加进入表格编辑按钮
     $('.extraMesButtons').append(`<div title="查看表格" class="mes_button fa-solid fa-table open_table_by_id" />`);
     // 添加表格编辑浮窗
@@ -485,6 +485,8 @@ jQuery(async () => {
         const tableStructure = findTableStructureByIndex(index);
         tableStructure.enable = $(this).prop('checked');
     })
+
+    initAppHeaderTableDrawer();
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
