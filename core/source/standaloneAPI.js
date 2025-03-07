@@ -108,14 +108,15 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         }
         return response.json();
     };
-
     let firstError;
     try {
         // 第一次尝试补全/chat/completions
         const modifiedUrl = new URL(USER_API_URL);
         modifiedUrl.pathname = modifiedUrl.pathname.replace(/\/$/, '') + '/chat/completions';
         const result = await makeRequest(modifiedUrl.href);
-        return result.choices[0].message.content;
+        if (result?.choices?.[0]?.message?.content) {
+            return result.choices[0].message.content;
+        }
     } catch (error) {
         firstError = error;
     }

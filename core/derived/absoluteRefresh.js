@@ -267,10 +267,18 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         // 生成响应内容
         let rawContent;
         if (isUseMainAPI) {
-            rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+            try{
+                rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+            }catch (error) {
+                EDITOR.error('主API请求错误: ' + error.message);
+            }
         }
         else {
-            rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+            try {
+                rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+            } catch (error) {
+                EDITOR.error('自定义API请求错误: ' + error.message);
+            }
         }
         console.log('rawContent:', rawContent);
 
@@ -392,9 +400,18 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         // 生成响应内容
         let rawContent;
         if (isUseMainAPI) {
-            rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
-        } else {
-            rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+            try{
+                rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+            }catch (error) {
+                EDITOR.error('主API请求错误: ' + error.message);
+            }
+        }
+        else {
+            try {
+                rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+            } catch (error) {
+                EDITOR.error('自定义API请求错误: ' + error.message);
+            }
         }
 
         //统一清洗
