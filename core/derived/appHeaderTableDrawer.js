@@ -37,6 +37,10 @@ export async function initAppHeaderTableDrawer() {
     inlineDrawerHeaderContent = $('#inline_drawer_header_content');     // 获取插件设置中展开项的标题
     tableDrawerContentHeader = $('#table_drawer_content_header');       // 获取抽屉内容的标题
 
+    // 替换logo_block中存在class为fa-panorama的子项，替换fa-panorama为fa-table
+    $('.fa-panorama').removeClass('fa-panorama').addClass('fa-image');
+    $('.fa-user-cog').removeClass('fa-user-cog').addClass('fa-user');
+
     if (tableViewDom === null) {
         tableViewDom = await getTableView(-1);
     }
@@ -75,7 +79,6 @@ export async function openAppHeaderTableDrawer() {
     if (!isEventListenersBound) {
         await initAppHeaderTableDrawer();
     }
-
 
     if (tableDrawerIcon.hasClass('closedIcon')) {
         // 当前是关闭状态，需要打开抽屉，关闭其他已打开的抽屉
