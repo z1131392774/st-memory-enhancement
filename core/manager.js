@@ -16,6 +16,7 @@ import {tableBase} from "./source/tableBase.js";
 import {findLastestTableData} from "../index.js";
 import {getRelativePositionOfCurrentCode} from "../utils/codePathProcessing.js";
 import {fileManager} from "../services/router.js";
+import {pushCodeToQueue} from "./derived/_fotTest.js";
 
 let derivedData = {}
 /**
@@ -78,10 +79,29 @@ const createProxyWithUserSetting = (target) => {
     })
 }
 
-export const BASE = tableBase;
+export const BASE = {
+    templates: new Proxy({}, {  // 获取储存于用户设置中的模板数据
+        get: () => {
+            return power_user.templates;
+        },
+        set: () => {
+            EDITOR.error('请不要直接修改模板数据，请使用 BASE.object() 实例进行操作');
+            return false;
+        },
+    }),
+    data: new Proxy({}, {  // 储存于用户具体对话上下文中的数据
+        get: () => {
+            return getContext().table_database;
+        },
+        set: () => {
+            EDITOR.error('请不要直接修改数据，请使用 BASE.object() 实例进行操作');
+            return false;
+        },
+    }),
+    object: () => tableBase.object(),   // 获取 TableBase 实例，用于操作数据
+};
 
 export const USER = {
-    applyPowerUserSettings: applyPowerUserSettings,
     getSettings: () => power_user,
     getContext: () => getContext(),
     getChatPiece: (deep = 0) => {
@@ -89,7 +109,9 @@ export const USER = {
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
         return chat[chat.length - 1 - deep]
     },
-    tableBaseConfig: createProxyWithUserSetting('muyoo_dataTable'),
+    applyPowerUserSettings: applyPowerUserSettings,
+    tableBaseDefaultSettings: defaultSettings,
+    tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
     IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA'),
 }
 
@@ -136,9 +158,14 @@ export const EDITOR = {
     clear: () => consoleMessageToEditor.clear(),
     logAll: () => {
         SYSTEM.codePathLog({
-            'last_table': findLastestTableData(true),
             'user_setting': USER.getSettings(),
-            'context': USER.getContext(),
+            'user_context': USER.getContext(),
+            'user_last_chat': USER.getChatPiece(),
+            'user_important_user_privacy_data': USER.IMPORTANT_USER_PRIVACY_DATA,
+            'tableBase_setting': USER.tableBaseSetting,
+            'tableBase_default_setting': USER.tableBaseDefaultSettings,
+            'tableBase_templates': BASE.templates,
+            'tableBase_data': BASE.data,
         }, 3);
     },
 }
@@ -150,6 +177,11 @@ export const SYSTEM = {
     getComponent: (name) => {
         console.log('getComponent', name);
         return renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
+    },
+    htmlToDom: (html, targetId = '') => {
+        const dom = new DOMParser().parseFromString(html, 'text/html');
+        if (targetId === '') return dom;
+        return dom.getElementById(targetId);
     },
     lazy: lazy,
     codePathLog: function (context = '', deep = 2) {
@@ -165,4 +197,5 @@ export const SYSTEM = {
     writeFile: fileManager.writeFile,
 
     // taskTiming: ,
+    code: (f) => pushCodeToQueue(f),
 };

@@ -44,16 +44,15 @@ const EventDirection = {
 let _tableBaseInstance = null;
 
 export const tableBase = {
-    defaultSettings: defaultSettings,
     object:() => {
         if (_tableBaseInstance === null) _tableBaseInstance = new TableBase();
         return _tableBaseInstance;
     },
     save: () => _tableBaseInstance.save(),
-    destroy: () => {
-        if (confirm("确定要销毁整个事件表数据库吗？将只会保持插件配置文件。") === false) return;
-        delete extension_settings.muyoo_dataTable.tableBase;
-    },
+    // destroy: () => {
+    //     if (confirm("确定要销毁整个事件表数据库吗？将只会保持插件配置文件。") === false) return;
+    //     delete extension_settings.muyoo_dataTable.tableBase;
+    // },
 }
 
 
@@ -105,7 +104,7 @@ class TableBase {
         // 如果 uid 为空，则加载所有数据，否则加载指定 uid 的数据
         if (uid === '') {
             // 加载所有数据
-
+            return this.tables;
         }
 
         // 匹配 uid 首字母识别符
@@ -129,6 +128,10 @@ class TableBase {
     clear() {
         if (confirm("确定要清除所有表格数据吗？") === false) return;
         this.tables.clear();
+    }
+    destroy() {
+        if (confirm("确定要销毁整个事件表数据库吗？将只会保持插件配置文件。") === false) return;
+        USER.getContext().table_database = {};
     }
 
     tablesToTableBase(chat) {

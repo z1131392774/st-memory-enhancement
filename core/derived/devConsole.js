@@ -26,7 +26,7 @@ function updateTableDebugLog(type, message, detail, timeout) {
 
             // 获取堆栈回调，将堆栈回调信息记录到newLog
             newLog.stack = new Error().stack;
-            if (USER.tableBaseConfig.tableDebugModeAble) {
+            if (USER.tableBaseSetting.tableDebugModeAble) {
                 setTimeout(() => {
                     openTableDebugLogPopup().then(r => {});
                 }, 0);

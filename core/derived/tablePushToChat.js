@@ -32,7 +32,7 @@ function parseTableRender(html, table) {
  * @param tableStatusHTML 表格状态html
  */
 function replaceTableToStatusTag(tableStatusHTML) {
-    const r = USER.tableBaseConfig.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
+    const r = USER.tableBaseSetting.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
     const chatContainer = window.document.querySelector('#chat');
     let tableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
 
@@ -73,7 +73,7 @@ function replaceTableToStatusTag(tableStatusHTML) {
  * 更新最后一条 System 消息的 <tableStatus> 标签内容
  */
 export function updateSystemMessageTableStatus(eventData) {
-    if (USER.tableBaseConfig.isExtensionAble === false || USER.tableBaseConfig.isTableToChat === false) {
+    if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isTableToChat === false) {
         window.document.querySelector('#tableStatusContainer')?.remove();
         return;
     }

@@ -11,7 +11,7 @@ import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.
 import {initAllTable} from "./core/source/tableActions.js";
 import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
-import {openTestPopup} from "./core/derived/_fotTest.js";
+import {initTest} from "./core/derived/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
 import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/derived/appHeaderTableDrawer.js";
 import { initRefreshTypeSelector } from './core/derived/initRefreshTypeSelector.js';
@@ -32,7 +32,7 @@ const editErrorInfo = {
  * @returns 此索引的表格结构
  */
 export function findTableStructureByIndex(index) {
-    return USER.tableBaseConfig.tableStructure.find(table => table.tableIndex === index);
+    return USER.tableBaseSetting.tableStructure.find(table => table.tableIndex === index);
 }
 
 /**
@@ -96,7 +96,7 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  * @returns 生成的完整提示词
  */
 export function initTableData() {
-    if (USER.tableBaseConfig.step_by_step === true) return '';
+    if (USER.tableBaseSetting.step_by_step === true) return '';
 
     const { tables } = findLastestTableData(true)
     const promptContent = getAllPrompt(tables)
@@ -111,7 +111,7 @@ export function initTableData() {
  */
 function getAllPrompt(tables) {
     const tableDataPrompt = tables.map(table => table.getTableText()).join('\n')
-    return USER.tableBaseConfig.message_template.replace('{{tableData}}', tableDataPrompt)
+    return USER.tableBaseSetting.message_template.replace('{{tableData}}', tableDataPrompt)
 }
 
 /**
@@ -288,7 +288,7 @@ export function replaceTableEditTag(chat, newContent) {
  * @returns 注入角色
  */
 function getMesRole() {
-    switch (USER.tableBaseConfig.injection_mode) {
+    switch (USER.tableBaseSetting.injection_mode) {
         case 'deep_system':
             return 'system'
         case 'deep_user':
@@ -304,26 +304,15 @@ function getMesRole() {
  * @returns
  */
 async function onChatCompletionPromptReady(eventData) {
-    // 用于测试
-    await openTestPopup();
-    EDITOR.logAll();
-    //
-    // console.log("tableBase", BASE.object())
-    // BASE.save()
-    //
-    // console.log('USER.getSettings(): ', JSON.stringify(USER.getSettings()).length, USER.getSettings())
-    // console.log('USER.getContext(): ', JSON.stringify(USER.getContext()).length, USER.getContext())
-    // console.log('USER.getChatPiece(): ', JSON.stringify(USER.getChatPiece()).length, USER.getChatPiece())
-
     try {
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
-        if (eventData.dryRun === true || USER.tableBaseConfig.isExtensionAble === false || USER.tableBaseConfig.isAiReadTable === false) return
+        if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
 
         const promptContent = initTableData()
-        if (USER.tableBaseConfig.deep === 0)
+        if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
         else
-            eventData.chat.splice(-USER.tableBaseConfig.deep, 0, { role: getMesRole(), content: promptContent })
+            eventData.chat.splice(-USER.tableBaseSetting.deep, 0, { role: getMesRole(), content: promptContent })
     } catch (error) {
         // 获取堆栈信息
         const stack = error.stack;
@@ -380,12 +369,12 @@ function getTableEditTag(mes) {
  * @param this_edit_mes_id 此消息的ID
  */
 async function onMessageEdited(this_edit_mes_id) {
-    if (USER.tableBaseConfig.isExtensionAble === false) return
-    if (USER.tableBaseConfig.step_by_step === true) {
+    if (USER.tableBaseSetting.isExtensionAble === false) return
+    if (USER.tableBaseSetting.step_by_step === true) {
 
     } else {
         const chat = USER.getContext().chat[this_edit_mes_id]
-        if (chat.is_user === true ||USER.tableBaseConfig.isAiWriteTable === false) return
+        if (chat.is_user === true ||USER.tableBaseSetting.isAiWriteTable === false) return
         try {
             handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
         } catch (error) {
@@ -399,11 +388,11 @@ async function onMessageEdited(this_edit_mes_id) {
  * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
-    if (USER.tableBaseConfig.isExtensionAble === false) return
-    if (USER.tableBaseConfig.step_by_step === true) {
+    if (USER.tableBaseSetting.isExtensionAble === false) return
+    if (USER.tableBaseSetting.step_by_step === true) {
         await TableTwoStepSummary();
     } else {
-        if (USER.tableBaseConfig.isAiWriteTable === false) return
+        if (USER.tableBaseSetting.isAiWriteTable === false) return
         const chat = USER.getContext().chat[chat_id];
         console.log("收到消息", chat_id)
         try {
@@ -419,7 +408,7 @@ async function onMessageReceived(chat_id) {
  * 滑动切换消息事件
  */
 async function onMessageSwiped(chat_id) {
-    if (USER.tableBaseConfig.isExtensionAble === false || USER.tableBaseConfig.isAiWriteTable === false) return
+    if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiWriteTable === false) return
 
     const chat = USER.getContext().chat[chat_id];
     if (!chat.swipe_info[chat.swipe_id]) return
@@ -489,6 +478,7 @@ jQuery(async () => {
     })
 
     initAppHeaderTableDrawer();
+    initTest();
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);

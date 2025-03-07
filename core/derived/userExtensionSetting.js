@@ -10,7 +10,7 @@ import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
  * 格式化深度设置
  */
 function formatDeep() {
-    USER.tableBaseConfig.deep = Math.abs(USER.tableBaseConfig.deep)
+    USER.tableBaseSetting.deep = Math.abs(USER.tableBaseSetting.deep)
 }
 
 /**
@@ -30,7 +30,7 @@ function updateSwitch(selector, switchValue) {
 function updateTableStructureDOM() {
     const container = $('#dataTable_tableEditor_list');
     container.empty();
-    USER.tableBaseConfig.tableStructure.forEach((tableStructure) => {
+    USER.tableBaseSetting.tableStructure.forEach((tableStructure) => {
         container.append(tableStructureToSettingDOM(tableStructure));
     })
 }
@@ -103,10 +103,10 @@ async function importTableSet() {
                 if (!confirmation) return; // 用户取消导入
 
                 // 用户确认导入后，进行数据应用
-                // 注意：这里假设你需要将 importedData 的所有内容都合并到 USER.tableBaseConfig 中
+                // 注意：这里假设你需要将 importedData 的所有内容都合并到 USER.tableBaseSetting 中
                 // 你可能需要根据实际需求调整数据合并逻辑，例如只合并第一级 key 对应的数据，或者进行更细粒度的合并
                 for (let key in importedData) {
-                    USER.tableBaseConfig[key] = importedData[key];
+                    USER.tableBaseSetting[key] = importedData[key];
                 }
 
                 renderSetting(); // 重新渲染设置界面，应用新的设置
@@ -154,12 +154,12 @@ async function exportTableSet() {
  * 重置设置
  */
 async function resetSettings() {
-    const { filterData, confirmation } = await filterTableDataPopup(BASE.defaultSettings)
+    const { filterData, confirmation } = await filterTableDataPopup(USER.tableBaseDefaultSettings)
     if (!confirmation) return;
 
     try {
         for (let key in filterData) {
-            USER.tableBaseConfig[key] = filterData[key]
+            USER.tableBaseSetting[key] = filterData[key]
         }
         renderSetting()
         EDITOR.success('已重置所选设置');
@@ -179,71 +179,71 @@ function InitBinging() {
     $("#table-reset").on('click', () => resetSettings());
     // 插件总体开关
     $('#table_switch').change(function () {
-        USER.tableBaseConfig.isExtensionAble = this.checked;
+        USER.tableBaseSetting.isExtensionAble = this.checked;
         EDITOR.success(this.checked ? '插件已开启' : '插件已关闭，可以打开和手动编辑表格但AI不会读表和生成');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
     // 调试模式开关
     $('#table_switch_debug_mode').change(function () {
-        USER.tableBaseConfig.tableDebugModeAble = this.checked;
+        USER.tableBaseSetting.tableDebugModeAble = this.checked;
         EDITOR.success(this.checked ? '调试模式已开启' : '调试模式已关闭');
     });
     // 插件读表开关
     $('#table_read_switch').change(function () {
-        USER.tableBaseConfig.isAiReadTable = this.checked;
+        USER.tableBaseSetting.isAiReadTable = this.checked;
         EDITOR.success(this.checked ? 'AI现在会读取表格' : 'AI现在将不会读表');
     });
     // 插件写表开关
     $('#table_edit_switch').change(function () {
-        USER.tableBaseConfig.isAiWriteTable = this.checked;
+        USER.tableBaseSetting.isAiWriteTable = this.checked;
         EDITOR.success(this.checked ? 'AI的更改现在会被写入表格' : 'AI的更改现在不会被写入表格');
     });
 
     // 表格插入模式
     $('#dataTable_injection_mode').change(function (event) {
-        USER.tableBaseConfig.injection_mode = event.target.value;
+        USER.tableBaseSetting.injection_mode = event.target.value;
     });
     // 表格结构编辑
     $('#step_by_step').change(function() {
         $('#reply_options').toggle(!this.checked);
         $('#step_by_step_options').toggle(this.checked);
-        USER.tableBaseConfig.step_by_step = this.checked;
+        USER.tableBaseSetting.step_by_step = this.checked;
     });
     // 开启多轮字数累计
     $('#sum_multiple_rounds').change(function() {
-        USER.tableBaseConfig.sum_multiple_rounds = $(this).prop('checked');
+        USER.tableBaseSetting.sum_multiple_rounds = $(this).prop('checked');
     })
     //整理表格相关高级设置
     $('#advanced_settings').change(function() {
         $('#advanced_options').toggle(this.checked);
-        USER.tableBaseConfig.advanced_settings = this.checked;
+        USER.tableBaseSetting.advanced_settings = this.checked;
     });
     // 忽略删除
     $('#ignore_del').change(function() {
-        USER.tableBaseConfig.bool_ignore_del = $(this).prop('checked');
+        USER.tableBaseSetting.bool_ignore_del = $(this).prop('checked');
     });
     // 忽略用户回复
     $('#ignore_user_sent').change(function() {
-        USER.tableBaseConfig.ignore_user_sent = $(this).prop('checked');
+        USER.tableBaseSetting.ignore_user_sent = $(this).prop('checked');
     });
     // 强制刷新
     $('#bool_force_refresh').change(function() {
-        USER.tableBaseConfig.bool_force_refresh = $(this).prop('checked');
+        USER.tableBaseSetting.bool_force_refresh = $(this).prop('checked');
     });
     // 静默刷新
     $('#bool_silent_refresh').change(function() {
-        USER.tableBaseConfig.bool_silent_refresh = $(this).prop('checked');
+        USER.tableBaseSetting.bool_silent_refresh = $(this).prop('checked');
     });
     //token限制代替楼层限制
     $('#use_token_limit').change(function() {
         $('#token_limit_container').toggle(this.checked);
         $('#clear_up_stairs_container').toggle(!this.checked);
-        USER.tableBaseConfig.use_token_limit = this.checked;
+        USER.tableBaseSetting.use_token_limit = this.checked;
     });
     // 初始化API设置显示状态
     $('#use_main_api').change(function() {
         $('#custom_api_settings').toggle(!this.checked);
-        USER.tableBaseConfig.use_main_api = this.checked;
+        USER.tableBaseSetting.use_main_api = this.checked;
     });
     // 根据下拉列表选择的模型更新自定义模型名称
     $('#model_selector').change(function() {
@@ -253,7 +253,7 @@ function InitBinging() {
     });
     // 表格推送至对话开关
     $('#table_to_chat').change(function () {
-        USER.tableBaseConfig.isTableToChat = this.checked;
+        USER.tableBaseSetting.isTableToChat = this.checked;
         EDITOR.success(this.checked ? '表格会被推送至对话中' : '关闭表格推送至对话');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
@@ -282,36 +282,36 @@ function InitBinging() {
     // 表格消息模板
     $('#dataTable_message_template').on("input", function () {
         const value = $(this).val();
-        USER.tableBaseConfig.message_template = value;
+        USER.tableBaseSetting.message_template = value;
     })
     // 表格深度
     $('#dataTable_deep').on("input", function () {
         const value = $(this).val();
-        USER.tableBaseConfig.deep = Math.abs(value);
+        USER.tableBaseSetting.deep = Math.abs(value);
     })
     // 触发分步总结的字数阈值
     $('#step_by_step_threshold').on('input', function() {
         const value = $(this).val();
         $('#step_by_step_threshold_value').text(value);
-        USER.tableBaseConfig.step_by_step_threshold = Number(value);
+        USER.tableBaseSetting.step_by_step_threshold = Number(value);
     });
     // 清理聊天记录楼层
     $('#clear_up_stairs').on('input', function() {
         const value = $(this).val();
         $('#clear_up_stairs_value').text(value);
-        USER.tableBaseConfig.clear_up_stairs = Number(value);
+        USER.tableBaseSetting.clear_up_stairs = Number(value);
     });
     // token限制
     $('#rebuild_token_limit').on('input', function() {
         const value = $(this).val();
         $('#rebuild_token_limit_value').text(value);
-        USER.tableBaseConfig.rebuild_token_limit_value = Number(value);
+        USER.tableBaseSetting.rebuild_token_limit_value = Number(value);
     });
     // 模型温度设定
     $('#custom_temperature').on('input', function() {
         const value = $(this).val();
         $('#custom_temperature_value').text(value);
-        USER.tableBaseConfig.custom_temperature = Number(value);
+        USER.tableBaseSetting.custom_temperature = Number(value);
     });
 
 
@@ -323,15 +323,15 @@ function InitBinging() {
     $("#table_clear_up").on('click', () => {
         getPromptAndRebuildTable();
     });
-    
+
     // 完整重建表格（合并到上面的下拉框内）
-    // $('#rebuild_table').on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh));
+    // $('#rebuild_table').on('click', () => rebuildTableActions(USER.tableBaseSetting.bool_force_refresh, USER.tableBaseSetting.bool_silent_refresh));
 
     // 表格推送至对话
     $("#dataTable_to_chat_button").on("click", async function () {
-        const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, USER.tableBaseConfig.to_chat_container, { rows: 10 })
+        const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, USER.tableBaseSetting.to_chat_container, { rows: 10 })
         if (result) {
-            USER.tableBaseConfig.to_chat_container = result;
+            USER.tableBaseSetting.to_chat_container = result;
             updateSystemMessageTableStatus()
         }
     })
@@ -342,42 +342,42 @@ function InitBinging() {
  */
 export function renderSetting() {
     // 初始化数值
-    $(`#dataTable_injection_mode option[value="${USER.tableBaseConfig.injection_mode}"]`).attr('selected', true);
+    $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).attr('selected', true);
     $('#custom_api_url').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
     $('#custom_api_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
     $('#custom_model_name').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
-    $('#dataTable_message_template').val(USER.tableBaseConfig.message_template);
-    $('#dataTable_deep').val(USER.tableBaseConfig.deep);
-    $('#clear_up_stairs').val(USER.tableBaseConfig.clear_up_stairs);
-    $('#clear_up_stairs_value').text(USER.tableBaseConfig.clear_up_stairs);
-    $('#rebuild_token_limit').val(USER.tableBaseConfig.rebuild_token_limit_value);
-    $('#rebuild_token_limit_value').text(USER.tableBaseConfig.rebuild_token_limit_value);
-    $('#custom_temperature').val(USER.tableBaseConfig.custom_temperature);
-    $('#custom_temperature_value').text(USER.tableBaseConfig.custom_temperature);
-    $('#step_by_step_threshold').val(USER.tableBaseConfig.step_by_step_threshold);
-    $('#step_by_step_threshold_value').text(USER.tableBaseConfig.step_by_step_threshold);
+    $('#dataTable_message_template').val(USER.tableBaseSetting.message_template);
+    $('#dataTable_deep').val(USER.tableBaseSetting.deep);
+    $('#clear_up_stairs').val(USER.tableBaseSetting.clear_up_stairs);
+    $('#clear_up_stairs_value').text(USER.tableBaseSetting.clear_up_stairs);
+    $('#rebuild_token_limit').val(USER.tableBaseSetting.rebuild_token_limit_value);
+    $('#rebuild_token_limit_value').text(USER.tableBaseSetting.rebuild_token_limit_value);
+    $('#custom_temperature').val(USER.tableBaseSetting.custom_temperature);
+    $('#custom_temperature_value').text(USER.tableBaseSetting.custom_temperature);
+    $('#step_by_step_threshold').val(USER.tableBaseSetting.step_by_step_threshold);
+    $('#step_by_step_threshold_value').text(USER.tableBaseSetting.step_by_step_threshold);
 
     // 初始化开关状态
-    updateSwitch('#table_switch', USER.tableBaseConfig.isExtensionAble);
-    updateSwitch('#table_switch_debug_mode', USER.tableBaseConfig.tableDebugModeAble);
-    updateSwitch('#table_read_switch', USER.tableBaseConfig.isAiReadTable);
-    updateSwitch('#table_edit_switch', USER.tableBaseConfig.isAiWriteTable);
-    updateSwitch('#table_to_chat', USER.tableBaseConfig.isTableToChat);
-    updateSwitch('#advanced_settings', USER.tableBaseConfig.advanced_settings);
-    updateSwitch('#step_by_step', USER.tableBaseConfig.step_by_step);
-    updateSwitch('#use_main_api', USER.tableBaseConfig.use_main_api);
-    updateSwitch('#ignore_del', USER.tableBaseConfig.bool_ignore_del);
-    updateSwitch('#sum_multiple_rounds', USER.tableBaseConfig.sum_multiple_rounds);
-    updateSwitch('#bool_force_refresh', USER.tableBaseConfig.bool_force_refresh);
-    updateSwitch('#bool_silent_refresh', USER.tableBaseConfig.bool_silent_refresh);
-    updateSwitch('#use_token_limit', USER.tableBaseConfig.use_token_limit);
-    updateSwitch('#ignore_user_sent', USER.tableBaseConfig.ignore_user_sent);
+    updateSwitch('#table_switch', USER.tableBaseSetting.isExtensionAble);
+    updateSwitch('#table_switch_debug_mode', USER.tableBaseSetting.tableDebugModeAble);
+    updateSwitch('#table_read_switch', USER.tableBaseSetting.isAiReadTable);
+    updateSwitch('#table_edit_switch', USER.tableBaseSetting.isAiWriteTable);
+    updateSwitch('#table_to_chat', USER.tableBaseSetting.isTableToChat);
+    updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
+    updateSwitch('#step_by_step', USER.tableBaseSetting.step_by_step);
+    updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
+    updateSwitch('#ignore_del', USER.tableBaseSetting.bool_ignore_del);
+    updateSwitch('#sum_multiple_rounds', USER.tableBaseSetting.sum_multiple_rounds);
+    updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
+    updateSwitch('#bool_silent_refresh', USER.tableBaseSetting.bool_silent_refresh);
+    updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
+    updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);
 
     // 设置元素结构可见性
-    $('#advanced_options').toggle(USER.tableBaseConfig.advanced_settings);
-    $('#custom_api_settings').toggle(!USER.tableBaseConfig.use_main_api);
-    $('#reply_options').toggle(!USER.tableBaseConfig.step_by_step);
-    $('#step_by_step_options').toggle(USER.tableBaseConfig.step_by_step);
+    $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
+    $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
+    $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
+    $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
 
     updateTableStructureDOM()
     console.log("设置已渲染")
@@ -389,13 +389,13 @@ export function renderSetting() {
 export function loadSettings() {
     USER.IMPORTANT_USER_PRIVACY_DATA = USER.IMPORTANT_USER_PRIVACY_DATA || {};
 
-    if (USER.tableBaseConfig.updateIndex != 3) {
-        USER.tableBaseConfig.message_template = BASE.defaultSettings.message_template
-        USER.tableBaseConfig.to_chat_container = BASE.defaultSettings.to_chat_container
-        USER.tableBaseConfig.tableStructure = BASE.defaultSettings.tableStructure
-        USER.tableBaseConfig.updateIndex = 3
+    if (USER.tableBaseSetting.updateIndex != 3) {
+        USER.getSettings().message_template = USER.tableBaseDefaultSettings.message_template
+        USER.tableBaseSetting.to_chat_container = USER.tableBaseDefaultSettings.to_chat_container
+        USER.tableBaseSetting.tableStructure = USER.tableBaseDefaultSettings.tableStructure
+        USER.tableBaseSetting.updateIndex = 3
     }
-    if (USER.tableBaseConfig.deep < 0) formatDeep()
+    if (USER.tableBaseSetting.deep < 0) formatDeep()
 
     renderSetting();
     InitBinging();

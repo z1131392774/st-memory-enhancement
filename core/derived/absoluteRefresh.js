@@ -48,13 +48,13 @@ function getRefreshTableConfigStatus(callerType = 0) {
     // 显示所有相关的配置信息
     const userApiUrl = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
     const userApiModel = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-    const userApiTemperature = USER.tableBaseConfig.custom_temperature;
-    const clearUpStairs = USER.tableBaseConfig.clear_up_stairs;
-    const isIgnoreDel = USER.tableBaseConfig.bool_ignore_del;
-    const isIgnoreUserSent = USER.tableBaseConfig.ignore_user_sent;
-    const isUseTokenLimit = USER.tableBaseConfig.use_token_limit;
-    const rebuild_token_limit_value = USER.tableBaseConfig.rebuild_token_limit_value;
-    const isUseMainAPI = USER.tableBaseConfig.use_main_api;
+    const userApiTemperature = USER.tableBaseSetting.custom_temperature;
+    const clearUpStairs = USER.tableBaseSetting.clear_up_stairs;
+    const isIgnoreDel = USER.tableBaseSetting.bool_ignore_del;
+    const isIgnoreUserSent = USER.tableBaseSetting.ignore_user_sent;
+    const isUseTokenLimit = USER.tableBaseSetting.use_token_limit;
+    const rebuild_token_limit_value = USER.tableBaseSetting.rebuild_token_limit_value;
+    const isUseMainAPI = USER.tableBaseSetting.use_main_api;
 
     const refreshType = $('#table_refresh_type_selector').val();
     const selectedPrompt = profile_prompts[refreshType];
@@ -149,11 +149,10 @@ function confirmTheOperationPerformed(content) {
 export async function getPromptAndRebuildTable(templateName = '') {
     // 获取选择的刷新类型
     const refreshType = templateName || $('#table_refresh_type_selector').val();
-    
     // 从profile_prompts中获取对应类型的提示模板
     let systemPrompt = '';
     let userPrompt = '';
-    
+
     try {
         // 根据刷新类型获取对应的提示模板
         const selectedPrompt = profile_prompts[refreshType];
@@ -161,27 +160,27 @@ export async function getPromptAndRebuildTable(templateName = '') {
             throw new Error('未找到对应的提示模板');
         }
         console.log('选择的提示模板名称:', selectedPrompt.name);
-        
-        systemPrompt = selectedPrompt.system_prompt;        
+
+        systemPrompt = selectedPrompt.system_prompt;
         // 构建userPrompt，由四部分组成：user_prompt_begin、history、last_table和core_rules
-        userPrompt = selectedPrompt.user_prompt_begin || '';        
+        userPrompt = selectedPrompt.user_prompt_begin || '';
         // 根据include_history决定是否包含聊天记录部分
         if (selectedPrompt.include_history) {
             userPrompt += `\n<聊天记录>\n    $1\n</聊天记录>\n`;
-        }        
+        }
         // 根据include_last_table决定是否包含当前表格部分
         if (selectedPrompt.include_last_table) {
             userPrompt += `\n<当前表格>\n    $0\n</当前表格>\n`;
-        }        
+        }
         // 添加core_rules部分
         if (selectedPrompt.core_rules) {
             userPrompt += `\n${selectedPrompt.core_rules}`;
         }
-        
-        // 将获取到的提示模板设置到USER.tableBaseConfig中
-        USER.tableBaseConfig.rebuild_system_message_template = systemPrompt;
-        USER.tableBaseConfig.rebuild_user_message_template = userPrompt;
-        
+
+        // 将获取到的提示模板设置到USER.tableBaseSetting中
+        USER.tableBaseSetting.rebuild_system_message_template = systemPrompt;
+        USER.tableBaseSetting.rebuild_user_message_template = userPrompt;
+
         console.log('获取到的提示模板:', systemPrompt, userPrompt);
 
         // 根据提示模板类型选择不同的表格处理函数
@@ -245,14 +244,14 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         // 获取最近clear_up_stairs条聊天记录
         const chat = USER.getContext().chat;
         const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat,
-            USER.tableBaseConfig.clear_up_stairs,
-            USER.tableBaseConfig.ignore_user_sent,
-            USER.tableBaseConfig.use_token_limit ? USER.tableBaseConfig.rebuild_token_limit_value:0
+            USER.tableBaseSetting.clear_up_stairs,
+            USER.tableBaseSetting.ignore_user_sent,
+            USER.tableBaseSetting.use_token_limit ? USER.tableBaseSetting.rebuild_token_limit_value:0
         ) : chatToBeUsed;
 
         // 构建AI提示
-        let systemPrompt = USER.tableBaseConfig.rebuild_system_message_template||USER.tableBaseConfig.rebuild_system_message;
-        let userPrompt = USER.tableBaseConfig.rebuild_user_message_template;
+        let systemPrompt = USER.tableBaseSetting.rebuild_system_message_template||USER.tableBaseSetting.rebuild_system_message;
+        let userPrompt = USER.tableBaseSetting.rebuild_user_message_template;
         // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
         systemPrompt = systemPrompt.replace(/\$0/g, originText);
         systemPrompt = systemPrompt.replace(/\$1/g, lastChats);
@@ -384,11 +383,11 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 
         // 获取最近clear_up_stairs条聊天记录
         let chat = USER.getContext().chat;
-        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, USER.tableBaseConfig.clear_up_stairs, USER.tableBaseConfig.ignore_user_sent) : chatToBeUsed;
+        const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, USER.tableBaseSetting.clear_up_stairs, USER.tableBaseSetting.ignore_user_sent) : chatToBeUsed;
 
         // 构建AI提示
-        let systemPrompt = USER.tableBaseConfig.refresh_system_message_template;
-        let userPrompt = USER.tableBaseConfig.refresh_user_message_template;
+        let systemPrompt = USER.tableBaseSetting.refresh_system_message_template;
+        let userPrompt = USER.tableBaseSetting.refresh_user_message_template;
 
         // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
         systemPrompt = systemPrompt.replace(/\$0/g, originText);
@@ -547,7 +546,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
                     insertRow(action.tableIndex, action.data);
                     break;
                 case 'delete':
-                    if (action.tableIndex === 0 || !USER.tableBaseConfig.bool_ignore_del) {
+                    if (action.tableIndex === 0 || !USER.tableBaseSetting.bool_ignore_del) {
                         const deletedRow = DERIVED.any.waitingTable[action.tableIndex].content[action.rowIndex];
                         deleteRow(action.tableIndex, action.rowIndex);
                         console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
