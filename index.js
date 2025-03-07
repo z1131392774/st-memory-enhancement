@@ -14,6 +14,7 @@ import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
 import {initTest} from "./core/derived/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
 import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/derived/appHeaderTableDrawer.js";
+import { initRefreshTypeSelector } from './core/derived/initRefreshTypeSelector.js';
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -467,6 +468,7 @@ jQuery(async () => {
     $(document).on('click', '.open_table_by_id', function () {
         const messageId = $(this).closest('.mes').attr('mesid');
         openTablePopup(parseInt(messageId));
+        initRefreshTypeSelector();
     })
     // 设置表格开启开关
     $(document).on('change', '.tableEditor_switch', function () {

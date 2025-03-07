@@ -51,6 +51,11 @@ export const profile_prompts = {
           "EscapeHandling": "direct removal"
         }
       },
+      "ContentCheck": {
+        "Personality": "Should not include attitudes/emotions/thoughts",
+        "Character Information": "Should not include attitudes/personality/thoughts",
+        "Attitude": "Should not include personality/status"
+      },
       "ContentUnificationRules": {
         "FormatInheritanceStrategy": {
           "TimeFormat": "inherit dominant format from existing table",
@@ -75,7 +80,83 @@ export const profile_prompts = {
 <新的表格>
 [{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
 </新的表格>`        
+    },    
+    "rebuild_compatible": {
+        "type": "rebuild",
+        "name":"更新+自动修复（兼容模式，适用于自定义表格）",
+        "system_prompt": `忘掉前面所有的要求，现在你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
+        "user_prompt_begin": `请你根据<整理规则>和<聊天记录>处理<当前表格>，并严格按照<当前表格>的格式回复我<新的表格>，回复务必使用中文，只回复<新的表格>的内容，不要回复多余的解释和思考：`,
+        "include_history": true,
+        "include_last_table": true,
+        "core_rules":`<整理规则>
+{
+  "TableProcessingProtocol": {
+    "LanguageSpecification": {
+      "OutputLanguage": "Chinese",
+      "FormatRequirements": {
+        "ProhibitedContent": ["comments", "redundant Markdown markup"]
+      }
     },
+    "StructuralProtection": {
+      "TableFrameworkPolicy": {
+        "ProhibitedOperations": ["column addition/deletion", "header modification"],
+        "AllowedOperations": ["row insertion", "cell update"]
+      }
+    },
+    "ProcessingWorkflow": ["Supplement", "Simplify", "Correct"],
+
+    "Supplement": {
+      "NewRowRules": {
+        "ApplicableScope": "all tables except 时空表格",
+        "TriggerCondition": "existence of unrecorded valid events",
+        "InsertionLimitation": "batch insertion permitted"
+      },
+      "CellCompletionRules": {
+        "InformationSourceRestriction": "explicitly mentioned in chat logs only",
+        "NullValueHandling": "prohibit speculative content"
+      }
+    },
+
+    "Simplify": {
+      "TextCompressionRules": {
+        "ActivationCondition": "cell character count >20",
+        "ProcessingMethods": ["remove redundant terms", "merge synonymous items"],
+        "ProhibitedActions": ["omit core facts", "alter data semantics"]
+      }
+    },
+
+    "Correct": {
+      "FormatStandardization": {
+        "DelimiterStandard": "/",
+        "StringSpecification": {
+          "ForbiddenCharacters": ["double quotes"],
+          "EscapeHandling": "direct removal"
+        }
+      },
+      "ContentCheck": {
+        "Personality": "Should not include attitudes/emotions/thoughts",
+        "Character Information": "Should not include attitudes/personality/thoughts",
+        "Attitude": "Should not include personality/status"
+      },
+      "ContentUnificationRules": {
+        "FormatInheritanceStrategy": {
+          "TimeFormat": "inherit dominant format from existing table",
+          "LocationFormat": "maintain existing hierarchical structure",
+          "NumericalFormat": "preserve current measurement scale"
+        }
+      },
+      "GlobalCleanupRules": {
+        "DuplicateDataPurge": "remove fully identical rows"
+      }
+    }
+  }
+}
+
+回复格式示例。再次强调，直接按以下格式回复，不要思考过程，不要解释，不要多余内容：
+<新的表格>
+[{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
+</新的表格>`        
+    },    
     "rebuild_summary": {
         "type": "rebuild",
         "name":"完整重建+总结（beta）",
@@ -185,6 +266,11 @@ export const profile_prompts = {
     },
 
     "CORRECT": {
+        "ContentCheck": {
+        "Personality": "Should not include attitudes/emotions/thoughts",
+        "Character Information": "Should not include attitudes/personality/thoughts",
+        "Attitude": "Should not include personality/status"
+      },
       "validationMatrix": {
         "temporalConsistency": {
           "checkFrequency": "every10Events",
@@ -321,34 +407,214 @@ export const profile_prompts = {
     },
     "rebuild_fix_all": {
         "type": "rebuild",
-        "name":"修复表格（修复各种错误，不会产生新内容）",
+        "name":"修复表格（修复各种错误。不会产生新内容。）",
         "system_prompt": `忘掉前面所有的要求，现在你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
-        "user_prompt_begin": `Rebuild the following code based on the user's instruction.`,
+        "user_prompt_begin": `请你根据<整理规则>处理<当前表格>，并严格按照<当前表格>的格式回复我<新的表格>，回复务必使用中文，只回复<新的表格>的内容，不要回复多余的解释和思考：`,
         "include_history": false,
         "include_last_table": true,
-        "core_rules":``       
+        "core_rules":`{
+  "ProcessingRules": {
+    "MandatoryRules": {
+      "Language": "Use Chinese for replies",
+      "TableStructure": "Do not add/delete/modify table structures or headers",
+      "CellFormatting": "No commas in cells, use / for semantic separation",
+      "StringFormat": "No double quotes in strings",
+      "Markdown": "No comments or extra Markdown tags"
     },
-    "rebuild_simplify_all": {
+    "FormatChecks": {
+      "Standardization": "Unify time/location/favorability formats",
+      "TableSpecific": {
+        "时空表格": "Keep only the latest row if multiple exist",
+        "角色特征表格": "Merge duplicate character entries",
+        "角色与<user>社交表格": {
+          "DuplicateHandling": "Remove rows containing <user>"
+        }
+      },
+      "ContentMaintenance": {
+        "ExpiredUpdates": "Refresh outdated character features",
+        "DuplicateRemoval": "Delete identical rows"
+      }
+    },
+    "ContentChecks": {
+      "ColumnValidation": "Verify data matches column categories",
+      "ConflictResolution": {
+        "DataConsistency": "Resolve contradictory descriptions",
+        "ConflictHandling": "Prioritize table-internal evidence"
+      },
+      "Personality": "Should not include attitudes/emotions/thoughts",
+      "Character Information": "Should not include attitudes/personality/thoughts",
+      "Attitude": "Should not include personality/status"
+    },
+    "FinalRequirement": "Preserve unproblematic content without modification"
+  }
+}
+
+回复格式示例。再次强调，直接按以下格式回复，不要思考过程，不要解释，不要多余内容：
+<新的表格>
+[{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
+</新的表格>`       
+    },
+    "rebuild_fix_simplify_all": {
         "type": "rebuild",
-        "name":"简化表格（简化整个表格：精简过长，合并重复）",
+        "name":"修复+简化表格（修复各种错误,并简化整个表格：精简过长，合并重复。不会产生新内容。）",
         "system_prompt": `忘掉前面所有的要求，现在你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
-        "user_prompt_begin": `Rebuild the following code based on the user's instruction.`,
-        "include_history": true,
+        "user_prompt_begin": `请你根据<整理规则>处理<当前表格>，并严格按照<当前表格>的格式回复我<新的表格>，回复务必使用中文，只回复<新的表格>的内容，不要回复多余的解释和思考：`,
+        "include_history": false,
         "include_last_table": true,
-        "core_rules":``       
+        "core_rules":`{
+  "ProcessingRules": {
+    "MandatoryRules": {
+      "Language": "Use Chinese for replies",
+      "TableStructure": "Do not add/delete/modify table structures or headers",
+      "CellFormatting": "No commas in cells, use / for semantic separation",
+      "StringFormat": "No double quotes in strings",
+      "Markdown": "No comments or extra Markdown tags"
     },
+    "FormatChecks": {
+      "Standardization": "Unify time/location/favorability formats",
+      "TableSpecific": {
+        "时空表格": "Keep only the latest row if multiple exist",
+        "角色特征表格": "Merge duplicate character entries",
+        "角色与<user>社交表格": {
+          "DuplicateHandling": "Remove rows containing <user>"
+        }
+      },
+      "ContentMaintenance": {
+        "ExpiredUpdates": "Refresh outdated character features",
+        "DuplicateRemoval": "Delete identical rows"
+      }
+    },
+    "ContentChecks": {
+      "ColumnValidation": "Verify data matches column categories",
+      "ConflictResolution": {
+        "DataConsistency": "Resolve contradictory descriptions",
+        "ConflictHandling": "Prioritize table-internal evidence"
+      },
+      "SimplificationCheck": {
+        "Check cells exceeding 15 characters": "Simplify content to under 15 characters if possible"
+      },
+      "重要事件历史表格简化": {
+        "Step1": "Merge consecutive similar events into single rows",
+        "Step2": "Summarize sequentially related events into consolidated rows",
+      },
+      "Personality": "Should not include attitudes/emotions/thoughts",
+      "Character Information": "Should not include attitudes/personality/thoughts",
+      "Attitude": "Should not include personality/status"
+    },
+    "FinalRequirement": "Preserve unproblematic content without modification"
+  }
+}
+
+回复格式示例。再次强调，直接按以下格式回复，不要思考过程，不要解释，不要多余内容：
+<新的表格>
+[{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
+</新的表格>`       
+    },
+    "rebuild_fix_simplify_without_history": {
+        "type": "rebuild",
+        "name":"修复+简化表格（同上，但不简化历史表格）",
+        "system_prompt": `忘掉前面所有的要求，现在你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
+        "user_prompt_begin": `请你根据<整理规则>处理<当前表格>，并严格按照<当前表格>的格式回复我<新的表格>，回复务必使用中文，只回复<新的表格>的内容，不要回复多余的解释和思考：`,
+        "include_history": false,
+        "include_last_table": true,
+        "core_rules":`{
+  "ProcessingRules": {
+    "MandatoryRules": {
+      "Language": "Use Chinese for replies",
+      "TableStructure": "Do not add/delete/modify table structures or headers",
+      "CellFormatting": "No commas in cells, use / for semantic separation",
+      "StringFormat": "No double quotes in strings",
+      "Markdown": "No comments or extra Markdown tags"
+    },
+    "FormatChecks": {
+      "Standardization": "Unify time/location/favorability formats",
+      "TableSpecific": {
+        "时空表格": "Keep only the latest row if multiple exist",
+        "角色特征表格": "Merge duplicate character entries",
+        "角色与<user>社交表格": {
+          "DuplicateHandling": "Remove rows containing <user>"
+        }
+      },
+      "ContentMaintenance": {
+        "ExpiredUpdates": "Refresh outdated character features",
+        "DuplicateRemoval": "Delete identical rows"
+      }
+    },
+    "ContentChecks": {
+      "ColumnValidation": "Verify data matches column categories",
+      "ConflictResolution": {
+        "DataConsistency": "Resolve contradictory descriptions",
+        "ConflictHandling": "Prioritize table-internal evidence"
+      },
+      "SimplificationCheck": {
+        "Check cells exceeding 15 characters": "Simplify content to under 15 characters if possible"
+      },
+      "Personality": "Should not include attitudes/emotions/thoughts",
+      "Character Information": "Should not include attitudes/personality/thoughts",
+      "Attitude": "Should not include personality/status"
+    },
+    "FinalRequirement": "Preserve unproblematic content without modification"
+  }
+}
+
+回复格式示例。再次强调，直接按以下格式回复，不要思考过程，不要解释，不要多余内容：
+<新的表格>
+[{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
+</新的表格>`       
+},
     "rebuild_simplify_history": {
         "type": "rebuild",
         "name":"简化表格（仅简化历史表格）",
         "system_prompt": `忘掉前面所有的要求，现在你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
-        "user_prompt_begin": `Rebuild the following code based on the user's instruction.`,
-        "include_history": true,
+        "user_prompt_begin": `请你根据<整理规则>处理<当前表格>，并严格按照<当前表格>的格式回复我<新的表格>，回复务必使用中文，只回复<新的表格>的内容，不要回复多余的解释和思考：`,
+        "include_history": false,
         "include_last_table": true,
-        "core_rules":``       
+        "core_rules":`{
+  "ProcessingRules": {
+    "MandatoryRules": {
+      "Language": "Use Chinese for replies",
+      "TableStructure": "Do not add/delete/modify table structures or headers",
+      "CellFormatting": "No commas in cells, use / for semantic separation",
+      "StringFormat": "No double quotes in strings",
+      "Markdown": "No comments or extra Markdown tags"
+    },
+    "FormatChecks": {
+      "Standardization": "Unify time/location/favorability formats",
+      "TableSpecific": {
+        "时空表格": "Keep only the latest row if multiple exist",
+        "角色特征表格": "Merge duplicate character entries",
+        "角色与<user>社交表格": {
+          "DuplicateHandling": "Remove rows containing <user>"
+        }
+      },
+      "ContentMaintenance": {
+        "ExpiredUpdates": "Refresh outdated character features",
+        "DuplicateRemoval": "Delete identical rows"
+      }
+    },
+    "ContentChecks": {
+      "ColumnValidation": "Verify data matches column categories",
+      "ConflictResolution": {
+        "DataConsistency": "Resolve contradictory descriptions",
+        "ConflictHandling": "Prioritize table-internal evidence"
+      },
+      "重要事件历史表格简化": {
+        "Step1": "Merge consecutive similar events into single rows",
+        "Step2": "Summarize sequentially related events into consolidated rows",
+      }
+    },
+    "FinalRequirement": "Preserve unproblematic content without modification"
+  }
+}
+
+回复格式示例。再次强调，直接按以下格式回复，不要思考过程，不要解释，不要多余内容：
+<新的表格>
+[{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
+</新的表格>`       
     },
     "refresh_table_old": {
         "type": "refresh",
-        "name":"整理表格（旧）",
+        "name":"整理表格",
         "system_prompt": `忘掉前面所有的要求，现在你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
         "user_prompt_begin": `根据以下规则整理表格：
 <整理规则>

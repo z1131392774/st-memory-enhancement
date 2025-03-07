@@ -9,10 +9,11 @@ import {
     parseTableEditTag,
     replaceTableEditTag,
 } from "../../index.js";
-import {rebuildTableActions, refreshTableActions} from "./absoluteRefresh.js";
+import {rebuildTableActions, refreshTableActions,getPromptAndRebuildTable} from "./absoluteRefresh.js";
 import {initAllTable} from "../source/tableActions.js";
 import {openTableEditorPopup} from "./tableEditView.js";
 import {openTableHistoryPopup} from "./tableHistory.js";
+import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
 
 let tablePopup = null
 let copyTableData = null
@@ -481,13 +482,9 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
     $(document).on('click', '#clear_table_button', function () {
         clearTable(userTableEditInfo.chatIndex, tableContainer);
     })
-    // 点击重新整理表格按钮
-    $(document).on('click', '#table_clear_up_button', function () {
-        refreshTableActions(USER.tableBaseSetting.bool_force_refresh, USER.tableBaseSetting.bool_silent_refresh);
-    })
-    // 点击重建表格按钮
     $(document).on('click', '#table_rebuild_button', function () {
-        rebuildTableActions(USER.tableBaseSetting.bool_force_refresh, USER.tableBaseSetting.bool_silent_refresh);
+        // rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
+        getPromptAndRebuildTable();
     })
     // 点击编辑表格按钮
     $(document).on('click', '#table_edit_mode_button', function () {

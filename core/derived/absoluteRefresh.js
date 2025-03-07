@@ -143,12 +143,12 @@ function confirmTheOperationPerformed(content) {
 
 /**
  * 根据选择的刷新类型获取对应的提示模板并调用rebuildTableActions
+ * @param {string} templateName 提示模板名称
  * @returns {Promise<void>}
  */
-export async function getPromptAndRebuildTable() {
+export async function getPromptAndRebuildTable(templateName = '') {
     // 获取选择的刷新类型
-    const refreshType = $('#table_refresh_type_selector').val();
-
+    const refreshType = templateName || $('#table_refresh_type_selector').val();
     // 从profile_prompts中获取对应类型的提示模板
     let systemPrompt = '';
     let userPrompt = '';
