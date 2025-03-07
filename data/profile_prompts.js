@@ -348,7 +348,7 @@ export const profile_prompts = {
     },
     "refresh_table_old": {
         "type": "refresh",
-        "name":"整理表格（旧）",
+        "name":"整理表格",
         "system_prompt": `忘掉前面所有的要求，现在你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
         "user_prompt_begin": `根据以下规则整理表格：
 <整理规则>

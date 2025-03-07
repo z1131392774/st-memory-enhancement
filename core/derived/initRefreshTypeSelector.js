@@ -15,14 +15,13 @@ export function initRefreshTypeSelector() {
     Object.entries(profile_prompts).forEach(([key, value]) => {
         const option = $('<option></option>')
             .attr('value', key)
-            .text(value.name || key);
+            .text((value.type=='refresh'? '**旧** ':'')+value.name|| key);
         $selector.append(option);
     });
     
     // 如果没有选项，添加默认选项
     if ($selector.children().length === 0) {
-        $selector.append($('<option></option>').attr('value', 'rebuild').text('完整重建（推荐）'));
-        $selector.append($('<option></option>').attr('value', 'refresh').text('立即整理'));
+        $selector.append($('<option></option>').attr('value', 'rebuild_base').text('~~~看到这个选项说明出问题了~~~~'));
     }
     
     console.log('表格刷新类型选择器初始化完成');
