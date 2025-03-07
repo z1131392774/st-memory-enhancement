@@ -1,9 +1,10 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {refreshTableActions, rebuildTableActions} from "./absoluteRefresh.js";
+import {refreshTableActions, rebuildTableActions, getPromptAndRebuildTable} from "./absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
 import {encryptXor, updateModelList} from "../source/standaloneAPI.js";
 import {filterTableDataPopup} from "../source/pluginSetting.js";
+import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
 
 /**
  * 格式化深度设置
@@ -317,10 +318,15 @@ function InitBinging() {
 
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
+
     // 开始整理表格
-    $("#table_clear_up").on('click', () => refreshTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh));
-    // 完整重建表格
-    $('#rebuild_table').on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh));
+    $("#table_clear_up").on('click', () => {
+        getPromptAndRebuildTable();
+    });
+    
+    // 完整重建表格（合并到上面的下拉框内）
+    // $('#rebuild_table').on('click', () => rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh));
+
     // 表格推送至对话
     $("#dataTable_to_chat_button").on("click", async function () {
         const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, USER.tableBaseConfig.to_chat_container, { rows: 10 })
@@ -393,4 +399,5 @@ export function loadSettings() {
 
     renderSetting();
     InitBinging();
+    initRefreshTypeSelector(); // 初始化表格刷新类型选择器
 }
