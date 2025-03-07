@@ -432,6 +432,16 @@ jQuery(async () => {
         }
     })
 
+    // 分离手机和电脑事件
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        console.log("手机端")
+        // 手机端事件
+    } else {
+        console.log("电脑端")
+        // 电脑端事件
+        initTest();
+    }
+
     // 开始添加各部分的根DOM
     // 添加表格编辑工具栏
     $('#translation_container').after(await SYSTEM.getComponent('index'));
@@ -478,7 +488,6 @@ jQuery(async () => {
     })
 
     initAppHeaderTableDrawer();
-    initTest();
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);

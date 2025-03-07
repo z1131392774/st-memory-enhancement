@@ -42,7 +42,6 @@ export class Drag {
         this.dragSpace.style.top = '0';
         this.dragSpace.style.left = '0';
         this.dragSpace.style.bottom = '0';
-        this.dragSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
         this.dragContainer.appendChild(this.dragSpace);
 
         // 创建拖动事件层
@@ -57,10 +56,15 @@ export class Drag {
         this.dragLayer.style.userSelect = 'none';
         this.dragContainer.appendChild(this.dragLayer);
 
-        // 绑定事件处理
-        this.dragLayer.addEventListener('mousedown', this.handleMouseDown);
-        this.dragLayer.addEventListener('touchstart', this.handleMouseDown);
-        this.dragLayer.addEventListener('wheel', this.handleWheel, { passive: false });
+        // 分离手机和电脑事件
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            this.dragSpace.style.transition = 'transform 0.02s ease-out';
+            this.dragLayer.addEventListener('touchstart', this.handleMouseDown);
+        } else {
+            this.dragSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
+            this.dragLayer.addEventListener('mousedown', this.handleMouseDown);
+            this.dragLayer.addEventListener('wheel', this.handleWheel, { passive: false });
+        }
     }
 
 

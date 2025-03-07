@@ -10,7 +10,7 @@ export function pushCodeToQueue(code) {
 }
 
 export function initTest() {
-    if (!TESTING) return;
+    if (!TESTING || !USER.tableBaseSetting.tableDebugModeAble) return;
     if (!testTestSidebarEnabled) openTestSidebar();
 }
 

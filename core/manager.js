@@ -183,12 +183,14 @@ export const SYSTEM = {
         if (targetId === '') return dom;
         return dom.getElementById(targetId);
     },
-    lazy: lazy,
+
     codePathLog: function (context = '', deep = 2) {
         const r = getRelativePositionOfCurrentCode(deep);
         const rs = `${r.codeFileRelativePathWithRoot}[${r.codePositionInFile}] `;
         console.log(`%c${rs}${r.codeAbsolutePath}`, 'color: red', context);
     },
+    lazy: lazy,
+
     generateRandomString: generateRandomString,
     generateRandomNumber: generateRandomNumber,
     calculateStringHash: calculateStringHash,
