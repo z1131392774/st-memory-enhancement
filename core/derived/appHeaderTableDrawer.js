@@ -15,7 +15,8 @@ let tableDrawerContentHeader = null;
 let tableViewDom = null;
 let tableEditDom = null;
 let settingContainer = null;
-const timeOut = 200; // 稍微增加 timeOut 以适应高度动画，可以根据效果调整
+const timeOut = 300;
+const easing = 'easeInOutCubic';
 
 let isEventListenersBound = false; // 添加一个标志来跟踪事件监听器是否已绑定
 
@@ -34,8 +35,8 @@ export async function initAppHeaderTableDrawer() {
     databaseButton = $('#database_button');
     editorButton = $('#editor_button');
     settingButton = $('#setting_button');
-    inlineDrawerHeaderContent = $('#inline_drawer_header_content');     // 获取插件设置中展开项的标题
-    tableDrawerContentHeader = $('#table_drawer_content_header');       // 获取抽屉内容的标题
+    inlineDrawerHeaderContent = $('#inline_drawer_header_content');
+    tableDrawerContentHeader = $('#table_drawer_content_header');
 
     // 替换logo_block中存在class为fa-panorama的子项，替换fa-panorama为fa-table
     $('.fa-panorama').removeClass('fa-panorama').addClass('fa-image');
@@ -142,16 +143,16 @@ export async function openAppHeaderTableDrawer() {
 }
 
 
-// 定义加载不同内容的函数 (修改为同时执行展开和折叠)
+// 定义加载不同内容的函数 (修改为同时执行展开和折叠, 并尝试 easing)
 async function loadDatabaseContent() {
     const currentContent = appHeaderTableContainer.children(':visible'); // 获取当前可见的内容
     const targetContent = $('#database-content');
 
     if (currentContent.length > 0) {
-        currentContent.slideUp(timeOut).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏
-        targetContent.slideDown(timeOut); // 同时 slideDown 目标内容
+        currentContent.slideUp(timeOut, easing).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏, 添加 easing
+        targetContent.slideDown(timeOut, easing); // 同时 slideDown 目标内容, 添加 easing
     } else {
-        targetContent.slideDown(timeOut); // 如果没有内容，直接 slideDown 目标内容
+        targetContent.slideDown(timeOut, easing); // 如果没有内容，直接 slideDown 目标内容, 添加 easing
     }
 }
 
@@ -160,10 +161,10 @@ async function loadEditorContent() {
     const targetContent = $('#editor-content');
 
     if (currentContent.length > 0) {
-        currentContent.slideUp(timeOut).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏
-        targetContent.slideDown(timeOut); // 同时 slideDown 目标内容
+        currentContent.slideUp(timeOut, easing).delay(timeOut).hide(0);
+        targetContent.slideDown(timeOut, easing);
     } else {
-        targetContent.slideDown(timeOut);
+        targetContent.slideDown(timeOut, easing);
     }
 }
 
@@ -172,9 +173,9 @@ async function loadSettingContent() {
     const targetContent = $('#setting-content');
 
     if (currentContent.length > 0) {
-        currentContent.slideUp(timeOut).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏
-        targetContent.slideDown(timeOut); // 同时 slideDown 目标内容
+        currentContent.slideUp(timeOut, easing).delay(timeOut).hide(0);
+        targetContent.slideDown(timeOut, easing);
     } else {
-        targetContent.slideDown(timeOut);
+        targetContent.slideDown(timeOut, easing);
     }
 }

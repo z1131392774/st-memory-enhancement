@@ -489,14 +489,14 @@ jQuery(async () => {
 
     initAppHeaderTableDrawer();
 
-    SYSTEM.f(()=>{
-        BASE.templates = []
-        USER.saveSettings()
-        console.log(BASE.templates)
-        // for (let i = 0; i < BASE.templates.length; i++) {
-        //     BASE.TableTemplate(BASE.templates[i].uid).delete()
-        //     console.log(BASE.templates)
-        // }
+    SYSTEM.f(()=> {
+        const tableTemplateInstance = BASE.TableTemplate()
+        const templates = tableTemplateInstance.loadAllUserTemplates()
+        console.log(templates)
+        templates.forEach(template => {
+            BASE.TableTemplate(template.uid).delete()
+        })
+        console.log(templates)
     })
 
     // 监听主程序事件

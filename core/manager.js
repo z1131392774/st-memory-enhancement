@@ -21,8 +21,6 @@ import {createProxy, createProxyWithUserSetting} from "../utils/codeProxy.js";
 
 let derivedData = {}
 
-delete power_user.table_database_templates;
-saveSettings()
 /**
  * @description `USER` 用户数据管理器
  * @description 该管理器用于管理用户的设置、上下文、聊天记录等数据
@@ -37,9 +35,16 @@ export const USER = {
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
         return chat[chat.length - 1 - deep]
     },
-    findLastTablePiece: (deep = 0) => {
+    findLastTablePiece: (deep = 0, cutoff = 1000) => {
         const chat = getContext().chat;
-        throw new Error('Not implemented yet');
+        // throw new Error('Not implemented yet');
+        if (!chat || chat.length === 0) return null;
+        for (let i = 0; i < chat.length && i < cutoff; i++) {
+            const piece = chat[chat.length - 1 - i];
+            if (piece.table_database_sheet) {
+                return piece;
+            }
+        }
     },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
     IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA'),
@@ -56,7 +61,7 @@ readonly(USER, 'tableBaseDefaultSettings', () => defaultSettings);
 export const BASE = {
     Table: () => tableBase.Table(),
     TableTemplate: (target) => tableBase.TableTemplate(target),
-    templates: USER.getSettings().table_database_templates ?? (USER.getSettings().table_database_templates = []),
+    lastSheet: tableBase.lastSheet(),
 };
 
 
@@ -83,13 +88,14 @@ export const EDITOR = {
     logAll: () => {
         SYSTEM.codePathLog({
             'user_setting': USER.getSettings(),
-            'user_context': USER.getContext(),
-            'user_last_chat': USER.getChatPiece(),
+            'user_table_database_default_setting': defaultSettings,
             'user_important_user_privacy_data': USER.IMPORTANT_USER_PRIVACY_DATA,
-            'tableBase_setting': USER.tableBaseSetting,
-            'tableBase_default_setting': USER.tableBaseDefaultSettings,
-            'tableBase_templates': BASE.templates,
-            'tableBase_data': BASE.data,
+            'user_table_database_setting': USER.tableBaseSetting,
+            'context': USER.getContext(),
+            'context_last_chat': USER.getChatPiece(),
+            'context_last_sheet': USER.findLastTablePiece()?.table_database_sheet,
+            'tableBase_templates': power_user.table_database_templates,
+            'tableBase_data': getContext().table_database_tables,
         }, 3);
     },
 }

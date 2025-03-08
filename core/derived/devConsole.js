@@ -18,9 +18,11 @@ function updateTableDebugLog(type, message, detail, timeout) {
             toastr.success(message, detail, timeout);
             break;
         case 'warning':
+            console.warn(message, detail);
             toastr.warning(message, detail, timeout);
             break;
         case 'error':
+            console.error(message, detail);
             toastr.error(message, detail, timeout);
             if (isPopupOpening) break;
 

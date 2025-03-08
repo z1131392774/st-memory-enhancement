@@ -48,27 +48,34 @@ const EventDirection = {
 let _tableBaseInstance = null;
 let _tableTemplateInstance = null;
 
+/**
+ * 接口导出
+ */
 export const tableBase = {
-    Table:() => {
-        if (_tableBaseInstance === null) _tableBaseInstance = new TableBase();
+    Table:(target) => {
+        if (_tableBaseInstance === null) _tableBaseInstance = new TableBase(target);
+        else _tableBaseInstance.load(target)
         return _tableBaseInstance;
     },
     TableTemplate: (target) => {
-        if (_tableTemplateInstance === null) {
-            _tableTemplateInstance = new TableTemplate();
-        } else {
-            _tableTemplateInstance.init(target);
-        }
+        if (_tableTemplateInstance === null) _tableTemplateInstance = new TableTemplate(target);
+        else _tableTemplateInstance.load(target);
         return _tableTemplateInstance;
     },
-    templates: () => {
-        if (!USER.getSettings().table_database_templates) {
-            USER.getSettings().table_database_templates = [];
-        }
-        return USER.getSettings().table_database_templates;
+    lastSheet: () => {
+        // 获取最后一个表格
+        const r = USER.findLastTablePiece()?.table_database_sheet
+        console.log(r)
+        return r
     },
+    tablesToTableBase(chat) {
+        // 将 chat 中的所有表格数据转换为 TableBase 数据
+    }
 }
 
+/**
+ * 表格模板类，用于管理所有表格模板数据
+ */
 class TableTemplate {
     constructor(target = null) {
         this.uid = '';
@@ -76,92 +83,110 @@ class TableTemplate {
         this.domain = SheetDomain.global;
         this.type = SheetType.free;
 
+        this.events = new Map();    // 记录所有事件，方便以O(1)时间复杂度查找
         this.eventHistory = [];     // 所有事件按照发生顺序推入历史记录，方便回溯
         this.eventSheet = [];       // 以表格结构可视化事件，包括列属性、行属性、单元格数据
 
-        // 初始化工具函数
-        this.init(target);
+        this.load(target);
     }
 
-    init(target) {
-        if (target === null) {
-            console.log('未指定模板，可以使用 create() 方法创建新的模板实例');
-            return;
-        }
-        if (typeof target === 'string') {
-            target = BASE.templates?.find(t => t.uid === target);
-            if (target === undefined) {
-                EDITOR.error(`未找到指定的模板：${target}`);
-                return;
-            }
-        }
-        try {
-            this.uid = target.uid;
-            this.name = target.name;
-            this.domain = target.domain;
-            this.type = target.type;
-            this.eventHistory = target.eventHistory;
-            this.eventSheet = target.eventSheet;
-        } catch (e) {
-            EDITOR.error(`初始化模板失败：${e}`);
-        }
+    init() {
+        this.uid = '';
+        this.name = '';
+        this.domain = SheetDomain.global;
+        this.type = SheetType.free;
+        this.eventHistory = [];
+        this.eventSheet = [];
+        this.events = new Map();
         return this;
+    };
+    load(target, source = this) {
+        let targetUid = target?.uid || target;
+        let targetTemplate = this.loadAllUserTemplates().find(t => t.uid === targetUid) || {};
+        try {
+            // 开始将目标模板的数据挂载到当前模板
+            console.log(`根据 uid 查找模板：${targetTemplate?.uid}`);
+            source = {...source, ...targetTemplate};
+            source.events = new Map();
+            source.eventHistory?.forEach(e => source.events.set(e.uid, e));  // 将history中的事件挂载到events中
+            if (source.uid === '') {
+                console.log('实例化空模板');
+            } else {
+                console.log('成功加载模板：', source);
+            }
+        } catch (e) {
+            source.init();
+            return source;
+        }
+        return source;
     }
-
-    create() {
+    loadAllUserTemplates() {
+        let templates = USER.getSettings().table_database_templates;
+        if (!Array.isArray(templates)) {
+            templates = [];
+            USER.getSettings().table_database_templates = templates;
+            USER.saveSettings();
+        }
+        return templates; // 返回模板数组
+    }
+    createNew() {
+        this.init();
         this.uid = `template_${SYSTEM.generateRandomString(8)}`;
         this.name = `新模板_${this.uid.slice(-4)}`;
         this.save();
-        EDITOR.info('创建了新的 TableTemplate 实例')
         return this;
     }
-
     save() {
-        if (!BASE.templates) {
-            BASE.templates = [];
-        }
-        try {
-            BASE.templates.forEach((t, i) => {
-                if (t.uid === this.uid) {
-                    BASE.templates[i] = this;
-                    EDITOR.success(`成功更新模板：${this}`);
-                    return true;
-                }
-            })
-            BASE.templates.push(this);
-            EDITOR.success(`成功添加新模板：${this}`);
-            return true;
+        let templates = this.loadAllUserTemplates();
+        if (!templates) templates = [];
+        try {   // 开始将当前模板数据保存到用户模板中
+            let r = this.load({});  // 数据清理
+            if (templates.some(t => t.uid === r.uid)) {
+                templates = templates.map(t => t.uid === r.uid ? r : t);
+            } else {
+                templates.push(r);
+            }
+            USER.getSettings().table_database_templates = templates;
+            USER.saveSettings();
+            return this;
         } catch (e) {
             EDITOR.error(`保存模板失败：${e}`);
             return false;
         }
     }
-
     delete() {
-        BASE.templates = BASE.templates.filter(t => t.uid !== this.uid);
-        return BASE.templates;
+        let templates = this.loadAllUserTemplates();
+        USER.getSettings().table_database_templates = templates.filter(t => t.uid !== this.uid);
+        USER.saveSettings();
+        // this.init();
+        return templates;
+    }
+    destroyAll() {
+        if (confirm("确定要销毁所有表格模板数据吗？") === false) return;
+        USER.getSettings().table_database_templates = [];
+        USER.saveSettings();
     }
 }
 
 /**
- * 表格基类，用于管理所有表格数据
+ * 表格库类，用于管理所有表格数据
  */
 class TableBase {
-    constructor() {
+    constructor(target = null) {
         this.uid = '';
         this.config = null;
         this.tables = new Map();
         // this.vars = new Map();  // 保留，但暂不开发该功能
         // this.functions = new Map();  // 保留，但暂不开发该功能
 
-        this.init();
+        this.load(target);
     }
 
     /**
      * 初始化 TableBase 实例，如果目标数据为空则创建新的 TableBase 实例，并初始化本地保存
-     * @param targetUid
+     * @returns {TableBase} 返回 TableBase 实例
      */
-    init() {
+    load(target) {
         if (USER.getContext().table_database === undefined) {       // 如果目标数据为空则创建新的 TableBase 实例，并初始化本地保存
             EDITOR.info('创建新的 TableBase 实例');
             this.uid = `db_${SYSTEM.generateRandomString(8)}`;
@@ -174,12 +199,13 @@ class TableBase {
             this.tables = r.tables;
             this.config = r.config;
         }
+        return this;
     }
     object(table) {
 
     }
-    load(uid = '') {
-
+    loadAllContextSheets(uid = '') {
+        return USER.getContext().table_database_tables || (USER.getContext().table_database_tables = []);
     }
     save() {
         USER.getContext().table_database = {
@@ -195,10 +221,6 @@ class TableBase {
         if (confirm("确定要销毁本对话整个事件表数据库吗？将只会保留在本对话中创建的全局模板。") === false) return;
         delete USER.getContext().table_database;
     }
-
-    tablesToTableBase(chat) {
-        // 将 chat 中的所有表格数据转换为 TableBase 数据
-    }
 }
 
 class Table {
@@ -213,7 +235,6 @@ class Table {
         this.eventSheet = [];       // 以表格结构可视化事件，包括列属性、行属性、单元格数据
         this.parent = parent;
 
-        // 初始化工具函数
         this.init();
     }
 

@@ -27,7 +27,7 @@ export const createProxy = (obj) => {
 export const createProxyWithUserSetting = (target) => {
     return new Proxy({}, {
         get: (_, property) => {
-            console.log(`创建代理对象 ${target}`, property)
+            // console.log(`创建代理对象 ${target}`, property)
             // 最优先从用户设置数据中获取
             if (power_user[target] && property in power_user[target]) {
                 // console.log(`变量 ${property} 已从用户设置中获取`)
