@@ -11,32 +11,13 @@ const userSheetEditInfo = {
 }
 let drag = null
 
-
-/**
- * 渲染所有表格DOM及编辑栏
- * @param {Array} sheets 所有表格数据
- * @param {Element} sheetContainer 表格DOM容器
- * @param {boolean} isEdit 是否可以编辑
- */
-function renderSheetsDOM(sheets = [], sheetContainer, isEdit = false) {
-    $(sheetContainer).empty()
-    for (let sheet of sheets) {
-        $(sheetContainer).append(sheet.render()).append(`<hr />`)
-    }
-    // if (userSheetEditInfo.editAble) {
-    //     for (let table of tables) {
-    //         // table.cellClickEvent(onTdClick) // 绑定单元格点击事件
-    //     }
-    // }
-}
-
 let dropdownElement = null;
 /**
  * 创建多选下拉框
  * @returns {Promise<HTMLSelectElement|null>}
  */
 async function updateDropdownElement() {
-    const templates = BASE.SheetTemplate().loadAllUserTemplates();
+    const templates = BASE.SheetTemplate().loadAllUserTemplates(); // 获取模板的方式保持不变
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
         dropdownElement.id = 'table_template';
@@ -161,8 +142,6 @@ async function initTableEdit(mesId) {
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');
 
-    // userSheetEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
-
     // 添加初始化下拉多选表格模板
     dropdownElement = await updateDropdownElement()
     $(tableEditTips).after(dropdownElement)
@@ -175,15 +154,7 @@ async function initTableEdit(mesId) {
     drag.add('tableContainer', tableContainer);
     // drag.add('tableHeaderToolbar', tableHeaderToolbar[0]);
 
-    // 获取最新表格数据并渲染（该方法为旧版本，待移除）
-    const { tables, index } = findLastestTableData(true, mesId)
-    userSheetEditInfo.chatIndex = index
-    userSheetEditInfo.tables = tables
 
-    renderSheetsDOM(userSheetEditInfo.tables, tableContainer, userSheetEditInfo.editAble)
-    tables[0].cellClickEvent(callback => {
-        console.log(callback)
-    })
 
 
     if (!userSheetEditInfo.editAble) {
@@ -194,11 +165,11 @@ async function initTableEdit(mesId) {
 
     // 设置编辑提示
     // 点击添加表格模板
-    $(document).on('click', '#add_table_template_button', function () {
-        BASE.SheetTemplate().createNew();
-        updateDropdownElement();
+    $(document).on('click', '#add_table_template_button', async function () { // 修改为 async
+        const newTemplate = BASE.SheetTemplate().createNew(); // 直接使用 SheetTemplate().createNew() 创建模板
+        await updateDropdownElement(); // 等待下拉框更新完成
         // 选择新创建的模板并更新表格
-        const newTemplateUid = BASE.SheetTemplate().loadAllUserTemplates().slice(-1)[0].uid; // 获取最新模板的 UID
+        const newTemplateUid = newTemplate.uid; // 从新创建的模板实例中获取 UID
         USER.getSettings().tableEditorSelectedSheets = [newTemplateUid];
         USER.saveSettings();
         $(dropdownElement).val([newTemplateUid]).trigger('change');
@@ -221,9 +192,9 @@ async function initTableEdit(mesId) {
 
     })
     // 点击销毁所有表格模板按钮
-    $(document).on('click', '#destroy_table_template_button', function () {
+    $(document).on('click', '#destroy_table_template_button', async function () { // 修改为 async
         BASE.SheetTemplate().destroyAll()
-        updateDropdownElement();
+        await updateDropdownElement(); // 等待下拉框更新完成
         // 清空选择并更新表格
         USER.getSettings().tableEditorSelectedSheets = [];
         USER.saveSettings();

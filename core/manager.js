@@ -56,11 +56,15 @@ readonly(USER, 'tableBaseDefaultSettings', () => defaultSettings);
 /**
  * @description `BASE` 数据库基础数据管理器
  * @description 该管理器提供了对库的用户数据、模板数据的访问，但不提供对数据的修改
- * @description 请注意，对库的操作应通过 `BASE.object()` 创建 `TableBase` 实例进行，任何对库的编辑都不应该直接暴露到该管理器中
+ * @description 请注意，对库的操作应通过 `BASE.object()` 创建 `Sheet` 实例进行，任何对库的编辑都不应该直接暴露到该管理器中
  */
 export const BASE = {
-    TableBase: () => tableBase.TableBase(),
-    SheetTemplate: (target) => tableBase.SheetTemplate(target),
+    Sheet: (target) => tableBase.Sheet(target), // 修改为 Sheet，并指向 tableBase.Sheet
+    SheetTemplate: (target) => { // 保留 SheetTemplate，但内部也指向 Sheet，并标记 asTemplate: true
+        const sheet = tableBase.Sheet(target);
+        sheet.asTemplate = true;
+        return sheet;
+    },
     getLastSheet: () => USER.findLastTablePiece()?.tablebase_sheet,
 };
 
