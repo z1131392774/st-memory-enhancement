@@ -1,3 +1,4 @@
+// tableBase.js
 import { SYSTEM, USER, EDITOR } from '../manager.js';
 
 export const SheetDomain = { // Export SheetDomain
@@ -11,86 +12,118 @@ export const SheetType = { // Export SheetType
     fixed: 'fixed',
     static: 'static',
 }
-export const EventType = { // Export EventType
+export const CellType = { // Export CellType (Corrected name)
     sheet_origin: 'sheet_origin',
     column_header: 'column_header',
     row_header: 'row_header',
     cell: 'cell',
 }
-export const EventStatus = { // Export EventStatus
-    waiting: 'waiting',
-    mounted: 'mounted',
-    hidden: 'hidden',
-    deleted: 'deleted',
-}
-export const EventDirection = { // Export EventDirection
+// const CellStatus = { // Export CellStatus (Corrected name)
+//     waiting: 'waiting',
+//     mounted: 'mounted',
+//     hidden: 'hidden',
+//     deleted: 'deleted',
+// }
+const Direction = { // Export Direction (Corrected name)
     up: 'up',
     right: 'right',
     down: 'down',
     left: 'left',
 }
 
-let _tableBaseInstance = null;
-let _sheetTemplateInstance = null;
+let _sheetInstance = null; // Renamed from _tableBaseInstance and _sheetTemplateInstance, now singular
 
-export const tableBase = { // Keep tableBase export as is
-    TableBase:(target) => {
-        if (_tableBaseInstance === null) _tableBaseInstance = new TableBase(target);
-        else _tableBaseInstance.load(target)
-        return _tableBaseInstance;
+export const tableBase = { // Keep tableBase export as is, but adjusted to manage Sheet
+    Sheet: (target) => { // Renamed from SheetTemplate and TableBase, now just Sheet
+        if (_sheetInstance === null) _sheetInstance = new Sheet(target); // Use the merged Sheet class
+        else _sheetInstance.load(target);
+        return _sheetInstance;
     },
-    SheetTemplate: (target) => {
-        if (_sheetTemplateInstance === null) _sheetTemplateInstance = new SheetTemplate(target);
-        else _sheetTemplateInstance.load(target);
-        return _sheetTemplateInstance;
-    },
-    tablesToTableBase(chat) {
-        // 将 chat 中的所有表格数据转换为 TableBase 数据
-    }
 }
 
 /**
- * 表格模板类，用于管理所有表格模板数据
+ * 表格类，融合了模板和表格的功能
  */
-export class SheetTemplate { // Keep SheetTemplate export as is
+export class Sheet { // Merged Sheet and SheetTemplate, now just Sheet
     constructor(target = null) {
         this.uid = '';
         this.name = '';
         this.domain = SheetDomain.global;
         this.type = SheetType.free;
+        this.asTemplate = false; // Flag to indicate if it's a template
 
-        this.events = new Map();
-        this.eventHistory = [];
-        this.eventSheet = [];
+        this.cells = new Map();
+        this.cellHistory = []; // Renamed from eventHistory to cellHistory for clarity in Sheet context
+        this.cellSheet = []; // Renamed from eventSheet to cellSheet for clarity in Sheet context
+
+        this.Direction = Direction; // Expose Direction in Sheet instance
+
+        if (target?.asTemplate === true) {
+            this.asTemplate = true;
+        }
 
         this.load(target);
     }
 
     init() {
-        this.uid = '';
-        this.name = '';
-        this.domain = SheetDomain.global;
-        this.type = SheetType.free;
-        this.eventHistory = [];
-        this.eventSheet = [];
-        this.events = new Map();
-        return this;
+        this.cells = new Map();
+        this.cellHistory = [];
+        this.cellSheet = [];
+
+        const initialRows = 2;
+        const initialCols = 2;
+        const r = Array.from({ length: initialRows }, (_, i) => Array.from({ length: initialCols }, (_, j) => {
+            let cell = new Cell(this);
+            let cellType = CellType.cell; // Default cell type
+
+            if (i === 0 && j === 0) {
+                cellType = CellType.sheet_origin;
+                cell.value = 'A1';
+            } else if (i === 0 && j === 1) {
+                cellType = CellType.column_header;
+            } else if (i === 1 && j === 0) {
+                cellType = CellType.row_header;
+            }
+
+            cell.type = cellType;
+            this.cells.set(cell.uid, cell);
+            this.cellHistory.push(cell);
+
+            return cell.uid;
+        }));
+        this.cellSheet = r;
+        return this; // Added for method chaining
     };
     load(target, source = this) {
         let targetUid = target?.uid || target;
-        let targetTemplate = this.loadAllUserTemplates().find(t => t.uid === targetUid) || {};
+        let targetSheetData;
+        if (this.asTemplate) {
+            targetSheetData = this.loadAllUserTemplates().find(t => t.uid === targetUid) || {};
+        } else {
+            // Logic to load Sheet data if needed from a different source, currently defaults to empty load.
+            targetSheetData = {}; // Placeholder for sheet data loading if needed.
+        }
+
         try {
-            console.log(`根据 uid 查找模板：${targetTemplate?.uid}`);
-            source = {...source, ...targetTemplate};
-            source.events = new Map();
-            source.eventHistory?.forEach(e => source.events.set(e.uid, e));
+            console.log(`根据 uid 查找 ${this.asTemplate ? '模板' : '表格'}：${targetSheetData?.uid}`);
+            source = {...source, ...targetSheetData};
+            source.cells = new Map();
+            source.cellHistory?.forEach(e => {
+                const cell = new Cell(this); // Re-create Cell object to establish parent
+                Object.assign(cell, e); // Copy properties from loaded data
+                cell.parent = this; // Manually set parent
+                source.cells.set(cell.uid, cell)
+            }); // Corrected to use cells and cellHistory
             if (source.uid === '') {
-                console.log('实例化空模板');
+                console.log(`实例化空${this.asTemplate ? '模板' : '表格'}`);
+                if (this.asTemplate === false) this.initSheetStructure(); // Initialize basic sheet structure for non-templates
             } else {
-                console.log('成功加载模板：', source);
+                console.log(`成功加载${this.asTemplate ? '模板' : '表格'}：`, source);
+                if (this.asTemplate === false && source.cellSheet.length === 0) this.initSheetStructure(); // Ensure sheet structure for loaded non-templates if missing
             }
         } catch (e) {
             source.init();
+            if (this.asTemplate === false) this.initSheetStructure(); // Initialize basic sheet structure for new non-templates on error
             return source;
         }
         return source;
@@ -106,240 +139,128 @@ export class SheetTemplate { // Keep SheetTemplate export as is
     }
     createNew() {
         this.init();
-        this.uid = `template_${SYSTEM.generateRandomString(8)}`;
-        this.name = `新模板_${this.uid.slice(-4)}`;
-        this.save();
+        this.uid = `${this.asTemplate ? 'template' : 'sheet'}_${SYSTEM.generateRandomString(8)}`; // Differentiate UID for template/sheet
+        this.name = `新${this.asTemplate ? '模板' : '表格'}_${this.uid.slice(-4)}`;
+        if (this.asTemplate) this.save(); // Templates need to be saved upon creation. Sheets might have different save logic.
+        else this.initSheetStructure(); // Initialize basic sheet structure for new sheets.
         return this;
     }
     save() {
+        if (!this.asTemplate) {
+            console.warn("表格保存逻辑未实现，当前操作仅为模板保存。"); // Indicate that sheet saving is not yet implemented.
+            return false; // Early return as sheet save logic is not defined yet.
+        }
         let templates = this.loadAllUserTemplates();
         if (!templates) templates = [];
         try {
-            let r = this.load({});
-            if (templates.some(t => t.uid === r.uid)) {
-                templates = templates.map(t => t.uid === r.uid ? r : t);
+            // Create a simplified object for saving, breaking circular references
+            const sheetDataToSave = {
+                uid: this.uid,
+                name: this.name,
+                domain: this.domain,
+                type: this.type,
+                asTemplate: this.asTemplate,
+                cellHistory: this.cellHistory.map(cell => { // Serialize cellHistory, but remove parent ref
+                    const { parent, ...cellData } = cell; // Destructure to exclude parent
+                    return cellData;
+                }),
+                cellSheet: this.cellSheet,
+            };
+
+            if (templates.some(t => t.uid === sheetDataToSave.uid)) {
+                templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
             } else {
-                templates.push(r);
+                templates.push(sheetDataToSave);
             }
             USER.getSettings().table_database_templates = templates;
             USER.saveSettings();
             return this;
         } catch (e) {
-            EDITOR.error(`保存模板失败：${e}`);
+            EDITOR.error(`保存${this.asTemplate ? '模板' : '表格'}失败：${e}`);
             return false;
         }
     }
     delete() {
+        if (!this.asTemplate) {
+            console.warn("表格删除逻辑未实现，当前操作仅为模板删除。"); // Indicate that sheet deletion is not yet implemented.
+            return false; // Early return as sheet deletion is not defined yet.
+        }
         let templates = this.loadAllUserTemplates();
         USER.getSettings().table_database_templates = templates.filter(t => t.uid !== this.uid);
         USER.saveSettings();
         return templates;
     }
     destroyAll() {
+        if (this.asTemplate === false) {
+            console.warn("销毁所有表格数据逻辑未实现，当前操作仅为模板销毁。"); // Indicate that sheet destroyAll is not yet implemented.
+            return false; // Early return as sheet destroyAll logic is not defined yet.
+        }
         if (confirm("确定要销毁所有表格模板数据吗？") === false) return;
         USER.getSettings().table_database_templates = [];
         USER.saveSettings();
     }
 
-    event(props = {}, targetUid = this.eventSheet[0][0]) {
-        let event = new Event(this);
-        event.update(props, targetUid);
-        return event;
+    initSheetStructure() {
+        if (this.cellSheet.length > 0) return; // Prevent re-initialization if already initialized.
+        const initialRows = 2;
+        const initialCols = 2;
+        const r = Array.from({ length: initialRows }, (_, i) => Array.from({ length: initialCols }, (_, j) => {
+            let cell = new Cell(this);
+            this.cells.set(cell.uid, cell);
+            this.cellHistory.push(cell);
+            if (i === 0 && j === 0) {
+                cell.type = CellType.sheet_origin;
+                cell.value = 'A1';
+            }
+            return cell.uid;
+        }));
+        this.cellSheet = r;
     }
 
-    cellClickEvent(callback) {
-        callback();
+
+    updateCell(targetUid, props) { // Renamed and made more specific to cell updates
+        const cell = this.cells.get(targetUid);
+        if (cell) {
+            cell.props = { ...cell.props, ...props };
+            // Consider adding specific update logic or events here if needed.
+        }
+    }
+    insertCell(row, col, direction) { // More flexible insert function
+        // ... (Implementation for inserting rows/columns of cells, updating cellSheet, cellHistory, cells Map) ...
+        console.warn("insertCell 逻辑未实现。");
+    }
+    deleteCell(targetUid) { // More specific delete function
+        // ... (Implementation for deleting cells, updating cellSheet, cellHistory, cells Map) ...
+        console.warn("deleteCell 逻辑未实现。");
+    }
+    clearSheet() {
+        if (confirm("确定要清空表格数据吗？") === false) return;
+        this.initSheetStructure(); // Re-initialize to a basic structure.  Consider more nuanced clearing if needed.
+    }
+
+    // Row/Column operations - Example stubs, needs implementation
+    insertRow(targetUid, direction = Direction.down) {
+        console.warn("insertRow 逻辑未实现。");
+    }
+    insertColumn(targetUid, direction = Direction.right) {
+        console.warn("insertColumn 逻辑未实现。");
+    }
+    deleteRow(targetUid) {
+        console.warn("deleteRow 逻辑未实现。");
+    }
+    deleteColumn(targetUid) {
+        console.warn("deleteColumn 逻辑未实现。");
     }
 }
 
-/**
- * 表格库类，用于管理所有表格数据
- */
-class TableBase { // Keep TableBase export as is
-    constructor() {
-        this.uid = '';
-        this.config = {};
-        this.sheets = [];
-    }
-}
-
-/**
- * 表格类 (新增)
- */
-export class Sheet { // Keep Sheet export as is
-    constructor(template) {
-        if (template instanceof SheetTemplate) {
-            this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
-            this.name = template.name;
-            this.domain = template.domain;
-            this.type = template.type;
-            this.templateUid = template.uid; // 关联模板
-
-            this.events = new Map();
-            this.eventHistory = [];
-            this.eventSheet = [];
-
-            this.init();
-        } else {
-            // Handle cases where template is not a SheetTemplate instance or is undefined.
-            console.error("Sheet constructor requires a SheetTemplate instance as argument.");
-            return null; // Or throw an error.
-        }
-    }
-
-    init() {
-        if (this.type === SheetType.free) {
-            this.eventSheet = [[this.createEvent(EventType.sheet_origin)]];
-        } else if (this.type === SheetType.dynamic) {
-
-        } else if (this.type === SheetType.fixed) {
-
-        } else if (this.type === SheetType.static) {
-
-        }
-    }
-
-    updateCell(targetUid, value) {
-        const event = this.events.get(targetUid);
-        if (event && event.type === EventType.cell) {
-            event.update({ value }, targetUid);
-        } else {
-            console.error("只能更新单元格事件");
-        }
-    }
-
-    createEvent(type, props = {}, targetUid) {
-        const event = new Event(this, type);
-        event.update(props, targetUid);
-        return event;
-    }
-
-    render() {
-        const table = document.createElement('table');
-        table.className = 'sheet-table';
-        table.dataset.sheetUid = this.uid;
-        const tbody = document.createElement('tbody');
-        table.appendChild(tbody);
-
-        this.eventSheet.forEach((rowEvents, rowIndex) => {
-            const row = tbody.insertRow();
-            rowEvents.forEach((event, colIndex) => {
-                const cell = row.insertCell();
-                cell.dataset.eventUid = event.uid;
-                if (rowIndex === 0 && colIndex > 0) {
-                    cell.className = 'column-header';
-                    cell.textContent = event.props.name || `列 ${colIndex}`;
-                } else if (colIndex === 0 && rowIndex > 0) {
-                    cell.className = 'row-header';
-                    cell.textContent = event.props.name || `行 ${rowIndex}`;
-                } else if (rowIndex > 0 && colIndex > 0) {
-                    cell.className = 'cell';
-                    cell.textContent = event.value || '';
-                } else if (rowIndex === 0 && colIndex === 0) {
-                    cell.className = 'sheet-origin';
-                    cell.textContent = this.name;
-                }
-            });
-        });
-        return table;
-    }
-}
-
-/**
- * 事件类
- */
-class Event { // Keep Event export as is, though it's implicitly exported because Sheet and SheetTemplate use it. For clarity you could add 'export class Event'
-    constructor(parent, type = EventType.cell) {
-        this.uid = `e_${parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
+class Cell { // Keep Cell export as is
+    constructor(parent) {
+        this.uid = `cell_${parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
         this.value = '';
         this.parent = parent;
-        this.type = type;
-        this.status = EventStatus.waiting;
-        this.targetUid = '';
-        this.props = {};
-    }
-
-    init() {
-        this.uid = '';
-        this.value = '';
-        this.parent = null;
         this.type = '';
-        this.status = EventStatus.waiting;
+        this.status = '';
         this.targetUid = '';
         this.props = {};
-    }
-    load(targetUid) {
-
-    }
-    update(props, targetUid) {
-        if(targetUid) this.targetUid = targetUid;
-        this.props = { ...this.props, ...props };
-        this.run();
-    }
-
-    run() {
-        this.status = EventStatus.mounted;
-        this.parent.events.set(this.uid, this);
-        this.parent.eventHistory.push(this);
-    }
-
-    insertColumn(targetUid, direction) {
-        if (direction === EventDirection.up || direction === EventDirection.down) {
-            console.error('只允许在列头添加左右插入事件');
-            return;
-        }
-
-        let target = this.parent.events.get(targetUid);
-
-        if (target.type !== EventType.column_header){
-            console.error('只允许在列头添加左右插入事件');
-            return;
-        }
-
-        let index = this.parent.eventSheet[0].findIndex(e => e.uid === targetUid);
-        if (index === -1) {
-            console.error(`找不到目标事件：${targetUid}`);
-            return;
-        }
-
-        const newColumnHeader = this.parent.createEvent(EventType.column_header, {}, targetUid);
-
-        this.parent.eventSheet.forEach((row, rowIndex) => {
-            if (rowIndex === 0) {
-                row.splice(direction === EventDirection.right ? index + 1 : index, 0, newColumnHeader);
-            } else {
-                let newCell = this.parent.createEvent(EventType.cell);
-                row.splice(direction === EventDirection.right ? index + 1 : index, 0, newCell);
-            }
-        });
-    }
-
-    insertRow(targetUid, direction) {
-        if (direction === EventDirection.left || direction === EventDirection.right) {
-            console.error('只允许在行头添加上下插入事件');
-            return;
-        }
-
-        let target = this.parent.events.get(targetUid);
-        if(target.type !== EventType.row_header){
-            console.error('只允许在行头添加上下插入事件');
-            return;
-        }
-
-        let index = this.parent.eventSheet.findIndex(e => e[0].uid === targetUid);
-        if (index === -1) {
-            console.error(`找不到目标事件：${targetUid}`);
-            return;
-        }
-
-        const newRowHeader = this.parent.createEvent(EventType.row_header, {}, targetUid)
-
-        const newRow = [newRowHeader];
-        for (let i = 1; i < this.parent.eventSheet[0].length; i++) {
-            let newCell = this.parent.createEvent(EventType.cell);
-            newRow.push(newCell);
-        }
-
-        this.parent.eventSheet.splice(direction === EventDirection.down ? index + 1 : index, 0, newRow);
     }
 }
