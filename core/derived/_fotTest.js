@@ -1,12 +1,19 @@
 // _fotTest.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 
 const TESTING = true;
 
 let codeQueue = [];
-export function pushCodeToQueue(code) {
-    codeQueue.push(code);
+/**
+ * 将代码添加到测试队列。
+ * @param {Function} code 测试函数
+ * @param {string} [functionName] 函数的名称，可选
+ */
+export function pushCodeToQueue(code, functionName) {
+    codeQueue.push({ func: code, name: functionName });
+    if (testTestSidebarEnabled && testSidebarContainer) { // 修复变量名
+        appendTestFunctionButton(testSidebarContainer, codeQueue[codeQueue.length - 1], codeQueue.length - 1);
+    }
 }
 
 export function initTest() {
@@ -14,43 +21,43 @@ export function initTest() {
     if (!testTestSidebarEnabled) openTestSidebar();
 }
 
-
-let testTestSidebarEnabled = false;
+let testTestSidebarEnabled = false; // 保留原始变量名
 let testSidebarContainer = null;
 let isDragging = false;
 let offsetX, offsetY;
 
-function openTestSidebar(){
+function openTestSidebar() {
     testTestSidebarEnabled = true;
     testSidebarContainer = createSidebarContainer();
     testSidebarContainer.appendChild(createToolBar());
     loadAndAppendTestContent(testSidebarContainer);
+
     addDragListeners();
-    // 添加窗口 resize 事件监听器
     window.addEventListener('resize', handleWindowResize);
     document.body.appendChild(testSidebarContainer);
 
-    // 初始化时也进行一次边界检查，确保初始位置也在窗口内
     adjustSidebarPositionWithinBounds();
 }
 
 async function testingProcess() {
     if (codeQueue.length === 0) {
-        console.log(`[${new Date().toLocaleTimeString()}] 没有注册任何 code，无法执行，请使用 SYSTEM.f(()=>{需要测试的代码}) 注册测试代码。`);
+        console.log(`[${new Date().toLocaleTimeString()}] 没有注册任何 code，无法执行，请使用 SYSTEM.f(()=>{需要测试的代码}, '函数名') 注册测试代码。`);
         return;
     }
 
     const startTime = performance.now();
 
     console.log(`%c[${new Date().toLocaleTimeString()}] START [SYSTEM.f()...`, 'color: blue; font-weight: bold');
-    for (const func of codeQueue) {
+    for (const codeObject of codeQueue) {
+        const func = codeObject.func;
+        const functionName = codeObject.name; // 获取函数名
         const startTimeI = performance.now();
-        const index = codeQueue.indexOf(func);
+        const index = codeQueue.indexOf(codeObject);
         try {
-            await func();    // 执行函数并等待 Promise 完成
-            console.log(`%c[${new Date().toLocaleTimeString()}] f[${index}] END (用时: ${performance.now() - startTimeI.toFixed(2)}ms)`, 'color: green');
+            await func();
+            console.log(`%c[${new Date().toLocaleTimeString()}] ${functionName || `f[${index}]`} END (用时: ${(performance.now() - startTimeI).toFixed(2)}ms)`, 'color: green'); // 保留函数名输出和时间
         } catch (error) {
-            console.error(`%c[${new Date().toLocaleTimeString()}] f[${index}] ERROR:`, 'color: red; font-weight: bold', error);
+            console.error(`%c[${new Date().toLocaleTimeString()}] ${functionName || `f[${index}]`} ERROR:`, 'color: red; font-weight: bold', error); // 保留函数名输出
         }
     }
 
@@ -66,37 +73,44 @@ function createSidebarContainer() {
     Object.assign(container.style, {
         position: 'fixed',
         top: '200px',
-        right: '20px', // 初始位置可以放在右侧，窗口resize时会调整
-        backgroundColor: '#c00',
-        maxWidth: '200px',
-        padding: '5px',
+        right: '20px',
+        backgroundColor: '#c11',
+        maxWidth: '100px',
+        padding: '2px',
         zIndex: '1000',
         borderRadius: '5px',
         cursor: 'move',
         whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
         fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#eee',
+        fontSize: '10px',
+        color: '#ccc',
         userSelect: 'none',
+        border: '1px solid #555',
+        boxShadow: '2px 2px 5px rgba(0, 0, 0, 0.3)'
     });
     container.classList.add('popup');
     return container;
 }
 
-
 function createToolBar() {
     const toolBar = document.createElement('div');
     toolBar.id = 'test_tool_bar';
+    Object.assign(toolBar.style, {
+        display: 'flex',
+        justifyContent: 'space-around',
+        padding: '2px 0',
+        marginBottom: '2px',
+        borderBottom: '1px solid #555'
+    });
 
-    // 点击按钮运行注册的所有测试代码
-    const retryButton = createToolButton('Retry Code', async (event) => {
+    const retryButton = createToolButton('<i class="fa-solid fa-repeat"></i>', async (event) => { // 使用 Font Awesome 图标, 并添加隐藏的文字
         event.stopPropagation();
         await reloadTestContent();
     });
     toolBar.appendChild(retryButton);
 
-    // 点击按钮打印所有数据
-    const logButton = createToolButton('Log Data', (event) => {
+    const logButton = createToolButton('<i class="fa-solid fa-database"></i>', (event) => { // 使用 Font Awesome 图标, 并添加隐藏的文字
         event.stopPropagation();
         EDITOR.logAll();
     });
@@ -105,26 +119,97 @@ function createToolBar() {
     return toolBar;
 }
 
-
-function createToolButton(text, onClickHandler) {
+function createToolButton(innerHTML, onClickHandler) { // 修改 text 参数为 innerHTML
     const button = document.createElement('button');
-    button.innerText = text;
+    button.innerHTML = innerHTML; // 使用 innerHTML
     Object.assign(button.style, {
         background: 'none',
-        border: '1px solid #888',
+        border: '2px solid #a00',
         cursor: 'pointer',
         color: '#eee',
-        margin: '2px'
+        margin: '1px',
+        padding: '2px 5px',
+        fontSize: '10px',
+        borderRadius: '3px',
+        display: 'flex', // 使按钮内容可以 flex 布局，方便图标和文字对齐
+        alignItems: 'center', // 垂直居中
+        justifyContent: 'center' // 水平居中
     });
+    // 添加hover效果
+    button.addEventListener('mouseover', () => {
+        button.style.backgroundColor = '#a00';
+    });
+    button.addEventListener('mouseout', () => {
+        button.style.backgroundColor = 'transparent'; //或者'none'
+    });
+
+    const icon = button.querySelector('i'); // 选中按钮内的图标，设置图标样式
+    if (icon) {
+        Object.assign(icon.style, {
+            marginRight: '0px', // 图标和文字间距
+            fontSize: '12px' // 图标大小
+        });
+    }
+
     button.onclick = onClickHandler;
     return button;
 }
 
-
+/**
+ * 加载并添加测试内容到容器中。
+ * @param {HTMLElement} container 容器元素
+ */
 function loadAndAppendTestContent(container) {
-    appendTestOutput(container, 'SYSTEM.f(()=>{添加测试代码})');
+    if (codeQueue.length === 0) {
+        appendTestOutput(container, 'SYSTEM.f(()=>{添加测试代码}, "函数名")');
+        return;
+    }
+
+    codeQueue.forEach((codeObject, index) => {
+        appendTestFunctionButton(container, codeObject, index);
+    });
 }
 
+/**
+ * 为单个测试函数创建并添加执行按钮到容器。
+ * @param {HTMLElement} container 容器元素
+ * @param {object} codeObject 包含测试函数和函数名的对象 { func: Function, name: string }
+ * @param {number} index 函数在队列中的索引
+ */
+function appendTestFunctionButton(container, codeObject, index) {
+    const functionContainer = document.createElement('div');
+    functionContainer.style.marginBottom = '2px';
+    functionContainer.style.display = 'flex';
+    functionContainer.style.alignItems = 'center';
+    functionContainer.style.borderBottom = '1px dashed #555';
+    functionContainer.style.paddingBottom = '2px';
+    functionContainer.style.justifyContent = 'space-between';
+
+    const functionLabel = document.createElement('pre');
+    functionLabel.innerText = codeObject.name || `f[${index}]`;
+    functionLabel.style.margin = '0';
+    functionLabel.style.marginRight = '5px';
+    functionContainer.appendChild(functionLabel);
+
+    const runButton = createToolButton(`<i class="fas fa-play"></i>`, async (event) => { //  添加 Font Awesome 图标，并隐藏文字
+        event.stopPropagation();
+        const startTimeI = performance.now();
+        const functionName = codeObject.name;
+        try {
+            console.log(`%c[${new Date().toLocaleTimeString()}] ${functionName || `f[${index}]`} START`, 'color: blue; font-weight: bold');
+            await codeObject.func();
+            //  "END" 信息也使用粗体显示
+            console.log(`%c[${new Date().toLocaleTimeString()}] ${functionName || `f[${index}]`} END (用时: ${(performance.now() - startTimeI).toFixed(2)}ms)`, 'color: green; font-weight: bold');
+        } catch (error) {
+            console.error(`%c[${new Date().toLocaleTimeString()}] ${functionName || `f[${index}]`} ERROR:`, 'color: red; font-weight: bold', error);
+            console.error(error);
+        }
+    });
+    runButton.style.padding = '2px'; // 调整 runButton 的 padding
+    runButton.style.minWidth = 'auto'; // 移除最小宽度限制，让按钮更贴合图标
+    functionContainer.appendChild(runButton);
+    container.appendChild(functionContainer);
+}
 
 async function reloadTestContent() {
     if (!testSidebarContainer) return;
@@ -137,14 +222,15 @@ async function reloadTestContent() {
     await testingProcess();
 }
 
-
-
 function appendTestOutput(container, outputText) {
     const outputElement = document.createElement('pre');
     outputElement.innerText = outputText;
-    container.appendChild(outputElement);
+    outputElement.style.fontSize = '10px';
+    outputElement.style.margin = '0';
+    outputElement.style.padding = '2px 5px';
+    outputElement.style.backgroundColor = '#222';
+    outputElement.style.borderRadius = '3px';
 }
-
 
 function addDragListeners() {
     testSidebarContainer.addEventListener('mousedown', dragStart);
@@ -152,15 +238,12 @@ function addDragListeners() {
     document.addEventListener('mouseup', dragEnd);
 }
 
-
 function removeDragListeners() {
     testSidebarContainer.removeEventListener('mousedown', dragStart);
     document.removeEventListener('mousemove', dragMove);
     document.removeEventListener('mouseup', dragEnd);
-    // 移除窗口 resize 事件监听器
     window.removeEventListener('resize', handleWindowResize);
 }
-
 
 function dragStart(e) {
     isDragging = true;
@@ -168,51 +251,36 @@ function dragStart(e) {
     offsetY = e.clientY - testSidebarContainer.offsetTop;
 }
 
-
 function dragMove(e) {
     if (!isDragging) return;
 
     const newX = e.clientX - offsetX;
     const newY = e.clientY - offsetY;
 
-    // 调整 sidebar 位置到边界内
     adjustSidebarPositionWithinBounds(newX, newY);
 }
-
 
 function dragEnd() {
     isDragging = false;
 }
 
-
 function handleWindowResize() {
-    // 窗口大小改变时，调整 sidebar 位置到边界内
     adjustSidebarPositionWithinBounds();
 }
-
 
 function adjustSidebarPositionWithinBounds(inputX, inputY) {
     let newX = inputX !== undefined ? inputX : testSidebarContainer.offsetLeft;
     let newY = inputY !== undefined ? inputY : testSidebarContainer.offsetTop;
-
-    // 获取视口宽度和高度
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-
-    // 获取 sidebar 的宽度和高度
     const sidebarWidth = testSidebarContainer.offsetWidth;
     const sidebarHeight = testSidebarContainer.offsetHeight;
-
-    // 计算允许的边界
     const minX = 0;
     const maxX = viewportWidth - sidebarWidth;
     const minY = 0;
     const maxY = viewportHeight - sidebarHeight;
-
-    // 限制 newX 和 newY 在边界内
     let boundedX = Math.max(minX, Math.min(newX, maxX));
     let boundedY = Math.max(minY, Math.min(newY, maxY));
-
 
     testSidebarContainer.style.left = boundedX + 'px';
     testSidebarContainer.style.top = boundedY + 'px';

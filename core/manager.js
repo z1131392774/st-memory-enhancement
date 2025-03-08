@@ -41,7 +41,7 @@ export const USER = {
         if (!chat || chat.length === 0) return null;
         for (let i = 0; i < chat.length && i < cutoff; i++) {
             const piece = chat[chat.length - 1 - i];
-            if (piece.table_database_sheet) {
+            if (piece.tablebase_sheet) {
                 return piece;
             }
         }
@@ -59,9 +59,9 @@ readonly(USER, 'tableBaseDefaultSettings', () => defaultSettings);
  * @description 请注意，对库的操作应通过 `BASE.object()` 创建 `TableBase` 实例进行，任何对库的编辑都不应该直接暴露到该管理器中
  */
 export const BASE = {
-    Table: () => tableBase.Table(),
-    TableTemplate: (target) => tableBase.TableTemplate(target),
-    lastSheet: tableBase.lastSheet(),
+    TableBase: () => tableBase.TableBase(),
+    SheetTemplate: (target) => tableBase.SheetTemplate(target),
+    getLastSheet: () => USER.findLastTablePiece()?.tablebase_sheet,
 };
 
 
@@ -87,15 +87,15 @@ export const EDITOR = {
     clear: () => consoleMessageToEditor.clear(),
     logAll: () => {
         SYSTEM.codePathLog({
-            'user_setting': USER.getSettings(),
-            'user_table_database_default_setting': defaultSettings,
-            'user_important_user_privacy_data': USER.IMPORTANT_USER_PRIVACY_DATA,
+            // 'user_setting': USER.getSettings(),
+            // 'user_table_database_default_setting': defaultSettings,
+            // 'user_important_user_privacy_data': USER.IMPORTANT_USER_PRIVACY_DATA,
             'user_table_database_setting': USER.tableBaseSetting,
+            'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
-            'context_last_chat': USER.getChatPiece(),
-            'context_last_sheet': USER.findLastTablePiece()?.table_database_sheet,
-            'tableBase_templates': power_user.table_database_templates,
-            'tableBase_data': getContext().table_database_tables,
+            'context_tableBase_data': USER.getContext().tablebase,
+            'chat_last_piece': USER.getChatPiece(),
+            'chat_last_sheet': USER.findLastTablePiece()?.tablebase_sheet,
         }, 3);
     },
 }
@@ -149,5 +149,5 @@ export const SYSTEM = {
     writeFile: fileManager.writeFile,
 
     // taskTiming: ,
-    f: (f) => pushCodeToQueue(f),
+    f: (f, name) => pushCodeToQueue(f, name),
 };

@@ -1,11 +1,7 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {findLastestTableData, findNextChatWhitTableData, getTableEditActionsStr, handleEditStrInMessage, parseTableEditTag, replaceTableEditTag,} from "../../index.js";
-import {rebuildTableActions, refreshTableActions} from "./absoluteRefresh.js";
-import {initAllTable} from "../source/tableActions.js";
-import {openTablePopup} from "./tableDataView.js";
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
+import { findLastestTableData } from "../../index.js";
 
-const userTableEditInfo = {
+const userSheetEditInfo = {
     chatIndex: null,
     editAble: false,
     tables: null,
@@ -15,50 +11,32 @@ const userTableEditInfo = {
 }
 let drag = null
 
-/**
- * 表头编辑浮窗
- */
-const tableHeaderEditToolbarDom = `
-<div class="popup popup--animation-fast tableToolbar" id="tableHeaderToolbar">
-    <button id="insertColumnLeft" class="menu_button">左侧插入列</button>
-    <button id="insertColumnRight" class="menu_button">右侧插入列</button>
-    <button id="deleteColumn" class="menu_button">删除列</button>
-    <button id="renameColumn" class="menu_button">重命名列</button>
-    <button id="sortColumnAsc" class="menu_button">升序排序</button>
-    <button id="sortColumnDesc" class="menu_button">降序排序</button>
-    <button id="filterColumn" class="menu_button">筛选列</button>
-</div>`
-
-
-let tableHeaderToolbar = null;
-
-
 
 /**
  * 渲染所有表格DOM及编辑栏
- * @param {Array} tables 所有表格数据
- * @param {Element} tableContainer 表格DOM容器
+ * @param {Array} sheets 所有表格数据
+ * @param {Element} sheetContainer 表格DOM容器
  * @param {boolean} isEdit 是否可以编辑
  */
-export function renderTablesDOM(tables = [], tableContainer, isEdit = false) {
-    $(tableContainer).empty()
-    for (let table of tables) {
-        $(tableContainer).append(table.render()).append(`<hr />`)
+function renderSheetsDOM(sheets = [], sheetContainer, isEdit = false) {
+    $(sheetContainer).empty()
+    for (let sheet of sheets) {
+        $(sheetContainer).append(sheet.render()).append(`<hr />`)
     }
-    if (userTableEditInfo.editAble) {
-        for (let table of tables) {
-            // table.cellClickEvent(onTdClick) // 绑定单元格点击事件
-        }
-    }
+    // if (userSheetEditInfo.editAble) {
+    //     for (let table of tables) {
+    //         // table.cellClickEvent(onTdClick) // 绑定单元格点击事件
+    //     }
+    // }
 }
 
-let dropdownElement = null
+let dropdownElement = null;
 /**
  * 创建多选下拉框
  * @returns {Promise<HTMLSelectElement|null>}
  */
 async function updateDropdownElement() {
-    const templates = BASE.TableTemplate().loadAllUserTemplates()
+    const templates = BASE.SheetTemplate().loadAllUserTemplates();
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
         dropdownElement.id = 'table_template';
@@ -67,32 +45,10 @@ async function updateDropdownElement() {
     }
     // 清空dropdownElement的所有子元素
     dropdownElement.innerHTML = '';
-
     for (const t of templates) {
-        let optionText, optionValue;
-
-        if (typeof t === 'string') {
-            optionText = t;
-            optionValue = t;
-        } else if (typeof t === 'object' && t !== null) {
-            if (t.name && t.uid) {
-                optionText = t.name;
-                optionValue = t.uid;
-            } else if (t.name) {
-                optionText = t.name;
-                optionValue = t.name;
-            } else {
-                console.warn("templates 中的项缺少 name 属性，已跳过:", t);
-                continue;
-            }
-        } else {
-            console.warn("templates 中的项类型不正确，应为字符串或对象，已跳过:", t);
-            continue;
-        }
-
         const optionElement = document.createElement('option');
-        optionElement.value = optionValue;
-        optionElement.textContent = optionText;
+        optionElement.value = t.uid;
+        optionElement.textContent = t.name;
         dropdownElement.appendChild(optionElement);
     }
 
@@ -125,6 +81,22 @@ function initializeSelect2Dropdown(dropdownElement) {
         }
     });
 
+    // 监听 change 事件, 保存选择结果
+    $(dropdownElement).on('change', function () {
+        USER.getSettings().tableEditorSelectedSheets = $(this).val();
+        USER.saveSettings();
+        // 触发更新表格
+        updateDragTables();
+    });
+
+    // 初始化时恢复选项
+    let selectedSheets = USER.getSettings().tableEditorSelectedSheets;
+    if (selectedSheets === undefined) {
+        selectedSheets = [];
+    }
+    $(dropdownElement).val(selectedSheets).trigger('change');
+
+
     const firstOptionText = $(dropdownElement).find('option:first-child').text();
     const tableMultipleSelectionDropdown = $('<span class="select2-option" style="width: 100%"></span>');
     const checkboxForParent = $('<input type="checkbox" class="select2-option-checkbox"/>');
@@ -146,6 +118,38 @@ function initializeSelect2Dropdown(dropdownElement) {
 
 
 let table_editor_container = null
+
+/**
+ * 根据已选择的表格模板更新 Drag 区域的表格
+ */
+async function updateDragTables() {
+    if (!drag) return;
+
+    const selectedSheetUids = USER.getSettings().tableEditorSelectedSheets;
+    const selectedTemplateNames = [];
+
+    if (selectedSheetUids && selectedSheetUids.length > 0) {
+        const allTemplates = BASE.SheetTemplate().loadAllUserTemplates();
+        for (const uid of selectedSheetUids) {
+            const template = allTemplates.find(t => t.uid === uid);
+            if (template) {
+                selectedTemplateNames.push(template.name);
+            }
+        }
+    }
+
+    // 清空 Drag 区域
+    $(drag.render).find('#tableContainer').empty();
+
+    // 添加已选择模板的名称到 Drag 区域
+    const container = $(drag.render).find('#tableContainer');
+    if (selectedTemplateNames.length > 0) {
+        container.append(`<p>已选择的表格模板：${selectedTemplateNames.join(', ')}</p>`);
+    } else {
+        container.append(`<p>未选择任何表格模板</p>`);
+    }
+}
+
 /**
  * 初始化表格编辑
  * @param mesId
@@ -157,38 +161,32 @@ async function initTableEdit(mesId) {
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');
 
-    userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
+    // userSheetEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
 
     // 添加初始化下拉多选表格模板
     dropdownElement = await updateDropdownElement()
     $(tableEditTips).after(dropdownElement)
     initializeSelect2Dropdown(dropdownElement);
 
-    // 添加表格编辑工具栏
-    tableHeaderToolbar = $(tableHeaderEditToolbarDom).hide();
-    $(tableContainer).append(tableHeaderToolbar);
-
     // 添加拖拽空间表格
     $(contentContainer).empty()
     drag = new EDITOR.Drag();
     contentContainer.append(drag.render);
     drag.add('tableContainer', tableContainer);
-    drag.add('tableHeaderToolbar', tableHeaderToolbar[0]);
+    // drag.add('tableHeaderToolbar', tableHeaderToolbar[0]);
 
     // 获取最新表格数据并渲染（该方法为旧版本，待移除）
     const { tables, index } = findLastestTableData(true, mesId)
-    userTableEditInfo.chatIndex = index
-    userTableEditInfo.tables = tables
-    if (userTableEditInfo.editAble && index !== -1 && (!DERIVED.any.waitingTableIndex || DERIVED.any.waitingTableIndex !== index)) {
-        parseTableEditTag(USER.getContext().chat[index], -1, true)
-    }
-    renderTablesDOM(userTableEditInfo.tables, tableContainer, userTableEditInfo.editAble)
+    userSheetEditInfo.chatIndex = index
+    userSheetEditInfo.tables = tables
+
+    renderSheetsDOM(userSheetEditInfo.tables, tableContainer, userSheetEditInfo.editAble)
     tables[0].cellClickEvent(callback => {
         console.log(callback)
     })
 
 
-    if (!userTableEditInfo.editAble) {
+    if (!userSheetEditInfo.editAble) {
         $('#contentContainer #paste_table_button').hide();
     } else {
         $('#contentContainer #paste_table_button').show();
@@ -197,9 +195,14 @@ async function initTableEdit(mesId) {
     // 设置编辑提示
     // 点击添加表格模板
     $(document).on('click', '#add_table_template_button', function () {
-        BASE.TableTemplate().createNew()
+        BASE.SheetTemplate().createNew();
         updateDropdownElement();
-    })
+        // 选择新创建的模板并更新表格
+        const newTemplateUid = BASE.SheetTemplate().loadAllUserTemplates().slice(-1)[0].uid; // 获取最新模板的 UID
+        USER.getSettings().tableEditorSelectedSheets = [newTemplateUid];
+        USER.saveSettings();
+        $(dropdownElement).val([newTemplateUid]).trigger('change');
+    });
     // 点击重排序表格按钮
     $(document).on('click', '#sort_table_template_button', function () {
 
@@ -219,9 +222,16 @@ async function initTableEdit(mesId) {
     })
     // 点击销毁所有表格模板按钮
     $(document).on('click', '#destroy_table_template_button', function () {
-        BASE.TableTemplate().destroyAll()
+        BASE.SheetTemplate().destroyAll()
         updateDropdownElement();
-    })
+        // 清空选择并更新表格
+        USER.getSettings().tableEditorSelectedSheets = [];
+        USER.saveSettings();
+        $(dropdownElement).val([]).trigger('change');
+    });
+
+    // 初始更新表格
+    updateDragTables();
 
     return table_editor_container;
 }

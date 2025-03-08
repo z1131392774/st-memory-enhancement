@@ -1,72 +1,48 @@
-import { extension_settings, getContext } from '../../../../../extensions.js';
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import {defaultSettings} from "./pluginSetting.js";
+import { SYSTEM, USER, EDITOR } from '../manager.js';
 
-const BaseConfig = {
-    enable_storage_in_user_piece: false,  // 是否储存于用户数据片段
+export const SheetDomain = { // Export SheetDomain
+    global: 'global',
+    role: 'role',
+    chat: 'chat',
 }
-const SheetDomain = {
-    global: 'global',   // 全局表
-    role: 'role',       // 该表被储存于角色
-    chat: 'chat',       // 该表被储存于对话，仅在特定对话中可见
+export const SheetType = { // Export SheetType
+    free: 'free',
+    dynamic: 'dynamic',
+    fixed: 'fixed',
+    static: 'static',
 }
-const SheetType = {
-    free: 'free',                       // 自由表，不受任何限制，可编辑行与列的数量
-    dynamic: 'dynamic',                 // 动态表，每列表头被严格定义，行数可自由增减，可修改每行内容（针对非用户）
-    fixed: 'fixed',                     // 固定表，单元格被严格定义，行列数不可变，但可修改其中内容（针对非用户）
-    static: 'static',                   // 静态表，单元格被严格定义，行列数不可变，内容不可修改，仅只读（针对非用户）
+export const EventType = { // Export EventType
+    sheet_origin: 'sheet_origin',
+    column_header: 'column_header',
+    row_header: 'row_header',
+    cell: 'cell',
 }
-
-const EventCategory = {
-    sheet_origin: 'sheet_origin',       // [0][0] 被挂载到表格原点，用于储存表自身属性
-    column_header: 'column_header',     // {+}[0] 被挂载在列头，用于处理列属性
-    row_header: 'row_header',           // [0]{+} 被挂载在行头，用于处理行属性
-    cell: 'cell',                       // {+}{+} 被挂载在单元格，用于处理单元格数据
+export const EventStatus = { // Export EventStatus
+    waiting: 'waiting',
+    mounted: 'mounted',
+    hidden: 'hidden',
+    deleted: 'deleted',
 }
-const EventType = {
-    null: 'null',       // 默认创建空事件，不支持执行任何修改编辑操作
-    insert: 'insert',
-    set: 'set',
-    clear: 'clear',
-    delete: 'delete',
-}
-const EventStatus = {
-    waiting: 'waiting',     // 事件等待执行
-    canceled: 'canceled',   // 事件在挂载前取消，可能是因为流程不合规自动取消或用户手动取消
-    mounted: 'mounted',     // 事件已挂载，正在工作中
-    hidden: 'hidden',       // 事件已挂载但隐藏，相关内容在 sheet 不可见
-    deleted: 'deleted',     // 事件已被删除
-}
-const EventDirection = {
+export const EventDirection = { // Export EventDirection
     up: 'up',
     right: 'right',
     down: 'down',
     left: 'left',
 }
 
-
 let _tableBaseInstance = null;
-let _tableTemplateInstance = null;
+let _sheetTemplateInstance = null;
 
-/**
- * 接口导出
- */
-export const tableBase = {
-    Table:(target) => {
+export const tableBase = { // Keep tableBase export as is
+    TableBase:(target) => {
         if (_tableBaseInstance === null) _tableBaseInstance = new TableBase(target);
         else _tableBaseInstance.load(target)
         return _tableBaseInstance;
     },
-    TableTemplate: (target) => {
-        if (_tableTemplateInstance === null) _tableTemplateInstance = new TableTemplate(target);
-        else _tableTemplateInstance.load(target);
-        return _tableTemplateInstance;
-    },
-    lastSheet: () => {
-        // 获取最后一个表格
-        const r = USER.findLastTablePiece()?.table_database_sheet
-        console.log(r)
-        return r
+    SheetTemplate: (target) => {
+        if (_sheetTemplateInstance === null) _sheetTemplateInstance = new SheetTemplate(target);
+        else _sheetTemplateInstance.load(target);
+        return _sheetTemplateInstance;
     },
     tablesToTableBase(chat) {
         // 将 chat 中的所有表格数据转换为 TableBase 数据
@@ -76,16 +52,16 @@ export const tableBase = {
 /**
  * 表格模板类，用于管理所有表格模板数据
  */
-class TableTemplate {
+export class SheetTemplate { // Keep SheetTemplate export as is
     constructor(target = null) {
         this.uid = '';
         this.name = '';
         this.domain = SheetDomain.global;
         this.type = SheetType.free;
 
-        this.events = new Map();    // 记录所有事件，方便以O(1)时间复杂度查找
-        this.eventHistory = [];     // 所有事件按照发生顺序推入历史记录，方便回溯
-        this.eventSheet = [];       // 以表格结构可视化事件，包括列属性、行属性、单元格数据
+        this.events = new Map();
+        this.eventHistory = [];
+        this.eventSheet = [];
 
         this.load(target);
     }
@@ -104,11 +80,10 @@ class TableTemplate {
         let targetUid = target?.uid || target;
         let targetTemplate = this.loadAllUserTemplates().find(t => t.uid === targetUid) || {};
         try {
-            // 开始将目标模板的数据挂载到当前模板
             console.log(`根据 uid 查找模板：${targetTemplate?.uid}`);
             source = {...source, ...targetTemplate};
             source.events = new Map();
-            source.eventHistory?.forEach(e => source.events.set(e.uid, e));  // 将history中的事件挂载到events中
+            source.eventHistory?.forEach(e => source.events.set(e.uid, e));
             if (source.uid === '') {
                 console.log('实例化空模板');
             } else {
@@ -127,7 +102,7 @@ class TableTemplate {
             USER.getSettings().table_database_templates = templates;
             USER.saveSettings();
         }
-        return templates; // 返回模板数组
+        return templates;
     }
     createNew() {
         this.init();
@@ -139,8 +114,8 @@ class TableTemplate {
     save() {
         let templates = this.loadAllUserTemplates();
         if (!templates) templates = [];
-        try {   // 开始将当前模板数据保存到用户模板中
-            let r = this.load({});  // 数据清理
+        try {
+            let r = this.load({});
             if (templates.some(t => t.uid === r.uid)) {
                 templates = templates.map(t => t.uid === r.uid ? r : t);
             } else {
@@ -158,7 +133,6 @@ class TableTemplate {
         let templates = this.loadAllUserTemplates();
         USER.getSettings().table_database_templates = templates.filter(t => t.uid !== this.uid);
         USER.saveSettings();
-        // this.init();
         return templates;
     }
     destroyAll() {
@@ -166,226 +140,206 @@ class TableTemplate {
         USER.getSettings().table_database_templates = [];
         USER.saveSettings();
     }
+
+    event(props = {}, targetUid = this.eventSheet[0][0]) {
+        let event = new Event(this);
+        event.update(props, targetUid);
+        return event;
+    }
+
+    cellClickEvent(callback) {
+        callback();
+    }
 }
 
 /**
  * 表格库类，用于管理所有表格数据
  */
-class TableBase {
-    constructor(target = null) {
+class TableBase { // Keep TableBase export as is
+    constructor() {
         this.uid = '';
-        this.config = null;
-        this.tables = new Map();
-        // this.vars = new Map();  // 保留，但暂不开发该功能
-        // this.functions = new Map();  // 保留，但暂不开发该功能
-
-        this.load(target);
+        this.config = {};
+        this.sheets = [];
     }
-
-    /**
-     * 初始化 TableBase 实例，如果目标数据为空则创建新的 TableBase 实例，并初始化本地保存
-     * @returns {TableBase} 返回 TableBase 实例
-     */
-    load(target) {
-        if (USER.getContext().table_database === undefined) {       // 如果目标数据为空则创建新的 TableBase 实例，并初始化本地保存
-            EDITOR.info('创建新的 TableBase 实例');
-            this.uid = `db_${SYSTEM.generateRandomString(8)}`;
-            this.tables = new Map();
-            this.config = {...BaseConfig};
-            this.save();
-        } else {
-            const r = USER.getContext().table_database;
-            this.uid = r.uid;
-            this.tables = r.tables;
-            this.config = r.config;
-        }
-        return this;
-    }
-    object(table) {
-
-    }
-    loadAllContextSheets(uid = '') {
-        return USER.getContext().table_database_tables || (USER.getContext().table_database_tables = []);
-    }
-    save() {
-        USER.getContext().table_database = {
-            uid: this.uid,
-            data: this.tables,
-            config: this.config,
-        };
-    }
-    clear() {
-        if (confirm("确定要清除所有表格数据吗？") === false) return;
-    }
-    destroy() {
-        if (confirm("确定要销毁本对话整个事件表数据库吗？将只会保留在本对话中创建的全局模板。") === false) return;
-        delete USER.getContext().table_database;
-    }
-}
-
-class Table {
-    constructor(table, parent) {
-        this.uid = `t_${SYSTEM.generateRandomString(16)}`;
-        this.name = name || '';
-        this.domain = SheetDomain.global;
-        this.type = SheetType.free;
-
-        this.events = new Map();    // 记录所有事件，方便以O(1)时间复杂度查找
-        this.eventHistory = [];     // 所有事件按照发生顺序推入历史记录，方便回溯
-        this.eventSheet = [];       // 以表格结构可视化事件，包括列属性、行属性、单元格数据
-        this.parent = parent;
-
-        this.init();
-    }
-
-    init() {
-        const currentChatPiece = USER.getChatPiece();
-        if (currentChatPiece === null) {
-            EDITOR.warning('当前对话数据为空，无法创建表格');
-            return;
-        }
-        if (currentChatPiece.is_user === true && this.parent.config.enable_storage_in_user_piece === false) {
-            EDITOR.warning('当前对话为用户数据片段，未开启在用户的对话回合中保存表格');
-            return;
-        }
-    }
-    clear() {
-        if (confirm("确定要清除所有事件数据吗？") === false) return;
-        this.events.clear();
-        this.eventHistory = [];
-        this.eventSheet = [];
-    }
-
-    /**
-     * 在当前表格中创建一个新的事件
-     * @param {EventType} type 事件类型，默认为 readonly(空事件)
-     * @returns {Event} 创建的事件
-     */
-    event = new Event(EventType.null, '', this);
-
-    // 事件组，用于快速添加事件
-    SheetDomain = SheetDomain;
-    SheetType = SheetType;
 }
 
 /**
- * 事件类，使用该类请通过 Table 类的 event 属性调用
- * @description 事件类用于记录所有表格的操作，包括插入、设置、清除、删除等操作
- * @description 事件类支持事件回溯，支持事件撤销和重做
+ * 表格类 (新增)
  */
-class Event {
-    constructor(type, lastUid, parent) {
+export class Sheet { // Keep Sheet export as is
+    constructor(template) {
+        if (template instanceof SheetTemplate) {
+            this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
+            this.name = template.name;
+            this.domain = template.domain;
+            this.type = template.type;
+            this.templateUid = template.uid; // 关联模板
+
+            this.events = new Map();
+            this.eventHistory = [];
+            this.eventSheet = [];
+
+            this.init();
+        } else {
+            // Handle cases where template is not a SheetTemplate instance or is undefined.
+            console.error("Sheet constructor requires a SheetTemplate instance as argument.");
+            return null; // Or throw an error.
+        }
+    }
+
+    init() {
+        if (this.type === SheetType.free) {
+            this.eventSheet = [[this.createEvent(EventType.sheet_origin)]];
+        } else if (this.type === SheetType.dynamic) {
+
+        } else if (this.type === SheetType.fixed) {
+
+        } else if (this.type === SheetType.static) {
+
+        }
+    }
+
+    updateCell(targetUid, value) {
+        const event = this.events.get(targetUid);
+        if (event && event.type === EventType.cell) {
+            event.update({ value }, targetUid);
+        } else {
+            console.error("只能更新单元格事件");
+        }
+    }
+
+    createEvent(type, props = {}, targetUid) {
+        const event = new Event(this, type);
+        event.update(props, targetUid);
+        return event;
+    }
+
+    render() {
+        const table = document.createElement('table');
+        table.className = 'sheet-table';
+        table.dataset.sheetUid = this.uid;
+        const tbody = document.createElement('tbody');
+        table.appendChild(tbody);
+
+        this.eventSheet.forEach((rowEvents, rowIndex) => {
+            const row = tbody.insertRow();
+            rowEvents.forEach((event, colIndex) => {
+                const cell = row.insertCell();
+                cell.dataset.eventUid = event.uid;
+                if (rowIndex === 0 && colIndex > 0) {
+                    cell.className = 'column-header';
+                    cell.textContent = event.props.name || `列 ${colIndex}`;
+                } else if (colIndex === 0 && rowIndex > 0) {
+                    cell.className = 'row-header';
+                    cell.textContent = event.props.name || `行 ${rowIndex}`;
+                } else if (rowIndex > 0 && colIndex > 0) {
+                    cell.className = 'cell';
+                    cell.textContent = event.value || '';
+                } else if (rowIndex === 0 && colIndex === 0) {
+                    cell.className = 'sheet-origin';
+                    cell.textContent = this.name;
+                }
+            });
+        });
+        return table;
+    }
+}
+
+/**
+ * 事件类
+ */
+class Event { // Keep Event export as is, though it's implicitly exported because Sheet and SheetTemplate use it. For clarity you could add 'export class Event'
+    constructor(parent, type = EventType.cell) {
+        this.uid = `e_${parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
+        this.value = '';
+        this.parent = parent;
+        this.type = type;
+        this.status = EventStatus.waiting;
+        this.targetUid = '';
+        this.props = {};
+    }
+
+    init() {
         this.uid = '';
         this.value = '';
-        this.status = '';
-        this.category = '';
-        this.type = type;
-        this.lastUid = lastUid;       // 该事件通过哪一个事件触发
-        this.parent = parent;
-        this.direction = '';
-        this.timestamp = Date.now();
-
-        // 根据 type 初始化事件
-        this.init();
-    }
-
-    // 初始化事件，用于初始化参数与初步判断事件合法性
-    init() {
-        if (this.type === EventType.null) return;
-        // 推入事件历史记录
-        this.pushToWaitingQueue(this);
-    }
-
-    // 事件执行，不支持 readonly 事件
-    run() {
-        if (this.type === EventType.null) {
-            console.log(`空事件无法被执行：${this}`);
-            return;
-        }
-
-        if (this.lastUid === '') {
-            console.error(`你必须指定一个事件来触发当前事件：${this}`);
-            return;
-        }
-        switch (this.type) {
-            case EventType.insert:
-                this.insert();
-                break;
-            case EventType.set:
-                this.set();
-                break;
-            case EventType.clear:
-                this.clear();
-                break;
-            case EventType.delete:
-                this.delete();
-                break;
-            default:
-                console.error(`事件不合规：${this}`);
-                return;
-        }
-    }
-
-    lastEvent() {
-        // 返回当前事件的上一个事件
-        return this.parent.events.get(this.lastUid);
-    }
-
-    // 事件操作
-    insert(category, value) {
-        const lastEvent = this.lastEvent();
-        const lastEventCategory = lastEvent.category;
-
-    }
-    set(category, value) {
-        const lastEvent = this.lastEvent();
-        // 检查 value 是否为字符串或数字，如果是则直接设置this.value
-
-
-        // 检查 value 是否为对象，如果是则遍历对象中的键值对，逐一设置
-
-    }
-    clear(category) {
-        const lastEvent = this.lastEvent();
-    }
-    delete(category) {
-        const lastEvent = this.lastEvent();
-        const lastEventCategory = lastEvent.category;
-
-        // 如果 lastEventCategory = sheet_origin，则不可删除
-        if (lastEventCategory === EventCategory.sheet_origin) {
-            console.error(`不可删除 sheet_origin 事件：${lastEvent}`);
-            return;
-        }
-        // 如果 lastEventCategory = cell，则不可删除，请使用 clear 事件
-        if (lastEventCategory === EventCategory.cell) {
-            console.error(`cell 不支持 delete 操作，请使用 clear 事件：${lastEvent}`);
-            return;
-        }
-        // 如果 lastEventCategory = column_header，则删除整列
-        if (lastEventCategory === EventCategory.column_header) {
-            // 删除整列
-        }
-        // 如果 lastEventCategory = row_header，则删除整行
-        if (lastEventCategory === EventCategory.row_header) {
-            // 删除整行
-        }
-    }
-
-
-    // 以下方法不被构造类外的方法调用
-    // 推入事件历史记录
-    pushToWaitingQueue(event) {
+        this.parent = null;
+        this.type = '';
         this.status = EventStatus.waiting;
+        this.targetUid = '';
+        this.props = {};
+    }
+    load(targetUid) {
 
-        this.uid = `e_${SYSTEM.generateRandomString(32)}`;
-        this.parent.eventHistory.push(event);
-        this.parent.events.set(event.uid, event);
+    }
+    update(props, targetUid) {
+        if(targetUid) this.targetUid = targetUid;
+        this.props = { ...this.props, ...props };
+        this.run();
     }
 
-    // 事件组，用于快速添加事件
-    EventCategory = EventCategory;
-    EventType = EventType;
-    EventStatus = EventStatus;
-    EventDirection = EventDirection;
+    run() {
+        this.status = EventStatus.mounted;
+        this.parent.events.set(this.uid, this);
+        this.parent.eventHistory.push(this);
+    }
+
+    insertColumn(targetUid, direction) {
+        if (direction === EventDirection.up || direction === EventDirection.down) {
+            console.error('只允许在列头添加左右插入事件');
+            return;
+        }
+
+        let target = this.parent.events.get(targetUid);
+
+        if (target.type !== EventType.column_header){
+            console.error('只允许在列头添加左右插入事件');
+            return;
+        }
+
+        let index = this.parent.eventSheet[0].findIndex(e => e.uid === targetUid);
+        if (index === -1) {
+            console.error(`找不到目标事件：${targetUid}`);
+            return;
+        }
+
+        const newColumnHeader = this.parent.createEvent(EventType.column_header, {}, targetUid);
+
+        this.parent.eventSheet.forEach((row, rowIndex) => {
+            if (rowIndex === 0) {
+                row.splice(direction === EventDirection.right ? index + 1 : index, 0, newColumnHeader);
+            } else {
+                let newCell = this.parent.createEvent(EventType.cell);
+                row.splice(direction === EventDirection.right ? index + 1 : index, 0, newCell);
+            }
+        });
+    }
+
+    insertRow(targetUid, direction) {
+        if (direction === EventDirection.left || direction === EventDirection.right) {
+            console.error('只允许在行头添加上下插入事件');
+            return;
+        }
+
+        let target = this.parent.events.get(targetUid);
+        if(target.type !== EventType.row_header){
+            console.error('只允许在行头添加上下插入事件');
+            return;
+        }
+
+        let index = this.parent.eventSheet.findIndex(e => e[0].uid === targetUid);
+        if (index === -1) {
+            console.error(`找不到目标事件：${targetUid}`);
+            return;
+        }
+
+        const newRowHeader = this.parent.createEvent(EventType.row_header, {}, targetUid)
+
+        const newRow = [newRowHeader];
+        for (let i = 1; i < this.parent.eventSheet[0].length; i++) {
+            let newCell = this.parent.createEvent(EventType.cell);
+            newRow.push(newCell);
+        }
+
+        this.parent.eventSheet.splice(direction === EventDirection.down ? index + 1 : index, 0, newRow);
+    }
 }

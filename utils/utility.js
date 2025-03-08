@@ -1,5 +1,12 @@
 // 生成或获取设备ID（从用户代码中提取）
 
+function loadFontAwesome() {
+    // const fontAwesomeLink = document.createElement('link');
+    // fontAwesomeLink.rel = 'stylesheet';
+    // fontAwesomeLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'; // 替换为 Font Awesome CDN 链接
+    // document.head.appendChild(fontAwesomeLink);
+}
+
 /**
  * 创建一个只读属性
  * @param {object} obj 要在其上定义属性的对象

@@ -489,15 +489,9 @@ jQuery(async () => {
 
     initAppHeaderTableDrawer();
 
-    SYSTEM.f(()=> {
-        const tableTemplateInstance = BASE.TableTemplate()
-        const templates = tableTemplateInstance.loadAllUserTemplates()
-        console.log(templates)
-        templates.forEach(template => {
-            BASE.TableTemplate(template.uid).delete()
-        })
-        console.log(templates)
-    })
+    SYSTEM.f(()=>{
+        console.log("Test function 1 started");
+    }, 'index test 0');
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
