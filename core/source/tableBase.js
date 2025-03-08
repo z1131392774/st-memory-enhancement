@@ -1,3 +1,4 @@
+// tableBase.js
 import { SYSTEM, USER, EDITOR } from '../manager.js';
 
 export const SheetDomain = { // Export SheetDomain
@@ -38,11 +39,6 @@ export const tableBase = { // Keep tableBase export as is, but adjusted to manag
         else _sheetInstance.load(target);
         return _sheetInstance;
     },
-    // tablesToTableBase is removed as it's unclear and outside the scope of merging/optimizing.
-    // If needed, its functionality can be re-evaluated and added to the Sheet class or a utility function.
-    // tablesToTableBase(chat) {
-    //     // 将 chat 中的所有表格数据转换为 TableBase 数据
-    // }
 }
 
 /**
@@ -70,14 +66,33 @@ export class Sheet { // Merged Sheet and SheetTemplate, now just Sheet
     }
 
     init() {
-        this.uid = '';
-        this.name = '';
-        this.domain = SheetDomain.global;
-        this.type = SheetType.free;
+        this.cells = new Map();
         this.cellHistory = [];
         this.cellSheet = [];
-        this.cells = new Map();
-        return this;
+
+        const initialRows = 2;
+        const initialCols = 2;
+        const r = Array.from({ length: initialRows }, (_, i) => Array.from({ length: initialCols }, (_, j) => {
+            let cell = new Cell(this);
+            let cellType = CellType.cell; // Default cell type
+
+            if (i === 0 && j === 0) {
+                cellType = CellType.sheet_origin;
+                cell.value = 'A1';
+            } else if (i === 0 && j === 1) {
+                cellType = CellType.column_header;
+            } else if (i === 1 && j === 0) {
+                cellType = CellType.row_header;
+            }
+
+            cell.type = cellType;
+            this.cells.set(cell.uid, cell);
+            this.cellHistory.push(cell);
+
+            return cell.uid;
+        }));
+        this.cellSheet = r;
+        return this; // Added for method chaining
     };
     load(target, source = this) {
         let targetUid = target?.uid || target;
@@ -93,7 +108,12 @@ export class Sheet { // Merged Sheet and SheetTemplate, now just Sheet
             console.log(`根据 uid 查找 ${this.asTemplate ? '模板' : '表格'}：${targetSheetData?.uid}`);
             source = {...source, ...targetSheetData};
             source.cells = new Map();
-            source.cellHistory?.forEach(e => source.cells.set(e.uid, e)); // Corrected to use cells and cellHistory
+            source.cellHistory?.forEach(e => {
+                const cell = new Cell(this); // Re-create Cell object to establish parent
+                Object.assign(cell, e); // Copy properties from loaded data
+                cell.parent = this; // Manually set parent
+                source.cells.set(cell.uid, cell)
+            }); // Corrected to use cells and cellHistory
             if (source.uid === '') {
                 console.log(`实例化空${this.asTemplate ? '模板' : '表格'}`);
                 if (this.asTemplate === false) this.initSheetStructure(); // Initialize basic sheet structure for non-templates
@@ -133,11 +153,24 @@ export class Sheet { // Merged Sheet and SheetTemplate, now just Sheet
         let templates = this.loadAllUserTemplates();
         if (!templates) templates = [];
         try {
-            let r = this.load({});
-            if (templates.some(t => t.uid === r.uid)) {
-                templates = templates.map(t => t.uid === r.uid ? r : t);
+            // Create a simplified object for saving, breaking circular references
+            const sheetDataToSave = {
+                uid: this.uid,
+                name: this.name,
+                domain: this.domain,
+                type: this.type,
+                asTemplate: this.asTemplate,
+                cellHistory: this.cellHistory.map(cell => { // Serialize cellHistory, but remove parent ref
+                    const { parent, ...cellData } = cell; // Destructure to exclude parent
+                    return cellData;
+                }),
+                cellSheet: this.cellSheet,
+            };
+
+            if (templates.some(t => t.uid === sheetDataToSave.uid)) {
+                templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
             } else {
-                templates.push(r);
+                templates.push(sheetDataToSave);
             }
             USER.getSettings().table_database_templates = templates;
             USER.saveSettings();

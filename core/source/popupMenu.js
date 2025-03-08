@@ -1,3 +1,4 @@
+// popupMenu.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 /**
@@ -24,10 +25,14 @@ export class PopupMenu {
         // 创建菜单内容容器 (之前叫做 menuContainer，现在继续沿用)
         this.menuContainer = document.createElement('div');
         this.menuContainer.style.position = 'relative'; // 菜单内容容器使用相对定位
-        this.menuContainer.style.backgroundColor = '#0002';
+        // this.menuContainer.style.backgroundColor = 'var(SmartThemeBlurTintColor)'; // 应用背景色
+        // this.menuContainer.style.color = 'var(SmartThemeBodyColor)'; // 应用文字颜色
         this.menuContainer.style.border = '1px solid rgba(0,0,0,0.1)';
+        this.menuContainer.style.borderRadius = '5px';
         this.menuContainer.style.padding = '5px';
         this.menuContainer.style.boxShadow = '2px 2px 5px rgba(0,0,0,0.3)';
+        // 添加背景模糊
+        this.menuContainer.style.backdropFilter = 'blur(20px)';
 
         this.popupContainer.appendChild(this.menuContainer); // 将菜单内容容器添加到外层容器中
 
@@ -46,9 +51,10 @@ export class PopupMenu {
 
     /**
      * 渲染菜单 HTML 结构并返回外层容器元素 (popupContainer)
+     * @param {HTMLElement} parentElement -  父元素，菜单将添加到此元素
      * @returns {HTMLDivElement} - 外层容器元素
      */
-    render() {
+    render(parentElement) { // Modified render to accept parentElement
         // 清空之前的菜单内容
         this.menuContainer.innerHTML = '';
 
@@ -63,21 +69,29 @@ export class PopupMenu {
             this.menuContainer.appendChild(menuItem); // 将菜单项添加到 menuContainer 中
         });
 
-        document.body.appendChild(this.popupContainer); // 将外层容器添加到 body 中，保证渲染后能显示出来
+        // 使用传入的 parentElement 添加 popupContainer
+        parentElement.appendChild(this.popupContainer); // Append to the specified parent
         return this.popupContainer; // 返回外层容器
     }
 
     /**
      * 显示菜单
-     * @param {number} x - 菜单显示的横坐标
-     * @param {number} y - 菜单显示的纵坐标
+     * @param {number} x - 菜单显示的横坐标 (相对于父元素)
+     * @param {number} y - 菜单显示的纵坐标 (相对于父元素)
      */
     show(x = 0, y = 0) {
+        console.log('PopupMenu show() called at:', x, y); // Debug log
         this.popupContainer.style.left = `${x}px`;
         this.popupContainer.style.top = `${y}px`;
         this.popupContainer.style.display = 'block';
-        // 添加全局点击事件监听，点击菜单外部时关闭菜单
-        setTimeout(() => { // 延迟绑定，避免立即触发 document 的 click 事件
+
+        // --- DEBUGGING STYLES ---
+        this.popupContainer.style.backgroundColor = 'rgba(255, 0, 0, 0.0)'; // Red background, semi-transparent
+        this.popupContainer.style.width = '200px';  // Fixed width
+        this.popupContainer.style.height = 'auto'; // Fixed height
+        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)'; // Visible border
+
+        setTimeout(() => {
             document.addEventListener('click', this.handleClickOutside.bind(this));
         }, 0);
     }

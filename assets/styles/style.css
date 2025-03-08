@@ -515,6 +515,49 @@ td.selected {
 }
 
 
+/* 用于debug-log的样式 */
+/*.drag-table {*/
+/*    border-collapse: collapse; !* Important for single-line borders *!*/
+/*    border: 1px solid #ccc;*/
+/*    margin-bottom: 20px;*/
+/*    width: 100%; !* Ensure table takes full width of container *!*/
+/*}*/
+
+/*.table-name {*/
+/*    font-weight: bold;*/
+/*    padding: 5px 0 10px 0;*/
+/*    text-align: left;*/
+/*}*/
+
+/*.drag-table thead th,*/
+/*.drag-table tbody th,*/
+/*.drag-table td { !* Apply borders to all header cells, row headers, and data cells *!*/
+/*    border: 1px solid #ccc; !* Add border to all cells *!*/
+/*    padding: 4px 8px;*/
+/*    text-align: center;*/
+/*    min-width: 50px;   !* Minimum width for cells *!*/
+/*    min-height: 10px;  !* Minimum height for cells *!*/
+/*    box-sizing: border-box; !* Include padding and border in cell dimensions *!*/
+/*}*/
+
+/*.drag-table thead th,*/
+/*.drag-table tbody th {*/
+/*    !*background-color: #f0f0f0;*!*/
+/*    font-weight: bold;*/
+/*}*/
+
+/*.drag-table th { !* Ensure headers also have border *!*/
+/*    border: 1px solid #ccc; !* Redundant, but ensures clarity *!*/
+/*}*/
+
+/*.drag-cell {*/
+/*    !* Add any specific styling for data cells if needed *!*/
+/*}*/
+
+/*.drag-table tbody tr {*/
+/*    min-height: 20px; !* Example minimum row height to accommodate cell height and padding, adjust if needed *!*/
+/*}*/
+
 
 
 

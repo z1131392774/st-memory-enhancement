@@ -1,5 +1,7 @@
+// tableEditView.js
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 import { findLastestTableData } from "../../index.js";
+import { PopupMenu } from '../source/popupMenu.js'; // Corrected import path
 
 const userSheetEditInfo = {
     chatIndex: null,
@@ -9,15 +11,29 @@ const userSheetEditInfo = {
     rowIndex: null,
     colIndex: null,
 }
-let drag = null
+let drag = null;
+let currentPopupMenu = null; // 用于跟踪当前弹出的菜单
 
 let dropdownElement = null;
+
+// Helper function to convert column index to letter (A, B, C...)
+function getColumnLetter(colIndex) {
+    let letter = '';
+    let num = colIndex;
+    while (num >= 0) {
+        letter = String.fromCharCode('A'.charCodeAt(0) + (num % 26)) + letter;
+        num = Math.floor(num / 26) - 1;
+    }
+    return letter;
+}
+
+
 /**
  * 创建多选下拉框
  * @returns {Promise<HTMLSelectElement|null>}
  */
 async function updateDropdownElement() {
-    const templates = BASE.SheetTemplate().loadAllUserTemplates(); // 获取模板的方式保持不变
+    const templates = BASE.SheetTemplate().loadAllUserTemplates();
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
         dropdownElement.id = 'table_template';
@@ -107,27 +123,111 @@ async function updateDragTables() {
     if (!drag) return;
 
     const selectedSheetUids = USER.getSettings().tableEditorSelectedSheets;
-    const selectedTemplateNames = [];
-
-    if (selectedSheetUids && selectedSheetUids.length > 0) {
-        const allTemplates = BASE.SheetTemplate().loadAllUserTemplates();
-        for (const uid of selectedSheetUids) {
-            const template = allTemplates.find(t => t.uid === uid);
-            if (template) {
-                selectedTemplateNames.push(template.name);
-            }
-        }
-    }
+    const container = $(drag.render).find('#tableContainer');
 
     // 清空 Drag 区域
-    $(drag.render).find('#tableContainer').empty();
+    container.empty();
+    if (currentPopupMenu) { // 关闭之前的菜单
+        currentPopupMenu.destroy();
+        currentPopupMenu = null;
+    }
 
-    // 添加已选择模板的名称到 Drag 区域
-    const container = $(drag.render).find('#tableContainer');
-    if (selectedTemplateNames.length > 0) {
-        container.append(`<p>已选择的表格模板：${selectedTemplateNames.join(', ')}</p>`);
-    } else {
+    if (!selectedSheetUids || selectedSheetUids.length === 0) {
         container.append(`<p>未选择任何表格模板</p>`);
+        return;
+    }
+
+    // Add CSS styles directly to the component for borders and dimensions
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        .drag-table { border-collapse: collapse; width: max-content; } /* Set table width to max-content */
+        .drag-table caption { text-align: left; padding-bottom: 5px; font-weight: bold; caption-side: top; } /* Caption at the top */
+        .drag-header-cell-top { text-align: center; border: 1px solid #ccc; padding: 2px; font-weight: bold; } /* Top header style */
+        .drag-header-cell-left { text-align: center; border: 1px solid #ccc; padding: 2px; font-weight: bold; } /* Left header style */
+        .drag-cell { border: 1px solid #ccc; padding: 2px; min-width: 50px; min-height: 20px; text-align: center; vertical-align: middle; } /* Cell style with center alignment and min dimensions */
+    `;
+    drag.dragSpace.appendChild(styleElement);
+
+
+    for (const uid of selectedSheetUids) {
+        const sheet = BASE.SheetTemplate(uid); // 加载选中的 SheetTemplate
+
+        if (!sheet || !sheet.cellSheet) {
+            console.warn(`无法加载模板或模板数据为空，UID: ${uid}`);
+            continue;
+        }
+
+        const tableElement = document.createElement('table');
+        tableElement.classList.add('drag-table'); // Add style class
+        tableElement.style.position = 'relative'; // Ensure relative positioning for caption
+
+        const captionElement = document.createElement('caption');
+        captionElement.textContent = sheet.name || "Unnamed Table"; // Display table name
+        tableElement.appendChild(captionElement);
+
+
+        sheet.cellSheet.forEach((rowUids, rowIndex) => {
+            const rowElement = document.createElement('tr');
+            rowUids.forEach((cellUid, colIndex) => {
+                const cellElement = document.createElement('td');
+                cellElement.classList.add('drag-cell');
+
+                if (rowIndex === 0 && colIndex === 0) {
+                    // Origin Cell [0, 0] - leave textContent empty
+                } else if (rowIndex === 0) {
+                    cellElement.textContent = getColumnLetter(colIndex - 1); // Column headers (A, B, C...)
+                    cellElement.classList.add('drag-header-cell-top'); // Apply top header style
+                    cellElement.style.height = '15px'; // Set header height
+                } else if (colIndex === 0) {
+                    cellElement.textContent = rowIndex; // Row headers (1, 2, 3...)
+                    cellElement.classList.add('drag-header-cell-left'); // Apply left header style
+                    cellElement.style.width = '20px'; // Set header width
+                } else {
+                    // Other cells - leave textContent empty
+                }
+
+
+                // --- Debugging Start ---
+                cellElement.addEventListener('click', (event) => {
+                    event.stopPropagation();
+
+                    if (currentPopupMenu) {
+                        currentPopupMenu.destroy();
+                        currentPopupMenu = null;
+                    }
+
+                    currentPopupMenu = new PopupMenu();
+                    currentPopupMenu.add('Insert Row Above', () => { console.log('Insert Row Above at row:', rowIndex, 'col:', colIndex, 'cellUid:', cellUid); });
+                    currentPopupMenu.add('Insert Row Below', () => { console.log('Insert Row Below at row:', rowIndex, 'col:', colIndex, 'cellUid:', cellUid); });
+                    currentPopupMenu.add('Insert Column Left', () => { console.log('Insert Column Left at row:', rowIndex, 'col:', colIndex, 'cellUid:', cellUid); });
+                    currentPopupMenu.add('Insert Column Right', () => { console.log('Insert Column Right at row:', rowIndex, 'col:', colIndex, 'cellUid:', cellUid); });
+                    currentPopupMenu.add('Delete Row', () => { console.log('Delete Row at row:', rowIndex, 'col:', colIndex, 'cellUid:', cellUid); });
+                    currentPopupMenu.add('Delete Column', () => { console.log('Delete Column at row:', rowIndex, 'col:', colIndex, 'cellUid:', cellUid); });
+                    currentPopupMenu.add('Edit Cell', () => { console.log('Edit Cell at row:', rowIndex, 'col:', colIndex, 'cellUid:', cellUid); });
+
+                    const rect = cellElement.getBoundingClientRect();
+                    const dragSpaceRect = drag.dragSpace.getBoundingClientRect();
+
+                    let popupX = rect.left - dragSpaceRect.left;
+                    let popupY = rect.top - dragSpaceRect.top;
+
+                    // Apply inverse scaling
+                    popupX /= drag.scale;
+                    popupY /= drag.scale;
+
+                    // Adjust vertical position to align with bottom-left of cell
+                    popupY += rect.height / drag.scale;
+
+                    currentPopupMenu.render(drag.dragSpace);
+                    currentPopupMenu.show(popupX, popupY);
+                });
+                // --- Debugging End ---
+
+                rowElement.appendChild(cellElement);
+            });
+            tableElement.appendChild(rowElement);
+        });
+        container.append(tableElement);
     }
 }
 
@@ -153,8 +253,6 @@ async function initTableEdit(mesId) {
     contentContainer.append(drag.render);
     drag.add('tableContainer', tableContainer);
     // drag.add('tableHeaderToolbar', tableHeaderToolbar[0]);
-
-
 
 
     if (!userSheetEditInfo.editAble) {
