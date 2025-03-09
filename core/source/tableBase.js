@@ -31,7 +31,9 @@ const CellType = {
 }
 
 /**
- * 表格类，融合了模板和表格的功能
+ * 表格类，用于管理表格数据
+ * @description 表格类用于管理表格数据，包括表格的名称、域、类型、单元格数据等
+ * @description 表格类还提供了对表格的操作，包括创建、保存、删除、渲染等
  */
 export class Sheet {
     SheetDomain = SheetDomain;
@@ -43,8 +45,8 @@ export class Sheet {
         this.type = SheetType.free;
         this.asTemplate = asTemplate || false;  // 优先使用传入的 asTemplate 参数，否则使用 target 中的 asTemplate
 
-        this.cells = new Map();
-        this.cellHistory = [];
+        this.cells = new Map(); // cells 在每次 Sheet 初始化时从 cellHistory 加载
+        this.cellHistory = []; // cellHistory 持久保持，只增不减
         this.cellSheet = [];
         this.currentPopupMenu = null;       // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
         this.tableElement = null;           // 用于存储渲染后的 table 元素
@@ -86,11 +88,11 @@ export class Sheet {
                     domain: this.domain,
                     type: this.type,
                     asTemplate: this.asTemplate,
-                    cellHistory: this.cellHistory.map(cell => {
+                    cellHistory: this.cellHistory.map(cell => { // 保存 cellHistory
                         const { parent, ...cellData } = cell;
                         return cellData;
                     }),
-                    cellSheet: this.cellSheet,
+                    cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
                 };
 
                 if (templates.some(t => t.uid === sheetDataToSave.uid)) {
@@ -222,12 +224,34 @@ export class Sheet {
         try {
             if (targetSheetData) {      // 只有当 targetSheetData 存在时才进行后续操作
                 Object.assign(this, targetSheetData);
-                this.cells = new Map();
-                this.cellHistory?.forEach(c => {
+                this.cells = new Map(); // 初始化 cells Map
+                this.cellHistory?.forEach(c => { // 从 cellHistory 加载 Cell 对象
                     const cell = new Cell(this);
                     Object.assign(cell, c);
-                    this.cells.set(cell.uid, cell);
+                    this.cells.set(cell.uid, cell); // cells 记录 cell uid 和 cell 实例
                 });
+
+                // **[关键修改]：加载后，根据 cellSheet 结构重新初始化 Cell 的 type**
+                if (this.cellSheet && this.cellSheet.length > 0) {
+                    this.cellSheet.forEach((rowUids, rowIndex) => {
+                        rowUids.forEach((cellUid, colIndex) => {
+                            const cell = this.#cell(cellUid);
+                            if (cell) {
+                                if (rowIndex === 0 && colIndex === 0) {
+                                    cell.type = CellType.sheet_origin;
+                                } else if (rowIndex === 0) {
+                                    cell.type = CellType.column_header;
+                                } else if (colIndex === 0) {
+                                    cell.type = CellType.row_header;
+                                } else {
+                                    cell.type = CellType.cell; // 默认单元格类型
+                                }
+                            }
+                        });
+                    });
+                }
+
+
                 if (this.uid === '') {
                     if (this.asTemplate === false) this.#initSheetStructure();
                 } else {
@@ -299,11 +323,18 @@ export class Sheet {
     }
 }
 
+
+/**
+ * 单元格类，用于管理表格中的单元格数据
+ * @description 单元格类用于管理表格中的单元格数据，包括单元格的位置、值、状态、类型等
+ * @description 单元格类还提供了对单元格的操作，包括编辑、插入、删除等
+ * @description 单元格类是 Sheet 类的子类，用于管理 Sheet 中的单元格数据
+ */
 class Cell {
     CellType = CellType;
     CellAction = CellAction;
-    constructor(parent) {
-        this.uid = `cell_${parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
+    constructor(parent, target = null) {
+        this.uid = '';
         this.parent = parent;
         this.type = '';
         this.status = '';
@@ -319,7 +350,7 @@ class Cell {
             },
         });
 
-        this.#init();
+        this.#init(target);
     }
 
     get position() {
@@ -361,6 +392,44 @@ class Cell {
     bridge = {
 
     }
+    #init(target) {
+        let targetUid = target?.uid || target;
+        let targetCell = {};
+        if (targetUid) {
+            if (target.uid === targetUid) {
+                targetCell = target;
+            }
+            else {
+                targetCell = this.parent.cells.get(targetUid);
+            }
+            if (!targetCell) {
+                throw new Error(`未找到单元格，UID: ${targetUid}`);
+            }
+        }
+        this.uid = targetCell.uid || `cell_${this.parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
+        this.type = targetCell.type || CellType.cell;
+        this.status = targetCell.status || '';
+        this.element = targetCell.element || null;
+        this.targetUid = targetCell.targetUid || '';
+        this.data = targetCell.data || {};
+    }
+    #positionInParentCellSheet() {
+        if (!this.parent || !this.parent.cellSheet) {
+            return [-1, -1]; // 如果没有父级 Sheet 或 cellSheet，则返回 [-1, -1]
+        }
+        const cellSheet = this.parent.cellSheet;
+        for (let rowIndex = 0; rowIndex < cellSheet.length; rowIndex++) {
+            const row = cellSheet[rowIndex];
+            for (let colIndex = 0; colIndex < row.length; colIndex++) {
+                if (row[colIndex] === this.uid) {
+                    return [rowIndex, colIndex]; // 找到匹配的 UID，返回 [rowIndex, colIndex]
+                }
+            }
+        }
+        console.warn('未找到匹配的 UID'); // 如果遍历完 cellSheet 仍未找到匹配的 UID，则输出警告
+        return [-1, -1]; // 如果遍历完 cellSheet 仍未找到匹配的 UID，则返回 [-1, -1] (理论上不应该发生)
+    }
+
     #event(actionName, props = {}) {
         const [rowIndex, colIndex] = this.#positionInParentCellSheet();
         switch (actionName) {
@@ -399,25 +468,6 @@ class Cell {
         this.parent.save();
         EDITOR.info(`单元格操作: ${actionName} 位置: ${[rowIndex, colIndex]}`);
     }
-    #init() {
-
-    }
-    #positionInParentCellSheet() {
-        if (!this.parent || !this.parent.cellSheet) {
-            return [-1, -1]; // 如果没有父级 Sheet 或 cellSheet，则返回 [-1, -1]
-        }
-        const cellSheet = this.parent.cellSheet;
-        for (let rowIndex = 0; rowIndex < cellSheet.length; rowIndex++) {
-            const row = cellSheet[rowIndex];
-            for (let colIndex = 0; colIndex < row.length; colIndex++) {
-                if (row[colIndex] === this.uid) {
-                    return [rowIndex, colIndex]; // 找到匹配的 UID，返回 [rowIndex, colIndex]
-                }
-            }
-        }
-        console.warn('未找到匹配的 UID'); // 如果遍历完 cellSheet 仍未找到匹配的 UID，则输出警告
-        return [-1, -1]; // 如果遍历完 cellSheet 仍未找到匹配的 UID，则返回 [-1, -1] (理论上不应该发生)
-    }
     #handleEditCell(props = {}) {
         if (!props || Object.keys(props).length === 0) {
             console.warn('未提供任何要修改的属性');
@@ -425,7 +475,6 @@ class Cell {
         }
         this.data = { ...this.data, ...props };
     }
-
 
     #insertRow(targetRowIndex) {
         // 使用Array.from()方法在cellSheet中targetRowIndex+1的位置插入新行

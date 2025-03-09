@@ -129,14 +129,212 @@ function getSheetTitle(sheet) {
     </div>`;
 }
 
+let r = {};
+async function templateCellDataEdit(cell) {
+    r = {...cell.data};
+    const popup = new EDITOR.Popup(await generatePopupContent(cell), EDITOR.POPUP_TYPE.CONFIRM, { large: true, allowVerticalScrolling: true }, { okButton: "保存修改", cancelButton: "取消" });
+
+    await popup.show();
+    if (popup.result) {
+        // 计算r与cell.data的差异
+        Object.keys(r).forEach(key => {
+            if (r[key] === cell.data[key]) {
+                delete r[key];
+            }
+        });
+        if (Object.keys(r).length === 0) {
+            return;
+        }
+        cell.editProps(r);
+    }
+}
 
 /**
- * 根据已选择的表格模板更新 Drag 区域的表格
+ * 动态生成弹窗内容
+ * @param {Cell} cell - 当前点击的单元格 Cell 实例
+ * @returns {Promise<string>} - 弹窗内容的 HTML 字符串
+ */
+async function generatePopupContent(cell) {
+    const cellType = cell.type;
+    const sheetType = cell.parent.type;
+    let contentHTML = '';
+    console.log(cellType, sheetType)
+
+    switch (cellType) {
+        case 'sheet_origin':
+            contentHTML = `
+                <div class="wide100p padding5 dataBankAttachments">
+                    <h2 class="marginBot5"><span>编辑表格</span></h2>
+                    <div>表格的整体设置，例如表格名称、说明等。</div>
+                    <div class="dataTable_tablePrompt_list">
+                        <label>表格名</label>
+                        <input type="text" id="dataTable_tableSetting_tableName" class="margin0 text_pole" style=" margin-bottom: 20px;"/>
+                        <label>表格说明</label><small> (给AI解释此表格的作用)</small>
+                        <textarea id="dataTable_tableSetting_note" class="wide100p" rows="2"></textarea>
+                        <div class="checkbox flex-container" style="margin-bottom: 10px;">
+                            <input type="checkbox" id="dataTable_tableSetting_required"><span>是否必填</span>
+                        </div>
+                        <label>初始化提示词</label><small> (当表格为必填表时，但是又为空时，给AI的提示)</small>
+                        <textarea id="dataTable_tableSetting_initNode" class="wide100p" rows="2"></textarea>
+                        <label>插入提示词</label><small> (解释什么时候应该插入行)</small>
+                        <textarea id="dataTable_tableSetting_insertNode" class="wide100p" rows="2"></textarea>
+                        <label>更新提示词</label><small> (解释什么时候应该更新行)</small>
+                        <textarea id="dataTable_tableSetting_updateNode" class="wide100p" rows="2"></textarea>
+                        <label>删除提示词</label><small> (解释什么时候应该删除行)</small>
+                        <textarea id="dataTable_tableSetting_deleteNode" class="wide100p" rows="2"></textarea>
+
+                        <!-- 开启时将该表格推送至对话 -->
+                        <div class="checkbox flex-container" style="margin-bottom: 10px;">
+                            <input type="checkbox" id="dataTable_tableSetting_toChat">
+                            <span>推送至对话</span>
+                            <small> (开启时将该表格推送至对话)</small>
+                        </div>
+                        <div class="checkbox flex-container">
+                            <label>推送样式</label><small> (编辑推送至对话的表格样式)</small>
+                        </div>
+                        <textarea id="dataTable_tableSetting_tableRender" class="wide100p" rows="2"></textarea>
+                        <!-- 编辑推送至对话的表格样式 -->
+                        <i class="menu_button menu_button_icon fa-solid fa-bug tableEditor_renderButton">
+                            <a>在测试模式中编辑本表格样式</a>
+                        </i>
+                    </div>
+                </div>
+            `;
+            // 添加事件监听器 和 初始化弹窗内容
+            setTimeout(() => { // 确保 DOM 元素已渲染
+                const tableNameInput = document.getElementById('dataTable_tableSetting_tableName');
+                const tableNoteInput = document.getElementById('dataTable_tableSetting_note');
+                const tableRequiredCheckbox = document.getElementById('dataTable_tableSetting_required');
+                const tableInitNodeInput = document.getElementById('dataTable_tableSetting_initNode');
+                const tableInsertNodeInput = document.getElementById('dataTable_tableSetting_insertNode');
+                const tableUpdateNodeInput = document.getElementById('dataTable_tableSetting_updateNode');
+                const tableDeleteNodeInput = document.getElementById('dataTable_tableSetting_deleteNode');
+                const tableToChatCheckbox = document.getElementById('dataTable_tableSetting_toChat');
+                const tableRenderInput = document.getElementById('dataTable_tableSetting_tableRender');
+
+                tableNameInput.value = r.tableName || '';
+                tableNoteInput.value = r.tableNote || '';
+                tableRequiredCheckbox.checked = r.tableRequired === true;
+                tableInitNodeInput.value = r.tableInitNode || '';
+                tableInsertNodeInput.value = r.tableInsertNode || '';
+                tableUpdateNodeInput.value = r.tableUpdateNode || '';
+                tableDeleteNodeInput.value = r.tableDeleteNode || '';
+                tableToChatCheckbox.checked = r.tableToChat === true;
+                tableRenderInput.value = r.tableRender || '';
+
+                tableNameInput.addEventListener('input', (e) => { cell.tempData.tableName = e.target.value; });
+                tableNoteInput.addEventListener('input', (e) => { cell.tempData.tableNote = e.target.value; });
+                tableRequiredCheckbox.addEventListener('change', (e) => { cell.tempData.tableRequired = e.target.checked; });
+                tableInitNodeInput.addEventListener('input', (e) => { cell.tempData.tableInitNode = e.target.value; });
+                tableInsertNodeInput.addEventListener('input', (e) => { cell.tempData.tableInsertNode = e.target.value; });
+                tableUpdateNodeInput.addEventListener('input', (e) => { cell.tempData.tableUpdateNode = e.target.value; });
+                tableDeleteNodeInput.addEventListener('input', (e) => { cell.tempData.tableDeleteNode = e.target.value; });
+                tableToChatCheckbox.addEventListener('change', (e) => { cell.tempData.tableToChat = e.target.checked; });
+                tableRenderInput.addEventListener('input', (e) => { cell.tempData.tableRender = e.target.value; });
+
+            }, 0);
+            break;
+        case 'column_header':
+            contentHTML = `
+                <div class="wide100p padding5 dataBankAttachments">
+                    <h2 class="marginBot5"><span>编辑列</span></h2>
+                    <div>设置列的标题和描述信息。</div>
+                    <div class="dataTable_tablePrompt_list">
+                        <label>列标题</label>
+                        <input type="text" id="dataTable_columnSetting_columnName" class="margin0 text_pole" style=" margin-bottom: 20px;"/>
+                        <label>列描述</label><small> (给AI解释此列的作用)</small>
+                        <textarea id="dataTable_columnSetting_note" class="wide100p" rows="2"></textarea>
+                        <label>数据类型</label>
+                        <select id="dataTable_columnSetting_dataType">
+                            <option value="text">文本</option>
+                            <option value="number">数字</option>
+                            <option value="date">日期</option>
+                            <option value="select">下拉选择</option>
+                            </select>
+                    </div>
+                </div>
+            `;
+            // 添加事件监听器 和 初始化弹窗内容
+            setTimeout(() => { // 确保 DOM 元素已渲染
+                const columnNameInput = document.getElementById('dataTable_columnSetting_columnName');
+                const columnNoteInput = document.getElementById('dataTable_columnSetting_note');
+                const columnDataTypeSelect = document.getElementById('dataTable_columnSetting_dataType');
+
+                columnNameInput.value = r.columnName || '';
+                columnNoteInput.value = r.columnNote || '';
+                columnDataTypeSelect.value = r.columnDataType || 'text';
+
+                columnNameInput.addEventListener('input', (e) => { r.columnName = e.target.value; });
+                columnNoteInput.addEventListener('input', (e) => { r.columnNote = e.target.value; });
+                columnDataTypeSelect.addEventListener('change', (e) => { r.columnDataType = e.target.value; });
+            }, 0);
+            break;
+        case 'row_header':
+            contentHTML = `
+                <div class="wide100p padding5 dataBankAttachments">
+                    <h2 class="marginBot5"><span>编辑行</span></h2>
+                    <div>设置行的标题和描述信息。</div>
+                    <div class="dataTable_tablePrompt_list">
+                        <label>行标题</label>
+                        <input type="text" id="dataTable_rowSetting_rowName" class="margin0 text_pole" style=" margin-bottom: 20px;"/>
+                        <label>行描述</label><small> (给AI解释此行的作用)</small>
+                        <textarea id="dataTable_rowSetting_note" class="wide100p" rows="2"></textarea>
+                    </div>
+                </div>
+            `;
+            // 添加事件监听器 和 初始化弹窗内容
+            setTimeout(() => { // 确保 DOM 元素已渲染
+                const rowNameInput = document.getElementById('dataTable_rowSetting_rowName');
+                const rowNoteInput = document.getElementById('dataTable_rowSetting_note');
+
+                rowNameInput.value = r.rowName || '';
+                rowNoteInput.value = r.rowNote || '';
+
+                rowNameInput.addEventListener('input', (e) => { r.rowName = e.target.value; });
+                rowNoteInput.addEventListener('input', (e) => { r.rowNote = e.target.value; });
+            }, 0);
+            break;
+        case 'cell':
+            contentHTML = `
+                <div class="wide100p padding5 dataBankAttachments">
+                    <h2 class="marginBot5"><span>编辑单元格</span></h2>
+                    <div>编辑单元格的具体内容。</div>
+                    <div class="dataTable_tablePrompt_list">
+                        <label>单元格内容</label>
+                        <textarea id="dataTable_cellSetting_content" class="wide100p" rows="3"></textarea>
+                        <label>单元格描述</label><small> (给AI解释此单元格内容的作用)</small>
+                        <textarea id="dataTable_cellSetting_note" class="wide100p" rows="2"></textarea>
+                    </div>
+                </div>
+            `;
+            // 添加事件监听器 和 初始化弹窗内容
+            setTimeout(() => { // 确保 DOM 元素已渲染
+                const cellContentInput = document.getElementById('dataTable_cellSetting_content');
+                const cellNoteInput = document.getElementById('dataTable_cellSetting_note');
+
+                cellContentInput.value = r.cellContent || '';
+                cellNoteInput.value = r.cellNote || '';
+
+                cellContentInput.addEventListener('input', (e) => { r.cellContent = e.target.value; });
+                cellNoteInput.addEventListener('input', (e) => { r.cellNote = e.target.value; });
+            }, 0);
+            break;
+        default:
+            contentHTML = `<div>未知的单元格类型，无法生成编辑内容。</div>`;
+            break;
+    }
+
+    return contentHTML;
+}
+
+
+/**
+ * 根据已选择的表格模板更新 Drag 区域的表格 (优化为差量更新)
  */
 async function updateDragTables() {
     if (!drag) return;
 
-    const selectedSheetUids = USER.getSettings().table_database_templates_selected;
+    const selectedSheetUids = USER.getSettings().table_database_templates_selected || [];
     const container = $(drag.render).find('#tableContainer');
 
     if (currentPopupMenu) { // 关闭之前的菜单
@@ -144,24 +342,11 @@ async function updateDragTables() {
         currentPopupMenu = null;
     }
 
-    container.empty();
-
-    if (!selectedSheetUids || selectedSheetUids.length === 0) {
-        // 如果没有选择任何表格模板，则显示提示信息
-        container.append(`<p>未选择任何表格模板</p>`);
-        renderedTables.forEach((tableElement) => { // 移除 dragSpace 中的表格元素
-            if (drag.dragSpace.contains(tableElement)) {
-                drag.dragSpace.removeChild(tableElement);
-            }
-        });
-        renderedTables.clear();
-        return;
-    }
-
     // 获取当前已渲染表格的 UID 列表
-    const renderedTableUids = Array.from(renderedTables.keys()); // 获取当前已渲染表格的 UID 列表
-    const uidsToRemove = renderedTableUids.filter(uid => !selectedSheetUids.includes(uid)); // 找出需要移除的 UID (已渲染但未被选中的 UID)
+    const renderedTableUids = Array.from(renderedTables.keys());
 
+    // 找出需要移除的 UID (已渲染但未被选中的 UID)
+    const uidsToRemove = renderedTableUids.filter(uid => !selectedSheetUids.includes(uid));
     uidsToRemove.forEach(uid => {
         const tableElement = renderedTables.get(uid);
         if (tableElement) {
@@ -169,10 +354,19 @@ async function updateDragTables() {
                 drag.dragSpace.removeChild(tableElement); // 从 dragSpace 中移除表格元素
             }
             renderedTables.delete(uid); // 从 renderedTables 缓存中移除
+            if (container.has(tableElement)) {
+                container.empty(); // 移除所有子元素，因为要实现差量更新需要更精细的控制，这里为了简化先直接清空容器
+            }
         }
     });
 
-    for (const uid of selectedSheetUids) {
+    // 找出需要添加的 UID (未渲染但被选中的 UID) 和 需要更新的UID (已渲染且被选中的UID)
+    const uidsToAdd = selectedSheetUids.filter(uid => !renderedTableUids.includes(uid));
+    const uidsToUpdate = selectedSheetUids.filter(uid => renderedTableUids.includes(uid));
+
+
+    // 添加新的表格
+    for (const uid of uidsToAdd) {
         let sheet = new BASE.Sheet(uid, true);
         sheet.currentPopupMenu = currentPopupMenu;
 
@@ -183,7 +377,7 @@ async function updateDragTables() {
 
         // 单元格事件处理函数
         const cellEventHandler = (cell) => {
-            cell.element.addEventListener('click', (event) => {
+            cell.element.addEventListener('click', async (event) => { // 修改为 async 函数
                 event.stopPropagation();
                 if (cell.parent.currentPopupMenu) {
                     cell.parent.currentPopupMenu.destroy();
@@ -195,21 +389,21 @@ async function updateDragTables() {
                 const [rowIndex, colIndex] = cell.position;
 
                 if (rowIndex === 0 && colIndex === 0) {
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑表头', (e) => { cell.newAction(cell.CellAction.editCell) });
+                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑表头', async (e) => { await templateCellDataEdit(cell) }); // 添加 await
                     cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
                     cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
                 } else if (rowIndex === 0) {
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', (e) => { cell.newAction(cell.CellAction.editCell) });
+                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) }); // 添加 await
                     cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
                     cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
                     cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
                 } else if (colIndex === 0) {
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该行', (e) => { cell.newAction(cell.CellAction.editCell) });
+                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该行', async (e) => { await templateCellDataEdit(cell) }); // 添加 await
                     cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
                     cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
                     cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
                 } else {
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', (e) => { cell.newAction(cell.CellAction.editCell) });
+                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) }); // 添加 await
                 }
 
                 // 计算菜单弹出位置
@@ -226,18 +420,14 @@ async function updateDragTables() {
             });
         };
 
-        // 更新表格内容
-        let tableElement = renderedTables.get(uid);
-        if (tableElement) {
-            // 如果表格已存在，则更新表格内容
-            sheet.render(cellEventHandler); // 重新渲染表格内容和事件，传递新的 cellEventHandler
-        } else {
-            // 如果表格不存在，则创建新的表格
-            tableElement = sheet.render(cellEventHandler);
-            renderedTables.set(uid, tableElement);
-            container.append(tableElement); // 添加到容器中
-            drag.dragSpace.appendChild(tableElement); // 推入 dragSpace
-        }
+
+        // 创建新的表格
+        const tableElement = sheet.render(cellEventHandler);
+        renderedTables.set(uid, tableElement);
+        container.append(tableElement); // 添加到容器中
+        drag.dragSpace.appendChild(tableElement); // 推入 dragSpace
+
+
         // **[新增]：在表格渲染后，获取标题 HTML 并插入到 caption 元素**
         const captionElement = document.createElement('caption');
         captionElement.innerHTML = getSheetTitle(sheet); // 调用新的 getSheetTitle 函数
@@ -245,6 +435,22 @@ async function updateDragTables() {
             tableElement.querySelector('caption').replaceWith(captionElement); // 如果 caption 已存在，则替换
         } else {
             tableElement.insertBefore(captionElement, tableElement.firstChild); // 否则插入到表格的第一个子元素之前
+        }
+    }
+
+    // 更新已存在的表格的标题 (目前简化实现，更精细的更新可以比较表格内容是否变化，只在内容变化时才重新渲染表格)
+    for (const uid of uidsToUpdate) {
+        const tableElement = renderedTables.get(uid);
+        if (tableElement) {
+            let sheet = new BASE.Sheet(uid, true); // 重新创建 Sheet 实例以获取最新的数据
+            const captionElement = document.createElement('caption');
+            captionElement.innerHTML = getSheetTitle(sheet);
+            const existingCaption = tableElement.querySelector('caption');
+            if (existingCaption) {
+                existingCaption.replaceWith(captionElement);
+            } else {
+                tableElement.insertBefore(captionElement, tableElement.firstChild);
+            }
         }
     }
 }
@@ -301,7 +507,7 @@ async function initTableEdit(mesId) {
         USER.getSettings().table_database_templates_selected = currentSelectedValues;
         USER.saveSettings();
         await updateDropdownElement(); // 等待下拉框更新完成
-        await updateDragTables(); // 调用 updateDragTables 更新表格
+        updateDragTables();
         $(dropdownElement).val(currentSelectedValues).trigger('change'); // 设置 select2 的值为更新后的数组
     });
     // 点击重排序表格按钮
