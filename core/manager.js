@@ -12,12 +12,13 @@ import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, r
 import {defaultSettings} from "./source/pluginSetting.js";
 import {Drag} from "./source/dragManager.js";
 import {PopupMenu} from "./source/popupMenu.js";
-import {tableBase} from "./source/tableBase.js";
+// import {tableBase} from "./source/tableBase.js";
 import {findLastestTableData} from "../index.js";
 import {getRelativePositionOfCurrentCode} from "../utils/codePathProcessing.js";
 import {fileManager} from "../services/router.js";
 import {pushCodeToQueue} from "./derived/_fotTest.js";
 import {createProxy, createProxyWithUserSetting} from "../utils/codeProxy.js";
+import {Sheet} from "./source/tableBase.js";
 
 let derivedData = {}
 
@@ -35,17 +36,6 @@ export const USER = {
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
         return chat[chat.length - 1 - deep]
     },
-    findLastTablePiece: (deep = 0, cutoff = 1000) => {
-        const chat = getContext().chat;
-        // throw new Error('Not implemented yet');
-        if (!chat || chat.length === 0) return null;
-        for (let i = 0; i < chat.length && i < cutoff; i++) {
-            const piece = chat[chat.length - 1 - i];
-            if (piece.tablebase_sheet) {
-                return piece;
-            }
-        }
-    },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
     IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA'),
 }
@@ -59,13 +49,52 @@ readonly(USER, 'tableBaseDefaultSettings', () => defaultSettings);
  * @description 请注意，对库的操作应通过 `BASE.object()` 创建 `Sheet` 实例进行，任何对库的编辑都不应该直接暴露到该管理器中
  */
 export const BASE = {
-    Sheet: (target) => tableBase.Sheet(target), // 修改为 Sheet，并指向 tableBase.Sheet
-    SheetTemplate: (target) => { // 保留 SheetTemplate，但内部也指向 Sheet，并标记 asTemplate: true
-        const sheet = tableBase.Sheet(target);
-        sheet.asTemplate = true;
-        return sheet;
+    /**
+     * @description `Sheet` 数据表单实例
+     * @description 该实例用于对数据库的数据进行访问、修改、查询等操作
+     * @description 请注意，对数据库的任何操作都应该通过该实例进行，而不应该直接访问数据库
+     */
+    Sheet: Sheet,
+
+    loadUserAllTemplates() {
+        let templates = USER.getSettings().table_database_templates;
+        if (!Array.isArray(templates)) {
+            templates = [];
+            USER.getSettings().table_database_templates = templates;
+            USER.saveSettings();
+        }
+        return templates;
     },
-    getLastSheet: () => USER.findLastTablePiece()?.tablebase_sheet,
+    loadContextAllSheets() {
+        let sheets = USER.getContext().table_database_data;
+        if (!Array.isArray(sheets)) {
+            sheets = [];
+            USER.getContext().table_database_data = sheets;
+        }
+        return sheets;
+    },
+    getLastSheets: (deep = 0, cutoff = 1000) => {
+        const chat = getContext().chat;
+        // throw new Error('Not implemented yet');
+        if (!chat || chat.length === 0) return null;
+        for (let i = 0; i < chat.length && i < cutoff; i++) {
+            const piece = chat[chat.length - 1 - i];
+            if (piece.tablebase_sheets) {
+                return piece;
+            }
+        }
+    },
+
+    destroyAllTemplates() {
+        if (confirm("确定要销毁所有表格模板数据吗？") === false) return;
+        USER.getSettings().table_database_templates = [];
+        USER.getSettings().table_database_templates_selected = [];
+        USER.saveSettings();
+    },
+    destroyAllContextSheets() {
+        if (confirm("确定要销毁所有表格数据吗？") === false) return;
+        USER.getContext().table_database_data = [];
+    }
 };
 
 
@@ -97,9 +126,9 @@ export const EDITOR = {
             'user_table_database_setting': USER.tableBaseSetting,
             'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
-            'context_tableBase_data': USER.getContext().tablebase,
+            'context_tableBase_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),
-            'chat_last_sheet': USER.findLastTablePiece()?.tablebase_sheet,
+            'chat_last_sheet': BASE.getLastSheets(),
         }, 3);
     },
 }

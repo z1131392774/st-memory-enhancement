@@ -1,6 +1,6 @@
 import {DERIVED, EDITOR, SYSTEM, USER} from "../manager.js";
 import {getTableView} from "./tableDataView.js";
-import {getEditView} from "./tableEditView.js";
+import {getEditView} from "./tableTemplateEditView.js";
 
 let tableDrawer = null;
 let tableDrawerIcon = null;
