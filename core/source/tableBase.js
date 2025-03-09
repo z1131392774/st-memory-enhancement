@@ -36,21 +36,21 @@ const CellType = {
 export class Sheet {
     SheetDomain = SheetDomain;
     SheetType = SheetType;
-    constructor(target = null, asTemplate = false) { // 构造函数添加 asTemplate 参数，并设置默认值为 false
+    constructor(target = null, asTemplate = false) {
         this.uid = '';
         this.name = '';
         this.domain = SheetDomain.global;
         this.type = SheetType.free;
-        this.asTemplate = asTemplate || false; // 优先使用传入的 asTemplate 参数，否则使用 target 中的 asTemplate
+        this.asTemplate = asTemplate || false;  // 优先使用传入的 asTemplate 参数，否则使用 target 中的 asTemplate
 
         this.cells = new Map();
         this.cellHistory = [];
         this.cellSheet = [];
-        this.currentPopupMenu = null; // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
-        this.tableElement = null; // 用于存储渲染后的 table 元素
-        this.lastCellEventHandler = null; // 保存最后一次使用的 cellEventHandler
+        this.currentPopupMenu = null;       // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
+        this.tableElement = null;           // 用于存储渲染后的 table 元素
+        this.lastCellEventHandler = null;   // 保存最后一次使用的 cellEventHandler
 
-        if (target?.asTemplate === true) { // 保留对 target 中 asTemplate 的兼容
+        if (target?.asTemplate === true) {
             this.asTemplate = true;
         }
 
@@ -75,7 +75,7 @@ export class Sheet {
     }
     save() {
         if (this.asTemplate === false) {
-            throw new Error('表格保存逻辑未实现'); //  您需要根据实际情况实现非模板表格的保存逻辑
+            throw new Error('表格保存逻辑未实现');
         } else {
             let templates = BASE.loadUserAllTemplates();
             if (!templates) templates = [];
@@ -110,8 +110,7 @@ export class Sheet {
 
     delete() {
         if (!this.asTemplate) {
-            console.warn("表格删除逻辑未实现，当前操作仅为模板删除。"); // 您需要根据实际情况实现非模板表格的删除逻辑
-            return false;
+            throw new Error('表格删除逻辑未实现');
         }
         let templates = BASE.loadUserAllTemplates();
         USER.getSettings().table_database_templates = templates.filter(t => t.uid !== this.uid);
@@ -127,14 +126,12 @@ export class Sheet {
 
         if (!this.tableElement) {
             this.tableElement = document.createElement('table');
-            this.tableElement.classList.add('sheet-table'); // 使用 sheet-table
-            this.tableElement.style.position = 'relative'; // Ensure relative positioning for caption
+            this.tableElement.classList.add('sheet-table');
+            this.tableElement.style.position = 'relative';
 
             const captionElement = document.createElement('caption');
-            captionElement.innerHTML = this.getSheetTitle();
             this.tableElement.appendChild(captionElement);
 
-            // Add CSS styles directly to the component for borders and dimensions - 移动到 render 方法中
             const styleElement = document.createElement('style');
             styleElement.textContent = `
                 .sheet-table { border-collapse: collapse; width: max-content; } /* Set table width to max-content */
@@ -168,31 +165,6 @@ export class Sheet {
             tbody.appendChild(rowElement); // 将 rowElement 添加到 tbody 中
         });
         return this.tableElement;
-    }
-
-    getSheetTitle() {
-        const domainIcons = {
-            [SheetDomain.global]: `<i class="fa-solid fa-earth-asia"></i> `,
-            [SheetDomain.role]: `<i class="fa-solid fa-user-tag"></i> `,
-            [SheetDomain.chat]: `<i class="fa-solid fa-comment"></i> `,
-        };
-
-        const typeIcons = {
-            [SheetType.free]: `<i class="fa-solid fa-shuffle"></i><br> `,
-            [SheetType.dynamic]: `<i class="fa-solid fa-arrow-down-wide-short"></i><br> `,
-            [SheetType.fixed]: `<i class="fa-solid fa-thumbtack"></i><br> `,
-            [SheetType.static]: `<i class="fa-solid fa-link"></i><br> `,
-        };
-
-        const sheetTileText = `<div style="color: var(--SmartThemeEmColor)">
-            ${domainIcons[this.domain] || ''}
-            ${typeIcons[this.type] || ''}
-            <small style="font-size: 0.8rem; font-weight: normal; color: var(--SmartThemeEmColor)">
-                ${this.name ? this.name : 'Unnamed Table'}
-            </small>
-        </div>`;
-
-        return sheetTileText;
     }
 
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
