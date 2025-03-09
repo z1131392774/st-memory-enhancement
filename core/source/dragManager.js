@@ -19,7 +19,7 @@ export class Drag {
         this.elements = new Map();
 
         // 新增阈值变量
-        this.dragThreshold = 10; // 移动超过10px视为拖拽
+        this.dragThreshold = 5; // 移动超过5px视为拖拽
         this.initialPosition = { x: 0, y: 0 };
         this.shouldDrag = false;
 
@@ -35,16 +35,17 @@ export class Drag {
         this.dragContainer.style.overflow = 'hidden';
         // this.dragContainer.style.background = '#32282b';
 
-        // 创建可拖动内容层
+        // 创建可拖动内容层 (默认层级，在 dragLayer 下面)
         this.dragSpace = document.createElement('div');
         this.dragSpace.style.transformOrigin = '0 0';
         this.dragSpace.style.position = 'absolute';
         this.dragSpace.style.top = '0';
         this.dragSpace.style.left = '0';
         this.dragSpace.style.bottom = '0';
+        this.dragSpace.style.willChange = 'transform'; // 优化：提示浏览器 transform 可能会变化
         this.dragContainer.appendChild(this.dragSpace);
 
-        // 创建拖动事件层
+        // 创建拖动事件层 (在中间层级，用于拖拽和事件捕获)
         this.dragLayer = document.createElement('div');
         this.dragLayer.style.position = 'absolute';
         this.dragLayer.style.top = '0';
@@ -54,19 +55,32 @@ export class Drag {
         this.dragLayer.style.height = '100%';
         this.dragLayer.style.cursor = 'grab';
         this.dragLayer.style.userSelect = 'none';
+        this.dragLayer.style.backgroundColor = 'transparent'; // 确保 dragLayer 不遮挡下方元素的 hover 效果
         this.dragContainer.appendChild(this.dragLayer);
+
+        // 创建可拖动内容层 (置顶层级，在 dragLayer 上面)
+        this.dragTopSpace = document.createElement('div');
+        this.dragTopSpace.style.transformOrigin = '0 0';
+        this.dragTopSpace.style.position = 'absolute';
+        this.dragTopSpace.style.top = '0';
+        this.dragTopSpace.style.left = '0';
+        this.dragTopSpace.style.bottom = '0';
+        this.dragTopSpace.style.willChange = 'transform'; // 优化：提示浏览器 transform 可能会变化
+        this.dragContainer.appendChild(this.dragTopSpace);
+
 
         // 分离手机和电脑事件
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
             this.dragSpace.style.transition = 'transform 0.02s ease-out';
+            this.dragTopSpace.style.transition = 'transform 0.02s ease-out';
             this.dragLayer.addEventListener('touchstart', this.handleMouseDown);
         } else {
             this.dragSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
+            this.dragTopSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
             this.dragLayer.addEventListener('mousedown', this.handleMouseDown);
             this.dragLayer.addEventListener('wheel', this.handleWheel, { passive: false });
         }
     }
-
 
     /**
      * 获取渲染元素，用于挂载到页面上
@@ -77,16 +91,7 @@ export class Drag {
     }
 
     /**
-     * 设置样式，支持对象形式
-     * @param style
-     * @example style({background: 'red', color: 'white'})
-     */
-    style(style){
-        this.dragContainer.style = {...this.dragContainer.style, ...style};
-    }
-
-    /**
-     * 添加元素，支持设置初始位置，默认为[0, 0]
+     * 添加元素，添加到默认层级 (dragLayer下面) ，支持设置初始位置，默认为[0, 0]
      * @example add('name', element, [100, 100])
      * @param name
      * @param element
@@ -101,6 +106,21 @@ export class Drag {
     }
 
     /**
+     * 添加元素到顶层级 (dragLayer上面)，支持设置初始位置，默认为[0, 0]
+     * @example addToTop('name', element, [100, 100])
+     * @param name
+     * @param element
+     * @param position
+     */
+    addToTop(name, element, position = [0, 0]) {
+        element.style.position = 'absolute';
+        element.style.left = `${position[0]}px`;
+        element.style.top = `${position[1]}px`;
+        this.dragTopSpace.appendChild(element);
+        this.elements.set(name, element);
+    }
+
+    /**
      * 移动元素到指定位置，默认为[0, 0]
      * @example move('name', [100, 100])
      * @param name
@@ -108,8 +128,9 @@ export class Drag {
      */
     move(name, position = [0, 0]) {
         if (this.elements.has(name)) {
-            this.elements.get(name).style.left = `${position[0]}px`;
-            this.elements.get(name).style.top = `${position[1]}px`;
+            const element = this.elements.get(name);
+            element.style.left = `${position[0]}px`;
+            element.style.top = `${position[1]}px`;
         }
     }
 
@@ -120,14 +141,19 @@ export class Drag {
      */
     delete(name) {
         if (this.elements.has(name)) {
-            this.dragSpace.removeChild(this.elements.get(name));
+            const element = this.elements.get(name);
+            if (this.dragSpace.contains(element)) {
+                this.dragSpace.removeChild(element);
+            } else if (this.dragTopSpace.contains(element)) {
+                this.dragTopSpace.removeChild(element);
+            }
             this.elements.delete(name);
         }
     }
 
 
     /** ------------------ 以下为拖拽功能实现，为事件处理函数，不需要手动调用 ------------------ */
-    // 鼠标按下事件
+        // 鼠标按下事件
     handleMouseDown = (e) => {
         if (e.button === 0 || e.type === 'touchstart') {
             let clientX, clientY, touches;
@@ -161,10 +187,14 @@ export class Drag {
             this.startX = clientX;
             this.startY = clientY;
 
-            document.addEventListener('mousemove', this.handleFirstMove);
-            document.addEventListener('mouseup', this.handleMouseUp);
-            document.addEventListener('touchmove', this.handleFirstMove);
-            document.addEventListener('touchend', this.handleMouseUp);
+            // 分离手机和电脑事件
+            if (e.type === 'touchstart') {
+                document.addEventListener('touchmove', this.handleFirstMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
+                document.addEventListener('touchend', this.handleMouseUp, { passive: true }); // 优化：passive: true 声明不会preventDefault
+            } else {
+                document.addEventListener('mousemove', this.handleFirstMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
+                document.addEventListener('mouseup', this.handleMouseUp, { passive: true }); // 优化：passive: true 声明不会preventDefault
+            }
         }
     };
 
@@ -194,10 +224,14 @@ export class Drag {
             this.canvasStartX = (this.startX - this.translateX) / this.scale;
             this.canvasStartY = (this.startY - this.translateY) / this.scale;
 
-            document.removeEventListener('mousemove', this.handleFirstMove);
-            document.addEventListener('mousemove', this.handleMouseMove);
-            document.removeEventListener('touchmove', this.handleFirstMove);
-            document.addEventListener('touchmove', this.handleMouseMove);
+            if (e.type === 'touchmove') {
+                document.removeEventListener('touchmove', this.handleFirstMove);
+                document.addEventListener('touchmove', this.handleMouseMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
+            } else {
+                document.removeEventListener('mousemove', this.handleFirstMove);
+                document.addEventListener('mousemove', this.handleMouseMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
+            }
+
             this.handleMouseMove(e);
         }
     };
@@ -228,13 +262,16 @@ export class Drag {
 
     // 鼠标释放事件
     handleMouseUp = (e) => {
-        // 清理事件监听
-        document.removeEventListener('mousemove', this.handleFirstMove);
-        document.removeEventListener('mousemove', this.handleMouseMove);
-        document.removeEventListener('mouseup', this.handleMouseUp);
-        document.removeEventListener('touchmove', this.handleFirstMove);
-        document.removeEventListener('touchmove', this.handleMouseMove);
-        document.removeEventListener('touchend', this.handleMouseUp);
+        // 分离手机和电脑事件
+        if (e.type === 'touchend') {
+            document.removeEventListener('touchmove', this.handleFirstMove);
+            document.removeEventListener('touchmove', this.handleMouseMove);
+            document.removeEventListener('touchend', this.handleMouseUp);
+        } else {
+            document.removeEventListener('mousemove', this.handleFirstMove);
+            document.removeEventListener('mousemove', this.handleMouseMove);
+            document.removeEventListener('mouseup', this.handleMouseUp);
+        }
 
         // 如果没有触发拖拽则执行点击
         if (!this.shouldDrag) {
@@ -258,13 +295,11 @@ export class Drag {
             // 检查 clientX 和 clientY 是否是有效的数字
             if (typeof clientX === 'number' && isFinite(clientX) && typeof clientY === 'number' && isFinite(clientY)) {
                 const elementUnderMouse = document.elementFromPoint(clientX, clientY);
-                this.dragLayer.style.pointerEvents = 'auto';
                 if (elementUnderMouse) {
                     elementUnderMouse.dispatchEvent(new MouseEvent('click', { bubbles: true }));
                 }
             } else {
                 console.warn("Invalid coordinates for elementFromPoint:", clientX, clientY, e); // 打印警告信息，方便调试
-                this.dragLayer.style.pointerEvents = 'auto'; // 即使坐标无效，也要恢复 pointerEvents
             }
         }
 
@@ -272,6 +307,7 @@ export class Drag {
         this.isDragging = false;
         this.shouldDrag = false;
         this.dragLayer.style.cursor = 'grab';
+        this.dragLayer.style.pointerEvents = 'auto';
     };
 
     // 滚轮缩放事件
@@ -301,8 +337,6 @@ export class Drag {
         const targetTranslateX = mouseX - worldX * this.scale;
         const targetTranslateY = mouseY - worldY * this.scale;
 
-        // const dynamicThreshold = this.threshold;
-
         this.mergeOffset(targetTranslateX - this.translateX, targetTranslateY - this.translateY);
         this.updateTransform();
     };
@@ -325,14 +359,11 @@ export class Drag {
         }
     }
 
-    // 更新变换样式
-    // updateTransform() {
-    //     this.dragSpace.style.transform =
-    //         `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
-    // }
     updateTransform() {
         requestAnimationFrame(() => {
             this.dragSpace.style.transform =
+                `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+            this.dragTopSpace.style.transform =
                 `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
         });
     }

@@ -15,7 +15,7 @@ export class PopupMenu {
         this.menuItems = [];
         // 是否持久化，默认 false
         this.lasting = options.lasting === true;
-
+        // position: absolute; inset: auto auto 0px 0px; margin: 0px; transform: translate3d(2.4px, -46.4px, 0px);
         // 创建外层容器
         this.popupContainer = document.createElement('div');
         this.popupContainer.style.position = 'absolute'; // 外层容器使用绝对定位，方便 show 方法定位
@@ -23,21 +23,25 @@ export class PopupMenu {
         this.popupContainer.style.zIndex = '1000';
 
         // 创建菜单内容容器 (之前叫做 menuContainer，现在继续沿用)
-        this.menuContainer = document.createElement('div');
+        this.menuContainer = $('<div class="options-content"></div>')[0];
         this.menuContainer.style.position = 'relative'; // 菜单内容容器使用相对定位
-        // this.menuContainer.style.backgroundColor = 'var(SmartThemeBlurTintColor)'; // 应用背景色
-        // this.menuContainer.style.color = 'var(SmartThemeBodyColor)'; // 应用文字颜色
-        this.menuContainer.style.border = '1px solid rgba(0,0,0,0.1)';
-        this.menuContainer.style.borderRadius = '5px';
-        this.menuContainer.style.padding = '5px';
-        this.menuContainer.style.boxShadow = '2px 2px 5px rgba(0,0,0,0.3)';
-        // 添加背景模糊
-        this.menuContainer.style.backdropFilter = 'blur(20px)';
+        this.menuContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';            // !.酒馆弹出菜单原生背景色
+        this.menuContainer.style.backdropFilter = 'blur(var(--SmartThemeBlurStrength))';        // !.酒馆弹出菜单原生背景模糊
+        this.menuContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';  // !.酒馆弹出菜单原生背景模糊
+
+        // backdrop-filter: blur(var(--SmartThemeBlurStrength));
+        //     background-color: var(--SmartThemeBlurTintColor);
+        //     -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength));
+        // this.menuContainer.style.backgroundColor = '#fff';
+        // 添加class
+        // this.menuContainer.className = 'options-content';
+
 
         this.popupContainer.appendChild(this.menuContainer); // 将菜单内容容器添加到外层容器中
 
         // 事件委托处理菜单项点击事件，监听在外层容器上
         this.popupContainer.addEventListener('click', this.handleMenuItemClick.bind(this));
+        this.popupContainer.classList.add('blur_strength');
     }
 
     /**
@@ -54,7 +58,7 @@ export class PopupMenu {
      * @param {HTMLElement} parentElement -  父元素，菜单将添加到此元素
      * @returns {HTMLDivElement} - 外层容器元素
      */
-    render(parentElement) { // Modified render to accept parentElement
+    render() { // Modified render to accept parentElement
         // 清空之前的菜单内容
         this.menuContainer.innerHTML = '';
 
@@ -66,11 +70,10 @@ export class PopupMenu {
             menuItem.style.cursor = 'pointer';
             menuItem.style.userSelect = 'none';
             menuItem.classList.add('popup-menu-item'); // 添加类名方便事件委托和样式控制
+            menuItem.classList.add('list-group-item', 'flex-container', 'flexGap5', 'interactable');    // !.酒馆菜单项原生样式
             this.menuContainer.appendChild(menuItem); // 将菜单项添加到 menuContainer 中
         });
 
-        // 使用传入的 parentElement 添加 popupContainer
-        parentElement.appendChild(this.popupContainer); // Append to the specified parent
         return this.popupContainer; // 返回外层容器
     }
 
@@ -80,16 +83,15 @@ export class PopupMenu {
      * @param {number} y - 菜单显示的纵坐标 (相对于父元素)
      */
     show(x = 0, y = 0) {
-        console.log('PopupMenu show() called at:', x, y); // Debug log
         this.popupContainer.style.left = `${x}px`;
         this.popupContainer.style.top = `${y}px`;
         this.popupContainer.style.display = 'block';
 
         // --- DEBUGGING STYLES ---
-        this.popupContainer.style.backgroundColor = 'rgba(255, 0, 0, 0.0)'; // Red background, semi-transparent
+        // this.popupContainer.style.backgroundColor = 'rgba(255, 0, 0, 0.0)'; // Red background, semi-transparent
         this.popupContainer.style.width = '200px';  // Fixed width
         this.popupContainer.style.height = 'auto'; // Fixed height
-        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)'; // Visible border
+        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)';
 
         setTimeout(() => {
             document.addEventListener('click', this.handleClickOutside.bind(this));

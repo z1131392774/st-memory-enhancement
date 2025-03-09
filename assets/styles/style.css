@@ -1,34 +1,15 @@
 /* 以下为原有样式，不修改 */
-.__main_text_color {
-    color: var(SmartThemeBodyColor);
-}
-.__italic_text_color {
-    color: var(SmartThemeEmColor);
-}
-.__underlined_text_color {
-    color: var(SmartThemeUnderlineColor);
-}
-.__quote_text_color {
-    color: var(SmartThemeQuoteColor);
-}
-.__shadow_color {
-    color: var(SmartThemeShadowColor);
-}
-.__chat_background_color {
-    color: var(SmartThemeChatTintColor);
-}
-.__ui_background_color {
-    color: var(SmartThemeBlurTintColor);
-}
-.__ui_border_color {
-    color: var(SmartThemeBorderColor);
-}
-.__user_message_blur_tint_color {
-    color: var(SmartThemeUserMesBlurTintColor);
-}
-.__ai_message_blur_tint_color {
-    color: var(SmartThemeBotMesBlurTintColor);
-}
+.--SmartThemeBodyColor {}               /* 主题正文颜色 */
+.--SmartThemeEmColor {}                 /* 强调颜色 */
+.--SmartThemeUnderlineColor {}          /* 下划线颜色 */
+.--SmartThemeQuoteColor {}              /* 引用颜色 */
+.--SmartThemeShadowColor {}             /* 阴影颜色 */
+.--SmartThemeChatTintColor {}           /* 聊天背景颜色 */
+.--SmartThemeBlurTintColor {}           /* 模糊背景颜色 */
+.--SmartThemeBorderColor {}             /* 主题边框颜色 */
+.--SmartThemeBodyColor {}               /* 主题正文颜色 */
+.--SmartThemeUserMesBlurTintColor {}    /* 用户消息模糊背景颜色 */
+.--SmartThemeBotMesBlurTintColor {}     /* 机器人消息模糊背景颜色 */
 
 
 
