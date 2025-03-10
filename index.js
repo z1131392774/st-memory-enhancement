@@ -490,10 +490,11 @@ jQuery(async () => {
     initAppHeaderTableDrawer();
 
     SYSTEM.f(()=>{
-        USER.getSettings().table_database_templates_selected = []
-        USER.getSettings().table_database_templates = []
-        USER.getContext().table_tableBase_data = []
-        delete USER.getContext().context_tableBase_data
+        // USER.getSettings().table_database_templates_selected = []
+        // USER.getSettings().table_database_templates = []
+        // USER.getContext().table_tableBase_data = []
+        // delete USER.getContext().context_tableBase_data
+        console.log("测试")
     }, 'index test 0');
 
     // 监听主程序事件

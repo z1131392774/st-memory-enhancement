@@ -165,36 +165,30 @@ export class Drag {
                 } else {
                     return; // 如果 touches 为空，则直接返回，不处理
                 }
+                document.addEventListener('touchmove', this.handleFirstMove, { passive: false });
+                document.addEventListener('touchend', this.handleMouseUp, { passive: true });
             } else {
                 clientX = e.clientX;
                 clientY = e.clientY;
+                document.addEventListener('mousemove', this.handleFirstMove, { passive: false });
+                document.addEventListener('mouseup', this.handleMouseUp, { passive: true });
             }
 
             this.initialPosition.x = clientX;
             this.initialPosition.y = clientY;
 
             this.dragLayer.style.pointerEvents = 'none';
-            const elementUnderMouse = document.elementFromPoint(clientX, clientY);
             this.dragLayer.style.pointerEvents = 'auto';
 
-            if (elementUnderMouse?.closest('button, [onclick], a')) {
-                elementUnderMouse.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                return;
-            }
+            // 如果点击的是按钮、链接等可点击元素，则直接触发点击事件（禁用，目前通过距离直接检测）
+            // const elementUnderMouse = document.elementFromPoint(clientX, clientY);
+            // if (elementUnderMouse?.closest('button, [onclick], a')) {
+            //     elementUnderMouse.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            //     return;
+            // }
 
             this.isDragging = false;
             this.shouldDrag = false;
-            this.startX = clientX;
-            this.startY = clientY;
-
-            // 分离手机和电脑事件
-            if (e.type === 'touchstart') {
-                document.addEventListener('touchmove', this.handleFirstMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
-                document.addEventListener('touchend', this.handleMouseUp, { passive: true }); // 优化：passive: true 声明不会preventDefault
-            } else {
-                document.addEventListener('mousemove', this.handleFirstMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
-                document.addEventListener('mouseup', this.handleMouseUp, { passive: true }); // 优化：passive: true 声明不会preventDefault
-            }
         }
     };
 
@@ -221,15 +215,15 @@ export class Drag {
             this.shouldDrag = true;
             this.dragLayer.style.cursor = 'grabbing';
 
-            this.canvasStartX = (this.startX - this.translateX) / this.scale;
-            this.canvasStartY = (this.startY - this.translateY) / this.scale;
+            this.canvasStartX = (clientX - this.translateX) / this.scale;
+            this.canvasStartY = (clientY - this.translateY) / this.scale;
 
             if (e.type === 'touchmove') {
                 document.removeEventListener('touchmove', this.handleFirstMove);
-                document.addEventListener('touchmove', this.handleMouseMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
+                document.addEventListener('touchmove', this.handleMouseMove, { passive: false });
             } else {
                 document.removeEventListener('mousemove', this.handleFirstMove);
-                document.addEventListener('mousemove', this.handleMouseMove, { passive: false }); // 优化：passive: false 显式声明可能preventDefault
+                document.addEventListener('mousemove', this.handleMouseMove, { passive: false });
             }
 
             this.handleMouseMove(e);

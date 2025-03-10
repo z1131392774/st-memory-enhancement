@@ -3,6 +3,7 @@ import {findLastestTableData, findTableStructureByIndex} from "../../index.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
 let isPopupOpening = false; // 防止在弹窗打开时推送日志导致循环
+let debugEventHistory = [];
 
 function updateTableDebugLog(type, message, detail, timeout) {
     const newLog = {
@@ -42,8 +43,8 @@ function updateTableDebugLog(type, message, detail, timeout) {
     }
 
     if (isPopupOpening) return;
-    DERIVED.any.tableDebugLog = DERIVED.any.tableDebugLog || [];
-    DERIVED.any.tableDebugLog.unshift(newLog);
+    debugEventHistory = debugEventHistory || [];
+    debugEventHistory.unshift(newLog);
 }
 
 const copyButtonStyle = `
@@ -138,14 +139,14 @@ export async function openTableDebugLogPopup() {
     toastr.clear()
 
     // 初始化渲染日志，根据 checkbox 状态决定是否只显示 error
-    renderDebugLogs($debugLogContainer, DERIVED.any.tableDebugLog, $onlyErrorLogCheckbox.is(':checked'));
+    renderDebugLogs($debugLogContainer, debugEventHistory, $onlyErrorLogCheckbox.is(':checked'));
 
     $onlyErrorLogCheckbox.off('change').on('change', function () { // 移除之前的事件监听，避免重复绑定
         const onlyError = $(this).is(':checked'); // 获取 checkbox 的选中状态
-        renderDebugLogs($debugLogContainer, DERIVED.any.tableDebugLog, onlyError); // 重新渲染日志
+        renderDebugLogs($debugLogContainer, debugEventHistory, onlyError); // 重新渲染日志
     });
     $exportButton.on('click', () => {
-        const logData = DERIVED.any.tableDebugLog.map(log => {
+        const logData = debugEventHistory.map(log => {
             return {
                 time: log.time,
                 type: log.type,
