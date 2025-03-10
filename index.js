@@ -19,7 +19,7 @@ import { initRefreshTypeSelector } from './core/derived/initRefreshTypeSelector.
 
 console.log("______________________记忆插件：开始加载______________________")
 
-const VERSION = '1.4.0-alpha'
+const VERSION = '2.0.0-alpha'
 
 const editErrorInfo = {
     forgotCommentTag: false,

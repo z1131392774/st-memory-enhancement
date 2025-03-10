@@ -15,23 +15,27 @@ export class PopupMenu {
         this.lasting = options.lasting === true;
 
         this.popupContainer = document.createElement('div');
+        // this.popupContainer.classList.add('margin5', 'wide_dialogue_popup');
         this.popupContainer.style.position = 'absolute';
         this.popupContainer.style.display = 'none';
         this.popupContainer.style.zIndex = '1000';
+        this.popupContainer.style.width = '180px';
+        this.popupContainer.style.height = 'auto';
+        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)';
+        this.popupContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
+        this.popupContainer.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
+        this.popupContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
+        this.popupContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
 
-        this.menuContainer = $('<div class="options-content"></div>')[0];
+        this.menuContainer = $('<div class="dynamic-popup-menu" id="dynamic_popup_menu"></div>')[0];
         this.menuContainer.style.position = 'relative';
-        this.menuContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
-        this.menuContainer.style.backdropFilter = 'blur(var(--SmartThemeBlurStrength))';
-        this.menuContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
+        this.menuContainer.style.padding = '2px 0';
 
         this.popupContainer.appendChild(this.menuContainer);
 
         this.handleMenuItemClick = this.handleMenuItemClick.bind(this);
         this.handleClickOutside = this.handleClickOutside.bind(this);
-
         this.popupContainer.addEventListener('click', this.handleMenuItemClick);
-        this.popupContainer.classList.add('blur_strength');
 
         // 使用 Map 存储菜单项与其索引的映射关系
         this.menuItemIndexMap = new Map();
@@ -52,7 +56,9 @@ export class PopupMenu {
             menuItem.style.padding = '5px 10px';
             menuItem.style.cursor = 'pointer';
             menuItem.style.userSelect = 'none';
-            menuItem.classList.add('popup-menu-item', 'list-group-item', 'flex-container', 'flexGap5', 'interactable');
+            menuItem.style.justifyContent = 'flex-start';
+            menuItem.style.alignItems = 'center';
+            menuItem.classList.add('dynamic-popup-menu-item', 'list-group-item');
             this.menuContainer.appendChild(menuItem);
 
             // 存储菜单项元素与索引的映射
@@ -63,7 +69,7 @@ export class PopupMenu {
     }
 
     handleMenuItemClick(event) {
-        const menuItemElement = event.target.closest('.popup-menu-item');
+        const menuItemElement = event.target.closest('.dynamic-popup-menu-item');
         if (menuItemElement) {
             // 直接从 Map 中获取索引
             const index = this.menuItemIndexMap.get(menuItemElement);
@@ -87,12 +93,6 @@ export class PopupMenu {
         this.popupContainer.style.left = `${x}px`;
         this.popupContainer.style.top = `${y}px`;
         this.popupContainer.style.display = 'block';
-
-        // --- DEBUGGING STYLES ---
-        // this.popupContainer.style.backgroundColor = 'rgba(255, 0, 0, 0.0)'; // Red background, semi-transparent
-        this.popupContainer.style.width = '200px';  // Fixed width
-        this.popupContainer.style.height = 'auto'; // Fixed height
-        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)';
 
         setTimeout(() => {
             document.addEventListener('click', this.handleClickOutside.bind(this));

@@ -50,6 +50,13 @@ td.selected {
     overflow-x: auto;
 }
 
+#tableProjectTag {
+    background-color: rgba(255, 255, 255, 0.5);
+    padding: 0px 4px;
+    border-radius: 6px;
+    display: none;
+}
+
 #tableUpdateTag {
     background-color: #225d47;
     padding: 0px 4px;
@@ -493,6 +500,24 @@ td.selected {
     white-space: pre-wrap;
     font-family: monospace;
     text-align: left;
+}
+
+/* 用于 popupMenu 的样式 */
+.dynamic-popup-menu {
+    display: flex;
+    z-index: 29999;
+    background-color: var(--SmartThemeBlurTintColor);
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength));
+    backdrop-filter: blur(calc(var(--SmartThemeBlurStrength) * 2));
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    flex-flow: column;
+    border-radius: 10px;
+    padding: 2px;
+}
+
+.dynamic-popup-menu-item {
+    justify-content: flex-start;
+    align-items: center;
 }
 
 

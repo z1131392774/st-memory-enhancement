@@ -70,6 +70,9 @@ export async function initAppHeaderTableDrawer() {
     $('#database-content').show();
     $('#editor-content').hide();
     $('#setting-content').hide();
+    $('#tableUpdateTag').click(function() {
+        $('#extensions_details').trigger('click');
+    });
 
 
     // tableDrawerContentHeader.empty(); // 清空抽屉内容的标题
@@ -89,6 +92,9 @@ export async function initAppHeaderTableDrawer() {
     });
 
     isEventListenersBound = true; // 设置标志为已绑定
+
+    // 移除旧版本在插件页面中的memory_enhancement_container元素
+    $('.memory_enhancement_container').remove();
 }
 
 

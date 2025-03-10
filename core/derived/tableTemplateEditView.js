@@ -1,6 +1,7 @@
 // tableTemplateEditView.js
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 import { PopupMenu } from '../source/popupMenu.js';
+import { Form } from '../source/formManager.js'; // 引入 Form 类
 
 const userSheetEditInfo = {
     chatIndex: null,
@@ -18,7 +19,61 @@ const renderedTables = new Map(); // 用于存储已渲染的表格元素，key 
 
 
 /**
- * 创建多选下拉框
+ * 表单字段配置对象，描述不同单元格类型的表单结构 (保留在 tableTemplateEditView.js)
+ */
+const formConfigs = {
+    sheet_origin: {
+        formTitle: "编辑表格",
+        formDescription: "表格的整体设置，例如表格名称、说明等。",
+        fields: [
+            { label: '表格名', id: 'dataTable_tableSetting_tableName', type: 'text', dataKey: 'tableName' },
+            { label: '表格说明', description: '(给AI解释此表格的作用)', id: 'dataTable_tableSetting_note', type: 'textarea', dataKey: 'tableNote' },
+            { label: '是否必填', id: 'dataTable_tableSetting_required', type: 'checkbox', dataKey: 'tableRequired' },
+            { label: '初始化提示词', description: '(当表格为必填表时，但是又为空时，给AI的提示)', id: 'dataTable_tableSetting_initNode', type: 'textarea', dataKey: 'tableInitNode' },
+            { label: '插入提示词', description: '(解释什么时候应该插入行)', id: 'dataTable_tableSetting_insertNode', type: 'textarea', dataKey: 'tableInsertNode' },
+            { label: '更新提示词', description: '(解释什么时候应该更新行)', id: 'dataTable_tableSetting_updateNode', type: 'textarea', dataKey: 'tableUpdateNode' },
+            { label: '删除提示词', description: '(解释什么时候应该删除行)', id: 'dataTable_tableSetting_deleteNode', type: 'textarea', dataKey: 'tableDeleteNode' },
+            { label: '推送至对话', description: '(开启时将该表格推送至对话)', id: 'dataTable_tableSetting_toChat', type: 'checkbox', dataKey: 'tableToChat' },
+            { label: '推送样式', description: '(编辑推送至对话的表格样式)', id: 'dataTable_tableSetting_tableRender', type: 'textarea', dataKey: 'tableRender' },
+            {
+                type: 'button',
+                id: 'renderButtonStyleButton', // 按钮的 id
+                iconClass: 'fa-solid fa-bug tableEditor_renderButton',
+                text: '在测试模式中编辑本表格样式',
+                event: 'editRenderStyleEvent'
+            }
+        ]
+    },
+    column_header: {
+        formTitle: "编辑列",
+        formDescription: "设置列的标题和描述信息。",
+        fields: [
+            { label: '列标题', id: 'dataTable_columnSetting_columnName', type: 'text', dataKey: 'columnName' },
+            { label: '列描述', description: '(给AI解释此列的作用)', id: 'dataTable_columnSetting_note', type: 'textarea', dataKey: 'columnNote' },
+            { label: '数据类型', id: 'dataTable_columnSetting_dataType', type: 'select', dataKey: 'columnDataType', options: ['text', 'number', 'date', 'select'] },
+        ],
+    },
+    row_header: {
+        formTitle: "编辑行",
+        formDescription: "设置行的标题和描述信息。",
+        fields: [
+            { label: '行标题', id: 'dataTable_rowSetting_rowName', type: 'text', dataKey: 'rowName' },
+            { label: '行描述', description: '(给AI解释此行的作用)', id: 'dataTable_rowSetting_note', type: 'textarea', dataKey: 'rowNote' },
+        ],
+    },
+    cell: {
+        formTitle: "编辑单元格",
+        formDescription: "编辑单元格的具体内容。",
+        fields: [
+            { label: '单元格内容', id: 'dataTable_cellSetting_content', type: 'textarea', dataKey: 'cellContent' },
+            { label: '单元格描述', description: '(给AI解释此单元格内容的作用)', id: 'dataTable_cellSetting_note', type: 'textarea', dataKey: 'cellNote' },
+        ],
+    },
+};
+
+
+/**
+ * 生成多选下拉框
  * @returns {Promise<HTMLSelectElement|null>}
  */
 async function updateDropdownElement() {
@@ -129,202 +184,34 @@ function getSheetTitle(sheet) {
     </div>`;
 }
 
-let r = {};
 async function templateCellDataEdit(cell) {
-    r = {...cell.data};
-    const popup = new EDITOR.Popup(await generatePopupContent(cell), EDITOR.POPUP_TYPE.CONFIRM, { large: true, allowVerticalScrolling: true }, { okButton: "保存修改", cancelButton: "取消" });
+    const initialData = {...cell.data}; // 创建 cell.data 的副本作为初始数据
+    const formInstance = new Form(formConfigs[cell.type], initialData); // 创建 Form 实例，传入配置和数据副本
+
+    // 注册按钮事件处理函数 (使用字符串 eventName 方式)
+    formInstance.on('editRenderStyleEvent', (formData) => {
+        alert('编辑表格样式功能待实现' + JSON.stringify(formData));
+    });
+
+
+    const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, { large: true, allowVerticalScrolling: true }, { okButton: "保存修改", cancelButton: "取消" });
 
     await popup.show();
     if (popup.result) {
-        // 计算r与cell.data的差异
-        Object.keys(r).forEach(key => {
-            if (r[key] === cell.data[key]) {
-                delete r[key];
+        const formData = formInstance.getFormData(); // 获取表单修改后的数据副本
+        // 计算formData与initialData的差异
+        const diffData = {};
+        Object.keys(formData).forEach(key => {
+            if (formData[key] !== initialData[key]) {
+                diffData[key] = formData[key];
             }
         });
-        if (Object.keys(r).length === 0) {
-            return;
+
+        if (Object.keys(diffData).length === 0) {
+            return; // 数据没有变化，直接返回
         }
-        cell.editProps(r);
+        cell.editProps(diffData); // 使用差异数据更新 cell 的属性
     }
-}
-
-/**
- * 动态生成弹窗内容
- * @param {Cell} cell - 当前点击的单元格 Cell 实例
- * @returns {Promise<string>} - 弹窗内容的 HTML 字符串
- */
-async function generatePopupContent(cell) {
-    const cellType = cell.type;
-    const sheetType = cell.parent.type;
-    let contentHTML = '';
-    console.log(cellType, sheetType)
-
-    switch (cellType) {
-        case 'sheet_origin':
-            contentHTML = `
-                <div class="wide100p padding5 dataBankAttachments">
-                    <h2 class="marginBot5"><span>编辑表格</span></h2>
-                    <div>表格的整体设置，例如表格名称、说明等。</div>
-                    <div class="dataTable_tablePrompt_list">
-                        <label>表格名</label>
-                        <input type="text" id="dataTable_tableSetting_tableName" class="margin0 text_pole" style=" margin-bottom: 20px;"/>
-                        <label>表格说明</label><small> (给AI解释此表格的作用)</small>
-                        <textarea id="dataTable_tableSetting_note" class="wide100p" rows="2"></textarea>
-                        <div class="checkbox flex-container" style="margin-bottom: 10px;">
-                            <input type="checkbox" id="dataTable_tableSetting_required"><span>是否必填</span>
-                        </div>
-                        <label>初始化提示词</label><small> (当表格为必填表时，但是又为空时，给AI的提示)</small>
-                        <textarea id="dataTable_tableSetting_initNode" class="wide100p" rows="2"></textarea>
-                        <label>插入提示词</label><small> (解释什么时候应该插入行)</small>
-                        <textarea id="dataTable_tableSetting_insertNode" class="wide100p" rows="2"></textarea>
-                        <label>更新提示词</label><small> (解释什么时候应该更新行)</small>
-                        <textarea id="dataTable_tableSetting_updateNode" class="wide100p" rows="2"></textarea>
-                        <label>删除提示词</label><small> (解释什么时候应该删除行)</small>
-                        <textarea id="dataTable_tableSetting_deleteNode" class="wide100p" rows="2"></textarea>
-
-                        <!-- 开启时将该表格推送至对话 -->
-                        <div class="checkbox flex-container" style="margin-bottom: 10px;">
-                            <input type="checkbox" id="dataTable_tableSetting_toChat">
-                            <span>推送至对话</span>
-                            <small> (开启时将该表格推送至对话)</small>
-                        </div>
-                        <div class="checkbox flex-container">
-                            <label>推送样式</label><small> (编辑推送至对话的表格样式)</small>
-                        </div>
-                        <textarea id="dataTable_tableSetting_tableRender" class="wide100p" rows="2"></textarea>
-                        <!-- 编辑推送至对话的表格样式 -->
-                        <i class="menu_button menu_button_icon fa-solid fa-bug tableEditor_renderButton">
-                            <a>在测试模式中编辑本表格样式</a>
-                        </i>
-                    </div>
-                </div>
-            `;
-            // 添加事件监听器 和 初始化弹窗内容
-            setTimeout(() => { // 确保 DOM 元素已渲染
-                const tableNameInput = document.getElementById('dataTable_tableSetting_tableName');
-                const tableNoteInput = document.getElementById('dataTable_tableSetting_note');
-                const tableRequiredCheckbox = document.getElementById('dataTable_tableSetting_required');
-                const tableInitNodeInput = document.getElementById('dataTable_tableSetting_initNode');
-                const tableInsertNodeInput = document.getElementById('dataTable_tableSetting_insertNode');
-                const tableUpdateNodeInput = document.getElementById('dataTable_tableSetting_updateNode');
-                const tableDeleteNodeInput = document.getElementById('dataTable_tableSetting_deleteNode');
-                const tableToChatCheckbox = document.getElementById('dataTable_tableSetting_toChat');
-                const tableRenderInput = document.getElementById('dataTable_tableSetting_tableRender');
-
-                tableNameInput.value = r.tableName || '';
-                tableNoteInput.value = r.tableNote || '';
-                tableRequiredCheckbox.checked = r.tableRequired === true;
-                tableInitNodeInput.value = r.tableInitNode || '';
-                tableInsertNodeInput.value = r.tableInsertNode || '';
-                tableUpdateNodeInput.value = r.tableUpdateNode || '';
-                tableDeleteNodeInput.value = r.tableDeleteNode || '';
-                tableToChatCheckbox.checked = r.tableToChat === true;
-                tableRenderInput.value = r.tableRender || '';
-
-                tableNameInput.addEventListener('input', (e) => { cell.tempData.tableName = e.target.value; });
-                tableNoteInput.addEventListener('input', (e) => { cell.tempData.tableNote = e.target.value; });
-                tableRequiredCheckbox.addEventListener('change', (e) => { cell.tempData.tableRequired = e.target.checked; });
-                tableInitNodeInput.addEventListener('input', (e) => { cell.tempData.tableInitNode = e.target.value; });
-                tableInsertNodeInput.addEventListener('input', (e) => { cell.tempData.tableInsertNode = e.target.value; });
-                tableUpdateNodeInput.addEventListener('input', (e) => { cell.tempData.tableUpdateNode = e.target.value; });
-                tableDeleteNodeInput.addEventListener('input', (e) => { cell.tempData.tableDeleteNode = e.target.value; });
-                tableToChatCheckbox.addEventListener('change', (e) => { cell.tempData.tableToChat = e.target.checked; });
-                tableRenderInput.addEventListener('input', (e) => { cell.tempData.tableRender = e.target.value; });
-
-            }, 0);
-            break;
-        case 'column_header':
-            contentHTML = `
-                <div class="wide100p padding5 dataBankAttachments">
-                    <h2 class="marginBot5"><span>编辑列</span></h2>
-                    <div>设置列的标题和描述信息。</div>
-                    <div class="dataTable_tablePrompt_list">
-                        <label>列标题</label>
-                        <input type="text" id="dataTable_columnSetting_columnName" class="margin0 text_pole" style=" margin-bottom: 20px;"/>
-                        <label>列描述</label><small> (给AI解释此列的作用)</small>
-                        <textarea id="dataTable_columnSetting_note" class="wide100p" rows="2"></textarea>
-                        <label>数据类型</label>
-                        <select id="dataTable_columnSetting_dataType">
-                            <option value="text">文本</option>
-                            <option value="number">数字</option>
-                            <option value="date">日期</option>
-                            <option value="select">下拉选择</option>
-                            </select>
-                    </div>
-                </div>
-            `;
-            // 添加事件监听器 和 初始化弹窗内容
-            setTimeout(() => { // 确保 DOM 元素已渲染
-                const columnNameInput = document.getElementById('dataTable_columnSetting_columnName');
-                const columnNoteInput = document.getElementById('dataTable_columnSetting_note');
-                const columnDataTypeSelect = document.getElementById('dataTable_columnSetting_dataType');
-
-                columnNameInput.value = r.columnName || '';
-                columnNoteInput.value = r.columnNote || '';
-                columnDataTypeSelect.value = r.columnDataType || 'text';
-
-                columnNameInput.addEventListener('input', (e) => { r.columnName = e.target.value; });
-                columnNoteInput.addEventListener('input', (e) => { r.columnNote = e.target.value; });
-                columnDataTypeSelect.addEventListener('change', (e) => { r.columnDataType = e.target.value; });
-            }, 0);
-            break;
-        case 'row_header':
-            contentHTML = `
-                <div class="wide100p padding5 dataBankAttachments">
-                    <h2 class="marginBot5"><span>编辑行</span></h2>
-                    <div>设置行的标题和描述信息。</div>
-                    <div class="dataTable_tablePrompt_list">
-                        <label>行标题</label>
-                        <input type="text" id="dataTable_rowSetting_rowName" class="margin0 text_pole" style=" margin-bottom: 20px;"/>
-                        <label>行描述</label><small> (给AI解释此行的作用)</small>
-                        <textarea id="dataTable_rowSetting_note" class="wide100p" rows="2"></textarea>
-                    </div>
-                </div>
-            `;
-            // 添加事件监听器 和 初始化弹窗内容
-            setTimeout(() => { // 确保 DOM 元素已渲染
-                const rowNameInput = document.getElementById('dataTable_rowSetting_rowName');
-                const rowNoteInput = document.getElementById('dataTable_rowSetting_note');
-
-                rowNameInput.value = r.rowName || '';
-                rowNoteInput.value = r.rowNote || '';
-
-                rowNameInput.addEventListener('input', (e) => { r.rowName = e.target.value; });
-                rowNoteInput.addEventListener('input', (e) => { r.rowNote = e.target.value; });
-            }, 0);
-            break;
-        case 'cell':
-            contentHTML = `
-                <div class="wide100p padding5 dataBankAttachments">
-                    <h2 class="marginBot5"><span>编辑单元格</span></h2>
-                    <div>编辑单元格的具体内容。</div>
-                    <div class="dataTable_tablePrompt_list">
-                        <label>单元格内容</label>
-                        <textarea id="dataTable_cellSetting_content" class="wide100p" rows="3"></textarea>
-                        <label>单元格描述</label><small> (给AI解释此单元格内容的作用)</small>
-                        <textarea id="dataTable_cellSetting_note" class="wide100p" rows="2"></textarea>
-                    </div>
-                </div>
-            `;
-            // 添加事件监听器 和 初始化弹窗内容
-            setTimeout(() => { // 确保 DOM 元素已渲染
-                const cellContentInput = document.getElementById('dataTable_cellSetting_content');
-                const cellNoteInput = document.getElementById('dataTable_cellSetting_note');
-
-                cellContentInput.value = r.cellContent || '';
-                cellNoteInput.value = r.cellNote || '';
-
-                cellContentInput.addEventListener('input', (e) => { r.cellContent = e.target.value; });
-                cellNoteInput.addEventListener('input', (e) => { r.cellNote = e.target.value; });
-            }, 0);
-            break;
-        default:
-            contentHTML = `<div>未知的单元格类型，无法生成编辑内容。</div>`;
-            break;
-    }
-
-    return contentHTML;
 }
 
 
