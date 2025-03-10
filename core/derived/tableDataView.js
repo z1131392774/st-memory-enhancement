@@ -1,5 +1,5 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
+import { updateSystemMessageTableStatus } from "./tablePushToChat.js";
 import {
     copyTableList,
     findLastestTableData,
@@ -9,10 +9,10 @@ import {
     parseTableEditTag,
     replaceTableEditTag,
 } from "../../index.js";
-import {rebuildTableActions, refreshTableActions,getPromptAndRebuildTable} from "./absoluteRefresh.js";
-import {initAllTable} from "../source/tableActions.js";
-import {openTableHistoryPopup} from "./tableHistory.js";
-import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
+import { rebuildTableActions, refreshTableActions, getPromptAndRebuildTable } from "./absoluteRefresh.js";
+import { initAllTable } from "../source/tableActions.js";
+import { openTableHistoryPopup } from "./tableHistory.js";
+import { initRefreshTypeSelector } from "./initRefreshTypeSelector.js";
 
 let tablePopup = null
 let copyTableData = null
@@ -153,7 +153,7 @@ async function importTable(mesId, tableContainer) {
     fileInput.accept = '.json';
 
     // 2. 添加事件监听器，监听文件选择的变化 (change 事件)
-    fileInput.addEventListener('change', function(event) {
+    fileInput.addEventListener('change', function (event) {
         // 获取用户选择的文件列表 (FileList 对象)
         const files = event.target.files;
 
@@ -167,7 +167,7 @@ async function importTable(mesId, tableContainer) {
 
             // 4. 定义 FileReader 的 onload 事件处理函数
             // 当文件读取成功后，会触发 onload 事件
-            reader.onload = function(loadEvent) {
+            reader.onload = function (loadEvent) {
                 // loadEvent.target.result 包含了读取到的文件内容 (文本格式)
                 const fileContent = loadEvent.target.result;
 
@@ -445,6 +445,12 @@ async function onModifyCell() {
 }
 
 let initializedTableView = null
+
+/**
+ * 初始化表格展示DOM
+ * @param {number} mesId 
+ * @returns {Promise<Document | HTMLElement>}
+ */
 async function initTableView(mesId) { // 增加 table_manager_container 参数
     const table_manager_container = await SYSTEM.htmlToDom(await SYSTEM.getComponent('manager'), 'table_manager_container');
     const tableContainer = table_manager_container.querySelector('#tableContainer');
@@ -471,43 +477,50 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
         console.log(callback)
     })
 
+    initializedTableView = table_manager_container;
+    return initializedTableView;
+}
 
+/**
+ * 绑定表头上方按钮相关事件
+ */
+export function bindTableHeaderButtonEvent() {
+    const dlg = $(tablePopup.dlg)
+    const tableContainer = dlg.find("#tableContainer")[0]
+    console.log("绑定表头上方按钮相关事件", tableContainer)
     // 设置编辑提示
     // 点击打开查看表格历史按钮
-    $(document).on('click', '#dataTable_history_button', function () {
+    dlg.on('click', '#dataTable_history_button', function () {
         openTableHistoryPopup();
     })
     // 点击清空表格按钮
-    $(document).on('click', '#clear_table_button', function () {
+    dlg.on('click', '#clear_table_button', function () {
         clearTable(userTableEditInfo.chatIndex, tableContainer);
     })
-    $(document).on('click', '#table_rebuild_button', function () {
+    dlg.on('click', '#table_rebuild_button', function () {
         // rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
         getPromptAndRebuildTable();
     })
     // 点击编辑表格按钮
-    $(document).on('click', '#table_edit_mode_button', function () {
+    dlg.on('click', '#table_edit_mode_button', function () {
         // openTableEditorPopup();
     })
     // 点击复制表格按钮
-    $(document).on('click', '#copy_table_button', function () {
+    dlg.on('click', '#copy_table_button', function () {
         copyTable(userTableEditInfo.tables);
     })
     // 点击粘贴表格按钮
-    $(document).on('click', '#paste_table_button', function () {
+    dlg.on('click', '#paste_table_button', function () {
         pasteTable(userTableEditInfo.chatIndex, tableContainer);
     })
     // 点击导入表格按钮
-    $(document).on('click', '#import_clear_up_button', function () {
+    dlg.on('click', '#import_clear_up_button', function () {
         importTable(userTableEditInfo.chatIndex, tableContainer);
     })
     // 点击导出表格按钮
-    $(document).on('click', '#export_table_button', function () {
+    dlg.on('click', '#export_table_button', function () {
         exportTable(userTableEditInfo.tables);
     })
-
-    initializedTableView = table_manager_container;
-    return initializedTableView;
 }
 
 export async function getTableView(mesId = -1) {
@@ -521,5 +534,6 @@ export async function getTableView(mesId = -1) {
 export async function openTablePopup(mesId = -1) {
     const tableContainer = await initTableView(mesId);
     tablePopup = new EDITOR.Popup(tableContainer, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
+    bindTableHeaderButtonEvent()
     await tablePopup.show()
 }
