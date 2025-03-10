@@ -519,7 +519,7 @@ export async function getTableView(mesId = -1) {
  * @param {number} mesId 需要打开的消息ID，-1为最新一条
  */
 export async function openTablePopup(mesId = -1) {
-    const tableContainer = initializedTableView || await initTableView(mesId);
+    const tableContainer = await initTableView(mesId);
     tablePopup = new EDITOR.Popup(tableContainer, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     await tablePopup.show()
 }
