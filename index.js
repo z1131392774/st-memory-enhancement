@@ -11,7 +11,7 @@ import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.
 import {initAllTable} from "./core/source/tableActions.js";
 import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
 import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
-import {initTest} from "./core/derived/_fotTest.js";
+import {initTest} from "./core/methods/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
 import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/derived/appHeaderTableDrawer.js";
 import { initRefreshTypeSelector } from './core/derived/initRefreshTypeSelector.js';

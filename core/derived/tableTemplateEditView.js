@@ -1,7 +1,7 @@
 // tableTemplateEditView.js
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
-import { PopupMenu } from '../source/popupMenu.js';
-import { Form } from '../source/formManager.js'; // 引入 Form 类
+import { PopupMenu } from '../methods/popupMenu.js';
+import { Form } from '../methods/formManager.js'; // 引入 Form 类
 
 const userSheetEditInfo = {
     chatIndex: null,

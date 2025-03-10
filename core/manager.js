@@ -10,13 +10,13 @@ import { TableEditAction } from "./source/tableActions.js";
 import { consoleMessageToEditor } from "./derived/devConsole.js";
 import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly,} from "../utils/utility.js";
 import {defaultSettings} from "./source/pluginSetting.js";
-import {Drag} from "./source/dragManager.js";
-import {PopupMenu} from "./source/popupMenu.js";
+import {Drag} from "./methods/dragManager.js";
+import {PopupMenu} from "./methods/popupMenu.js";
 // import {tableBase} from "./source/tableBase.js";
 import {findLastestTableData} from "../index.js";
 import {getRelativePositionOfCurrentCode} from "../utils/codePathProcessing.js";
 import {fileManager} from "../services/router.js";
-import {pushCodeToQueue} from "./derived/_fotTest.js";
+import {pushCodeToQueue} from "./methods/_fotTest.js";
 import {createProxy, createProxyWithUserSetting} from "../utils/codeProxy.js";
 import {Sheet} from "./source/tableBase.js";
 
