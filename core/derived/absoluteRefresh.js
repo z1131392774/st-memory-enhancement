@@ -4,7 +4,7 @@ import {insertRow, updateRow, deleteRow} from "../source/tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {renderTablesDOM,pasteTable} from "./tableDataView.js";
-import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../methods/standaloneAPI.js";
+import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../source/standaloneAPI.js";
 import {profile_prompts} from "../../data/profile_prompts.js";
 
 // 在解析响应后添加验证
