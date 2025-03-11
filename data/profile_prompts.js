@@ -51,11 +51,26 @@ export const profile_prompts = {
           "EscapeHandling": "direct removal"
         }
       },
-      "ContentCheck": {
-        "Personality": "Should not include attitudes/emotions/thoughts",
-        "Character Information": "Should not include attitudes/personality/thoughts",
-        "Attitude": "Should not include personality/status"
-      },
+    "ContentCheck": {
+        "General Rule": {
+            "Processing Steps": [
+                "1. Split cell content by '/' into individual elements",
+                "2. For each element:",
+                "   a. Check against current column's exclusion list",
+                "   b. If element contains excluded attributes:",
+                "      i. Identify target column in same row that allows this attribute",
+                "      ii. Move element to identified target column",
+                "      iii. Remove from original column",
+                "3. Rejoin elements with '/' in both original and target columns"
+            ],
+            "Validation Criteria": "All elements should strictly match the permitted attributes defined in their column"
+        },
+        "Example_Column Rules": {
+            "Personality": {"Excluded Attributes": ["attitudes", "emotions", "thoughts"]},
+            "Character Information": {"Excluded Attributes": ["attitudes", "personality", "thoughts"]},
+            "Attitude": {"Excluded Attributes": ["personality", "status"]}
+        }
+    },
       "ContentUnificationRules": {
         "FormatInheritanceStrategy": {
           "TimeFormat": "inherit dominant format from existing table",
@@ -133,11 +148,26 @@ export const profile_prompts = {
           "EscapeHandling": "direct removal"
         }
       },
-      "ContentCheck": {
-        "Personality": "Should not include attitudes/emotions/thoughts",
-        "Character Information": "Should not include attitudes/personality/thoughts",
-        "Attitude": "Should not include personality/status"
-      },
+    "ContentCheck": {
+        "General Rule": {
+            "Processing Steps": [
+                "1. Split cell content by '/' into individual elements",
+                "2. For each element:",
+                "   a. Check against current column's exclusion list",
+                "   b. If element contains excluded attributes:",
+                "      i. Identify target column in same row that allows this attribute",
+                "      ii. Move element to identified target column",
+                "      iii. Remove from original column",
+                "3. Rejoin elements with '/' in both original and target columns"
+            ],
+            "Validation Criteria": "All elements should strictly match the permitted attributes defined in their column"
+        },
+        "Example_Column Rules": {
+            "Personality": {"Excluded Attributes": ["attitudes", "emotions", "thoughts"]},
+            "Character Information": {"Excluded Attributes": ["attitudes", "personality", "thoughts"]},
+            "Attitude": {"Excluded Attributes": ["personality", "status"]}
+        }
+    },
       "ContentUnificationRules": {
         "FormatInheritanceStrategy": {
           "TimeFormat": "inherit dominant format from existing table",
@@ -436,14 +466,31 @@ export const profile_prompts = {
       }
     },
     "ContentChecks": {
-      "ColumnValidation": "Verify data matches column categories",
+      "ColumnValidation": {
+      	"Target" : "Verify data matches column categories",
+        "General Rule": {
+            "Processing Steps": [
+                "1. Split cell content by '/' into individual elements",
+                "2. For each element:",
+                "   a. Check against current column's exclusion list",
+                "   b. If element contains excluded attributes:",
+                "      i. Identify target column in same row that allows this attribute",
+                "      ii. Move element to identified target column",
+                "      iii. Remove from original column",
+                "3. Rejoin elements with '/' in both original and target columns"
+            ],
+            "Validation Criteria": "All elements should strictly match the permitted attributes defined in their column"
+        },
+        "Example_Column Rules": {
+            "Personality": {"Excluded Attributes": ["attitudes", "emotions", "thoughts"]},
+            "Character Information": {"Excluded Attributes": ["attitudes", "personality", "thoughts"]},
+            "Attitude": {"Excluded Attributes": ["personality", "status"]}
+        }
+      }
       "ConflictResolution": {
         "DataConsistency": "Resolve contradictory descriptions",
         "ConflictHandling": "Prioritize table-internal evidence"
       },
-      "Personality": "Should not include attitudes/emotions/thoughts",
-      "Character Information": "Should not include attitudes/personality/thoughts",
-      "Attitude": "Should not include personality/status"
     },
     "FinalRequirement": "Preserve unproblematic content without modification"
   }
@@ -485,21 +532,38 @@ export const profile_prompts = {
       }
     },
     "ContentChecks": {
-      "ColumnValidation": "Verify data matches column categories",
-      "ConflictResolution": {
-        "DataConsistency": "Resolve contradictory descriptions",
-        "ConflictHandling": "Prioritize table-internal evidence"
-      },
-      "SimplificationCheck": {
-        "Check cells exceeding 15 characters": "Simplify content to under 15 characters if possible"
-      },
-      "重要事件历史表格简化": {
-        "Step1": "Merge consecutive similar events into single rows",
-        "Step2": "Summarize sequentially related events into consolidated rows",
-      },
-      "Personality": "Should not include attitudes/emotions/thoughts",
-      "Character Information": "Should not include attitudes/personality/thoughts",
-      "Attitude": "Should not include personality/status"
+        "ColumnValidation": {
+            "Target": "Verify data matches column categories",
+            "General Rule": {
+                "Processing Steps": [
+                    "1. Split cell content by '/' into individual elements",
+                    "2. For each element:",
+                    "   a. Check against current column's exclusion list",
+                    "   b. If element contains excluded attributes:",
+                    "      i. Identify target column in same row that allows this attribute",
+                    "      ii. Move element to identified target column",
+                    "      iii. Remove from original column",
+                    "3. Rejoin elements with '/' in both original and target columns"
+                ],
+                "Validation Criteria": "All elements should strictly match the permitted attributes defined in their column"
+            },
+            "Example_Column Rules": {
+                "Personality": {"Excluded Attributes": ["attitudes", "emotions", "thoughts"]},
+                "Character Information": {"Excluded Attributes": ["attitudes", "personality", "thoughts"]},
+                "Attitude": {"Excluded Attributes": ["personality", "status"]}
+            }
+        },
+        "ConflictResolution": {
+            "DataConsistency": "Resolve contradictory descriptions",
+            "ConflictHandling": "Prioritize table-internal evidence"
+        },
+        "SimplificationCheck": {
+            "Check cells exceeding 15 characters": "Simplify content to under 15 characters if possible"
+        },
+        "重要事件历史表格简化": {
+            "Step1": "Merge consecutive similar events into single rows",
+            "Step2": "Summarize sequentially related events into consolidated rows"
+        },
     },
     "FinalRequirement": "Preserve unproblematic content without modification"
   }
@@ -541,17 +605,34 @@ export const profile_prompts = {
       }
     },
     "ContentChecks": {
-      "ColumnValidation": "Verify data matches column categories",
-      "ConflictResolution": {
-        "DataConsistency": "Resolve contradictory descriptions",
-        "ConflictHandling": "Prioritize table-internal evidence"
-      },
-      "SimplificationCheck": {
-        "Check cells exceeding 15 characters": "Simplify content to under 15 characters if possible"
-      },
-      "Personality": "Should not include attitudes/emotions/thoughts",
-      "Character Information": "Should not include attitudes/personality/thoughts",
-      "Attitude": "Should not include personality/status"
+        "ColumnValidation": {
+            "Target": "Verify data matches column categories",
+            "General Rule": {
+                "Processing Steps": [
+                    "1. Split cell content by '/' into individual elements",
+                    "2. For each element:",
+                    "   a. Check against current column's exclusion list",
+                    "   b. If element contains excluded attributes:",
+                    "      i. Identify target column in same row that allows this attribute",
+                    "      ii. Move element to identified target column",
+                    "      iii. Remove from original column",
+                    "3. Rejoin elements with '/' in both original and target columns"
+                ],
+                "Validation Criteria": "All elements should strictly match the permitted attributes defined in their column"
+            },
+            "Example_Column Rules": {
+                "Personality": {"Excluded Attributes": ["attitudes", "emotions", "thoughts"]},
+                "Character Information": {"Excluded Attributes": ["attitudes", "personality", "thoughts"]},
+                "Attitude": {"Excluded Attributes": ["personality", "status"]}
+            }
+        },
+        "ConflictResolution": {
+            "DataConsistency": "Resolve contradictory descriptions",
+            "ConflictHandling": "Prioritize table-internal evidence"
+        },
+        "SimplificationCheck": {
+            "Check cells exceeding 15 characters": "Simplify content to under 15 characters if possible"
+        },
     },
     "FinalRequirement": "Preserve unproblematic content without modification"
   }
