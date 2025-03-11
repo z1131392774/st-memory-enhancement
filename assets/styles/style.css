@@ -117,6 +117,8 @@ td.selected {
 }
 
 .dataTable_tablePrompt_list{
+    display: flex;
+    flex-direction: column;
     text-align: start;
 }
 .tableName_pole{

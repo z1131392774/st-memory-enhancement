@@ -42,7 +42,7 @@ export class Sheet {
         this.uid = '';
         this.name = '';
         this.domain = SheetDomain.global;
-        this.type = SheetType.free;
+        this.type = SheetType.dynamic;
         this.asTemplate = asTemplate || false;  // 优先使用传入的 asTemplate 参数，否则使用 target 中的 asTemplate
 
         this.cells = new Map(); // cells 在每次 Sheet 初始化时从 cellHistory 加载
@@ -130,17 +130,19 @@ export class Sheet {
             this.tableElement = document.createElement('table');
             this.tableElement.classList.add('sheet-table');
             this.tableElement.style.position = 'relative';
-
-            const captionElement = document.createElement('caption');
-            this.tableElement.appendChild(captionElement);
+            this.tableElement.style.display = 'flex';
+            this.tableElement.style.flexDirection = 'column';
+            this.tableElement.style.flexGrow = '0';
+            this.tableElement.style.flexShrink = '1';
 
             const styleElement = document.createElement('style');
             styleElement.textContent = `
-                .sheet-table { border-collapse: collapse; width: max-content; } /* Set table width to max-content */
-                .sheet-table caption { text-align: left; padding-bottom: 5px; font-weight: bold; caption-side: top; } /* Caption at the top */
-                .sheet-header-cell-top { text-align: center; border: 1px solid #ccc; padding: 2px; font-weight: bold; } /* Top header style */
-                .sheet-header-cell-left { text-align: center; border: 1px solid #ccc; padding: 2px; font-weight: bold; } /* Left header style */
-                .sheet-cell { border: 1px solid #ccc; padding: 2px; min-width: 50px; min-height: 20px; text-align: center; vertical-align: middle; } /* Cell style with center alignment and min dimensions */
+                .sheet-table { border-collapse: collapse; width: max-content; }
+                .sheet-cell { border: 1px solid #ccc; padding: 1px; text-align: center; vertical-align: middle; }
+                .sheet-cell-origin { min-width: 20px; min-height: 20px; cursor: pointer; }
+                .sheet-header-cell-top { font-weight: bold; cursor: cell; }
+                .sheet-header-cell-left { font-weight: bold; cursor: cell; }
+                .sheet-cell-other { min-width: 50px; cursor: cell; }
             `;
             this.tableElement.appendChild(styleElement);
         }
@@ -368,7 +370,7 @@ class Cell {
         this.element = cellElement; // 存储 element
 
         if (rowIndex === 0 && colIndex === 0) {
-            // sheet origin cell
+            cellElement.classList.add('sheet-cell-origin');
         } else if (rowIndex === 0) {
             cellElement.textContent = getColumnLetter(colIndex - 1); // Column headers (A, B, C...)
             cellElement.classList.add('sheet-header-cell-top');
@@ -381,6 +383,7 @@ class Cell {
             cellElement.style.fontSize = '0.8rem';
             cellElement.style.fontWeight = 'normal';
             cellElement.style.color = 'var(--SmartThemeEmColor)'
+            cellElement.classList.add('sheet-cell-other');
         }
 
         return cellElement;

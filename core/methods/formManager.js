@@ -65,8 +65,13 @@ class Form {
                     `;
                 } else if (field.type === 'select') {
                     contentHTML += `
-                        <select id="${field.id}">
-                            ${field.options.map(option => `<option value="${option}">${option}</option>`).join('')}
+                        <select id="${field.id}">`;
+                    if (Array.isArray(field.options)) {
+                        field.options.forEach(option => {
+                            contentHTML += `<option value="${option.value}">${option.text || option.value || option}</option>`;
+                        });
+                    }
+                    contentHTML += `
                         </select>
                     `;
                 }

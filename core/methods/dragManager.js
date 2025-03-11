@@ -33,52 +33,29 @@ export class Drag {
         this.dragContainer.style.height = '100%';
         this.dragContainer.style.minHeight = '500px';
         this.dragContainer.style.overflow = 'hidden';
-        // this.dragContainer.style.background = '#32282b';
+        this.dragContainer.style.userSelect = 'none';
+        this.dragContainer.style.cursor = 'grab';
 
-        // 创建可拖动内容层 (默认层级，在 dragLayer 下面)
         this.dragSpace = document.createElement('div');
         this.dragSpace.style.transformOrigin = '0 0';
         this.dragSpace.style.position = 'absolute';
         this.dragSpace.style.top = '0';
         this.dragSpace.style.left = '0';
         this.dragSpace.style.bottom = '0';
+        // this.dragSpace.style.outline = '3px solid #41b681'
         this.dragSpace.style.willChange = 'transform'; // 优化：提示浏览器 transform 可能会变化
+        this.dragSpace.style.pointerEvents = 'auto';
         this.dragContainer.appendChild(this.dragSpace);
-
-        // 创建拖动事件层 (在中间层级，用于拖拽和事件捕获)
-        this.dragLayer = document.createElement('div');
-        this.dragLayer.style.position = 'absolute';
-        this.dragLayer.style.top = '0';
-        this.dragLayer.style.left = '0';
-        this.dragLayer.style.bottom = '0';
-        this.dragLayer.style.width = '100%';
-        this.dragLayer.style.height = '100%';
-        this.dragLayer.style.cursor = 'grab';
-        this.dragLayer.style.userSelect = 'none';
-        this.dragLayer.style.backgroundColor = 'transparent'; // 确保 dragLayer 不遮挡下方元素的 hover 效果
-        this.dragContainer.appendChild(this.dragLayer);
-
-        // 创建可拖动内容层 (置顶层级，在 dragLayer 上面)
-        this.dragTopSpace = document.createElement('div');
-        this.dragTopSpace.style.transformOrigin = '0 0';
-        this.dragTopSpace.style.position = 'absolute';
-        this.dragTopSpace.style.top = '0';
-        this.dragTopSpace.style.left = '0';
-        this.dragTopSpace.style.bottom = '0';
-        this.dragTopSpace.style.willChange = 'transform'; // 优化：提示浏览器 transform 可能会变化
-        this.dragContainer.appendChild(this.dragTopSpace);
 
 
         // 分离手机和电脑事件
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
             this.dragSpace.style.transition = 'transform 0.02s ease-out';
-            this.dragTopSpace.style.transition = 'transform 0.02s ease-out';
-            this.dragLayer.addEventListener('touchstart', this.handleMouseDown);
+            this.dragContainer.addEventListener('touchstart', this.handleMouseDown);
         } else {
             this.dragSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
-            this.dragTopSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
-            this.dragLayer.addEventListener('mousedown', this.handleMouseDown);
-            this.dragLayer.addEventListener('wheel', this.handleWheel, { passive: false });
+            this.dragContainer.addEventListener('mousedown', this.handleMouseDown);
+            this.dragContainer.addEventListener('wheel', this.handleWheel, { passive: false });
         }
     }
 
@@ -91,7 +68,7 @@ export class Drag {
     }
 
     /**
-     * 添加元素，添加到默认层级 (dragLayer下面) ，支持设置初始位置，默认为[0, 0]
+     * 添加元素，支持设置初始位置，默认为[0, 0]
      * @example add('name', element, [100, 100])
      * @param name
      * @param element
@@ -102,21 +79,6 @@ export class Drag {
         element.style.left = `${position[0]}px`;
         element.style.top = `${position[1]}px`;
         this.dragSpace.appendChild(element);
-        this.elements.set(name, element);
-    }
-
-    /**
-     * 添加元素到顶层级 (dragLayer上面)，支持设置初始位置，默认为[0, 0]
-     * @example addToTop('name', element, [100, 100])
-     * @param name
-     * @param element
-     * @param position
-     */
-    addToTop(name, element, position = [0, 0]) {
-        element.style.position = 'absolute';
-        element.style.left = `${position[0]}px`;
-        element.style.top = `${position[1]}px`;
-        this.dragTopSpace.appendChild(element);
         this.elements.set(name, element);
     }
 
@@ -142,11 +104,7 @@ export class Drag {
     delete(name) {
         if (this.elements.has(name)) {
             const element = this.elements.get(name);
-            if (this.dragSpace.contains(element)) {
-                this.dragSpace.removeChild(element);
-            } else if (this.dragTopSpace.contains(element)) {
-                this.dragTopSpace.removeChild(element);
-            }
+            this.dragSpace.removeChild(element);
             this.elements.delete(name);
         }
     }
@@ -155,6 +113,10 @@ export class Drag {
     /** ------------------ 以下为拖拽功能实现，为事件处理函数，不需要手动调用 ------------------ */
         // 鼠标按下事件
     handleMouseDown = (e) => {
+        // 获取点击位置的所有元素
+        // const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        // console.log(elements);
+
         if (e.button === 0 || e.type === 'touchstart') {
             let clientX, clientY, touches;
             if (e.type === 'touchstart') {
@@ -176,16 +138,6 @@ export class Drag {
 
             this.initialPosition.x = clientX;
             this.initialPosition.y = clientY;
-
-            this.dragLayer.style.pointerEvents = 'none';
-            this.dragLayer.style.pointerEvents = 'auto';
-
-            // 如果点击的是按钮、链接等可点击元素，则直接触发点击事件（禁用，目前通过距离直接检测）
-            // const elementUnderMouse = document.elementFromPoint(clientX, clientY);
-            // if (elementUnderMouse?.closest('button, [onclick], a')) {
-            //     elementUnderMouse.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-            //     return;
-            // }
 
             this.isDragging = false;
             this.shouldDrag = false;
@@ -213,7 +165,8 @@ export class Drag {
         if (Math.sqrt(dx * dx + dy * dy) > this.dragThreshold) {
             this.isDragging = true;
             this.shouldDrag = true;
-            this.dragLayer.style.cursor = 'grabbing';
+            this.dragSpace.style.pointerEvents = 'none';
+            this.dragContainer.style.cursor = 'grabbing';
 
             this.canvasStartX = (clientX - this.translateX) / this.scale;
             this.canvasStartY = (clientY - this.translateY) / this.scale;
@@ -267,41 +220,11 @@ export class Drag {
             document.removeEventListener('mouseup', this.handleMouseUp);
         }
 
-        // 如果没有触发拖拽则执行点击
-        if (!this.shouldDrag) {
-            this.dragLayer.style.pointerEvents = 'none';
-            let clientX, clientY;
-
-            if (e.type === 'touchend' && e.changedTouches && e.changedTouches.length > 0) { // 检查 e.changedTouches 是否存在且不为空
-                const touch = e.changedTouches[0]; // 获取第一个 touch 对象
-                if (touch) { // 确保 touch 对象存在
-                    clientX = touch.clientX;
-                    clientY = touch.clientY;
-                } else {
-                    clientX = NaN; // 如果 touch 不存在，则设置为 NaN，表示无效坐标
-                    clientY = NaN;
-                }
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-
-            // 检查 clientX 和 clientY 是否是有效的数字
-            if (typeof clientX === 'number' && isFinite(clientX) && typeof clientY === 'number' && isFinite(clientY)) {
-                const elementUnderMouse = document.elementFromPoint(clientX, clientY);
-                if (elementUnderMouse) {
-                    elementUnderMouse.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                }
-            } else {
-                console.warn("Invalid coordinates for elementFromPoint:", clientX, clientY, e); // 打印警告信息，方便调试
-            }
-        }
-
         // 重置状态
         this.isDragging = false;
         this.shouldDrag = false;
-        this.dragLayer.style.cursor = 'grab';
-        this.dragLayer.style.pointerEvents = 'auto';
+        this.dragSpace.style.pointerEvents = 'auto';
+        this.dragContainer.style.cursor = 'grab';
     };
 
     // 滚轮缩放事件
@@ -320,7 +243,7 @@ export class Drag {
         this.scale = newScale;
 
         // 计算缩放中心
-        const rect = this.dragLayer.getBoundingClientRect();
+        const rect = this.dragContainer.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
@@ -356,8 +279,6 @@ export class Drag {
     updateTransform() {
         requestAnimationFrame(() => {
             this.dragSpace.style.transform =
-                `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
-            this.dragTopSpace.style.transform =
                 `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
         });
     }
