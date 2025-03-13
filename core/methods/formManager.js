@@ -128,7 +128,7 @@ class Form {
      * 获取表单修改后的数据副本
      * @returns {object} - 修改后的数据副本
      */
-    getFormData() {
+    result() {
         return this.formData;
     }
 }

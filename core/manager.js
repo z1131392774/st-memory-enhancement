@@ -86,14 +86,16 @@ export const BASE = {
     },
 
     destroyAllTemplates() {
-        if (confirm("确定要销毁所有表格模板数据吗？") === false) return;
+        if (confirm("确定要销毁所有表格模板数据吗？") === false) return false;
         USER.getSettings().table_database_templates = [];
         USER.getSettings().table_database_templates_selected = [];
         USER.saveSettings();
+        return true;
     },
     destroyAllContextSheets() {
-        if (confirm("确定要销毁所有表格数据吗？") === false) return;
+        if (confirm("确定要销毁所有表格数据吗？") === false) return false;
         USER.getContext().table_database_data = [];
+        return true;
     }
 };
 

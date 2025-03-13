@@ -3,6 +3,7 @@ import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 import { PopupMenu } from '../methods/popupMenu.js';
 import { Form } from '../methods/formManager.js';
 import {openTableRendererPopup} from "./sheetStyleEditor.js";
+import {compareDataDiff} from "../../utils/utility.js";
 
 const userSheetEditInfo = {
     chatIndex: null,
@@ -72,7 +73,7 @@ const formConfigs = {
                 ],
             },
             { label: '表格名', id: 'dataTable_sheetSetting_tableName', type: 'text', dataKey: 'name' },
-            { label: '推送至对话', description: '(开启时将该表格推送至对话)', id: 'dataTable_tableSetting_toChat', type: 'checkbox', dataKey: 'tableToChat' },
+            // { label: '推送至对话', description: '(开启时将该表格推送至对话)', id: 'dataTable_tableSetting_toChat', type: 'checkbox', dataKey: 'tableToChat' },
             // { label: '推送样式', description: '(编辑推送至对话的表格样式)', id: 'dataTable_tableSetting_tableRender', type: 'textarea', dataKey: 'tableRender' },
             // {
             //     type: 'button',
@@ -198,20 +199,12 @@ function getSheetTitle(sheet) {
 
         await popup.show();
         if (popup.result) {
-            const formData = formInstance.getFormData();
-            const diffData = {};
-            Object.keys(formData).forEach(key => {
-                if (formData[key] !== initialData[key]) {
-                    diffData[key] = formData[key];
-                }
-            });
-            if (Object.keys(diffData).length > 0) {
-                sheet.editProps(diffData);
-                const nameSpan = titleBar.querySelector('span');
-                if (nameSpan) {
-                    nameSpan.textContent = sheet.name ? sheet.name : 'Unnamed Table';
-                }
-            }
+            const diffData = compareDataDiff(formInstance.result(), initialData)
+            console.log(diffData)
+            Object.keys(diffData).forEach(key => {
+                sheet[key] = diffData[key];
+            })
+            sheet.save()
         }
     });
     const originButton = $(`<i class="menu_button menu_button_icon fa-solid fa-pen" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格属性"></i>`);
@@ -224,7 +217,8 @@ function getSheetTitle(sheet) {
 
         await popup.show();
         if (popup.result) {
-
+            const diffData = compareDataDiff(formInstance.result(), initialData)
+            console.log(diffData)
         }
     })
     const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-swatchbook" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
@@ -258,7 +252,7 @@ async function templateCellDataEdit(cell) {
 
     await popup.show();
     if (popup.result) {
-        const formData = formInstance.getFormData();
+        const formData = formInstance.result();
         const diffData = {};
         Object.keys(formData).forEach(key => {
             if (formData[key] !== initialData[key]) {
@@ -269,7 +263,7 @@ async function templateCellDataEdit(cell) {
         if (Object.keys(diffData).length === 0) {
             return;
         }
-        cell.editProps(diffData);
+        cell.editCellData(diffData);
     }
 }
 
@@ -454,10 +448,12 @@ async function initTableEdit(mesId) {
 
     })
     $(document).on('click', '#destroy_table_template_button', async function () {
-        BASE.destroyAllTemplates()
-        await updateDropdownElement();
-        $(dropdownElement).val([]).trigger('change');
-        updateDragTables();
+        const r = BASE.destroyAllTemplates()
+        if (r) {
+            await updateDropdownElement();
+            $(dropdownElement).val([]).trigger('change');
+            updateDragTables();
+        }
     });
 
     updateDragTables();

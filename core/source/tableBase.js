@@ -174,6 +174,7 @@ export class Sheet {
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
+
     #cell(cellUid) {
         return this.cells.get(cellUid);
     }
@@ -347,7 +348,7 @@ class Cell {
                 return target[prop];
             },
             set: (target, prop, value) => {
-                this.editProps({ prop, value });
+                this.editCellData({ prop, value });
                 return true;
             },
         });
@@ -361,13 +362,13 @@ class Cell {
     newAction(actionName) {
         this.#event(actionName);
     }
-    editProps(props) {
+    editCellData(props) {
         this.#event(CellAction.editCell, props);
     }
     renderCell(rowIndex, colIndex) {
         const cellElement = document.createElement('td');
-        cellElement.classList.add('sheet-cell'); // 使用 sheet-cell
-        this.element = cellElement; // 存储 element
+        cellElement.classList.add('sheet-cell');
+        this.element = cellElement;
 
         if (rowIndex === 0 && colIndex === 0) {
             cellElement.classList.add('sheet-cell-origin');
@@ -392,6 +393,7 @@ class Cell {
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
+
     bridge = {
 
     }
