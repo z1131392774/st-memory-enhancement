@@ -82,8 +82,31 @@
 
 ## 开发流程
 
-1. **Fork 仓库:**  Fork 此仓库到您自己的 GitHub 账号。
-2. **或者 Clone `dev` 分支:**  Clone 该 `dev` 分支到本地。
-3. **请确保该仓库被放在 SillyTavern 插件目录下:**  例如： `...\SillyTavern\public\scripts\extensions\third-party\` 或 `...\SillyTavern\data\<your_user_name>\extensions\`。
-   ```bash
-   git clone -b dev https://github.com/muyoou/st-memory-enhancement
+1. **Fork 仓库（建议）:**  Fork 此仓库到您自己的 GitHub 账号。
+
+2. **请确保该仓库被放在 SillyTavern 插件目录下:**  例如： `...\SillyTavern\public\scripts\extensions\third-party\` 或 `...\SillyTavern\data\<your_user_name>\extensions\`。
+```bash
+cd ...\SillyTavern\public\scripts\extensions\third-party\
+```
+
+3. **Clone:**  Clone `dev` 分支或者您自己的 Fork 仓库到本地。
+```bash
+git clone -b dev https://github.com/muyoou/st-memory-enhancement
+```
+
+4. **进入插件目录:**  进入插件目录。
+```bash
+cd st-memory-enhancement
+```
+
+5. **安装依赖:**  您可能需要在插件目录下运行 `npm install` 安装依赖。
+```bash
+npm install
+```
+
+6. **现在您可以在 `st-memory-enhancement` 目录下进行开发。**
+
+
+## 再次感谢您的支持！
+
+如果您有任何问题或建议，请随时联系我们。
