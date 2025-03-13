@@ -2,12 +2,32 @@
 
 **欢迎开发者朋友！**  这份文档旨在帮助您了解 SillyTavern 记忆增强插件的内部结构、开发流程以及如何参与插件的开发和贡献。 本文档主要针对 `dev` 分支，其中可能包含最新的开发功能、实验性特性以及尚未完全稳定的代码。
 
-**请注意：** `dev` 分支的代码可能不稳定，仅供开发和测试使用。  如果您是普通用户，请参考主分支的用户文档。
+**请注意：** `dev` 分支的代码可能不稳定，仅供开发和测试使用。  如果您是普通用户，请参考[主分支](https://github.com/muyoou/st-memory-enhancement)的文档。
 
 ## 分支说明
 
 * **`main` 分支 (用户文档对应分支):**  稳定版本分支，对应用户安装和使用的版本。 文档也主要面向用户。
 * **`dev` 分支 (开发者文档对应分支):**  开发分支，包含最新的开发代码，可能包含实验性功能和未完成的特性。  此分支的代码可能不稳定，不建议普通用户使用。  本开发者文档主要针对此分支。
+
+## 开发流程
+
+1. **Fork 仓库（建议）:**  Fork 此仓库到您自己的 GitHub 账号。
+
+2. **请确保该仓库被放在 SillyTavern 插件目录下:**  例如： `...\SillyTavern\public\scripts\extensions\third-party\` 或 `...\SillyTavern\data\<your_user_name>\extensions\`。
+
+3. **Clone:**  Clone `dev` 分支或者您自己的 Fork 仓库到本地。
+```bash
+# 以clone dev 分支为例：
+git clone -b dev https://github.com/muyoou/st-memory-enhancement
+```
+
+4. **安装依赖:**  您需要进入插件目录并安装必要的依赖
+```bash
+cd st-memory-enhancement
+npm install
+```
+
+5. **现在您可以在 `st-memory-enhancement` 目录下进行开发。**
 
 ## 代码结构概览
 
@@ -56,6 +76,8 @@
 
 ## 核心模块说明
 
+**请注意：** 因重构阶段代码变动较大，实际的变量与函数请查看注释或IDE中的提示，以下内容仅供参考。
+
 * **`USER` 模块 (`manager.js`):**  用户数据管理模块。
     * 提供对用户设置 (`power_user`) 和 SillyTavern 上下文 (`getContext()`) 的访问。
     * 封装了用户设置的读取和保存操作 (`getSettings()`, `saveSettings()`).
@@ -79,32 +101,6 @@
     * 工具函数 (`lazy()`, `generateRandomString()`, `generateRandomNumber()`, `calculateStringHash()`).
     * 文件读写 (`readFile()`, `writeFile()`).
     * 任务队列 (`f()`).
-
-## 开发流程
-
-1. **Fork 仓库（建议）:**  Fork 此仓库到您自己的 GitHub 账号。
-
-2. **请确保该仓库被放在 SillyTavern 插件目录下:**  例如： `...\SillyTavern\public\scripts\extensions\third-party\` 或 `...\SillyTavern\data\<your_user_name>\extensions\`。
-```bash
-cd ...\SillyTavern\public\scripts\extensions\third-party\
-```
-
-3. **Clone:**  Clone `dev` 分支或者您自己的 Fork 仓库到本地。
-```bash
-git clone -b dev https://github.com/muyoou/st-memory-enhancement
-```
-
-4. **进入插件目录:**  进入插件目录。
-```bash
-cd st-memory-enhancement
-```
-
-5. **安装依赖:**  您可能需要在插件目录下运行 `npm install` 安装依赖。
-```bash
-npm install
-```
-
-6. **现在您可以在 `st-memory-enhancement` 目录下进行开发。**
 
 
 ## 再次感谢您的支持！
