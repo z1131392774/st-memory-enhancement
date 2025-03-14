@@ -1,9 +1,9 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {updateSystemMessageTableStatus} from "../runtime/tablePushToChat.js";
 import {refreshTableActions, rebuildTableActions, getPromptAndRebuildTable} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
-import {encryptXor, updateModelList} from "../source/standaloneAPI.js";
-import {filterTableDataPopup} from "../source/pluginSetting.js";
+import {encryptXor, updateModelList} from "../standaloneAPI.js";
+import {filterTableDataPopup} from "../pluginSetting.js";
 import {initRefreshTypeSelector} from "../editor/initRefreshTypeSelector.js";
 
 /**

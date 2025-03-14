@@ -1,5 +1,5 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import { deleteRow, insertRow, updateRow } from "../source/tableActions.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import { deleteRow, insertRow, updateRow } from "../tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
 /**

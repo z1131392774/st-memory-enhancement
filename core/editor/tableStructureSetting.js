@@ -1,4 +1,4 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {updateSystemMessageTableStatus} from "../runtime/tablePushToChat.js";
 import {renderSetting} from "../renderer/userExtensionSetting.js";
 import {findTableStructureByIndex} from "../../index.js";

@@ -4,19 +4,19 @@ import { extension_settings, getContext, renderExtensionTemplateAsync } from '..
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../../../../../scripts/popup.js';
 import { power_user, applyPowerUserSettings, getContextSettings, loadPowerUserSettings } from "../../../../../../../scripts/power-user.js";
 import { LoadLocal, SaveLocal, LoadLocalBool } from '../../../../../../../scripts/f-localStorage.js';
-import { Table } from "./source/table.js";
-import { TableEditAction } from "./source/tableActions.js";
-import { consoleMessageToEditor } from "./runtime/devConsole.js";
-import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly,} from "../utils/utility.js";
-import {defaultSettings} from "./source/pluginSetting.js";
-import {Drag} from "../components/dragManager.js";
-import {PopupMenu} from "../components/popupMenu.js";
-import {findLastestTableData} from "../index.js";
-import {getRelativePositionOfCurrentCode} from "../utils/codePathProcessing.js";
-import {fileManager} from "../services/router.js";
-import {pushCodeToQueue} from "../components/_fotTest.js";
-import {createProxy, createProxyWithUserSetting} from "../utils/codeProxy.js";
-import {Sheet} from "./source/tableBase.js";
+import { Table } from "./core/table.js";
+import { TableEditAction } from "./core/tableActions.js";
+import { consoleMessageToEditor } from "./core/runtime/devConsole.js";
+import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly,} from "./utils/utility.js";
+import {defaultSettings} from "./core/pluginSetting.js";
+import {Drag} from "./components/dragManager.js";
+import {PopupMenu} from "./components/popupMenu.js";
+import {findLastestTableData} from "./index.js";
+import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
+import {fileManager} from "./services/router.js";
+import {pushCodeToQueue} from "./components/_fotTest.js";
+import {createProxy, createProxyWithUserSetting} from "./utils/codeProxy.js";
+import {Sheet} from "./core/tableBase.js";
 
 let derivedData = {}
 

@@ -1,7 +1,7 @@
 import { saveSettingsDebounced, saveSettings, getSlideToggleOptions, } from '../../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../../extensions.js';
 import { power_user, applyPowerUserSettings, getContextSettings, loadPowerUserSettings } from "../../../../../scripts/power-user.js";
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../core/manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 /**
  * @description 辅助函数，递归创建 Proxy

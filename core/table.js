@@ -1,6 +1,6 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import JSON5 from '../../utils/json5.min.mjs'
-import {findTableStructureByIndex} from "../../index.js";
+import JSON5 from '../utils/json5.min.mjs'
+import {findTableStructureByIndex} from "../index.js";
 
 /**
  * 表格类

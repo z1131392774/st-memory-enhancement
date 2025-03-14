@@ -1,4 +1,4 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {findLastestTableData, findTableStructureByIndex} from "../../index.js";
 import JSON5 from '../../utils/json5.min.mjs'
 

@@ -1,5 +1,5 @@
 // _fotTest.js
-import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../core/manager.js';
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 
 const TESTING = true;
 

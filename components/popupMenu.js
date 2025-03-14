@@ -1,5 +1,5 @@
 // popupMenu.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../core/manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 /**
  * @description 弹出菜单类 - 用于创建和管理弹出菜单

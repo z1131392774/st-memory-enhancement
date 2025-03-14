@@ -2,13 +2,13 @@ import { eventSource, event_types, getRequestHeaders } from '../../../../script.
 import {uploadFileAttachment} from "../../../../scripts/chats.js";
 import {getBase64Async} from "../../../../scripts/utils.js";
 // import {currentUser} from "../../../../scripts/user.js";
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from './core/manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from './manager.js';
 import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/runtime/tablePushToChat.js";
 import {openTableHistoryPopup} from "./core/editor/tableHistory.js";
 import {loadSettings} from "./core/renderer/userExtensionSetting.js";
 import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
 import {openTablePopup, tableCellClickEvent} from "./core/editor/tableDataView.js";
-import {initAllTable} from "./core/source/tableActions.js";
+import {initAllTable} from "./core/tableActions.js";
 import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
 import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
 import {initTest} from "./components/_fotTest.js";

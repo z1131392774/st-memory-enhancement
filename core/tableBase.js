@@ -1,6 +1,6 @@
 // tableBase.js
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
-import {readonly} from "../../utils/utility.js";
+import {readonly} from "../utils/utility.js";
 
 const SheetDomain = {
     global: 'global',

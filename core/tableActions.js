@@ -1,5 +1,5 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import JSON5 from '../../utils/json5.min.mjs'
+import JSON5 from '../utils/json5.min.mjs'
 import {handleCellValue} from "./table.js";
 
 /**

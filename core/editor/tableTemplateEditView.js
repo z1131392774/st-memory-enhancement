@@ -1,5 +1,5 @@
 // tableTemplateEditView.js
-import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../manager.js';
 import { PopupMenu } from '../../components/popupMenu.js';
 import { Form } from '../../components/formManager.js';
 import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";

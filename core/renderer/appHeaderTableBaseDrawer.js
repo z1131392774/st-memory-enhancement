@@ -1,4 +1,4 @@
-import {DERIVED, EDITOR, SYSTEM, USER} from "../manager.js";
+import {DERIVED, EDITOR, SYSTEM, USER} from "../../manager.js";
 import {getTableView} from "../editor/tableDataView.js";
 import {getEditView} from "../editor/tableTemplateEditView.js";
 
