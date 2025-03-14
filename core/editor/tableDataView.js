@@ -1,5 +1,5 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
+import {updateSystemMessageTableStatus} from "../runtime/tablePushToChat.js";
 import {
     copyTableList,
     findLastestTableData,
@@ -9,7 +9,7 @@ import {
     parseTableEditTag,
     replaceTableEditTag,
 } from "../../index.js";
-import {rebuildTableActions, refreshTableActions,getPromptAndRebuildTable} from "./absoluteRefresh.js";
+import {rebuildTableActions, refreshTableActions,getPromptAndRebuildTable} from "../runtime/absoluteRefresh.js";
 import {initAllTable} from "../source/tableActions.js";
 import {openTableHistoryPopup} from "./tableHistory.js";
 import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";

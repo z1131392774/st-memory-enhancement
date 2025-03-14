@@ -1,7 +1,7 @@
 // tableTemplateEditView.js
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
-import { PopupMenu } from '../methods/popupMenu.js';
-import { Form } from '../methods/formManager.js';
+import { PopupMenu } from '../../components/popupMenu.js';
+import { Form } from '../../components/formManager.js';
 import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";
 import {compareDataDiff} from "../../utils/utility.js";
 
@@ -73,7 +73,7 @@ const formConfigs = {
                 ],
             },
             { label: '表格名', id: 'dataTable_sheetSetting_tableName', type: 'text', dataKey: 'name' },
-            { label: '表格说明（提示词）', description: '(作为该表总体提示词，给AI解释此表格的作用)', id: 'dataTable_sheetSetting_note', type: 'textarea', rows: 5, dataKey: 'sheetPrompt' },
+            { label: '表格说明（提示词）', description: '(作为该表总体提示词，给AI解释此表格的作用)', id: 'description', type: 'textarea', rows: 10, dataKey: 'sheetPrompt' },
         ],
     },
     // sheetSetting: {

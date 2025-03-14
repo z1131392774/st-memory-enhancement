@@ -56,7 +56,7 @@ npm install
         * `tableDataView.js`:  表格数据查看弹窗和表格渲染组件。
         * `devConsole.js`:  开发者控制台和日志输出功能。
         * `separateTableUpdate.js`:  两步总结更新表格的逻辑 (如果插件有此功能)。
-        * `appHeaderTableDrawer.js`:  应用头部表格抽屉 UI 组件和相关逻辑。
+        * `appHeaderTableBaseDrawer.js`:  应用头部表格抽屉 UI 组件和相关逻辑。
         * `initRefreshTypeSelector.js`:  刷新类型选择器初始化 (UI 组件或逻辑)。
     * **`methods/` 目录:**  插件的辅助方法和工具函数。
         * `_fotTest.js`:  测试相关代码 (可能用于单元测试或集成测试)。

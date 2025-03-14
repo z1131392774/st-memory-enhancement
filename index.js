@@ -3,18 +3,18 @@ import {uploadFileAttachment} from "../../../../scripts/chats.js";
 import {getBase64Async} from "../../../../scripts/utils.js";
 // import {currentUser} from "../../../../scripts/user.js";
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from './core/manager.js';
-import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/derived/tablePushToChat.js";
-import {openTableHistoryPopup} from "./core/derived/tableHistory.js";
-import {loadSettings} from "./core/derived/userExtensionSetting.js";
-import {openTableSettingPopup} from "./core/derived/tableStructureSetting.js";
-import {openTablePopup, tableCellClickEvent} from "./core/derived/tableDataView.js";
+import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/runtime/tablePushToChat.js";
+import {openTableHistoryPopup} from "./core/editor/tableHistory.js";
+import {loadSettings} from "./core/renderer/userExtensionSetting.js";
+import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
+import {openTablePopup, tableCellClickEvent} from "./core/editor/tableDataView.js";
 import {initAllTable} from "./core/source/tableActions.js";
-import {openTableDebugLogPopup} from "./core/derived/devConsole.js";
-import {TableTwoStepSummary} from "./core/derived/separateTableUpdate.js";
-import {initTest} from "./core/methods/_fotTest.js";
+import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
+import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
+import {initTest} from "./components/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
-import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/derived/appHeaderTableDrawer.js";
-import { initRefreshTypeSelector } from './core/derived/initRefreshTypeSelector.js';
+import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/renderer/appHeaderTableBaseDrawer.js";
+import { initRefreshTypeSelector } from './core/editor/initRefreshTypeSelector.js';
 
 
 console.log("______________________记忆插件：开始加载______________________")
