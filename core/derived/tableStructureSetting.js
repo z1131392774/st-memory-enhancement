@@ -8,12 +8,12 @@ import {findTableStructureByIndex} from "../../index.js";
  * @param {number} tableIndex 表格索引
  */
 export async function openTableSettingPopup(tableIndex) {
-    const manager = await SYSTEM.getComponent('setting');
+    const manager = await SYSTEM.getTemplate('setting');
     const tableSettingPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, allowVerticalScrolling: true });
     const tableStructure = findTableStructureByIndex(tableIndex);
     const $dlg = $(tableSettingPopup.dlg);
     const $tableName = $dlg.find('#dataTable_tableSetting_tableName');
-    const $note = $dlg.find('#dataTable_tableSetting_note');
+    const $note = $dlg.find('#dataTable_sheetSetting_note');
     const $initNote = $dlg.find('#dataTable_tableSetting_initNode');
     const $updateNode = $dlg.find('#dataTable_tableSetting_updateNode');
     const $insertNode = $dlg.find('#dataTable_tableSetting_insertNode');

@@ -446,7 +446,7 @@ async function onModifyCell() {
 
 let initializedTableView = null
 async function initTableView(mesId) { // 增加 table_manager_container 参数
-    const table_manager_container = await SYSTEM.htmlToDom(await SYSTEM.getComponent('manager'), 'table_manager_container');
+    const table_manager_container = await SYSTEM.htmlToDom(await SYSTEM.getTemplate('manager'), 'table_manager_container');
     const tableContainer = table_manager_container.querySelector('#tableContainer');
 
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1

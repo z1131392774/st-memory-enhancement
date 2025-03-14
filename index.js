@@ -444,9 +444,9 @@ jQuery(async () => {
 
     // 开始添加各部分的根DOM
     // 添加表格编辑工具栏
-    $('#translation_container').after(await SYSTEM.getComponent('index'));
+    $('#translation_container').after(await SYSTEM.getTemplate('index'));
     // 添加顶部表格管理工具弹窗
-    $('#extensions-settings-button').before(await SYSTEM.getComponent('appHeaderTableDrawer'));
+    $('#extensions-settings-button').before(await SYSTEM.getTemplate('appHeaderTableDrawer'));
     // 添加进入表格编辑按钮
     $('.extraMesButtons').append(`<div title="查看表格" class="mes_button fa-solid fa-table open_table_by_id" />`);
     // 添加表格编辑浮窗

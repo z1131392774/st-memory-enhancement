@@ -97,7 +97,7 @@ export function updateSystemMessageTableStatus(eventData) {
  * @returns {Promise<void>}
  */
 export async function openTableRendererPopup() {
-    const manager = await SYSTEM.getComponent('renderer');
+    const manager = await SYSTEM.getTemplate('renderer');
     const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const tableStructure = findTableStructureByIndex(DERIVED.any._currentTableIndex);
     const table = findLastestTableData(true).tables[DERIVED.any._currentTableIndex];

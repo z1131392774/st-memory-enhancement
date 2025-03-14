@@ -49,7 +49,7 @@ export class Sheet {
         this.cellHistory = []; // cellHistory 持久保持，只增不减
         this.cellSheet = [];
         this.currentPopupMenu = null;       // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
-        this.tableElement = null;           // 用于存储渲染后的 table 元素
+        this.element = null;           // 用于存储渲染后的 table 元素
         this.lastCellEventHandler = null;   // 保存最后一次使用的 cellEventHandler
 
         if (target?.asTemplate === true) {
@@ -75,6 +75,11 @@ export class Sheet {
             return this.#createNewEmpty(); // 创建空表格或模板
         }
     }
+
+    /**
+     * 保存表格数据，根据是否为 asTemplate 决定保存逻辑
+     * @returns {Sheet|boolean}
+     */
     save() {
         if (this.asTemplate === false) {
             throw new Error('表格保存逻辑未实现');
@@ -88,9 +93,10 @@ export class Sheet {
                     domain: this.domain,
                     type: this.type,
                     asTemplate: this.asTemplate,
-                    cellHistory: this.cellHistory.map(cell => { // 保存 cellHistory
-                        const { parent, ...cellData } = cell;
-                        return cellData;
+                    cellHistory: this.cellHistory.map(cell => {
+                        return cell;
+                        // const { parent, ...data } = cell;
+                        // return data;
                     }),
                     cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
                 };
@@ -109,31 +115,36 @@ export class Sheet {
             }
         }
     }
-
+    /**
+     * 删除表格数据，根据是否为 asTemplate 和 domain 决定删除的位置
+     * @returns {*}
+     */
     delete() {
-        if (!this.asTemplate) {
+        if (this.asTemplate) {
+            console.error('基于域的模板删除逻辑未实现，当前仅支持全局模板删除')
+            let templates = BASE.loadUserAllTemplates();
+            USER.getSettings().table_database_templates = templates.filter(t => t.uid !== this.uid);
+            USER.saveSettings();
+            return templates;
+        } else {
             throw new Error('表格删除逻辑未实现');
         }
-        let templates = BASE.loadUserAllTemplates();
-        USER.getSettings().table_database_templates = templates.filter(t => t.uid !== this.uid);
-        USER.saveSettings();
-        return templates;
     }
     /**
      * 渲染表格，接受 cellEventHandler 参数，提供两个参数：cell, cellElement
      * @param {Function} cellEventHandler
      * */
-    render(cellEventHandler) { // render 方法接受 cellEventHandler 参数，不再传递 rowIndex, colIndex
-        this.lastCellEventHandler = cellEventHandler; // 保存 cellEventHandler
+    render(cellEventHandler = this.lastCellEventHandler) {
+        this.lastCellEventHandler = cellEventHandler;
 
-        if (!this.tableElement) {
-            this.tableElement = document.createElement('table');
-            this.tableElement.classList.add('sheet-table');
-            this.tableElement.style.position = 'relative';
-            this.tableElement.style.display = 'flex';
-            this.tableElement.style.flexDirection = 'column';
-            this.tableElement.style.flexGrow = '0';
-            this.tableElement.style.flexShrink = '1';
+        if (!this.element) {
+            this.element = document.createElement('table');
+            this.element.classList.add('sheet-table');
+            this.element.style.position = 'relative';
+            this.element.style.display = 'flex';
+            this.element.style.flexDirection = 'column';
+            this.element.style.flexGrow = '0';
+            this.element.style.flexShrink = '1';
 
             const styleElement = document.createElement('style');
             styleElement.textContent = `
@@ -144,14 +155,14 @@ export class Sheet {
                 .sheet-header-cell-left { font-weight: bold; cursor: cell; }
                 .sheet-cell-other { min-width: 50px; cursor: cell; }
             `;
-            this.tableElement.appendChild(styleElement);
+            this.element.appendChild(styleElement);
         }
 
-        // 确保 tableElement 中有 tbody，没有则创建
-        let tbody = this.tableElement.querySelector('tbody');
+        // 确保 element 中有 tbody，没有则创建
+        let tbody = this.element.querySelector('tbody');
         if (!tbody) {
             tbody = document.createElement('tbody');
-            this.tableElement.appendChild(tbody);
+            this.element.appendChild(tbody);
         }
         // 清空 tbody 的内容
         tbody.innerHTML = '';
@@ -168,7 +179,28 @@ export class Sheet {
             });
             tbody.appendChild(rowElement); // 将 rowElement 添加到 tbody 中
         });
-        return this.tableElement;
+        return this.element;
+    }
+    findCellByPosition(rowIndex, colIndex) {
+        if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.cellSheet.length || colIndex >= this.cellSheet[0].length) {
+            console.warn('无效的行列索引');
+            return null;
+        }
+        const p = this.cellSheet[rowIndex][colIndex]
+        const t = this.cells.get(p) || null;
+        if (!t) {
+            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${p}`);
+            return null;
+        }
+        return t;
+    }
+    findCellByUid(uid) {
+        const t = this.cells.get(uid) || null;
+        if (!t) {
+            console.warn(`未找到单元格 ${t}`);
+            return null;
+        }
+        return t;
     }
 
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */

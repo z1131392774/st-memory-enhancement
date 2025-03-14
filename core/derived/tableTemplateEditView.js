@@ -2,7 +2,7 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 import { PopupMenu } from '../methods/popupMenu.js';
 import { Form } from '../methods/formManager.js';
-import {openTableRendererPopup} from "./sheetStyleEditor.js";
+import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";
 import {compareDataDiff} from "../../utils/utility.js";
 
 const userSheetEditInfo = {
@@ -48,7 +48,7 @@ const formConfigs = {
         formDescription: "编辑单元格的具体内容。",
         fields: [
             { label: '单元格内容', id: 'dataTable_cellSetting_content', type: 'textarea', dataKey: 'cellContent' },
-            { label: '单元格描述', description: '(给AI解释此单元格内容的作用)', id: 'dataTable_cellSetting_note', type: 'textarea', dataKey: 'cellNote' },
+            { label: '单元格描述', description: '(给AI解释此单元格内容的作用)', id: 'dataTable_cellSetting_note', type: 'textarea', dataKey: 'cellPrompt' },
         ],
     },
     sheetConfig: {
@@ -73,30 +73,22 @@ const formConfigs = {
                 ],
             },
             { label: '表格名', id: 'dataTable_sheetSetting_tableName', type: 'text', dataKey: 'name' },
-            // { label: '推送至对话', description: '(开启时将该表格推送至对话)', id: 'dataTable_tableSetting_toChat', type: 'checkbox', dataKey: 'tableToChat' },
-            // { label: '推送样式', description: '(编辑推送至对话的表格样式)', id: 'dataTable_tableSetting_tableRender', type: 'textarea', dataKey: 'tableRender' },
-            // {
-            //     type: 'button',
-            //     id: 'renderButtonStyleButton',
-            //     iconClass: 'fa-solid fa-bug tableEditor_renderButton',
-            //     text: '在测试模式中编辑本表格样式',
-            //     event: 'editRenderStyleEvent'
-            // }
+            { label: '表格说明（提示词）', description: '(作为该表总体提示词，给AI解释此表格的作用)', id: 'dataTable_sheetSetting_note', type: 'textarea', rows: 5, dataKey: 'sheetPrompt' },
         ],
     },
-    sheetSetting: {
-        formTitle: "编辑表格整体提示词",
-        formDescription: "表格的整体提示词，用于向AI解释表格的作用。",
-        fields: [
-            // { label: '表格名', id: 'dataTable_tableSetting_tableName', type: 'text', dataKey: 'tableName' },
-            { label: '表格说明', description: '(给AI解释此表格的作用)', id: 'dataTable_tableSetting_note', type: 'textarea', dataKey: 'tableNote' },
-            { label: '是否必填', id: 'dataTable_tableSetting_required', type: 'checkbox', dataKey: 'tableRequired' },
-            { label: '初始化提示词', description: '(当表格为必填表时，但是又为空时，给AI的提示)', id: 'dataTable_tableSetting_initNode', type: 'textarea', dataKey: 'tableInitNode' },
-            // { label: '插入提示词', description: '(解释什么时候应该插入行)', id: 'dataTable_tableSetting_insertNode', type: 'textarea', dataKey: 'tableInsertNode' },
-            // { label: '更新提示词', description: '(解释什么时候应该更新行)', id: 'dataTable_tableSetting_updateNode', type: 'textarea', dataKey: 'tableUpdateNode' },
-            // { label: '删除提示词', description: '(解释什么时候应该删除行)', id: 'dataTable_tableSetting_deleteNode', type: 'textarea', dataKey: 'tableDeleteNode' },
-        ]
-    },
+    // sheetSetting: {
+    //     formTitle: "编辑表格整体提示词",
+    //     formDescription: "表格的整体提示词，用于向AI解释表格的作用。",
+    //     fields: [
+    //         // { label: '表格名', id: 'dataTable_tableSetting_tableName', type: 'text', dataKey: 'tableName' },
+    //         { label: '表格说明', description: '(给AI解释此表格的作用)', id: 'dataTable_tableSetting_note', type: 'textarea', dataKey: 'tableNote' },
+    //         { label: '是否必填', id: 'dataTable_tableSetting_required', type: 'checkbox', dataKey: 'tableRequired' },
+    //         { label: '初始化提示词', description: '(当表格为必填表时，但是又为空时，给AI的提示)', id: 'dataTable_tableSetting_initNode', type: 'textarea', dataKey: 'tableInitNode' },
+    //         // { label: '插入提示词', description: '(解释什么时候应该插入行)', id: 'dataTable_tableSetting_insertNode', type: 'textarea', dataKey: 'tableInsertNode' },
+    //         // { label: '更新提示词', description: '(解释什么时候应该更新行)', id: 'dataTable_tableSetting_updateNode', type: 'textarea', dataKey: 'tableUpdateNode' },
+    //         // { label: '删除提示词', description: '(解释什么时候应该删除行)', id: 'dataTable_tableSetting_deleteNode', type: 'textarea', dataKey: 'tableDeleteNode' },
+    //     ]
+    // },
 };
 
 
@@ -207,32 +199,33 @@ function getSheetTitle(sheet) {
             sheet.save()
         }
     });
-    const originButton = $(`<i class="menu_button menu_button_icon fa-solid fa-pen" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格属性"></i>`);
-    originButton.on('click', async () => {
-        const initialData = {
-
-        };
-        const formInstance = new Form(formConfigs.sheetSetting, initialData);
-        const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, { large: false }, { okButton: "保存", cancelButton: "取消" });
-
-        await popup.show();
-        if (popup.result) {
-            const diffData = compareDataDiff(formInstance.result(), initialData)
-            console.log(diffData)
-        }
-    })
+    // const originButton = $(`<i class="menu_button menu_button_icon fa-solid fa-pen" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格属性"></i>`);
+    // originButton.on('click', async () => {
+    //     const initialData = {
+    //
+    //     };
+    //     const formInstance = new Form(formConfigs.sheetSetting, initialData);
+    //     const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, { large: false }, { okButton: "保存", cancelButton: "取消" });
+    //
+    //     await popup.show();
+    //     if (popup.result) {
+    //         const diffData = compareDataDiff(formInstance.result(), initialData)
+    //         console.log(diffData)
+    //     }
+    // })
     const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-swatchbook" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
     styleButton.on('click', async () => {
         // if (sheet.type !== 'fixed' || sheet.type !== 'static') {
         //     EDITOR.warning('只有 fixed 与 static 表格才可以编辑样式');
         //     return;
         // }
-        openTableRendererPopup(sheet);
+        const newSheet = await openSheetStyleRendererPopup(sheet);
+        console.log(newSheet)
     })
     const nameSpan = $(`<span style="margin-left: 0px;">${sheet.name ? sheet.name : 'Unnamed Table'}</span>`);
 
     titleBar.appendChild(settingButton[0]);
-    titleBar.appendChild(originButton[0]);
+    // titleBar.appendChild(originButton[0]);
     titleBar.appendChild(styleButton[0]);
     titleBar.appendChild(nameSpan[0]);
 
@@ -393,7 +386,7 @@ async function updateDragTables() {
 
 
 async function initTableEdit(mesId) {
-    const table_editor_container = await SYSTEM.htmlToDom(await SYSTEM.getComponent('editor'), 'table_editor_container');
+    const table_editor_container = await SYSTEM.htmlToDom(await SYSTEM.getTemplate('editor'), 'table_editor_container');
     const tableEditTips = table_editor_container.querySelector('#tableEditTips');
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');

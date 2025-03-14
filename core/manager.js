@@ -160,8 +160,8 @@ export const DERIVED = {
  * @description 该控制器用于管理系统级别的数据、事件、设置等数据，包括组件加载、文件读写、代码路径记录等
  */
 export const SYSTEM = {
-    getComponent: (name) => {
-        console.log('getComponent', name);
+    getTemplate: (name) => {
+        console.log('getTemplate', name);
         return renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
     },
     htmlToDom: (html, targetId = '') => {

@@ -201,7 +201,7 @@ function createRawParamsRow(params) {
  * 打开表格编辑历史记录弹窗
  * */
 export async function openTableHistoryPopup(){
-    const manager = await SYSTEM.getComponent('history');
+    const manager = await SYSTEM.getTemplate('history');
     const tableHistoryPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const tableEditHistory = USER.getContext().chat;
     const $dlg = $(tableHistoryPopup.dlg);

@@ -3,32 +3,19 @@
         <div id="table_drawer_icon" class="drawer-icon fa-solid fa-bars-staggered fa-fw closedIcon interactable" title="事件表" tabindex="0"></div>
     </div>
     <div id="table_drawer_content" class="drawer-content closedIcon" data-slide-toggle="hidden" style="display: none; ">
-        <div style="display: flex; flex-direction: column; overflow: hidden">
-            <div id="table_drawer_content_header" class="fa-solid fa-grip drag-grabber">
-
+        <!-- 切换界面按钮 -->
+        <div id="table_button_container" class="wide100p flex-container" style="display: flex; flex-grow: 1; justify-content: space-between">
+            <div style="display: flex; flex-grow: 1; gap: 5px;">
+                <button id="database_button" class="menu_button_icon menu_button interactable"><i class="fa-solid fa-database"></i><b>对话表</b></button>
+                <button id="editor_button" class="menu_button_icon menu_button interactable"><i class="fa-solid fa-pen-ruler"></i><b>表结构</b></button>
+                <button id="nodes_button" class="menu_button_icon menu_button interactable"><i class="fa-brands fa-hubspot"></i><b>节点图</b></button>
             </div>
-            <!-- 切换界面 -->
-            <div id="table_button_container" class="wide100p flex-container" style="display: flex; flex-grow: 1; justify-content: space-between">
-                <div style="display: flex; flex-grow: 1; gap: 5px;">
-                    <button id="database_button" class="menu_button_icon menu_button interactable"><i class="fa-solid fa-database"></i><b>对话表</b></button>
-                    <button id="editor_button" class="menu_button_icon menu_button interactable"><i class="fa-solid fa-pen-ruler"></i><b>表结构</b></button>
-                    <button id="nodes_button" class="menu_button_icon menu_button interactable"><i class="fa-brands fa-hubspot"></i><b>节点图</b></button>
-                </div>
-                <button id="setting_button" class="menu_button_icon menu_button interactable"><i class="fa-solid fa-gears"></i><b>设置</b></button>
-            </div>
-
-            <div class="flex-container alignitemscenter gap10px">
-                <!--            <h3 class="margin0">-->
-                <!--                <span>事件表</span>-->
-                <!--            </h3>-->
-            </div>
+            <button id="setting_button" class="menu_button_icon menu_button interactable"><i class="fa-solid fa-gears"></i><b>设置</b></button>
         </div>
-
-
+        <!-- 加载对话表功能面板 -->
         <div id="app_header_table_container" style="max-height: 100%; overflow-y: auto; flex-grow: 1;">
 
         </div>
-
     </div>
 </div>
 
@@ -43,7 +30,7 @@
 
         }
         &::-webkit-scrollbar-track {
-            background-color: transparent; /* 设置滚动条轨道背景透明 */
+            background-color: transparent;
         }
     }
 

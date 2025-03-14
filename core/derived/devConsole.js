@@ -29,6 +29,8 @@ function updateTableDebugLog(type, message, detail, timeout) {
 
             // 获取堆栈回调，将堆栈回调信息记录到newLog
             newLog.stack = new Error().stack;
+            // 移除堆栈回调中的第2-4行，保留第一行，即移除Error对象创建和updateTableDebugLog调用的行
+            newLog.stack = newLog.stack.split('\n').filter((_, index) => index === 0 || index > 3).join('\n');
             if (USER.tableBaseSetting.tableDebugModeAble) {
                 setTimeout(() => {
                     openTableDebugLogPopup().then(r => {});
@@ -56,7 +58,7 @@ const copyButtonStyle = `
 async function copyPopup(log) {
     const logDetails = `Time: ${log.time}\nType: ${log.type}\nMessage: ${log.message}${log.stack ? `\nStack:\n${log.stack}` : ''}`;
     const textarea = $('<textarea class="log-copy-textarea" style="height: 100%"></textarea>').val(logDetails);
-    const manager = await SYSTEM.getComponent('popup');
+    const manager = await SYSTEM.getTemplate('popup');
     const copyPopupInstance = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const container = copyPopupInstance.dlg.querySelector('#popup_content');
     container.append(textarea[0]);
@@ -80,8 +82,8 @@ function renderDebugLogs($container, logs, onlyError) {
         return;
     }
 
-    const urlRegex = /(https?:\/\/[^\s)]+)|(http?:\/\/[^\s)]+)|(www\.[^\s)]+)/g; // 匹配 http://, https://, www. 开头的链接
-
+    // 用于匹配堆栈信息行，并捕获函数名、URL和行号列号
+    const stackLineRegex = /at\s+([^\s]*?)\s+\((https?:\/\/[^\s:]+(?::\d+)?(?:[^\s:]+)*)(?::(\d+):(\d+))?\)/g;
     logs.forEach(log => {
         if (onlyError && log.type !== 'error') {
             return; // 如果只显示错误日志且当前日志不是 error 类型，则跳过
@@ -99,13 +101,27 @@ function renderDebugLogs($container, logs, onlyError) {
             copyPopup(log);
         })
 
-        if (log.stack) { // 如果 log 对象有 stack 属性 (error 类型的 log)
-            // 使用正则表达式替换 URL 并包裹在 div 中
-            const formattedStack = log.stack.replace(urlRegex, (url) => {
-                return `<div style="color: rgb(98, 145, 179)">${url}</div>`;
+        if (log.stack) {
+            // 使用正则表达式替换堆栈信息行，并高亮函数名，URL可点击
+            const formattedStack = log.stack.replace(stackLineRegex, (match, functionName, urlBase, lineNumber, columnNumber) => {
+                // functionName 是函数名 (例如 getPromptAndRebuildTable, dispatch)
+                // urlBase 是链接的基础部分
+                // lineNumber 是行号 (如果存在)
+                // columnNumber 是列号 (如果存在)
+
+                let functionNameHtml = '';
+                if (functionName) {
+                    functionNameHtml = `<span style="color: #bbb">${functionName}</span> `;
+                }
+                let linkHtml = `<a href="${urlBase}" target="_blank" style="color: rgb(98, 145, 179)">${urlBase}</a>`;
+                let locationHtml = '';
+                if (lineNumber && columnNumber) {
+                    locationHtml = `<span style="color: rgb(98, 145, 179)">:${lineNumber}:${columnNumber}</span>`;
+                }
+                return `at ${functionNameHtml}(${linkHtml}${locationHtml})`; // 重新构建堆栈信息行
             });
-            const stackPre = $('<pre class="log-stack"></pre>').html(formattedStack); // 使用 .html() 而不是 .text()，以渲染 HTML 标签
-            logElement.append(stackPre); // 将堆栈信息添加到 logElement
+            const stackPre = $('<pre class="log-stack"></pre>').html(formattedStack);
+            logElement.append(stackPre);
         }
 
         $container.append(logElement);
@@ -128,7 +144,7 @@ export async function openTableDebugLogPopup() {
     if (!SYSTEM.lazy('openTableDebugLogPopup')) return;
 
     isPopupOpening = true;
-    const manager = await SYSTEM.getComponent('debugLog');
+    const manager = await SYSTEM.getTemplate('debugLog');
     const tableDebugLogPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const $dlg = $(tableDebugLogPopup.dlg);
     const $debugLogContainer = $dlg.find('#debugLogContainer');

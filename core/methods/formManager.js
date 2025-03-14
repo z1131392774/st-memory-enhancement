@@ -56,7 +56,7 @@ class Form {
                 if (field.type === 'text') {
                     contentHTML += `<input type="text" id="${field.id}" class="margin0 text_pole" style=" margin-bottom: 20px;"/>`;
                 } else if (field.type === 'textarea') {
-                    contentHTML += `<textarea id="${field.id}" class="wide100p" rows="2"></textarea>`;
+                    contentHTML += `<textarea id="${field.id}" class="wide100p" rows="${field.rows || 2}"></textarea>`;
                 } else if (field.type === 'checkbox') {
                     contentHTML += `
                         <div class="checkbox flex-container" style="margin-bottom: 10px;">

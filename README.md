@@ -96,7 +96,7 @@ npm install
     * 暴露 `Table` 类 (`Table: Table`) 和 `TableEditAction` 类 (`TableEditAction: TableEditAction`)。
 * **`SYSTEM` 模块 (`manager.js`):**  系统控制器。
     * 封装了系统级别的功能。
-    * 组件加载 (`getComponent()`, `htmlToDom()`).
+    * 组件加载 (`getTemplate()`, `htmlToDom()`).
     * 代码路径日志 (`codePathLog()`).
     * 工具函数 (`lazy()`, `generateRandomString()`, `generateRandomNumber()`, `calculateStringHash()`).
     * 文件读写 (`readFile()`, `writeFile()`).
