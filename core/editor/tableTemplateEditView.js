@@ -30,25 +30,25 @@ const formConfigs = {
         formTitle: "编辑列",
         formDescription: "设置列的标题和描述信息。",
         fields: [
-            { label: '列标题', id: 'dataTable_columnSetting_columnName', type: 'text', dataKey: 'columnName' },
-            { label: '列描述', description: '(给AI解释此列的作用)', id: 'dataTable_columnSetting_note', type: 'textarea', dataKey: 'columnNote' },
-            { label: '数据类型', id: 'dataTable_columnSetting_dataType', type: 'select', dataKey: 'columnDataType', options: ['text', 'number', 'date', 'select'] },
+            { label: '列标题', type: 'text', dataKey: 'value' },
+            { label: '列描述', description: '(给AI解释此列的作用)', type: 'textarea', dataKey: 'columnNote' },
+            { label: '数据类型', type: 'select', dataKey: 'columnDataType', options: ['text', 'number', 'date', 'select'] },
         ],
     },
     row_header: {
         formTitle: "编辑行",
         formDescription: "设置行的标题和描述信息。",
         fields: [
-            { label: '行标题', id: 'dataTable_rowSetting_rowName', type: 'text', dataKey: 'rowName' },
-            { label: '行描述', description: '(给AI解释此行的作用)', id: 'dataTable_rowSetting_note', type: 'textarea', dataKey: 'rowNote' },
+            { label: '行标题', type: 'text', dataKey: 'value' },
+            { label: '行描述', description: '(给AI解释此行的作用)', type: 'textarea', dataKey: 'rowNote' },
         ],
     },
     cell: {
         formTitle: "编辑单元格",
         formDescription: "编辑单元格的具体内容。",
         fields: [
-            { label: '单元格内容', id: 'dataTable_cellSetting_content', type: 'textarea', dataKey: 'cellContent' },
-            { label: '单元格描述', description: '(给AI解释此单元格内容的作用)', id: 'dataTable_cellSetting_note', type: 'textarea', dataKey: 'cellPrompt' },
+            { label: '单元格内容', type: 'textarea', dataKey: 'value' },
+            { label: '单元格描述', description: '(给AI解释此单元格内容的作用)', type: 'textarea', dataKey: 'cellPrompt' },
         ],
     },
     sheetConfig: {
@@ -56,7 +56,7 @@ const formConfigs = {
         formDescription: "设置表格的域、类型和名称。",
         fields: [
             {
-                label: '域', id: 'dataTable_sheetSetting_domain', type: 'select', dataKey: 'domain',
+                label: '域', type: 'select', dataKey: 'domain',
                 options: [
                     { value: 'global', text: `<i class="fa-solid fa-earth-asia"></i> Global（该模板储存于用户数据中）` },
                     { value: 'role', text: `<i class="fa-solid fa-user-tag"></i> Role（该模板储存于当前所选角色）` },
@@ -64,7 +64,7 @@ const formConfigs = {
                 ],
             },
             {
-                label: '类型', id: 'dataTable_sheetSetting_type', type: 'select', dataKey: 'type',
+                label: '类型', type: 'select', dataKey: 'type',
                 options: [
                     { value: 'free', text: `<i class="fa-solid fa-table"></i> Free（AI 可以任意修改此表格）` },
                     { value: 'dynamic', text: `<i class="fa-solid fa-arrow-down-wide-short"></i> Dynamic（AI 可进行插入列外的所有操作）` },
@@ -72,21 +72,21 @@ const formConfigs = {
                     { value: 'static', text: `<i class="fa-solid fa-link"></i> Static（该表对 AI 为只读）` }
                 ],
             },
-            { label: '表格名', id: 'dataTable_sheetSetting_tableName', type: 'text', dataKey: 'name' },
-            { label: '表格说明（提示词）', description: '(作为该表总体提示词，给AI解释此表格的作用)', id: 'description', type: 'textarea', rows: 10, dataKey: 'sheetPrompt' },
+            { label: '表格名', type: 'text', dataKey: 'name' },
+            { label: '表格说明（提示词）', description: '(作为该表总体提示词，给AI解释此表格的作用)', type: 'textarea', rows: 10, dataKey: 'description' },
         ],
     },
     // sheetSetting: {
     //     formTitle: "编辑表格整体提示词",
     //     formDescription: "表格的整体提示词，用于向AI解释表格的作用。",
     //     fields: [
-    //         // { label: '表格名', id: 'dataTable_tableSetting_tableName', type: 'text', dataKey: 'tableName' },
-    //         { label: '表格说明', description: '(给AI解释此表格的作用)', id: 'dataTable_tableSetting_note', type: 'textarea', dataKey: 'tableNote' },
-    //         { label: '是否必填', id: 'dataTable_tableSetting_required', type: 'checkbox', dataKey: 'tableRequired' },
-    //         { label: '初始化提示词', description: '(当表格为必填表时，但是又为空时，给AI的提示)', id: 'dataTable_tableSetting_initNode', type: 'textarea', dataKey: 'tableInitNode' },
-    //         // { label: '插入提示词', description: '(解释什么时候应该插入行)', id: 'dataTable_tableSetting_insertNode', type: 'textarea', dataKey: 'tableInsertNode' },
-    //         // { label: '更新提示词', description: '(解释什么时候应该更新行)', id: 'dataTable_tableSetting_updateNode', type: 'textarea', dataKey: 'tableUpdateNode' },
-    //         // { label: '删除提示词', description: '(解释什么时候应该删除行)', id: 'dataTable_tableSetting_deleteNode', type: 'textarea', dataKey: 'tableDeleteNode' },
+    //         // { label: '表格名', type: 'text', dataKey: 'tableName' },
+    //         { label: '表格说明', description: '(给AI解释此表格的作用)', type: 'textarea', dataKey: 'tableNote' },
+    //         { label: '是否必填', type: 'checkbox', dataKey: 'tableRequired' },
+    //         { label: '初始化提示词', description: '(当表格为必填表时，但是又为空时，给AI的提示)', type: 'textarea', dataKey: 'tableInitNode' },
+    //         // { label: '插入提示词', description: '(解释什么时候应该插入行)', type: 'textarea', dataKey: 'tableInsertNode' },
+    //         // { label: '更新提示词', description: '(解释什么时候应该更新行)', type: 'textarea', dataKey: 'tableUpdateNode' },
+    //         // { label: '删除提示词', description: '(解释什么时候应该删除行)', type: 'textarea', dataKey: 'tableDeleteNode' },
     //     ]
     // },
 };
@@ -168,7 +168,7 @@ function initializeSelect2Dropdown(dropdownElement) {
 let table_editor_container = null
 
 
-function getSheetTitle(sheet) {
+function bindSheetSetting(sheet) {
     const titleBar = document.createElement('div');
     titleBar.className = 'table-title-bar';
     titleBar.style.display = 'flex';
@@ -179,12 +179,14 @@ function getSheetTitle(sheet) {
     titleBar.style.fontSize = '0.8rem';
     titleBar.style.fontWeight = 'normal';
 
+    // 表格基础设置按钮
     const settingButton = $(`<i class="menu_button menu_button_icon fa-solid fa-wrench" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格属性"></i>`);
     settingButton.on('click', async () => {
         const initialData = {
             domain: sheet.domain,
             type: sheet.type,
-            name: sheet.name
+            name: sheet.name,
+            description: sheet.data.description,
         };
         const formInstance = new Form(formConfigs.sheetConfig, initialData);
         const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, { large: false }, { okButton: "保存", cancelButton: "取消" });
@@ -194,33 +196,46 @@ function getSheetTitle(sheet) {
             const diffData = compareDataDiff(formInstance.result(), initialData)
             console.log(diffData)
             Object.keys(diffData).forEach(key => {
-                sheet[key] = diffData[key];
+                console.log(key)
+                switch (key) {
+                    case 'domain':
+                        sheet.domain = diffData[key];
+                        break;
+                    case 'type':
+                        sheet.type = diffData[key];
+                        break;
+                    case 'name':
+                        sheet.name = diffData[key];
+                        break;
+                    case 'description':
+                        console.log(diffData[key])
+                        sheet.data.description = diffData[key];
+                        break;
+                    default:
+                        break;
+                }
+            })
+            sheet.save()
+            console.log(sheet.source.data)
+            console.log(sheet.cells.get(sheet.source.uid).data)
+        }
+    });
+
+    // 表格自定义样式按钮
+    const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-swatchbook" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
+    styleButton.on('click', async () => {
+        const initialData = {
+            toChat: sheet.data.toChat,
+            customStyle: sheet.data.customStyle,
+        }
+        const newSheet = await openSheetStyleRendererPopup(sheet);
+        if (newSheet.data) {
+            const diffData = compareDataDiff(newSheet.data, initialData);
+            Object.keys(diffData).forEach(key => {
+                sheet.data[key] = diffData[key];
             })
             sheet.save()
         }
-    });
-    // const originButton = $(`<i class="menu_button menu_button_icon fa-solid fa-pen" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格属性"></i>`);
-    // originButton.on('click', async () => {
-    //     const initialData = {
-    //
-    //     };
-    //     const formInstance = new Form(formConfigs.sheetSetting, initialData);
-    //     const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, { large: false }, { okButton: "保存", cancelButton: "取消" });
-    //
-    //     await popup.show();
-    //     if (popup.result) {
-    //         const diffData = compareDataDiff(formInstance.result(), initialData)
-    //         console.log(diffData)
-    //     }
-    // })
-    const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-swatchbook" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
-    styleButton.on('click', async () => {
-        // if (sheet.type !== 'fixed' || sheet.type !== 'static') {
-        //     EDITOR.warning('只有 fixed 与 static 表格才可以编辑样式');
-        //     return;
-        // }
-        const newSheet = await openSheetStyleRendererPopup(sheet);
-        console.log(newSheet)
     })
     const nameSpan = $(`<span style="margin-left: 0px;">${sheet.name ? sheet.name : 'Unnamed Table'}</span>`);
 
@@ -245,19 +260,58 @@ async function templateCellDataEdit(cell) {
 
     await popup.show();
     if (popup.result) {
-        const formData = formInstance.result();
-        const diffData = {};
-        Object.keys(formData).forEach(key => {
-            if (formData[key] !== initialData[key]) {
-                diffData[key] = formData[key];
-            }
-        });
-
-        if (Object.keys(diffData).length === 0) {
-            return;
-        }
-        cell.editCellData(diffData);
+        const diffData = compareDataDiff(formInstance.result(), initialData)
+        console.log(diffData)
+        Object.keys(diffData).forEach(key => {
+            cell.data[key] = diffData[key];
+        })
+        const pos = cell.position
+        cell.parent.save()
+        // cell.renderCell(pos[0], pos[1])
+        cell.parent.updateRender()
     }
+}
+
+function bindCellClickEvent(cell) {
+    cell.element.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        if (cell.parent.currentPopupMenu) {
+            cell.parent.currentPopupMenu.destroy();
+            cell.parent.currentPopupMenu = null;
+        }
+        cell.parent.currentPopupMenu = new PopupMenu();
+
+        const [rowIndex, colIndex] = cell.position;
+
+        if (rowIndex === 0 && colIndex === 0) {
+            // cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑表头', async (e) => { await templateCellDataEdit(cell) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+        } else if (rowIndex === 0) {
+            cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
+        } else if (colIndex === 0) {
+            cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该行', async (e) => { await templateCellDataEdit(cell) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
+        } else {
+            cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
+        }
+
+        const rect = cell.element.getBoundingClientRect();
+        const dragSpaceRect = drag.dragSpace.getBoundingClientRect();
+        let popupX = rect.left - dragSpaceRect.left;
+        let popupY = rect.top - dragSpaceRect.top;
+        popupX /= drag.scale;
+        popupY /= drag.scale;
+        popupY += rect.height / drag.scale;
+
+        drag.add('menu', cell.parent.currentPopupMenu.render());
+        cell.parent.currentPopupMenu.show(popupX, popupY);
+    });
 }
 
 
@@ -301,50 +355,8 @@ async function updateDragTables() {
             continue;
         }
 
-        const cellEventHandler = (cell) => {
-            cell.element.addEventListener('click', async (event) => {
-                event.stopPropagation();
-                if (cell.parent.currentPopupMenu) {
-                    cell.parent.currentPopupMenu.destroy();
-                    cell.parent.currentPopupMenu = null;
-                }
-                cell.parent.currentPopupMenu = new PopupMenu();
 
-                const [rowIndex, colIndex] = cell.position;
-
-                if (rowIndex === 0 && colIndex === 0) {
-                    // cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑表头', async (e) => { await templateCellDataEdit(cell) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
-                } else if (rowIndex === 0) {
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
-                } else if (colIndex === 0) {
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该行', async (e) => { await templateCellDataEdit(cell) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
-                } else {
-                    cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
-                }
-
-                const rect = cell.element.getBoundingClientRect();
-                const dragSpaceRect = drag.dragSpace.getBoundingClientRect();
-                let popupX = rect.left - dragSpaceRect.left;
-                let popupY = rect.top - dragSpaceRect.top;
-                popupX /= drag.scale;
-                popupY /= drag.scale;
-                popupY += rect.height / drag.scale;
-
-                drag.add('menu', cell.parent.currentPopupMenu.render());
-                cell.parent.currentPopupMenu.show(popupX, popupY);
-            });
-        };
-
-
-        const tableElement = sheet.render(cellEventHandler);
+        const tableElement = sheet.render(bindCellClickEvent);
         tableElement.style.marginLeft = '5px'
         renderedTables.set(uid, tableElement);
         container.append(tableElement);
@@ -356,7 +368,7 @@ async function updateDragTables() {
 
 
         const captionElement = document.createElement('caption');
-        captionElement.appendChild(getSheetTitle(sheet));
+        captionElement.appendChild(bindSheetSetting(sheet));
         if (tableElement.querySelector('caption')) {
             tableElement.querySelector('caption').replaceWith(captionElement);
         } else {
@@ -369,7 +381,7 @@ async function updateDragTables() {
         if (tableElement) {
             let sheet = new BASE.Sheet(uid, true);
             const captionElement = document.createElement('caption');
-            captionElement.appendChild(getSheetTitle(sheet));
+            captionElement.appendChild(bindSheetSetting(sheet));
             const existingCaption = tableElement.querySelector('caption');
             if (existingCaption) {
                 existingCaption.replaceWith(captionElement);

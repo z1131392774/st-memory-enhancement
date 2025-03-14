@@ -38,6 +38,7 @@ class Form {
 
         // 遍历字段配置生成表单项
         for (const field of config.fields) {
+            field.id = field.id || field.dataKey; // 如果没有指定 id，则使用 dataKey 作为 id
             if (field.type === 'button') {
                 contentHTML += `
                     <div class="form-buttons">

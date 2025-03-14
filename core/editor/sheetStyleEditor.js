@@ -136,7 +136,7 @@ function parseSheetRender(html, sheet) {
 
 export async function openSheetStyleRendererPopup(originSheet) {
     // 初始化表格样式编辑弹窗
-    const manager = await SYSTEM.getTemplate('renderer');
+    const manager = await SYSTEM.getTemplate('customSheetStyle');
     const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const $dlg = $(tableRendererPopup.dlg);
     const $htmlEditor = $dlg.find('#htmlEditor');

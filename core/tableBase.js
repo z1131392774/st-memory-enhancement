@@ -44,13 +44,24 @@ export class Sheet {
         this.domain = SheetDomain.global;
         this.type = SheetType.dynamic;
         this.asTemplate = asTemplate || false;  // 优先使用传入的 asTemplate 参数，否则使用 target 中的 asTemplate
+        this.source = null;                     // 用于存储原点单元格
+        this.tochat = false;                    // 用于标记是否发送到聊天
+        this.data = new Proxy({}, {
+            get: (target, prop) => {
+                return this.source.data[prop];
+            },
+            set: (target, prop, value) => {
+                this.source.data[prop] = value;
+                return true;
+            },
+        });
 
         this.cells = new Map(); // cells 在每次 Sheet 初始化时从 cellHistory 加载
-        this.cellHistory = []; // cellHistory 持久保持，只增不减
-        this.cellSheet = [];
-        this.currentPopupMenu = null;       // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
-        this.element = null;           // 用于存储渲染后的 table 元素
-        this.lastCellEventHandler = null;   // 保存最后一次使用的 cellEventHandler
+        this.cellHistory = [];  // cellHistory 持久保持，只增不减
+        this.cellSheet = [];    // 每回合的 cellSheet 结构，用于渲染出表格
+        this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
+        this.element = null;                    // 用于存储渲染后的 table 元素
+        this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
 
         if (target?.asTemplate === true) {
             this.asTemplate = true;
@@ -92,6 +103,7 @@ export class Sheet {
                     name: this.name,
                     domain: this.domain,
                     type: this.type,
+                    tochat: this.tochat,
                     asTemplate: this.asTemplate,
                     cellHistory: this.cellHistory.map(cell => {
                         return cell;
@@ -129,6 +141,15 @@ export class Sheet {
         } else {
             throw new Error('表格删除逻辑未实现');
         }
+    }
+    updateRender() {
+        if (!this.lastCellEventHandler) {
+            throw new Error('未找到 lastCellEventHandler，请使用 render 方法渲染表格');
+        }
+
+        // 从 element 中比较差量更新
+        const oldElement = this.element;
+        throw new Error('未实现差量更新');
     }
     /**
      * 渲染表格，接受 cellEventHandler 参数，提供两个参数：cell, cellElement
@@ -182,6 +203,9 @@ export class Sheet {
         return this.element;
     }
     findCellByPosition(rowIndex, colIndex) {
+        if (rowIndex === 0 && colIndex === 0) {
+            return this.source;
+        }
         if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.cellSheet.length || colIndex >= this.cellSheet[0].length) {
             console.warn('无效的行列索引');
             return null;
@@ -195,6 +219,9 @@ export class Sheet {
         return t;
     }
     findCellByUid(uid) {
+        if (uid === this.source.uid) {
+            return this.source;
+        }
         const t = this.cells.get(uid) || null;
         if (!t) {
             console.warn(`未找到单元格 ${t}`);
@@ -230,12 +257,12 @@ export class Sheet {
             }
 
             cell.type = cellType;
-            this.cells.set(cell.uid, cell);
             this.cellHistory.push(cell);
 
             return cell.uid;
         }));
         this.cellSheet = r;
+        this.#load(this)
         return this;
     };
     #load(target) {
@@ -244,61 +271,74 @@ export class Sheet {
 
         if (this.asTemplate === true) {
             targetSheetData = BASE.loadUserAllTemplates().find(t => t.uid === targetUid);
-            if (!targetSheetData) {
-                console.log('未找到模板数据，创建新模板');
-            }
-        } else if (targetUid) {
-            targetSheetData = BASE.getLastSheets()?.find(s => s.uid === targetUid);
-            if (!targetSheetData) {
-                throw new Error(`表格数据未找到，UID: ${targetUid}`);
-            }
         } else {
-            targetSheetData = BASE.getLastSheets() || {};
+            targetSheetData = BASE.loadContextAllSheets()?.find(t => t.uid === targetUid);
+        }
+        if (!targetSheetData.uid) {
+            if (this.asTemplate === false) {
+                EDITOR.error(`未找到${this.asTemplate ? '模板' : '表格'}：${targetUid}`);
+                return false;
+            }
+            // 创建一个新的空 Sheet
+            this.#init();
+            this.#initSheetStructure();
+        } else {
+            // 从 targetSheetData 加载 Sheet 对象
+            try {
+                Object.assign(this, targetSheetData);
+            } catch (e) {
+                console.error(`加载${this.asTemplate ? '模板' : '表格'}失败：${e}`);
+                return false;
+            }
         }
 
+        console.log(this)
+
+        // 从 cellHistory 遍历加载 Cell 对象
         try {
-            if (targetSheetData) {      // 只有当 targetSheetData 存在时才进行后续操作
-                Object.assign(this, targetSheetData);
-                this.cells = new Map(); // 初始化 cells Map
-                this.cellHistory?.forEach(c => { // 从 cellHistory 加载 Cell 对象
-                    const cell = new Cell(this);
-                    Object.assign(cell, c);
-                    this.cells.set(cell.uid, cell); // cells 记录 cell uid 和 cell 实例
-                });
+            this.cells = new Map(); // 初始化 cells Map
+            this.cellHistory?.forEach(c => { // 从 cellHistory 加载 Cell 对象
+                const cell = new Cell(this);
+                Object.assign(cell, c);
+                this.cells.set(cell.uid, cell);
+            });
+        } catch (e) {
+            console.error(`加载${this.asTemplate ? '模板' : '表格'}失败：${e}`);
+            return false;
+        }
 
-                // **[关键修改]：加载后，根据 cellSheet 结构重新初始化 Cell 的 type**
-                if (this.cellSheet && this.cellSheet.length > 0) {
-                    this.cellSheet.forEach((rowUids, rowIndex) => {
-                        rowUids.forEach((cellUid, colIndex) => {
-                            const cell = this.#cell(cellUid);
-                            if (cell) {
-                                if (rowIndex === 0 && colIndex === 0) {
-                                    cell.type = CellType.sheet_origin;
-                                } else if (rowIndex === 0) {
-                                    cell.type = CellType.column_header;
-                                } else if (colIndex === 0) {
-                                    cell.type = CellType.row_header;
-                                } else {
-                                    cell.type = CellType.cell; // 默认单元格类型
-                                }
+        // 加载后，根据 cellSheet 结构重新初始化所有 Cell
+        try {
+            if (this.cellSheet && this.cellSheet.length > 0) {
+                this.cellSheet.forEach((rowUids, rowIndex) => {
+                    rowUids.forEach((cellUid, colIndex) => {
+                        const cell = this.#cell(cellUid);
+                        if (cell) {
+                            if (rowIndex === 0 && colIndex === 0) {
+                                cell.type = CellType.sheet_origin;
+                            } else if (rowIndex === 0) {
+                                cell.type = CellType.column_header;
+                            } else if (colIndex === 0) {
+                                cell.type = CellType.row_header;
+                            } else {
+                                cell.type = CellType.cell; // 默认单元格类型
                             }
-                        });
+                        }
                     });
-                }
-
-
-                if (this.uid === '') {
-                    if (this.asTemplate === false) this.#initSheetStructure();
-                } else {
-                    if (this.asTemplate === false && this.cellSheet.length === 0) this.#initSheetStructure();
-                }
+                });
             }
         } catch (e) {
-            this.#init();
-            if (this.asTemplate === false) this.#initSheetStructure();
-            return this;
+            console.error(`加载${this.asTemplate ? '模板' : '表格'}失败：${e}`);
+            return false;
         }
-        // console.log(`成功加载${this.asTemplate ? '模板' : '表格'}：`, this);
+
+        // 加载后，根据 cellSheet 结构重新初始化 source ，非常重要
+        try {
+            this.source = this.cells.get(this.cellSheet[0][0]);
+        } catch (e) {
+            console.error(`加载${this.asTemplate ? '模板' : '表格'}失败：${e}`);
+            return false;
+        }
         return this;
     }
     #createNewEmpty() {
@@ -337,10 +377,7 @@ export class Sheet {
         return this; // 返回 Sheet 实例自身
     }
     #initSheetStructure() {
-        if (this.cellSheet.length > 0) return;
-        const initialRows = 2;
-        const initialCols = 2;
-        const r = Array.from({ length: initialRows }, (_, i) => Array.from({ length: initialCols }, (_, j) => {
+        const r = Array.from({ length: 2 }, (_, i) => Array.from({ length: 2 }, (_, j) => {
             let cell = new Cell(this);
             this.cells.set(cell.uid, cell);
             this.cellHistory.push(cell);
@@ -405,14 +442,14 @@ class Cell {
         if (rowIndex === 0 && colIndex === 0) {
             cellElement.classList.add('sheet-cell-origin');
         } else if (rowIndex === 0) {
-            cellElement.textContent = getColumnLetter(colIndex - 1); // Column headers (A, B, C...)
+            cellElement.textContent = this.data.value || getColumnLetter(colIndex - 1); // Column headers (A, B, C...)
             cellElement.classList.add('sheet-header-cell-top');
         } else if (colIndex === 0) {
-            cellElement.textContent = rowIndex; // Row headers (1, 2, 3...)
+            cellElement.textContent = this.data.value || rowIndex; // Row headers (1, 2, 3...)
             cellElement.classList.add('sheet-header-cell-left');
         } else {
             const pos = [getColumnLetter(colIndex - 1), rowIndex].join(''); // Cell position (A1, B2, C3...)
-            cellElement.textContent = this.value || pos; // 显示单元格值，默认为位置
+            cellElement.textContent = this.data.value || pos; // 显示单元格值，默认为位置
             cellElement.style.fontSize = '0.8rem';
             cellElement.style.fontWeight = 'normal';
             cellElement.style.color = 'var(--SmartThemeEmColor)'

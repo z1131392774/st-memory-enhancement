@@ -1,4 +1,4 @@
-<!-- renderer.html -->
+<!-- sheetConfigEditor.html -->
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -13,9 +13,9 @@
 <body>
 <h2 class="marginBot5"><span>自定义表格样式</span></h2>
 <small>
-    自定义表格的显示样式，当样式内容为空时默认显示原始表格。
-    <br>支持HTML、CSS定义结构样式，并使用<code>\$\w\s+</code>的方式定位单元格。
-    <br>例如<code>$A0</code>代表第1列第1行(表头)，<code>$A1</code>代表第1列第2行(表内容第一行)。
+    自定义表格的提示词
+    <br>支持HTML、CSS定义结构样式，并使用<code>[#sheet$cell@key]</code>的方式定位单元格。
+    <br>例如<code>[#0$A0@prompt]</code>代表第1张表格下的第2列第1行中的<code>prompt</code>变量。
 </small>
 <div style=" display: flex; flex-direction: row; gap: 10px; margin: 10px 0; ">
     <div class="checkbox flex-container" style="align-content: flex-start; margin-top: 10px;">
