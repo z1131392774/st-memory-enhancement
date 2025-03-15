@@ -510,16 +510,6 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
     return initializedTableView;
 }
 
-// export async function getTableView(mesId = -1) {
-//     return initializedTableView || await initTableView(mesId);
-// }
-
-/**
- * 打开表格展示/编辑弹窗
- * @param {number} mesId 需要打开的消息ID，-1为最新一条
- */
-export async function openTablePopup(mesId = -1) {
-    const tableContainer = await initTableView(mesId);
-    tablePopup = new EDITOR.Popup(tableContainer, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    await tablePopup.show()
+export async function getChatSheetsView(mesId = -1) {
+    return initializedTableView || await initTableView(mesId);
 }

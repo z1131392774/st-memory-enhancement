@@ -148,7 +148,7 @@ export async function openSheetStyleRendererPopup(originSheet) {
         console.warn("openTableRendererPopup: 未能获取到有效的 table 对象。");
         return;
     }
-    sheet.element = `<div class="justifyLeft scrollable">${sheet.render((cell) => {
+    sheet.element = `<div class="justifyLeft scrollable">${sheet.renderSheet((cell) => {
         cell.element.style.cursor = 'default';
     }).outerHTML}</div>`;
 

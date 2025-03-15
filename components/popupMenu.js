@@ -6,39 +6,27 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
  */
 export class PopupMenu {
     /**
+     * 静态属性，用于存储当前活动的 PopupMenu 实例，使其在全局范围内作为单例使用
+     * @type {null}
+     */
+    static instance = null;
+
+    /**
      * 构造函数
      * @param {object} [options] - 可选配置项
      * @param {boolean} [options.lasting=false] - 是否持久化，为 true 时点击外部或菜单项点击后不销毁实例，只隐藏
      */
     constructor(options = {}) {
+        if (PopupMenu.instance) {
+            PopupMenu.instance.destroy();
+        }
+
         this.menuItems = [];
-        this.lasting = options.lasting === true;
+        this.lasting = false;
+        this.popupContainer = null;
 
-        this.popupContainer = document.createElement('div');
-        // this.popupContainer.classList.add('margin5', 'wide_dialogue_popup');
-        this.popupContainer.style.position = 'absolute';
-        this.popupContainer.style.display = 'none';
-        this.popupContainer.style.zIndex = '1000';
-        this.popupContainer.style.width = '180px';
-        this.popupContainer.style.height = 'auto';
-        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)';
-        this.popupContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
-        this.popupContainer.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
-        this.popupContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
-        this.popupContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
-
-        this.menuContainer = $('<div class="dynamic-popup-menu" id="dynamic_popup_menu"></div>')[0];
-        this.menuContainer.style.position = 'relative';
-        this.menuContainer.style.padding = '2px 0';
-
-        this.popupContainer.appendChild(this.menuContainer);
-
-        this.handleMenuItemClick = this.handleMenuItemClick.bind(this);
-        this.handleClickOutside = this.handleClickOutside.bind(this);
-        this.popupContainer.addEventListener('click', this.handleMenuItemClick);
-
-        // 使用 Map 存储菜单项与其索引的映射关系
-        this.menuItemIndexMap = new Map();
+        this.#init(options);
+        PopupMenu.instance = this;
     }
 
     add(html, event) {
@@ -47,7 +35,7 @@ export class PopupMenu {
         this.menuItemIndexMap.set(html, index); // 存储 HTML 内容与索引的映射
     }
 
-    render() {
+    renderMenu() {
         this.menuContainer.innerHTML = '';
 
         this.menuItems.forEach((item, index) => {
@@ -66,22 +54,6 @@ export class PopupMenu {
         });
 
         return this.popupContainer;
-    }
-
-    handleMenuItemClick(event) {
-        const menuItemElement = event.target.closest('.dynamic-popup-menu-item');
-        if (menuItemElement) {
-            // 直接从 Map 中获取索引
-            const index = this.menuItemIndexMap.get(menuItemElement);
-            if (index !== undefined && this.menuItems[index].event) {
-                this.menuItems[index].event(event);
-                if (this.lasting) {
-                    this.hide();
-                } else {
-                    this.destroy();
-                }
-            }
-        }
     }
 
     /**
@@ -117,6 +89,49 @@ export class PopupMenu {
         }
     }
 
+    #init(options) {
+        this.menuItems = [];
+        this.lasting = options.lasting === true;
+        this.menuItemIndexMap = new Map();      // 使用 Map 存储菜单项与其索引的映射关系
+
+        this.popupContainer = document.createElement('div');
+        // this.popupContainer.classList.add('margin5', 'wide_dialogue_popup');
+        this.popupContainer.style.position = 'absolute';
+        this.popupContainer.style.display = 'none';
+        this.popupContainer.style.zIndex = '1000';
+        this.popupContainer.style.width = '180px';
+        this.popupContainer.style.height = 'auto';
+        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)';
+        this.popupContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
+        this.popupContainer.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
+        this.popupContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
+        this.popupContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+
+        this.menuContainer = $('<div class="dynamic-popup-menu" id="dynamic_popup_menu"></div>')[0];
+        this.menuContainer.style.position = 'relative';
+        this.menuContainer.style.padding = '2px 0';
+
+        this.popupContainer.appendChild(this.menuContainer);
+
+        this.handleMenuItemClick = this.handleMenuItemClick.bind(this);
+        this.handleClickOutside = this.handleClickOutside.bind(this);
+        this.popupContainer.addEventListener('click', this.handleMenuItemClick);
+    }
+    handleMenuItemClick(event) {
+        const menuItemElement = event.target.closest('.dynamic-popup-menu-item');
+        if (menuItemElement) {
+            // 直接从 Map 中获取索引
+            const index = this.menuItemIndexMap.get(menuItemElement);
+            if (index !== undefined && this.menuItems[index].event) {
+                this.menuItems[index].event(event);
+                if (this.lasting) {
+                    this.hide();
+                } else {
+                    this.destroy();
+                }
+            }
+        }
+    }
     /**
      * 处理点击菜单外部区域，用于关闭菜单
      * @param {MouseEvent} event

@@ -155,7 +155,7 @@ export class Sheet {
      * 渲染表格，接受 cellEventHandler 参数，提供两个参数：cell, cellElement
      * @param {Function} cellEventHandler
      * */
-    render(cellEventHandler = this.lastCellEventHandler) {
+    renderSheet(cellEventHandler = this.lastCellEventHandler) {
         this.lastCellEventHandler = cellEventHandler;
 
         if (!this.element) {
@@ -170,11 +170,11 @@ export class Sheet {
             const styleElement = document.createElement('style');
             styleElement.textContent = `
                 .sheet-table { border-collapse: collapse; width: max-content; }
-                .sheet-cell { border: 1px solid #ccc; padding: 1px; text-align: center; vertical-align: middle; }
-                .sheet-cell-origin { min-width: 20px; min-height: 20px; cursor: pointer; }
-                .sheet-header-cell-top { font-weight: bold; cursor: cell; }
-                .sheet-header-cell-left { font-weight: bold; cursor: cell; }
-                .sheet-cell-other { min-width: 50px; cursor: cell; }
+                .sheet-cell { border: 1px solid var(--SmartThemeBodyColor); padding: 1px; text-align: center; vertical-align: middle; cursor: cell; }
+                .sheet-cell-origin { min-width: 20px; min-height: 20px }
+                .sheet-header-cell-top { font-weight: bold }
+                .sheet-header-cell-left { font-weight: bold }
+                .sheet-cell-other { min-width: 50px; border: 1px dashed var(--SmartThemeEmColor); }
             `;
             this.element.appendChild(styleElement);
         }
@@ -193,7 +193,8 @@ export class Sheet {
             const rowElement = document.createElement('tr');
             rowUids.forEach((cellUid, colIndex) => {
                 const cell = this.#cell(cellUid);
-                rowElement.appendChild(cell.renderCell(rowIndex, colIndex));    // 调用 Cell 的 renderCell 方法，仍然需要传递 rowIndex, colIndex 用于渲染单元格内容
+                const cellElement = cell.initCellRender(rowIndex, colIndex);
+                rowElement.appendChild(cellElement);    // 调用 Cell 的 initCellRender 方法，仍然需要传递 rowIndex, colIndex 用于渲染单元格内容
                 if (cellEventHandler) {
                     cellEventHandler(cell);
                 }
@@ -410,8 +411,8 @@ class Cell {
         this.parent = parent;
         this.type = '';
         this.status = '';
-        this.element = null;
         this.targetUid = '';
+        this.element = null;
         this.data = new Proxy({}, {
             get: (target, prop) => {
                 return target[prop];
@@ -434,29 +435,58 @@ class Cell {
     editCellData(props) {
         this.#event(CellAction.editCell, props);
     }
-    renderCell(rowIndex, colIndex) {
-        const cellElement = document.createElement('td');
-        cellElement.classList.add('sheet-cell');
-        this.element = cellElement;
+    initCellRender(rowIndex = -1, colIndex = -1) {
+        this.element = document.createElement('td');
+        this.element.className = 'sheet-cell';
+        this.renderCell(rowIndex, colIndex);
 
-        if (rowIndex === 0 && colIndex === 0) {
-            cellElement.classList.add('sheet-cell-origin');
-        } else if (rowIndex === 0) {
-            cellElement.textContent = this.data.value || getColumnLetter(colIndex - 1); // Column headers (A, B, C...)
-            cellElement.classList.add('sheet-header-cell-top');
-        } else if (colIndex === 0) {
-            cellElement.textContent = this.data.value || rowIndex; // Row headers (1, 2, 3...)
-            cellElement.classList.add('sheet-header-cell-left');
-        } else {
-            const pos = [getColumnLetter(colIndex - 1), rowIndex].join(''); // Cell position (A1, B2, C3...)
-            cellElement.textContent = this.data.value || pos; // 显示单元格值，默认为位置
-            cellElement.style.fontSize = '0.8rem';
-            cellElement.style.fontWeight = 'normal';
-            cellElement.style.color = 'var(--SmartThemeEmColor)'
-            cellElement.classList.add('sheet-cell-other');
+        return this.element;
+    }
+    renderCell(rowIndex = -1, colIndex = -1) {
+        if (rowIndex === -1 && colIndex === -1) {
+            [rowIndex, colIndex] = this.#positionInParentCellSheet();
         }
 
-        return cellElement;
+        if (this.parent.asTemplate === true) {
+            if (rowIndex === 0 && colIndex === 0) {
+                this.element.classList.add('sheet-cell-origin');
+            } else if (rowIndex === 0) {
+                this.element.textContent = this.data.value || getColumnLetter(colIndex - 1); // Column headers (A, B, C...)
+                this.element.classList.add('sheet-header-cell-top');
+            } else if (colIndex === 0) {
+                if (this.parent.type === SheetType.dynamic || this.parent.type === SheetType.fixed) {
+                    this.element.textContent = 'i'
+                } else {
+                    this.element.textContent = this.data.value || rowIndex; // Row headers (1, 2, 3...)
+                }
+                this.element.classList.add('sheet-header-cell-left');
+            } else {
+                if (this.parent.type === SheetType.static) {
+                    const pos = [getColumnLetter(colIndex - 1), rowIndex].join(''); // Cell position (A1, B2, C3...)
+                    this.element.textContent = this.data.value || pos; // 显示单元格值，默认为位置
+                    this.element.style.fontSize = '0.8rem';
+                    this.element.style.fontWeight = 'normal';
+                    this.element.style.color = 'var(--SmartThemeEmColor)'
+                } else {
+                    this.element.style.cursor = 'not-allowed';
+                }
+                this.element.classList.add('sheet-cell-other');
+            }
+        }
+        else {
+            if (rowIndex === 0 && colIndex === 0) {
+                this.element.classList.add('sheet-cell-origin');
+            } else if (rowIndex === 0) {
+                this.element.textContent = this.data.value || ''; // Column headers (A, B, C...)
+                this.element.classList.add('sheet-header-cell-top');
+            } else if (colIndex === 0) {
+                this.element.textContent = this.data.value || rowIndex; // Row headers (1, 2, 3...)
+                this.element.classList.add('sheet-header-cell-left');
+            } else {
+                this.element.textContent = this.data.value || '';
+                this.element.classList.add('sheet-cell-other');
+            }
+        }
     }
 
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
@@ -486,6 +516,7 @@ class Cell {
         this.element = targetCell.element || null;
         this.targetUid = targetCell.targetUid || '';
         this.data = targetCell.data || {};
+        this.element = document.createElement('td');
     }
     #positionInParentCellSheet() {
         if (!this.parent || !this.parent.cellSheet) {
@@ -538,7 +569,7 @@ class Cell {
             default:
                 console.warn(`未处理的单元格操作: ${actionName}`);
         }
-        this.parent.render(this.parent.lastCellEventHandler);
+        this.parent.renderSheet(this.parent.lastCellEventHandler);
         this.parent.save();
         EDITOR.info(`单元格操作: ${actionName} 位置: ${[rowIndex, colIndex]}`);
     }

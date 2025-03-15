@@ -1,5 +1,5 @@
 import {DERIVED, EDITOR, SYSTEM, USER} from "../../manager.js";
-import {getTableView} from "../editor/tableDataView.js";
+import {getChatSheetsView} from "../editor/chatSheetsManager.js";
 import {getEditView} from "../editor/tableTemplateEditView.js";
 
 let tableDrawer = null;
@@ -44,7 +44,7 @@ export async function initAppHeaderTableDrawer() {
 
     // 获取表格视图、编辑视图和设置容器的内容
     if (tableViewDom === null) {
-        tableViewDom = await getTableView(-1);
+        tableViewDom = await getChatSheetsView(-1);
     }
     if (tableEditDom === null) {
         // 使用 jQuery 将 HTML 字符串转换为 jQuery 对象 (代表 DOM 元素)
