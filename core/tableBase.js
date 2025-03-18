@@ -55,6 +55,15 @@ export class Sheet {
                 return true;
             },
         });
+        this.rowCount = new Proxy({}, {
+            get: () => this.cellSheet.length,
+            set: () => { throw new Error("不允许修改 rowCount") }
+        });
+        this.colCount = new Proxy({}, {
+            get: () => this.cellSheet[0].length,
+            set: () => { throw new Error("不允许修改 colCount") }
+        });
+
 
         this.cells = new Map(); // cells 在每次 Sheet 初始化时从 cellHistory 加载
         this.cellHistory = [];  // cellHistory 持久保持，只增不减
@@ -67,7 +76,7 @@ export class Sheet {
             this.asTemplate = true;
         }
 
-        this.#load(target);
+        if(target!=null)this.#load(target);
     }
 
     /**
@@ -106,9 +115,9 @@ export class Sheet {
                     tochat: this.tochat,
                     asTemplate: this.asTemplate,
                     cellHistory: this.cellHistory.map(cell => {
-                        return cell;
-                        // const { parent, ...data } = cell;
-                        // return data;
+                        //return cell;
+                        const { parent, ...data } = cell;
+                        return data;
                     }),
                     cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
                 };
@@ -263,7 +272,6 @@ export class Sheet {
             return cell.uid;
         }));
         this.cellSheet = r;
-        this.#load(this)
         return this;
     };
     #load(target) {
@@ -275,7 +283,7 @@ export class Sheet {
         } else {
             targetSheetData = BASE.loadContextAllSheets()?.find(t => t.uid === targetUid);
         }
-        if (!targetSheetData.uid) {
+        if (!targetSheetData?.uid) {
             if (this.asTemplate === false) {
                 EDITOR.error(`未找到${this.asTemplate ? '模板' : '表格'}：${targetUid}`);
                 return false;
@@ -294,7 +302,11 @@ export class Sheet {
         }
 
         console.log(this)
-
+        this.#initCell();
+        
+        return this;
+    }
+    #initCell() {
         // 从 cellHistory 遍历加载 Cell 对象
         try {
             this.cells = new Map(); // 初始化 cells Map
@@ -340,13 +352,13 @@ export class Sheet {
             console.error(`加载${this.asTemplate ? '模板' : '表格'}失败：${e}`);
             return false;
         }
-        return this;
     }
     #createNewEmpty() {
         this.#init(); // 初始化基本数据结构
         this.uid = `${this.asTemplate ? 'template' : 'sheet'}_${SYSTEM.generateRandomString(8)}`; // 根据 asTemplate 决定 uid 前缀
         this.name = `新${this.asTemplate ? '模板' : '表格'}_${this.uid.slice(-4)}`; // 根据 asTemplate 决定 name 前缀
         this.#initSheetStructure(); // 初始化表格结构
+        this.#initCell();
         this.save(); // 保存新创建的 Sheet
         return this; // 返回 Sheet 实例自身
     }
