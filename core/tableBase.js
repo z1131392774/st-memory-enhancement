@@ -1,6 +1,6 @@
 // tableBase.js
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
-import {readonly} from "../utils/utility.js";
+import { readonly } from "../utils/utility.js";
 
 const SheetDomain = {
     global: 'global',
@@ -75,8 +75,7 @@ export class Sheet {
         if (target?.asTemplate === true) {
             this.asTemplate = true;
         }
-
-        if(target!=null)this.#load(target);
+        if (target != null && target != "") this.#load(target);
     }
 
     /**
@@ -254,24 +253,8 @@ export class Sheet {
 
         const initialRows = 2;
         const initialCols = 2;
-        const r = Array.from({ length: initialRows }, (_, i) => Array.from({ length: initialCols }, (_, j) => {
-            let cell = new Cell(this);
-            let cellType = CellType.cell;
-
-            if (i === 0 && j === 0) {
-                cellType = CellType.sheet_origin;
-            } else if (i === 0 && j === 1) {
-                cellType = CellType.column_header;
-            } else if (i === 1 && j === 0) {
-                cellType = CellType.row_header;
-            }
-
-            cell.type = cellType;
-            this.cellHistory.push(cell);
-
-            return cell.uid;
-        }));
-        this.cellSheet = r;
+        
+        this.#initSheetStructure()
         return this;
     };
     #load(target) {
@@ -290,7 +273,6 @@ export class Sheet {
             }
             // 创建一个新的空 Sheet
             this.#init();
-            this.#initSheetStructure();
         } else {
             // 从 targetSheetData 加载 Sheet 对象
             try {
@@ -303,7 +285,7 @@ export class Sheet {
 
         console.log(this)
         this.#initCell();
-        
+
         return this;
     }
     #initCell() {
@@ -357,7 +339,6 @@ export class Sheet {
         this.#init(); // 初始化基本数据结构
         this.uid = `${this.asTemplate ? 'template' : 'sheet'}_${SYSTEM.generateRandomString(8)}`; // 根据 asTemplate 决定 uid 前缀
         this.name = `新${this.asTemplate ? '模板' : '表格'}_${this.uid.slice(-4)}`; // 根据 asTemplate 决定 name 前缀
-        this.#initSheetStructure(); // 初始化表格结构
         this.#initCell();
         this.save(); // 保存新创建的 Sheet
         return this; // 返回 Sheet 实例自身
@@ -396,7 +377,10 @@ export class Sheet {
             this.cellHistory.push(cell);
             if (i === 0 && j === 0) {
                 cell.type = CellType.sheet_origin;
-                cell.value = 'A1';
+            } else if (i === 0 && j === 1) {
+                cell.type = CellType.column_header;
+            } else if (i === 1 && j === 0) {
+                cell.type = CellType.row_header;
             }
             return cell.uid;
         }));
