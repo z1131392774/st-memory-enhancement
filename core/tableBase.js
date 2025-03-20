@@ -38,11 +38,11 @@ const CellType = {
 export class Sheet {
     SheetDomain = SheetDomain;
     SheetType = SheetType;
-    constructor(target = null, asTemplate = false) {
+    constructor(target = null, asTemplate = false, options = {}) {
         this.uid = '';
         this.name = '';
-        this.domain = SheetDomain.global;
-        this.type = SheetType.dynamic;
+        this.domain = options.domain ?? SheetDomain.global;
+        this.type = options.domain ?? SheetType.dynamic;
         this.asTemplate = asTemplate || false;  // 优先使用传入的 asTemplate 参数，否则使用 target 中的 asTemplate
         this.source = null;                     // 用于存储原点单元格
         this.tochat = false;                    // 用于标记是否发送到聊天
@@ -108,39 +108,16 @@ export class Sheet {
      * @returns {Sheet|boolean}
      */
     save() {
+        const sheetDataToSave = this.#getSheetDataToSave()
         if (this.asTemplate === false) {
-            throw new Error('表格保存逻辑未实现');
-        } else {
-            let templates = BASE.loadUserAllTemplates();
-            if (!templates) templates = [];
-            try {
-                const sheetDataToSave = {
-                    uid: this.uid,
-                    name: this.name,
-                    domain: this.domain,
-                    type: this.type,
-                    tochat: this.tochat,
-                    asTemplate: this.asTemplate,
-                    cellHistory: this.cellHistory.map(cell => {
-                        //return cell;
-                        const { parent, ...data } = cell;
-                        return data;
-                    }),
-                    cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
-                };
-
-                if (templates.some(t => t.uid === sheetDataToSave.uid)) {
-                    templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
-                } else {
-                    templates.push(sheetDataToSave);
-                }
-                USER.getSettings().table_database_templates = templates;
-                USER.saveSettings();
-                return this;
-            } catch (e) {
-                EDITOR.error(`保存${this.asTemplate ? '模板' : '表格'}失败：${e}`);
-                return false;
+            switch (this.domain) {
+                case SheetDomain.global:
+                    return this.#saveSheetToGlobal(sheetDataToSave);
+                case SheetDomain.chat:
+                    return this.#saveSheetToChat(sheetDataToSave);
             }
+        } else {
+            return this.#saveSheetToGlobal(sheetDataToSave);
         }
     }
     /**
@@ -343,8 +320,58 @@ export class Sheet {
             return false;
         }
     }
+    #getSheetDataToSave() {
+        return {
+            uid: this.uid,
+            name: this.name,
+            domain: this.domain,
+            type: this.type,
+            tochat: this.tochat,
+            asTemplate: this.asTemplate,
+            cellHistory: this.cellHistory.map(cell => {
+                //return cell;
+                const { parent, ...data } = cell;
+                return data;
+            }),
+            cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
+        };
+    }
+    #saveSheetToGlobal(sheetDataToSave) {
+        let templates = BASE.loadUserAllTemplates();
+        if (!templates) templates = [];
+        try {
+            if (templates.some(t => t.uid === sheetDataToSave.uid)) {
+                templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
+            } else {
+                templates.push(sheetDataToSave);
+            }
+            USER.getSettings().table_database_templates = templates;
+            USER.saveSettings();
+            return this;
+        } catch (e) {
+            EDITOR.error(`保存${this.asTemplate ? '模板' : '表格'}失败：${e}`);
+            return false;
+        }
+    }
+    #saveSheetToChat(sheetDataToSave) {
+        let templates = BASE.loadChatAllSheets();
+        if (!templates) templates = [];
+        try {
+            if (templates.some(t => t.uid === sheetDataToSave.uid)) {
+                templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
+            } else {
+                templates.push(sheetDataToSave);
+            }
+            USER.getContext().chatMetadata.sheets = templates;
+            USER.saveChat();
+            return this;
+        } catch (e) {
+            EDITOR.error(`保存${this.asTemplate ? '模板' : '表格'}失败：${e}`);
+            return false;
+        }
+    }
     #createNewEmpty(column = 2, row = 2) {
-        this.#init(column, col); // 初始化基本数据结构
+        this.#init(column, row); // 初始化基本数据结构
         this.uid = `${this.asTemplate ? 'template' : 'sheet'}_${SYSTEM.generateRandomString(8)}`; // 根据 asTemplate 决定 uid 前缀
         this.name = `新${this.asTemplate ? '模板' : '表格'}_${this.uid.slice(-4)}`; // 根据 asTemplate 决定 name 前缀
         this.#initCell();

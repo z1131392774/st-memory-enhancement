@@ -1,4 +1,4 @@
-import { saveSettingsDebounced, saveSettings, getSlideToggleOptions, generateRaw, } from '../../../../../../../script.js';
+import { saveSettingsDebounced, saveSettings, getSlideToggleOptions, generateRaw } from '../../../../../../../script.js';
 import { DOMPurify, Bowser, slideToggle } from '../../../../../../../lib.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../../../../../scripts/extensions.js';
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../../../../../scripts/popup.js';
@@ -17,6 +17,7 @@ import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
 import {createProxy, createProxyWithUserSetting} from "./utils/codeProxy.js";
 import {Sheet} from "./core/tableBase.js";
+import { saveChat } from '../../../../script.js';
 
 let derivedData = {}
 
@@ -28,6 +29,7 @@ let derivedData = {}
 export const USER = {
     getSettings: () => power_user,
     saveSettings: () => saveSettings(),
+    saveChat:()=> saveChat(),
     getContext: () => getContext(),
     getChatPiece: (deep = 0) => {
         const chat = getContext().chat;
@@ -63,6 +65,10 @@ export const BASE = {
         }
         return templates;
     },
+    loadChatAllSheets() {
+        const chatMetadata = USER.getContext().chatMetadata;
+        return chatMetadata.sheets
+    },
     loadContextAllSheets() {
         let sheets = USER.getContext().table_database_data;
         if (!Array.isArray(sheets)) {
@@ -71,7 +77,7 @@ export const BASE = {
         }
         return sheets;
     },
-    getLastSheets: (deep = 0, cutoff = 1000) => {
+    getLastSheetsPiece: (deep = 0, cutoff = 1000) => {
         const chat = getContext().chat;
         // throw new Error('Not implemented yet');
         if (!chat || chat.length === 0) return null;
@@ -128,7 +134,7 @@ export const EDITOR = {
             'context': USER.getContext(),
             'context_tableBase_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),
-            'chat_last_sheet': BASE.getLastSheets(),
+            'chat_last_sheet': BASE.getLastSheetsPiece(),
         }, 3);
     },
 }
