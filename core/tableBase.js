@@ -79,21 +79,29 @@ export class Sheet {
     }
 
     /**
-     * 创建新的 Sheet 实例
+     * 通过模板创建新的 Sheet 实例
      * @param {Sheet} [template] - 可选的模板 Sheet 实例，用于从模板创建新表格
      * @returns {Sheet} - 返回新的 Sheet 实例
      */
-    createNew(template) {
+    createNewByTemp(template) {
         if (template && template.asTemplate === false) {
             throw new Error('无法使用非模板表格创建新表格'); // 错误：尝试使用非模板创建
         }
 
         if (template) {
             return this.#createFromTemplate(template); // 从模板创建
-        } else {
-            return this.#createNewEmpty(); // 创建空表格或模板
         }
     }
+
+    /**
+     * 创建新的 Sheet 实例
+     * @returns {Sheet} - 返回新的 Sheet 实例
+     */
+    createNew(column = 2, row = 2) {
+        return this.#createNewEmpty(column, row);
+    }
+
+
 
     /**
      * 保存表格数据，根据是否为 asTemplate 决定保存逻辑
@@ -246,15 +254,15 @@ export class Sheet {
     #cell(cellUid) {
         return this.cells.get(cellUid);
     }
-    #init() {
+    #init(column = 2, row = 2) {
         this.cells = new Map();
         this.cellHistory = [];
         this.cellSheet = [];
 
-        const initialRows = 2;
-        const initialCols = 2;
-        
-        this.#initSheetStructure()
+        const initialRows = column;
+        const initialCols = row;
+
+        this.#initSheetStructure(column, row);
         return this;
     };
     #load(target) {
@@ -335,8 +343,8 @@ export class Sheet {
             return false;
         }
     }
-    #createNewEmpty() {
-        this.#init(); // 初始化基本数据结构
+    #createNewEmpty(column = 2, row = 2) {
+        this.#init(column, col); // 初始化基本数据结构
         this.uid = `${this.asTemplate ? 'template' : 'sheet'}_${SYSTEM.generateRandomString(8)}`; // 根据 asTemplate 决定 uid 前缀
         this.name = `新${this.asTemplate ? '模板' : '表格'}_${this.uid.slice(-4)}`; // 根据 asTemplate 决定 name 前缀
         this.#initCell();
@@ -370,16 +378,16 @@ export class Sheet {
         this.save(); // 保存新创建的 Sheet
         return this; // 返回 Sheet 实例自身
     }
-    #initSheetStructure() {
-        const r = Array.from({ length: 2 }, (_, i) => Array.from({ length: 2 }, (_, j) => {
+    #initSheetStructure(column, row) {
+        const r = Array.from({ length: row }, (_, i) => Array.from({ length: column }, (_, j) => {
             let cell = new Cell(this);
             this.cells.set(cell.uid, cell);
             this.cellHistory.push(cell);
             if (i === 0 && j === 0) {
                 cell.type = CellType.sheet_origin;
-            } else if (i === 0 && j === 1) {
+            } else if (i === 0) {
                 cell.type = CellType.column_header;
-            } else if (i === 1 && j === 0) {
+            } else if (j === 0) {
                 cell.type = CellType.row_header;
             }
             return cell.uid;
