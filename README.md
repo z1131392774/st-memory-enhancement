@@ -75,7 +75,7 @@
 *   **`BASE` 模块 (`manager.js`):**  基础数据管理模块 (核心数据中心)。
     *   **`Sheet` 类:**  核心数据结构 `Sheet` 类 (`Sheet: Sheet`)，用于操作表格数据。  可以将其理解为插件的“数据表”，负责数据的组织和管理。
     *   **模板与上下文数据管理:**  封装了模板数据和上下文数据的加载 (`loadUserAllTemplates()`, `loadContextAllSheets()`) 和销毁 (`destroyAllTemplates()`, `destroyAllContextSheets()`) 方法，管理插件的数据生命周期。
-    *   **最近表格数据访问:**  提供 `getLastSheets()` 方法，用于获取最近使用的表格数据，可能用于缓存或快速访问。
+    *   **最近表格数据访问:**  提供 `getLastSheetsPiece()` 方法，用于获取最近使用的表格数据，可能用于缓存或快速访问。
 
 *   **`EDITOR` 模块 (`manager.js`):**  编辑器控制器 (UI 交互和状态管理)。
     *   **UI 状态管理:**  集中管理 UI 编辑器相关的状态和功能模块，例如：

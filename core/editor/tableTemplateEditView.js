@@ -2,8 +2,8 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../manager.js';
 import { PopupMenu } from '../../components/popupMenu.js';
 import { Form } from '../../components/formManager.js';
-import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";
-import {compareDataDiff} from "../../utils/utility.js";
+import { openSheetStyleRendererPopup } from "./sheetStyleEditor.js";
+import { compareDataDiff } from "../../utils/utility.js";
 
 const userSheetEditInfo = {
     chatIndex: null,
@@ -17,6 +17,7 @@ let drag = null;
 let currentPopupMenu = null;
 let dropdownElement = null;
 const renderedTables = new Map();
+let scope = 'chat'
 
 const formConfigs = {
     sheet_origin: {
@@ -93,7 +94,8 @@ const formConfigs = {
 
 
 async function updateDropdownElement() {
-    const templates = BASE.loadUserAllTemplates();
+    const templates = scope === 'chat' ? BASE.loadChatAllSheets() ?? [] : BASE.loadUserAllTemplates();
+    console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
         dropdownElement.id = 'table_template';
@@ -132,18 +134,17 @@ function initializeSelect2Dropdown(dropdownElement) {
         }
     });
 
+    let selectedSheets = USER.getSettings().table_database_templates_selected;
+    if (selectedSheets === undefined) {
+        selectedSheets = [];
+    }
+    $(dropdownElement).val(selectedSheets)
+
     $(dropdownElement).on('change', function () {
         USER.getSettings().table_database_templates_selected = $(this).val();
         USER.saveSettings();
         updateDragTables();
     });
-
-    let selectedSheets = USER.getSettings().table_database_templates_selected;
-    if (selectedSheets === undefined) {
-        selectedSheets = [];
-    }
-    $(dropdownElement).val(selectedSheets).trigger('change');
-
 
     const firstOptionText = $(dropdownElement).find('option:first-child').text();
     const tableMultipleSelectionDropdown = $('<span class="select2-option" style="width: 100%"></span>');
@@ -322,11 +323,15 @@ function bindCellClickEvent(cell) {
     });
 }
 
+function getSelectedSheetUids() {
+    return scope === 'chat' ? USER.getChatMetadata().table_database_templates_selected ?? [] : USER.getSettings().table_database_templates_selected ?? []
+}
+
 
 async function updateDragTables() {
     if (!drag) return;
 
-    const selectedSheetUids = USER.getSettings().table_database_templates_selected || [];
+    const selectedSheetUids = getSelectedSheetUids()
     const container = $(drag.render).find('#tableContainer');
 
     if (currentPopupMenu) {
@@ -410,6 +415,7 @@ async function initTableEdit(mesId) {
     const tableEditTips = table_editor_container.querySelector('#tableEditTips');
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');
+    const scopeSelect = table_editor_container.querySelector('#structure_setting_scope');
 
     dropdownElement = await updateDropdownElement()
     $(tableEditTips).after(dropdownElement)
@@ -420,6 +426,13 @@ async function initTableEdit(mesId) {
     contentContainer.append(drag.render);
     drag.add('tableContainer', tableContainer);
 
+    $(scopeSelect).val(scope).on('change', async function () {
+        scope = $(this).val();
+        console.log("切换到", scope)
+        await updateDropdownElement()
+        initializeSelect2Dropdown(dropdownElement);
+        updateDragTables();
+    })
 
     if (!userSheetEditInfo.editAble) {
         $('#contentContainer #paste_table_button').hide();
@@ -428,7 +441,7 @@ async function initTableEdit(mesId) {
     }
 
     $(document).on('click', '#add_table_template_button', async function () {
-        const newTemplate = new BASE.Sheet('', true).createNew();
+        const newTemplate = new BASE.Sheet('', true).createNewByTemp();
         const newTemplateUid = newTemplate.uid;
 
         let currentSelectedValues = $(dropdownElement).val();
