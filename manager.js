@@ -31,6 +31,7 @@ export const USER = {
     saveSettings: () => saveSettings(),
     saveChat:()=> saveChat(),
     getContext: () => getContext(),
+    getChatMetadata: () => getContext().chatMetadata,
     getChatPiece: (deep = 0) => {
         const chat = getContext().chat;
         if (!chat || chat.length === 0 || deep >= chat.length) return null;

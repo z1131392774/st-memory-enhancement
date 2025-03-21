@@ -46,6 +46,8 @@ export class Sheet {
         this.asTemplate = asTemplate || false;  // 优先使用传入的 asTemplate 参数，否则使用 target 中的 asTemplate
         this.source = null;                     // 用于存储原点单元格
         this.tochat = false;                    // 用于标记是否发送到聊天
+        this.enable = true;                     // 用于标记是否启用
+        this.required = false;                  // 用于标记是否必填
         this.data = new Proxy({}, {
             get: (target, prop) => {
                 return this.source.data[prop];
