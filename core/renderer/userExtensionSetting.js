@@ -389,15 +389,39 @@ export function renderSetting() {
 export function loadSettings() {
     USER.IMPORTANT_USER_PRIVACY_DATA = USER.IMPORTANT_USER_PRIVACY_DATA || {};
 
-    if (USER.tableBaseSetting.updateIndex != 3) {
+    // 旧版本提示词变更兼容
+    if (USER.tableBaseSetting.updateIndex < 3) {
         USER.getSettings().message_template = USER.tableBaseDefaultSettings.message_template
         USER.tableBaseSetting.to_chat_container = USER.tableBaseDefaultSettings.to_chat_container
         USER.tableBaseSetting.tableStructure = USER.tableBaseDefaultSettings.tableStructure
         USER.tableBaseSetting.updateIndex = 3
+    }
+
+    // 2版本表格结构兼容
+    console.log("updateIndex", USER.tableBaseSetting.updateIndex)
+    if (USER.tableBaseSetting.updateIndex < 4) {
+        tableStructureToTemplate(USER.tableBaseSetting.tableStructure)
+        USER.tableBaseSetting.updateIndex = 4
     }
     if (USER.tableBaseSetting.deep < 0) formatDeep()
 
     renderSetting();
     InitBinging();
     initRefreshTypeSelector(); // 初始化表格刷新类型选择器
+}
+
+/**
+ * 表格结构转为表格模板
+ * @param {object[]} tableStructure 表格结构
+ * @returns 表格模板
+ */
+function tableStructureToTemplate(tableStructure) {
+    return tableStructure.map((structure) => {
+        const newTemplate = new BASE.Sheet('', true).createNew(structure.columns.length + 1, 1);
+        for (const key in structure.columns) {
+            const cell = newTemplate.findCellByPosition(0, parseInt(key) + 1)
+            cell.data.value = structure.columns[key]
+        }
+    })
+
 }
