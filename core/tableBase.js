@@ -99,8 +99,8 @@ export class Sheet {
      * 创建新的 Sheet 实例
      * @returns {Sheet} - 返回新的 Sheet 实例
      */
-    createNew(column = 2, row = 2) {
-        return this.#createNewEmpty(column, row);
+    createNew(column = 2, row = 2, isSave = true) {
+        return this.#createNewEmpty(column, row, isSave);
     }
 
 
@@ -372,12 +372,12 @@ export class Sheet {
             return false;
         }
     }
-    #createNewEmpty(column = 2, row = 2) {
+    #createNewEmpty(column = 2, row = 2, isSave = true) {
         this.#init(column, row); // 初始化基本数据结构
         this.uid = `${this.asTemplate ? 'template' : 'sheet'}_${SYSTEM.generateRandomString(8)}`; // 根据 asTemplate 决定 uid 前缀
         this.name = `新${this.asTemplate ? '模板' : '表格'}_${this.uid.slice(-4)}`; // 根据 asTemplate 决定 name 前缀
         this.#initCell();
-        this.save(); // 保存新创建的 Sheet
+        isSave && this.save(); // 保存新创建的 Sheet
         return this; // 返回 Sheet 实例自身
     }
     #createFromTemplate(template) {

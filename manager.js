@@ -18,6 +18,7 @@ import {pushCodeToQueue} from "./components/_fotTest.js";
 import {createProxy, createProxyWithUserSetting} from "./utils/codeProxy.js";
 import {Sheet} from "./core/tableBase.js";
 import { saveChat } from '../../../../script.js';
+import { refreshTempView } from './core/editor/tableTemplateEditView.js';
 
 let derivedData = {}
 
@@ -71,10 +72,10 @@ export const BASE = {
         return chatMetadata.sheets
     },
     loadContextAllSheets() {
-        let sheets = USER.getContext().table_database_data;
+        let sheets = USER.getChatMetadata().sheets;
         if (!Array.isArray(sheets)) {
             sheets = [];
-            USER.getContext().table_database_data = sheets;
+            USER.getChatMetadata().sheets = sheets;
         }
         return sheets;
     },
@@ -99,7 +100,8 @@ export const BASE = {
     },
     destroyAllContextSheets() {
         if (confirm("确定要销毁所有表格数据吗？") === false) return false;
-        USER.getContext().table_database_data = [];
+        USER.getChatMetadata().sheets = [];
+        USER.saveChat();
         return true;
     }
 };
@@ -119,6 +121,8 @@ export const EDITOR = {
     generateRaw: generateRaw,
     getSlideToggleOptions: getSlideToggleOptions,
     slideToggle: slideToggle,
+
+    refresh: refreshTempView,
 
     info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),
     success: (message, detail = '', timeout = 500) => consoleMessageToEditor.success(message, detail, timeout),

@@ -113,6 +113,18 @@ async function updateDropdownElement() {
     return dropdownElement;
 }
 
+function getAllDropdownOptions() {
+    return $(dropdownElement).find('option').toArray().map(option => option.value);
+}
+
+function updateSelect2Dropdown() {
+    let selectedSheets = scope ==='global'? USER.getSettings().table_database_templates_selected: getAllDropdownOptions()
+    if (selectedSheets === undefined) {
+        selectedSheets = [];
+    }
+    $(dropdownElement).val(selectedSheets).trigger("change",[true])
+}
+
 function initializeSelect2Dropdown(dropdownElement) {
     $(dropdownElement).select2({
         closeOnSelect: false,
@@ -134,13 +146,10 @@ function initializeSelect2Dropdown(dropdownElement) {
         }
     });
 
-    let selectedSheets = USER.getSettings().table_database_templates_selected;
-    if (selectedSheets === undefined) {
-        selectedSheets = [];
-    }
-    $(dropdownElement).val(selectedSheets)
+    updateSelect2Dropdown()
 
-    $(dropdownElement).on('change', function () {
+    $(dropdownElement).on('change', function (e, silent) {
+        if(silent || scope === 'chat') return
         USER.getSettings().table_database_templates_selected = $(this).val();
         USER.saveSettings();
         updateDragTables();
@@ -324,7 +333,7 @@ function bindCellClickEvent(cell) {
 }
 
 function getSelectedSheetUids() {
-    return scope === 'chat' ? USER.getChatMetadata().table_database_templates_selected ?? [] : USER.getSettings().table_database_templates_selected ?? []
+    return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getSettings().table_database_templates_selected ?? []
 }
 
 
@@ -360,7 +369,7 @@ async function updateDragTables() {
     let isFirstTable = true; // 添加一个标志来判断是否是第一个表格
 
     for (const uid of uidsToAdd) {
-        let sheet = new BASE.Sheet(uid, true);
+        let sheet = new BASE.Sheet(uid, scope === 'global');
         sheet.currentPopupMenu = currentPopupMenu;
 
         if (!sheet || !sheet.cellSheet) {
@@ -409,6 +418,12 @@ async function updateDragTables() {
     }
 }
 
+export async function refreshTempView(ignoreGlobal = false) {
+    if(ignoreGlobal && scope === 'global') return
+    await updateDropdownElement()
+    initializeSelect2Dropdown(dropdownElement);
+    await updateDragTables();
+}
 
 async function initTableEdit(mesId) {
     const table_editor_container = await SYSTEM.htmlToDom(await SYSTEM.getTemplate('editor'), 'table_editor_container');
@@ -429,9 +444,7 @@ async function initTableEdit(mesId) {
     $(scopeSelect).val(scope).on('change', async function () {
         scope = $(this).val();
         console.log("切换到", scope)
-        await updateDropdownElement()
-        initializeSelect2Dropdown(dropdownElement);
-        updateDragTables();
+        await refreshTempView()
     })
 
     if (!userSheetEditInfo.editAble) {
@@ -474,7 +487,7 @@ async function initTableEdit(mesId) {
 
     })
     $(document).on('click', '#destroy_table_template_button', async function () {
-        const r = BASE.destroyAllTemplates()
+        const r = scope ==='chat'? BASE.destroyAllContextSheets() : BASE.destroyAllTemplates()
         if (r) {
             await updateDropdownElement();
             $(dropdownElement).val([]).trigger('change');
