@@ -74,6 +74,64 @@ export function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
 }
 
 /**
+ * 返回聊天中的Sheets数据
+ * @param isIncludeEndIndex 搜索时是否包含endIndex
+ * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
+ */
+function getSheetsData(isIncludeEndIndex = false, endIndex = -1) {
+    const sheets = BASE.loadChatAllSheets()
+    console.log("新表格", sheets)
+        const { tables: oldTable } = findLastestTableData(isIncludeEndIndex, endIndex)
+        console.log("旧表格", oldTable)
+        convertOldTablesToSheets(oldTable)
+}
+
+/**
+ * 转化旧表格为sheets
+ * @param {DERIVED.Table[]} oldTableList 旧表格数据
+ */
+function convertOldTablesToSheets(oldTableList) {
+    USER.getChatMetadata().sheets = []
+    const sheets = []
+    for (const oldTable of oldTableList) {
+        const newSheet = new BASE.Sheet('', false, { domain: "chat" }).createNew(oldTable.columns.length + 1, 1, false);
+        newSheet.name = oldTable.tableName
+        newSheet.enable = oldTable.enable
+        newSheet.required = oldTable.Required
+        newSheet.tochat = oldTable.tochat
+        const sourceData = newSheet.source.data
+        sourceData.note = oldTable.note
+        sourceData.initNode = oldTable.initNode
+        sourceData.updateNode = oldTable.updateNode
+        sourceData.deleteNode = oldTable.deleteNode
+        sourceData.insertNode = oldTable.insertNode
+        for (const key in oldTable.columns) {
+            const cell = newSheet.findCellByPosition(0, parseInt(key) + 1)
+            cell.data.value = oldTable.columns[key]
+        }
+        sheets.push(newSheet)
+    }
+    sheets.forEach(sheet => sheet.save())
+    // USER.saveChat
+    EDITOR.refresh(true)
+}
+
+/**
+ * 对比新旧表格数据是否相同
+ * @param {DERIVED.Table} oldTable 旧表格数据
+ * @param {BASE.Sheet} newTable 新表格数据
+ * @returns 是否相同
+ */
+function compareTableData(oldTable, newTable) {
+    const oldCols = oldTable.columns.length
+    if (oldCols !== newTable.colCount) return false
+    for (let i = 0; i < oldCols; i++) {
+        if (oldTable.columns[i] !== newTable.findCellByPosition(0, i).data.value) return false
+    }
+    return true
+}
+
+/**
  * 寻找下一个含有表格数据的消息，如寻找不到，则返回null
  * @param startIndex 开始寻找的索引
  * @param isIncludeStartIndex 是否包含开始索引
@@ -306,8 +364,8 @@ function getMesRole() {
 async function onChatCompletionPromptReady(eventData) {
     try {
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
+        getSheetsData(true, -1)
         if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
-
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
@@ -401,6 +459,14 @@ async function onMessageReceived(chat_id) {
             EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message)
         }
     }
+}
+
+/**
+ * 聊天变化时触发
+ */
+async function onChatChanged(){
+    console.log("聊天变化")
+    EDITOR.refresh(true)
 }
 
 
@@ -500,6 +566,7 @@ jQuery(async () => {
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
+    eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
     eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
     eventSource.on(event_types.MESSAGE_SWIPED, onMessageSwiped);
     console.log("______________________记忆插件：加载完成______________________")
