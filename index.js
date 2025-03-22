@@ -80,10 +80,10 @@ export function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
  */
 function getSheetsData(isIncludeEndIndex = false, endIndex = -1) {
     const sheets = BASE.loadChatAllSheets()
-    console.log("新表格", sheets)
+    if(!sheets){
         const { tables: oldTable } = findLastestTableData(isIncludeEndIndex, endIndex)
-        console.log("旧表格", oldTable)
         convertOldTablesToSheets(oldTable)
+    }
 }
 
 /**
