@@ -1,5 +1,5 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {copyTableList, findLastestTableData, findTableStructureByIndex } from "../../index.js";
+import {copyTableList, findLastestSheetsPiece, findTableStructureByIndex } from "../../index.js";
 import {insertRow, updateRow, deleteRow} from "../tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
@@ -229,7 +229,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
     );
 
     try {
-        const latestData = findLastestTableData(true);
+        const latestData = findLastestSheetsPiece(true);
         if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
@@ -370,7 +370,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         { timeOut: 0 }
     );
     try {
-        const latestData = findLastestTableData(true);
+        const latestData = findLastestSheetsPiece(true);
         if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }

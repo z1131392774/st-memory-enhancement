@@ -49,41 +49,90 @@ function checkPrototype(dataTable) {
 }
 
 /**
- * 寻找最新的表格数据，若没有，就新建一个
+ * 寻找最新的SheetsPiece数据，若没有，就新建一个
  * @param isIncludeEndIndex 搜索时是否包含endIndex
  * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
  * @returns 自结束索引向上寻找，最近的表格数据
  */
-export function findLastestTableData(isIncludeEndIndex = false, endIndex = -1) {
+export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1) {
     let chat = USER.getContext().chat
     if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
     else chat = chat.slice(0, isIncludeEndIndex ? endIndex + 1 : endIndex)
     for (let i = chat.length - 1; i >= 0; i--) {
-        if (chat[i].is_user === false && chat[i].dataTable) {
-            checkPrototype(chat[i].dataTable)
-            return { tables: chat[i].dataTable, index: i }
+        if (chat[i].is_user === false && (chat[i].dataTable || chat[i].sheetPiece)) {
+            if (chat[i].sheetPiece) return { sheetPiece: chat[i].sheetPiece, index: i }
+            else {
+                checkPrototype(chat[i].dataTable)
+                const sheetPiece = convertOldTablesToSheetPiece(chat[i].dataTable)
+
+                return { sheetPiece, index: i }
+            }
         }
     }
-    const newTableList = initAllTable()
+    const newTableList =  ()
     for (let i = chat.length - 1; i >= 0; i--) {
         if (chat[i].is_user === false) {
-            return { tables: newTableList, index: i }
+            return { sheetPiece: newTableList, index: i }
         }
     }
-    return { tables: newTableList, index: -1 }
+    return { sheetPiece: newTableList, index: -1 }
 }
 
 /**
- * 返回聊天中的Sheets数据
+ * 返回聊天中的Sheets对象
  * @param isIncludeEndIndex 搜索时是否包含endIndex
  * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
  */
 function getSheetsData(isIncludeEndIndex = false, endIndex = -1) {
     const sheets = BASE.loadChatAllSheets()
-    if(!sheets){
-        const { tables: oldTable } = findLastestTableData(isIncludeEndIndex, endIndex)
-        convertOldTablesToSheets(oldTable)
+    if (!sheets) {
+        const { tables: oldTable } = findLastestSheetsPiece(isIncludeEndIndex, endIndex)
+        return convertOldTablesToSheets(oldTable)
     }
+    return sheets
+}
+
+/**
+ * 转化旧表格为sheetPiece
+ * @param {DERIVED.Table[]} oldTableList 旧表格数据
+ */
+function convertOldTablesToSheetPiece(oldTableList) {
+    const tempList = BASE.loadContextAllSheets().map(sheet => {
+        for (const oldTable of oldTableList) {
+            if (sheet.name === oldTable.tableName) return { sheet, oldTable }
+        }
+    }).filter(Boolean)
+    return tempList.map(({ sheet, oldTable }) => {
+        const oldCellSheet = copyCellSheet(sheet.cellSheet)
+        const newCellSheet = convertOldContentToCellSheet(oldTable.content, sheet)
+        sheet.cellSheet = oldCellSheet
+        return newCellSheet
+    })
+}
+
+/**
+ * 转化旧表格content为cellSheet
+ * @param {string[][]} content 旧表格数据
+ * @param {*} sheet 新表格
+ */
+function convertOldContentToCellSheet(content, sheet) {
+    const cols = content[0].length + 1
+    const rows = content.length + 1
+    sheet.updateSheetStructure(cols, rows)
+    for (let i = 0; i < content.length; i++) {
+        for (let j = 0; j < content[i].length; j++) {
+            const cell = sheet.findCellByPosition(j + 1, i + 1)
+            cell.data.value = content[i][j]
+        }
+    }
+    return sheet.cellSheet
+}
+
+/**
+ * 深拷贝cellSheet
+ */
+function copyCellSheet(cellSheet) {
+    return cellSheet.map(row => row.map(cell => cell))
 }
 
 /**
@@ -114,6 +163,7 @@ function convertOldTablesToSheets(oldTableList) {
     sheets.forEach(sheet => sheet.save())
     // USER.saveChat
     EDITOR.refresh(true)
+    return sheets
 }
 
 /**
@@ -155,20 +205,18 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  */
 export function initTableData() {
     if (USER.tableBaseSetting.step_by_step === true) return '';
-
-    const { tables } = findLastestTableData(true)
-    const promptContent = getAllPrompt(tables)
+    const promptContent = getAllPrompt()
     console.log("完整提示", promptContent)
     return promptContent
 }
 
 /**
  * 获取所有的完整提示词
- * @param {DERIVED.Table[]} tables 所有表格对象数组
  * @returns 完整提示词
  */
-function getAllPrompt(tables) {
-    const tableDataPrompt = tables.map(table => table.getTableText()).join('\n')
+function getAllPrompt() {
+    const sheets = BASE.loadChatAllSheets()
+    const tableDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
     return USER.tableBaseSetting.message_template.replace('{{tableData}}', tableDataPrompt)
 }
 
@@ -257,10 +305,12 @@ function clearEmpty() {
  */
 export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
     if (!parseTableEditTag(chat, mesIndex, ignoreCheck)) {
+        // TODO 待重构
         updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
         return
     }
     executeTableEditTag(chat, mesIndex)
+    // TODO 待重构
     updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
 }
 
@@ -275,7 +325,7 @@ export function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return false
     const functionList = handleTableEditTag(matches)
     // 寻找最近的表格数据
-    const { tables, index: lastestIndex } = findLastestTableData(false, mesIndex)
+    const { tables, index: lastestIndex } = findLastestSheetsPiece(false, mesIndex)
     DERIVED.any.waitingTableIndex = lastestIndex
     DERIVED.any.waitingTable = copyTableList(tables)
     clearEmpty()
@@ -363,6 +413,7 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
+        // TODO 使用新表格-系统消息
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
         getSheetsData(true, -1)
         if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
@@ -432,7 +483,7 @@ async function onMessageEdited(this_edit_mes_id) {
 
     } else {
         const chat = USER.getContext().chat[this_edit_mes_id]
-        if (chat.is_user === true ||USER.tableBaseSetting.isAiWriteTable === false) return
+        if (chat.is_user === true || USER.tableBaseSetting.isAiWriteTable === false) return
         try {
             handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
         } catch (error) {
@@ -448,6 +499,7 @@ async function onMessageEdited(this_edit_mes_id) {
 async function onMessageReceived(chat_id) {
     if (USER.tableBaseSetting.isExtensionAble === false) return
     if (USER.tableBaseSetting.step_by_step === true) {
+        // TODO 待双步重构
         await TableTwoStepSummary();
     } else {
         if (USER.tableBaseSetting.isAiWriteTable === false) return

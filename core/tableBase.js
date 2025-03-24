@@ -1,5 +1,6 @@
 // tableBase.js
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
+import { replaceUserTag } from '../utils/stringUtil.js';
 import { readonly } from "../utils/utility.js";
 
 const SheetDomain = {
@@ -198,6 +199,25 @@ export class Sheet {
         });
         return this.element;
     }
+    updateSheetStructure(column, row) {
+        const r = Array.from({ length: row }, (_, i) => Array.from({ length: column }, (_, j) => {
+            if (this.cellSheet[i]?.[j]) {
+                return this.cellSheet[i][j];
+            }
+            let cell = new Cell(this);
+            this.cells.set(cell.uid, cell);
+            this.cellHistory.push(cell);
+            if (i === 0 && j === 0) {
+                cell.type = CellType.sheet_origin;
+            } else if (i === 0) {
+                cell.type = CellType.column_header;
+            } else if (j === 0) {
+                cell.type = CellType.row_header;
+            }
+            return cell.uid;
+        }));
+        this.cellSheet = r;
+    }
     findCellByPosition(rowIndex, colIndex) {
         if (rowIndex === 0 && colIndex === 0) {
             return this.source;
@@ -225,6 +245,56 @@ export class Sheet {
         }
         return t;
     }
+    /**
+     * 通过行号获取行的所有单元格
+     * @param {number} rowIndex 
+     * @returns cell[]
+     */
+    getCellsByRowIndex(rowIndex) {
+        if (rowIndex < 0 || rowIndex >= this.cellSheet.length) {
+            console.warn('无效的行索引');
+            return null;
+        }
+        return this.cellSheet[rowIndex].map(uid => this.#cell(uid));
+    }
+    /**
+     * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
+     * @returns 表格内容提示词
+     */
+    getTableText(customParts = ['title', 'node', 'headers', 'rows', 'editRules']) {
+        const title = `* ${this.name}:${replaceUserTag(this.name)}\n`;
+        const node = this.source.note && this.source.note !== '' ? '【说明】' + this.source.note + '\n' : '';
+        const headers = "rowIndex," + this.getCellsByRowIndex(0).map((cell, index) => index + ':' + replaceUserTag(cell.data.value)).join(',') + '\n';
+        const rows = this.#getSheetCSV()
+        const editRules = this.#getTableEditRules() + '\n';
+
+        let result = '';
+
+        if (customParts.includes('title')) {
+            result += title;
+        }
+        if (customParts.includes('node')) {
+            result += node;
+        }
+        if (customParts.includes('headers')) {
+            result += '【表格内容】\n' + headers;
+        }
+        if (customParts.includes('rows')) {
+            result += rows;
+        }
+        if (customParts.includes('editRules')) {
+            result += editRules;
+        }
+
+        return result;
+    }
+    /**
+     * 表格是否为空
+     * @returns 是否为空
+     */
+    isEmpty() {
+        return this.cellSheet.length <= 1;
+    }
 
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
@@ -232,6 +302,9 @@ export class Sheet {
 
     #cell(cellUid) {
         return this.cells.get(cellUid);
+    }
+    #cellValue(cellUid) {
+        return this.#cell(cellUid)?.data.value;
     }
     #init(column = 2, row = 2) {
         this.cells = new Map();
@@ -274,6 +347,32 @@ export class Sheet {
         this.#initCell();
 
         return this;
+    }
+    /**
+     * 获取表格csv格式的内容
+     * @returns 
+     */
+    #getSheetCSV() {
+        if (this.isEmpty())
+            if (this.required) return this.source.initNode;
+            else return '';
+        const content = this.cellSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.#cellValue(cellUid)).join(',')).join('\n');
+        return content + "\n";
+    }
+    /**
+     * 获取表格编辑规则提示词
+     * @returns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+     */
+    #getTableEditRules() {
+        const source = this.source;
+        if (this.required && this.isEmpty()) return '【增删改触发条件】\n插入：' + replaceUserTag(source.initNode) + '\n'
+        else {
+            let editRules = '【增删改触发条件】\n'
+            if (source.insertNode) editRules += ('插入：' + replaceUserTag(source.insertNode) + '\n')
+            if (source.updateNode) editRules += ('更新：' + replaceUserTag(source.updateNode) + '\n')
+            if (source.deleteNode) editRules += ('删除：' + replaceUserTag(source.deleteNode) + '\n')
+            return editRules
+        }
     }
     #initCell() {
         // 从 cellHistory 遍历加载 Cell 对象

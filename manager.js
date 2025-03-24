@@ -11,7 +11,7 @@ import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, r
 import {defaultSettings} from "./core/pluginSetting.js";
 import {Drag} from "./components/dragManager.js";
 import {PopupMenu} from "./components/popupMenu.js";
-import {findLastestTableData} from "./index.js";
+import {findLastestSheetsPiece} from "./index.js";
 import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
 import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
