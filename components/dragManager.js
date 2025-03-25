@@ -43,14 +43,15 @@ export class Drag {
         this.dragSpace.style.left = '0';
         this.dragSpace.style.bottom = '0';
         // this.dragSpace.style.outline = '3px solid #41b681'
-        this.dragSpace.style.willChange = 'transform'; // 优化：提示浏览器 transform 可能会变化
+        this.dragSpace.style.willChange = 'transform';  // 优化：提示浏览器 transform 可能会变化
         this.dragSpace.style.pointerEvents = 'auto';
         this.dragContainer.appendChild(this.dragSpace);
 
 
         // 分离手机和电脑事件
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            this.dragSpace.style.transition = 'transform 0.02s ease-out';
+            // this.dragSpace.style.transition = 'transform 0.02s ease-out';
+            this.dragSpace.style.transition = 'none';
             this.dragContainer.addEventListener('touchstart', this.handleMouseDown);
         } else {
             this.dragSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
@@ -186,24 +187,18 @@ export class Drag {
     handleMouseMove = (e) => {
         if (!this.isDragging) return;
 
-        let clientX, clientY, touches;
         if (e.type === 'touchmove') {
-            touches = e.touches;
-            if (touches.length > 0) {
-                clientX = touches[0].clientX;
-                clientY = touches[0].clientY;
-            } else {
-                return;
-            }
+            if (e.touches.length === 0) return;
+            this.translateX = e.touches[0].clientX - this.canvasStartX
+            this.translateY = e.touches[0].clientY - this.canvasStartY
+            this.updateTransform(); // 更新位移
+            e.preventDefault();     // 阻止默认行为减少卡顿
         } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
+            const deltaX = (e.clientX - this.translateX) / this.scale - this.canvasStartX;
+            const deltaY = (e.clientY - this.translateY) / this.scale - this.canvasStartY;
+
+            this.mergeOffset(deltaX * this.scale, deltaY * this.scale);
         }
-
-        const deltaX = (clientX - this.translateX) / this.scale - this.canvasStartX;
-        const deltaY = (clientY - this.translateY) / this.scale - this.canvasStartY;
-
-        this.mergeOffset(deltaX * this.scale, deltaY * this.scale);
     };
 
 
@@ -278,8 +273,8 @@ export class Drag {
 
     updateTransform() {
         requestAnimationFrame(() => {
-            this.dragSpace.style.transform =
-                `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+            // 使用transform3d触发GPU加速
+            this.dragSpace.style.transform = `translate3d(${this.translateX}px, ${this.translateY}px, 0) scale(${this.scale})`;
         });
     }
 }
