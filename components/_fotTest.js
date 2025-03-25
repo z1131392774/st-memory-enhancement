@@ -257,11 +257,7 @@ function dragStart(e) {
 
 function dragMove(e) {
     if (!isDragging) return;
-
-    const newX = e.clientX - offsetX;
-    const newY = e.clientY - offsetY;
-
-    adjustSidebarPositionWithinBounds(newX, newY);
+    adjustSidebarPositionWithinBounds(e.clientX - offsetX, e.clientY - offsetY);
 }
 
 function dragEnd() {
@@ -275,16 +271,8 @@ function handleWindowResize() {
 function adjustSidebarPositionWithinBounds(inputX, inputY) {
     let newX = inputX !== undefined ? inputX : testSidebarContainer.offsetLeft;
     let newY = inputY !== undefined ? inputY : testSidebarContainer.offsetTop;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const sidebarWidth = testSidebarContainer.offsetWidth;
-    const sidebarHeight = testSidebarContainer.offsetHeight;
-    const minX = 0;
-    const maxX = viewportWidth - sidebarWidth;
-    const minY = 0;
-    const maxY = viewportHeight - sidebarHeight;
-    let boundedX = Math.max(minX, Math.min(newX, maxX));
-    let boundedY = Math.max(minY, Math.min(newY, maxY));
+    let boundedX = Math.max(0, Math.min(newX, window.innerWidth - testSidebarContainer.offsetWidth));
+    let boundedY = Math.max(0, Math.min(newY, window.innerHeight - testSidebarContainer.offsetHeight));
 
     testSidebarContainer.style.left = boundedX + 'px';
     testSidebarContainer.style.top = boundedY + 'px';

@@ -19,7 +19,7 @@ import { initRefreshTypeSelector } from './core/editor/initRefreshTypeSelector.j
 
 console.log("______________________记忆插件：开始加载______________________")
 
-const VERSION = '2.0.0-alpha'
+const VERSION = '2.0.0-dev.1'
 
 const editErrorInfo = {
     forgotCommentTag: false,
@@ -649,8 +649,6 @@ jQuery(async () => {
         console.log(s, s[0])
         console.log(s[0].cellHistory[0])
         console.log(s[0].cellHistory[0].data.description)
-        // console.log(s[0].cells.get(s[0].cellSheet[0][0]))
-        // console.log(s[0].cells.get(s[0].cellSheet[0][0]).data.description)
     }, "打印表格源")
     SYSTEM.f(()=>{
         EDITOR.info("测试信息")

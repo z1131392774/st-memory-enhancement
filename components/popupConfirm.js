@@ -131,12 +131,6 @@ export class PopupConfirm {
                 cleanup();
                 resolve(false);
             };
-
-            closeButton.onclick = () => {
-                this.confirm = false;
-                cleanup();
-                resolve(false);
-            };
         });
     }
 }

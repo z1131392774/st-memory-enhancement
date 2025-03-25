@@ -1,4 +1,4 @@
-<!-- customSheetStyle.html -->
+<!-- customPushSheetsToChatStyle.html -->
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -19,31 +19,34 @@
 </small>
 <hr>
 <div class="flex-container" style="display: flex; flex-direction: column; gap: 10px; margin: 10px 0; ">
-    <div style=" display: flex; flex-direction: row; gap: 10px;">
-        <input checked type="checkbox" id="table_style_button">
-        <label>启用该表的自定义样式</label>
+    <div class="checkbox flex-container" style="align-content: flex-start; margin-top: 10px;">
+        <span>预设</span>
+        <select id="preset_style">
+            <option value="default" selected>默认</option>
+<!--            <option value="florescence_jl" title="来源：discord_玖琉_@autic3365">荧光</option>-->
+        </select>
     </div>
-    <div style=" display: flex; flex-direction: row; gap: 10px;">
-        <input checked type="checkbox" id="table_to_chat_button">
-        <label>推送至对话</label>
-        <small>(开启时将该表格以下预览中的样式推送至对话)</small>
+    <div class="checkbox flex-container" style="align-content: flex-start; margin-top: 10px;">
+        <input type="checkbox" id="insert_last_piece">
+        <span>插入到最后一条对话</span>
+        <small>(插入到最后一条对话块底部而不是上下文底部)</small>
     </div>
-<!--    <div style=" display: flex; flex-direction: column; text-align: left">-->
-<!--        <label>使用正则替换对话中的内容：</label>-->
-<!--        <input type="text" class="text_pole" id="table_to_chat_replace">-->
-<!--    </div>-->
+    <div style=" display: flex; flex-direction: column; text-align: left">
+        <label>使用正则替换对话中的内容：</label>
+        <input type="text" class="text_pole" id="table_to_chat_replace">
+    </div>
     <div style=" display: flex; flex-direction: column; text-align: left">
         <label>替换样式：</label>
-        <textarea id="htmlEditor" rows="5"></textarea>
+        <textarea id="pushToChatStyleContent" rows="5"></textarea>
     </div>
 </div>
 <hr>
 <h3 class="marginBot5"><span>样式预览:</span></h3>
-<div id="tableRendererDisplay"></div>
+<div id="pushToChatSheetsRendererDisplay"></div>
 
 <script>
-    const htmlEditor = document.getElementById('htmlEditor');
-    const tableRendererDisplay = document.getElementById('tableRendererDisplay');
+    const htmlEditor = document.getElementById('pushToChatStyleContent');
+    const tableRendererDisplay = document.getElementById('pushToChatSheetsRendererDisplay');
     const renderHTML = () => {
         const htmlCode = htmlEditor.value;
         tableRendererDisplay.innerHTML = htmlCode; // 使用 innerHTML 来渲染 HTML
@@ -52,4 +55,3 @@
 </script>
 </body>
 </html>
-

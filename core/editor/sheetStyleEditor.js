@@ -117,7 +117,7 @@ function parseSheetRender(html, sheet) {
         }
         return sheet.element;
     }
-    if (!sheet || !sheet.cellSheet[1][1]) {
+    if (!sheet) {
         return html;
     }
     html = html.replace(/\$(\w)(\d+)/g, function (match, colLetter, rowNumber) {

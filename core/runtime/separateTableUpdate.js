@@ -154,9 +154,18 @@ export async function TableTwoStepSummary() {
         todoChats += handleMessages(chat.mes);
     })
 
+    // 检查是否达到执行两步总结的阈值
     if (todoChats.length < USER.tableBaseSetting.step_by_step_threshold) {
         currentChat.two_step_waiting[swipeUid] = true;
         console.log('需要执行两步总结的对话长度未达到阈值: ', `(${todoChats.length}) `, toBeExecuted);
+        MarkChatAsWaiting(currentChat, swipeUid);
+        return;
+    }
+
+    // 检查是否开启执行前确认
+    if (await EDITOR.confirm('是否执行两步总结？', '执行', '取消') === false) {
+        currentChat.two_step_waiting[swipeUid] = true;
+        console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
         MarkChatAsWaiting(currentChat, swipeUid);
         return;
     }
