@@ -32,7 +32,13 @@ const formConfigs = {
         formDescription: "设置列的标题和描述信息。",
         fields: [
             { label: '列标题', type: 'text', dataKey: 'value' },
-            { label: '数据类型', type: 'select', dataKey: 'columnDataType', options: ['text', 'number', 'options'] },
+            { label: '数据类型', type: 'select', dataKey: 'columnDataType',
+                options: [
+                    { value: 'text', text: '文本' },
+                    // { value: 'number', text: '数字' },
+                    // { value: 'option', text: '选项' },
+                ]
+            },
             { label: '列描述', description: '(给AI解释此列的作用)', type: 'textarea', dataKey: 'columnNote' },
         ],
     },
@@ -59,18 +65,18 @@ const formConfigs = {
             {
                 label: '域', type: 'select', dataKey: 'domain',
                 options: [
-                    { value: 'global', text: `<i class="fa-solid fa-earth-asia"></i> Global（该模板储存于用户数据中）` },
-                    { value: 'role', text: `<i class="fa-solid fa-user-tag"></i> Role（该模板储存于当前所选角色）` },
+                    // { value: 'global', text: `<i class="fa-solid fa-earth-asia"></i> Global（该模板储存于用户数据中）` },
+                    // { value: 'role', text: `<i class="fa-solid fa-user-tag"></i> Role（该模板储存于当前所选角色）` },
                     { value: 'chat', text: `<i class="fa-solid fa-comment"></i> Chat（该模板储存于当前对话）` },
                 ],
             },
             {
                 label: '类型', type: 'select', dataKey: 'type',
                 options: [
-                    { value: 'free', text: `<i class="fa-solid fa-table"></i> Free（AI 可以任意修改此表格）` },
+                    // { value: 'free', text: `<i class="fa-solid fa-table"></i> Free（AI 可以任意修改此表格）` },
                     { value: 'dynamic', text: `<i class="fa-solid fa-arrow-down-wide-short"></i> Dynamic（AI 可进行插入列外的所有操作）` },
-                    { value: 'fixed', text: `<i class="fa-solid fa-thumbtack"></i> Fixed（AI 无法删除或插入行与列）` },
-                    { value: 'static', text: `<i class="fa-solid fa-link"></i> Static（该表对 AI 为只读）` }
+                    // { value: 'fixed', text: `<i class="fa-solid fa-thumbtack"></i> Fixed（AI 无法删除或插入行与列）` },
+                    // { value: 'static', text: `<i class="fa-solid fa-link"></i> Static（该表对 AI 为只读）` }
                 ],
             },
             { label: '表格名', type: 'text', dataKey: 'name' },
@@ -369,7 +375,7 @@ async function updateDragTables() {
     let isFirstTable = true; // 添加一个标志来判断是否是第一个表格
 
     for (const uid of uidsToAdd) {
-        let sheet = new BASE.Sheet(uid, scope === 'global');
+        let sheet = scope === 'global' ? new BASE.SheetTemplate(uid) : new BASE.Sheet(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
         if (!sheet || !sheet.cellSheet) {
@@ -401,7 +407,7 @@ async function updateDragTables() {
     for (const uid of uidsToUpdate) {
         const tableElement = renderedTables.get(uid);
         if (tableElement) {
-            let sheet = new BASE.Sheet(uid, true);
+            let sheet = new BASE.SheetTemplate(uid);
             const captionElement = document.createElement('caption');
             captionElement.appendChild(bindSheetSetting(sheet));
             const existingCaption = tableElement.querySelector('caption');
@@ -447,14 +453,14 @@ async function initTableEdit(mesId) {
         await refreshTempView()
     })
 
-    if (!userSheetEditInfo.editAble) {
-        $('#contentContainer #paste_table_button').hide();
-    } else {
-        $('#contentContainer #paste_table_button').show();
-    }
+    // if (!userSheetEditInfo.editAble) {
+    //     $('#contentContainer #paste_table_button').hide();
+    // } else {
+    //     $('#contentContainer #paste_table_button').show();
+    // }
 
     $(document).on('click', '#add_table_template_button', async function () {
-        const newTemplate = new BASE.Sheet('', true).createNewByTemp();
+        const newTemplate = new BASE.SheetTemplate('').createNewByTemp();
         const newTemplateUid = newTemplate.uid;
 
         let currentSelectedValues = $(dropdownElement).val();
@@ -473,9 +479,9 @@ async function initTableEdit(mesId) {
         updateDragTables();
         $(dropdownElement).val(currentSelectedValues).trigger('change');
     });
-    $(document).on('click', '#sort_table_template_button', function () {
-
-    })
+    // $(document).on('click', '#sort_table_template_button', function () {
+    //
+    // })
     $(document).on('click', '#import_table_template_button', function () {
 
     })
@@ -483,17 +489,17 @@ async function initTableEdit(mesId) {
 
     })
 
-    $(document).on('click', '#table_template_history_button', function () {
-
-    })
-    $(document).on('click', '#destroy_table_template_button', async function () {
-        const r = scope ==='chat'? BASE.destroyAllContextSheets() : BASE.destroyAllTemplates()
-        if (r) {
-            await updateDropdownElement();
-            $(dropdownElement).val([]).trigger('change');
-            updateDragTables();
-        }
-    });
+    // $(document).on('click', '#table_template_history_button', function () {
+    //
+    // })
+    // $(document).on('click', '#destroy_table_template_button', async function () {
+    //     const r = scope ==='chat'? BASE.destroyAllContextSheets() : BASE.destroyAllTemplates()
+    //     if (r) {
+    //         await updateDropdownElement();
+    //         $(dropdownElement).val([]).trigger('change');
+    //         updateDragTables();
+    //     }
+    // });
 
     updateDragTables();
 

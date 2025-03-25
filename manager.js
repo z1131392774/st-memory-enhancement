@@ -16,7 +16,7 @@ import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
 import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
 import {createProxy, createProxyWithUserSetting} from "./utils/codeProxy.js";
-import {Sheet} from "./core/tableBase.js";
+import {Sheet, SheetTemplate} from "./core/tableBase.js";
 import { saveChat } from '../../../../script.js';
 import { refreshTempView } from './core/editor/tableTemplateEditView.js';
 
@@ -57,6 +57,7 @@ export const BASE = {
      * @description 请注意，对数据库的任何操作都应该通过该实例进行，而不应该直接访问数据库
      */
     Sheet: Sheet,
+    SheetTemplate: SheetTemplate,
 
     loadUserAllTemplates() {
         let templates = USER.getSettings().table_database_templates;

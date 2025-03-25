@@ -161,7 +161,7 @@ function convertOldTablesToSheets(oldTableList) {
     USER.getChatMetadata().sheets = []
     const sheets = []
     for (const oldTable of oldTableList) {
-        const newSheet = new BASE.Sheet('', false, { domain: "chat" }).createNew(oldTable.columns.length + 1, 1, false);
+        const newSheet = new BASE.Sheet('', { domain: "chat" }).createNew(oldTable.columns.length + 1, 1, false);
         newSheet.name = oldTable.tableName
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required

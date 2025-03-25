@@ -417,7 +417,7 @@ export function loadSettings() {
  */
 function tableStructureToTemplate(tableStructure) {
     return tableStructure.map((structure) => {
-        const newTemplate = new BASE.Sheet('', true).createNew(structure.columns.length + 1, 1);
+        const newTemplate = new BASE.SheetTemplate('').createNew(structure.columns.length + 1, 1);
         for (const key in structure.columns) {
             const cell = newTemplate.findCellByPosition(0, parseInt(key) + 1)
             cell.data.value = structure.columns[key]
