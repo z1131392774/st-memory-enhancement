@@ -203,7 +203,7 @@ function InitBinging() {
     $('#dataTable_injection_mode').change(function (event) {
         USER.tableBaseSetting.injection_mode = event.target.value;
     });
-    // 表格结构编辑
+    // 分步总结
     $('#step_by_step').change(function() {
         $('#reply_options').toggle(!this.checked);
         $('#step_by_step_options').toggle(this.checked);
@@ -212,6 +212,10 @@ function InitBinging() {
     // 开启多轮字数累计
     $('#sum_multiple_rounds').change(function() {
         USER.tableBaseSetting.sum_multiple_rounds = $(this).prop('checked');
+    })
+    // 确认执行
+    $('#confirm_before_execution').change(function() {
+        USER.tableBaseSetting.confirm_before_execution = $(this).prop('checked');
     })
     //整理表格相关高级设置
     $('#advanced_settings').change(function() {
@@ -365,6 +369,7 @@ export function renderSetting() {
     updateSwitch('#table_to_chat', USER.tableBaseSetting.isTableToChat);
     updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
     updateSwitch('#step_by_step', USER.tableBaseSetting.step_by_step);
+    updateSwitch('#confirm_before_execution', USER.tableBaseSetting.confirm_before_execution);
     updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
     updateSwitch('#ignore_del', USER.tableBaseSetting.bool_ignore_del);
     updateSwitch('#sum_multiple_rounds', USER.tableBaseSetting.sum_multiple_rounds);

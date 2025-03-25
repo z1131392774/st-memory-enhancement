@@ -19,6 +19,7 @@ import {createProxy, createProxyWithUserSetting} from "./utils/codeProxy.js";
 import {Sheet, SheetTemplate} from "./core/tableBase.js";
 import { saveChat } from '../../../../script.js';
 import { refreshTempView } from './core/editor/tableTemplateEditView.js';
+import {newPopupConfirm, PopupConfirm} from "./components/popupConfirm.js";
 
 let derivedData = {}
 
@@ -133,6 +134,7 @@ export const EDITOR = {
     slideToggle: slideToggle,
 
     refresh: refreshTempView,
+    confirm: newPopupConfirm,
 
     info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),
     success: (message, detail = '', timeout = 500) => consoleMessageToEditor.success(message, detail, timeout),

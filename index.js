@@ -652,6 +652,17 @@ jQuery(async () => {
         // console.log(s[0].cells.get(s[0].cellSheet[0][0]))
         // console.log(s[0].cells.get(s[0].cellSheet[0][0]).data.description)
     }, "打印表格源")
+    SYSTEM.f(()=>{
+        EDITOR.info("测试信息")
+    }, "测试信息")
+    SYSTEM.f(async ()=>{
+        const confirmed = await EDITOR.confirm(
+            '执行操作?',
+            '确认',
+            '取消'
+        );
+        console.log(confirmed)
+    }, "测试confirm")
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);

@@ -117,6 +117,7 @@ export const defaultSettings = {
     isAiWriteTable: true,
     isTableToChat: false,
     step_by_step: false,
+    confirm_before_execution: true,
     //自动整理表格
     use_main_api: true,
     custom_temperature: 1.0,

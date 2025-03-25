@@ -105,7 +105,6 @@ export class PopupMenu {
         this.popupContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
         this.popupContainer.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
         this.popupContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
-        this.popupContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
 
         this.menuContainer = $('<div class="dynamic-popup-menu" id="dynamic_popup_menu"></div>')[0];
         this.menuContainer.style.position = 'relative';
