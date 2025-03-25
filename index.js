@@ -161,12 +161,14 @@ function convertOldTablesToSheets(oldTableList) {
     USER.getChatMetadata().sheets = []
     const sheets = []
     for (const oldTable of oldTableList) {
-        const newSheet = new BASE.Sheet('', { domain: "chat" }).createNew(oldTable.columns.length + 1, 1, false);
+        const newSheet = new BASE.Sheet('').createNewSheet(oldTable.columns.length + 1, 1, false);
         newSheet.name = oldTable.tableName
+        newSheet.domain = newSheet.SheetDomain.chat
+        newSheet.type = newSheet.SheetType.dynamic
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required
         newSheet.tochat = oldTable.tochat
-        newSheet.type = newSheet.SheetType.dynamic
+
         const sourceData = newSheet.source.data
         sourceData.note = oldTable.note
         sourceData.initNode = oldTable.initNode
@@ -189,12 +191,12 @@ function convertOldTablesToSheets(oldTableList) {
 /**
  * 对比新旧表格数据是否相同
  * @param {DERIVED.Table} oldTable 旧表格数据
- * @param {BASE.Sheet} newTable 新表格数据
+ * @param {BASE.Sheet} newSheet 新表格数据
  * @returns 是否相同
  */
-function compareTableData(oldTable, newTable) {
+function compareSheetData(oldTable, newSheet) {
     const oldCols = oldTable.columns.length
-    if (oldCols !== newTable.colCount) return false
+    if (oldCols !== newSheet.colCount) return false
     for (let i = 0; i < oldCols; i++) {
         if (oldTable.columns[i] !== newTable.findCellByPosition(0, i).data.value) return false
     }

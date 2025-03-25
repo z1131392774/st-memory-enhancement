@@ -30,32 +30,38 @@ const CellType = {
     row_header: 'row_header',
     cell: 'cell',
 }
+const cellStyle = `
+    .sheet-table { border-collapse: collapse; width: max-content; }
+    .sheet-cell { border: 1px solid var(--SmartThemeBodyColor); padding: 1px; text-align: center; vertical-align: middle; cursor: cell; }
+    .sheet-cell-origin { min-width: 20px; min-height: 20px }
+    .sheet-header-cell-top { font-weight: bold }
+    .sheet-header-cell-left { font-weight: bold }
+    .sheet-cell-other { min-width: 50px; border: 1px dashed var(--SmartThemeEmColor); }
+`
 
 class SheetBase {
     SheetDomain = SheetDomain;
     SheetType = SheetType;
+
     constructor() {
         this.uid = '';
         this.name = '';
-        this.domain = SheetDomain.global;
+        this.domain = '';
         this.type = SheetType.dynamic;
+        this.enable = true;                     // 用于标记是否启用
+        this.required = false;                  // 用于标记是否必填
+        this.tochat = false;                    // 用于标记是否发送到聊天
 
         this.cells = new Map(); // cells 在每次 Sheet 初始化时从 cellHistory 加载
         this.cellHistory = [];  // cellHistory 持久保持，只增不减
         this.cellSheet = [];    // 每回合的 cellSheet 结构，用于渲染出表格
     }
 
-    // updateRender() {
-    //     if (!this.lastCellEventHandler) {
-    //         throw new Error('未找到 lastCellEventHandler，请使用 render 方法渲染表格');
-    //     }
-    //
-    //     // 从 element 中比较差量更新
-    //     const oldElement = this.element;
-    //     throw new Error('未实现差量更新');
-    // }
     /**
-     * 渲染表格，接受 cellEventHandler 参数，提供两个参数：cell, cellElement
+     * 渲染表格
+     * @description 接受 cellEventHandler 参数，提供一个 `Cell` 对象作为回调函数参数，用于处理单元格事件
+     * @description 可以通过 `cell.parent` 获取 Sheet 对象，因此不再需要传递 Sheet 对象
+     * @description 如果不传递 cellEventHandler 参数，则使用上一次的 cellEventHandler
      * @param {Function} cellEventHandler
      * */
     renderSheet(cellEventHandler = this.lastCellEventHandler) {
@@ -71,14 +77,7 @@ class SheetBase {
             this.element.style.flexShrink = '1';
 
             const styleElement = document.createElement('style');
-            styleElement.textContent = `
-                .sheet-table { border-collapse: collapse; width: max-content; }
-                .sheet-cell { border: 1px solid var(--SmartThemeBodyColor); padding: 1px; text-align: center; vertical-align: middle; cursor: cell; }
-                .sheet-cell-origin { min-width: 20px; min-height: 20px }
-                .sheet-header-cell-top { font-weight: bold }
-                .sheet-header-cell-left { font-weight: bold }
-                .sheet-cell-other { min-width: 50px; border: 1px dashed var(--SmartThemeEmColor); }
-            `;
+            styleElement.textContent = cellStyle;
             this.element.appendChild(styleElement);
         }
 
@@ -112,14 +111,7 @@ class SheetBase {
         this.cellHistory = [];
         this.cellSheet = [];
 
-        const initialRows = column;
-        const initialCols = row;
-
-        this.initSheetStructure(column, row);
-        return this;
-    };
-
-    initSheetStructure(column, row) {
+        // 初始化 cellSheet 结构
         const r = Array.from({ length: row }, (_, i) => Array.from({ length: column }, (_, j) => {
             let cell = new Cell(this);
             this.cells.set(cell.uid, cell);
@@ -134,9 +126,11 @@ class SheetBase {
             return cell.uid;
         }));
         this.cellSheet = r;
-    }
 
-    initCell() {
+        return this;
+    };
+
+    loadCells() {
         // 从 cellHistory 遍历加载 Cell 对象
         try {
             this.cells = new Map(); // 初始化 cells Map
@@ -174,27 +168,34 @@ class SheetBase {
             console.error(`加载失败：${e}`);
             return false;
         }
+    }
 
-        // 加载后，根据 cellSheet 结构重新初始化 source ，非常重要
-        try {
-            this.source = this.cells.get(this.cellSheet[0][0]);
-        } catch (e) {
-            console.error(`加载失败：${e}`);
-            return false;
-        }
+    filterSavingData() {
+        return {
+            uid: this.uid,
+            name: this.name,
+            domain: this.domain,
+            type: this.type,
+            enable: this.enable,
+            required: this.required,
+            tochat: this.tochat,
+            cellHistory: this.cellHistory.map(cell => {
+                const { parent, ...data } = cell;
+                return data;
+            }),
+            cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
+        };
     }
 }
 
 export class SheetTemplate extends SheetBase {
     constructor(target = null, options = {}) {
         super();
-        this.domain = options.domain ?? SheetDomain.global;
-        this.type = options.domain ?? SheetType.dynamic;
 
-        this.source = null;                     // 用于存储原点单元格
-        this.tochat = false;                    // 用于标记是否发送到聊天
-        this.enable = true;                     // 用于标记是否启用
-        this.required = false;                  // 用于标记是否必填
+        this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
+        this.element = null;                    // 用于存储渲染后的 table 元素
+        this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
+
         this.data = new Proxy({}, {
             get: (target, prop) => {
                 return this.source.data[prop];
@@ -213,28 +214,31 @@ export class SheetTemplate extends SheetBase {
             set: () => { throw new Error("不允许修改 colCount") }
         });
 
-        this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
-        this.element = null;                    // 用于存储渲染后的 table 元素
-        this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
-
-        if (target != null && target != "") this.load(target);
+        this.load(target, options);
+    }
+    get source() {
+        return this.cells.get(this.cellSheet[0][0]);
     }
 
 
-    /**
-     * 通过模板创建新的 Sheet 实例
-     * @param {Sheet} [template] - 可选的模板 Sheet 实例，用于从模板创建新表格
-     * @returns {Sheet} - 返回新的 Sheet 实例
-     */
-    createNewByTemp(template) {
-        return this.#createFromTemplate(template);
-    }
+    // /**
+    //  * 通过模板创建新的 Sheet 实例
+    //  * @param {Sheet} [template] - 可选的模板 Sheet 实例，用于从模板创建新表格
+    //  * @returns {Sheet} - 返回新的 Sheet 实例
+    //  */
+    // createNewByTemp(template) {
+    //     if (!template) {
+    //         return this.createNewTemplate(); // 如果 template 为空，则回退到创建空表格
+    //     } else {
+    //         return this.#createFromTemplate(template);
+    //     }
+    // }
 
-    createNewEmpty(column = 2, row = 2, isSave = true) {
+    createNewTemplate(column = 2, row = 2, isSave = true) {
         this.init(column, row); // 初始化基本数据结构
         this.uid = `template_${SYSTEM.generateRandomString(8)}`;
         this.name = `新模板_${this.uid.slice(-4)}`;
-        this.initCell();
+        this.loadCells();
         isSave && this.save(); // 保存新创建的 Sheet
         return this; // 返回 Sheet 实例自身
     }
@@ -246,7 +250,7 @@ export class SheetTemplate extends SheetBase {
      * @returns {Sheet|boolean}
      */
     save() {
-        const sheetDataToSave = this.getSheetDataToSave()
+        const sheetDataToSave = this.filterSavingData()
         return this.#saveSheetToGlobal(sheetDataToSave);
     }
     /**
@@ -296,17 +300,6 @@ export class SheetTemplate extends SheetBase {
         }
         return t;
     }
-    // findCellByUid(uid) {
-    //     if (uid === this.source.uid) {
-    //         return this.source;
-    //     }
-    //     const t = this.cells.get(uid) || null;
-    //     if (!t) {
-    //         console.warn(`未找到单元格 ${t}`);
-    //         return null;
-    //     }
-    //     return t;
-    // }
     /**
      * 通过行号获取行的所有单元格
      * @param {number} rowIndex
@@ -327,7 +320,7 @@ export class SheetTemplate extends SheetBase {
         const title = `* ${this.name}:${replaceUserTag(this.name)}\n`;
         const node = this.source.note && this.source.note !== '' ? '【说明】' + this.source.note + '\n' : '';
         const headers = "rowIndex," + this.getCellsByRowIndex(0).map((cell, index) => index + ':' + replaceUserTag(cell.data.value)).join(',') + '\n';
-        const rows = this.#getSheetCSV()
+        const rows = this.getSheetCSV()
         const editRules = this.#getTableEditRules() + '\n';
 
         let result = '';
@@ -363,18 +356,10 @@ export class SheetTemplate extends SheetBase {
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
-    // cell(cellUid) {
-    //     return this.cells.get(cellUid);
-    // }
-    cellValue(cellUid) {
-        return this.cells.get(cellUid)?.data.value;
-    }
-
-    load(target) {
+    load(target, options = {}) {
         let targetUid = target?.uid || target;
-        let targetSheetData = null;
+        let targetSheetData = BASE.loadUserAllTemplates().find(t => t.uid === targetUid);
 
-        targetSheetData = BASE.loadUserAllTemplates().find(t => t.uid === targetUid);
         if (!targetSheetData?.uid) {
             // 创建一个新的空 Sheet
             this.init();
@@ -388,8 +373,11 @@ export class SheetTemplate extends SheetBase {
             }
         }
 
+        // this.domain = options.domain ?? SheetDomain.global;
+        // this.type = options.domain ?? SheetType.dynamic;
+
         console.log(this)
-        this.initCell();
+        this.loadCells();
 
         return this;
     }
@@ -397,11 +385,11 @@ export class SheetTemplate extends SheetBase {
      * 获取表格csv格式的内容
      * @returns
      */
-    #getSheetCSV() {
+    getSheetCSV(key = 'value') {
         if (this.isEmpty())
             if (this.required) return this.source.initNode;
             else return '';
-        const content = this.cellSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.cellValue(cellUid)).join(',')).join('\n');
+        const content = this.cellSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.cells.get(cellUid)?.data[key]).join(',')).join('\n');
         return content + "\n";
     }
     /**
@@ -420,21 +408,6 @@ export class SheetTemplate extends SheetBase {
         }
     }
 
-    getSheetDataToSave() {
-        return {
-            uid: this.uid,
-            name: this.name,
-            domain: this.domain,
-            type: this.type,
-            tochat: this.tochat,
-            cellHistory: this.cellHistory.map(cell => {
-                //return cell;
-                const { parent, ...data } = cell;
-                return data;
-            }),
-            cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
-        };
-    }
     #saveSheetToGlobal(sheetDataToSave) {
         let templates = BASE.loadUserAllTemplates();
         if (!templates) templates = [];
@@ -454,9 +427,6 @@ export class SheetTemplate extends SheetBase {
     }
 
     #createFromTemplate(template) {
-        if (!template) {
-            return this.createNewEmpty(); // 如果 template 为空，则回退到创建空表格
-        }
         // 复制模板的基本属性
         this.domain = template.domain;
         this.type = template.type;
@@ -501,37 +471,16 @@ export class Sheet extends SheetTemplate {
         if (template) {
             throw new Error('无法使用非模板表格创建新表格'); // 错误：尝试使用非模板创建
         }
-
         // if (template) {
         //     return this.#createFromTemplate(template); // 从模板创建
         // }
     }
 
-    createNewEmpty(column = 2, row = 2, isSave = true) {
-        this.init(column, row); // 初始化基本数据结构
-        this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
-        this.name = `新表格_${this.uid.slice(-4)}`;
-        this.initCell();
-        isSave && this.save(); // 保存新创建的 Sheet
-        return this; // 返回 Sheet 实例自身
-    }
-
-    /**
-     * 创建新的 Sheet 实例
-     * @returns {Sheet} - 返回新的 Sheet 实例
-     */
-    createNew(column = 2, row = 2, isSave = true) {
-        return this.createNewEmpty(column, row, isSave);
-    }
-
-    load(target) {
+    load(target, options) {
         let targetUid = target?.uid || target;
-        let targetSheetData = null;
+        let targetSheetData = BASE.loadContextAllSheets()?.find(t => t.uid === targetUid);
 
-        targetSheetData = BASE.loadContextAllSheets()?.find(t => t.uid === targetUid);
         if (!targetSheetData?.uid) {
-            EDITOR.error(`未找到表格：${targetUid}`);
-            return false;
             // 创建一个新的空 Sheet
             this.init();
         } else {
@@ -545,7 +494,7 @@ export class Sheet extends SheetTemplate {
         }
 
         console.log(this)
-        this.initCell();
+        this.loadCells();
 
         return this;
     }
@@ -555,26 +504,17 @@ export class Sheet extends SheetTemplate {
      * @returns {Sheet|boolean}
      */
     save() {
-        const sheetDataToSave = this.getSheetDataToSave()
-        this.saveSheetToChat(sheetDataToSave);
-        // switch (this.domain) {
-        //     case SheetDomain.global:
-        //         return this.#saveSheetToGlobal(sheetDataToSave);
-        //     case SheetDomain.chat:
-        //         return this.saveSheetToChat(sheetDataToSave);
-        // }
-    }
+        const sheetDataToSave = this.filterSavingData()
 
-    saveSheetToChat(sheetDataToSave) {
-        let templates = BASE.loadChatAllSheets();
-        if (!templates) templates = [];
+        let sheets = BASE.loadChatAllSheets();
+        if (!sheets) sheets = [];
         try {
-            if (templates.some(t => t.uid === sheetDataToSave.uid)) {
-                templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
+            if (sheets.some(t => t.uid === sheetDataToSave.uid)) {
+                sheets = sheets.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
             } else {
-                templates.push(sheetDataToSave);
+                sheets.push(sheetDataToSave);
             }
-            USER.getContext().chatMetadata.sheets = templates;
+            USER.getContext().chatMetadata.sheets = sheets;
             USER.saveChat();
             return this;
         } catch (e) {
@@ -583,9 +523,17 @@ export class Sheet extends SheetTemplate {
         }
     }
 
-
-    bridge = {
-        // initSheetStructure: this.initSheetStructure.bind(this),
+    /**
+     * 创建新的 Sheet 实例
+     * @returns {Sheet} - 返回新的 Sheet 实例
+     */
+    createNewSheet(column = 2, row = 2, isSave = true) {
+        this.init(column, row); // 初始化基本数据结构
+        this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
+        this.name = `新表格_${this.uid.slice(-4)}`;
+        this.loadCells();
+        isSave && this.save();  // 保存新创建的 Sheet
+        return this;            // 返回 Sheet 实例自身
     }
 }
 
@@ -599,6 +547,7 @@ export class Sheet extends SheetTemplate {
 class Cell {
     CellType = CellType;
     CellAction = CellAction;
+
     constructor(parent, target = null) {
         this.uid = '';
         this.parent = parent;
@@ -809,7 +758,7 @@ class Cell {
         });
     }
     #clearSheet() {
-        this.parent.initSheetStructure();
+        throw new Error('未实现的方法');
     }
 }
 
