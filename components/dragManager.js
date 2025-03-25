@@ -50,10 +50,12 @@ export class Drag {
 
         // 分离手机和电脑事件
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            // this.dragSpace.style.transition = 'transform 0.02s ease-out';
-            this.dragSpace.style.transition = 'none';
+            this.dragThreshold = 1;
+            this.dragSpace.style.transition = 'transform 0.05s ease-out';
+            // this.dragSpace.style.transition = 'none';
             this.dragContainer.addEventListener('touchstart', this.handleMouseDown);
         } else {
+            this.dragThreshold = 5;
             this.dragSpace.style.transition = 'transform 0.12s cubic-bezier(0.22, 1, 0.36, 1)';
             this.dragContainer.addEventListener('mousedown', this.handleMouseDown);
             this.dragContainer.addEventListener('wheel', this.handleWheel, { passive: false });
