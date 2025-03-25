@@ -460,7 +460,7 @@ async function initTableEdit(mesId) {
     // }
 
     $(document).on('click', '#add_table_template_button', async function () {
-        const newTemplate = new BASE.SheetTemplate('').createNewByTemp();
+        const newTemplate = new BASE.SheetTemplate('').createNewTemplate();
         const newTemplateUid = newTemplate.uid;
 
         let currentSelectedValues = $(dropdownElement).val();

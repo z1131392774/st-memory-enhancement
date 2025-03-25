@@ -96,19 +96,20 @@ export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1)
     return { tables: newTableList, index: -1 }
 }
 
-/**
- * 返回聊天中的Sheets对象
- * @param isIncludeEndIndex 搜索时是否包含endIndex
- * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
- */
-function getSheetsData(isIncludeEndIndex = false, endIndex = -1) {
-    const sheets = BASE.loadChatAllSheets()
-    if (!sheets) {
-        const { tables: oldTable } = findLastestSheetsPiece(isIncludeEndIndex, endIndex)
-        return convertOldTablesToSheets(oldTable)
-    }
-    return sheets
-}
+// /**
+//  * 返回聊天中的Sheets对象
+//  * @param isIncludeEndIndex 搜索时是否包含endIndex
+//  * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
+//  */
+// function getSheetsData(isIncludeEndIndex = false, endIndex = -1) {
+//     const sheets = BASE.loadChatAllSheets()
+//     if (!sheets) {
+//         const { tables: oldTable } = findLastestSheetsPiece(isIncludeEndIndex, endIndex)
+//         return convertOldTablesToNewSheets(oldTable)
+//     }
+//     console.log("获取表格数据", sheets)
+//     return sheets
+// }
 
 /**
  * 转化旧表格为sheetPiece
@@ -157,16 +158,18 @@ function copyCellSheet(cellSheet) {
  * 转化旧表格为sheets
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
  */
-function convertOldTablesToSheets(oldTableList) {
+export async function convertOldTablesToNewSheets(oldTableList) {
     USER.getChatMetadata().sheets = []
     const sheets = []
     for (const oldTable of oldTableList) {
-        const newSheet = new BASE.Sheet('', { domain: "chat" }).createNew(oldTable.columns.length + 1, 1, false);
+        const newSheet = new BASE.Sheet('').createNewSheet(oldTable.columns.length + 1, 1, false);
         newSheet.name = oldTable.tableName
+        newSheet.domain = newSheet.SheetDomain.chat
+        newSheet.type = newSheet.SheetType.dynamic
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required
         newSheet.tochat = oldTable.tochat
-        newSheet.type = newSheet.SheetType.dynamic
+
         const sourceData = newSheet.source.data
         sourceData.note = oldTable.note
         sourceData.initNode = oldTable.initNode
@@ -189,12 +192,12 @@ function convertOldTablesToSheets(oldTableList) {
 /**
  * 对比新旧表格数据是否相同
  * @param {DERIVED.Table} oldTable 旧表格数据
- * @param {BASE.Sheet} newTable 新表格数据
+ * @param {BASE.Sheet} newSheet 新表格数据
  * @returns 是否相同
  */
-function compareTableData(oldTable, newTable) {
+function compareSheetData(oldTable, newSheet) {
     const oldCols = oldTable.columns.length
-    if (oldCols !== newTable.colCount) return false
+    if (oldCols !== newSheet.colCount) return false
     for (let i = 0; i < oldCols; i++) {
         if (oldTable.columns[i] !== newTable.findCellByPosition(0, i).data.value) return false
     }
@@ -435,7 +438,7 @@ async function onChatCompletionPromptReady(eventData) {
     try {
         // TODO 使用新表格-系统消息
         updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
-        getSheetsData(true, -1)
+        await BASE.getSheetsData()
         if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)

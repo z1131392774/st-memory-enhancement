@@ -11,7 +11,7 @@ import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, r
 import {defaultSettings} from "./core/pluginSetting.js";
 import {Drag} from "./components/dragManager.js";
 import {PopupMenu} from "./components/popupMenu.js";
-import {findLastestSheetsPiece} from "./index.js";
+import {convertOldTablesToNewSheets, findLastestSheetsPiece} from "./index.js";
 import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
 import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
@@ -90,6 +90,15 @@ export const BASE = {
                 return piece;
             }
         }
+    },
+    getSheetsData: async (isIncludeEndIndex = true, endIndex = -1) => {
+        const sheets = BASE.loadChatAllSheets()
+        if (!sheets) {
+            const { tables: oldTable } = findLastestSheetsPiece(isIncludeEndIndex, endIndex)
+            return await convertOldTablesToNewSheets(oldTable)
+        }
+        console.log("获取表格数据", sheets)
+        return sheets
     },
 
     destroyAllTemplates() {

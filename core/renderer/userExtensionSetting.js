@@ -379,7 +379,8 @@ export function renderSetting() {
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
 
-    updateTableStructureDOM()
+    // 不再在设置中显示表格结构
+    // updateTableStructureDOM()
     console.log("设置已渲染")
 }
 
@@ -417,7 +418,7 @@ export function loadSettings() {
  */
 function tableStructureToTemplate(tableStructure) {
     return tableStructure.map((structure) => {
-        const newTemplate = new BASE.SheetTemplate('').createNew(structure.columns.length + 1, 1);
+        const newTemplate = new BASE.SheetTemplate('').createNewSheet(structure.columns.length + 1, 1);
         for (const key in structure.columns) {
             const cell = newTemplate.findCellByPosition(0, parseInt(key) + 1)
             cell.data.value = structure.columns[key]
