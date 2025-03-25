@@ -54,7 +54,7 @@ function checkPrototype(dataTable) {
  * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
  * @returns 自结束索引向上寻找，最近的表格数据
  */
-export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1) {
+/* export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1) {
     let chat = USER.getContext().chat
     if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
     else chat = chat.slice(0, isIncludeEndIndex ? endIndex + 1 : endIndex)
@@ -76,6 +76,24 @@ export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1)
         }
     }
     return { sheetPiece: newTableList, index: -1 }
+} */
+export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1) {
+    let chat = USER.getContext().chat
+    if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
+    else chat = chat.slice(0, isIncludeEndIndex ? endIndex + 1 : endIndex)
+    for (let i = chat.length - 1; i >= 0; i--) {
+        if (chat[i].is_user === false && chat[i].dataTable) {
+            checkPrototype(chat[i].dataTable)
+            return { tables: chat[i].dataTable, index: i }
+        }
+    }
+    const newTableList = initAllTable()
+    for (let i = chat.length - 1; i >= 0; i--) {
+        if (chat[i].is_user === false) {
+            return { tables: newTableList, index: i }
+        }
+    }
+    return { tables: newTableList, index: -1 }
 }
 
 /**

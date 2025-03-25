@@ -1,4 +1,4 @@
-import { USER } from "../manager";
+import { USER } from "../manager.js";
 
 /**
  * 替换字符串中的user标签
