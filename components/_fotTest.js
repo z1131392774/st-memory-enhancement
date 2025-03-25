@@ -106,7 +106,11 @@ function createToolBar() {
 
     const retryButton = createToolButton('<i class="fa-solid fa-repeat"></i>', async (event) => { // 使用 Font Awesome 图标, 并添加隐藏的文字
         event.stopPropagation();
-        await reloadTestContent();
+        if (confirm('将依次执行测试队列中注册的的代码，是否继续？')) {
+            await reloadTestContent();
+        } else {
+
+        }
     });
     toolBar.appendChild(retryButton);
 

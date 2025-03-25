@@ -166,12 +166,14 @@ function convertOldTablesToSheets(oldTableList) {
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required
         newSheet.tochat = oldTable.tochat
+        newSheet.type = newSheet.SheetType.dynamic
         const sourceData = newSheet.source.data
         sourceData.note = oldTable.note
         sourceData.initNode = oldTable.initNode
         sourceData.updateNode = oldTable.updateNode
         sourceData.deleteNode = oldTable.deleteNode
         sourceData.insertNode = oldTable.insertNode
+        sourceData.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
         for (const key in oldTable.columns) {
             const cell = newSheet.findCellByPosition(0, parseInt(key) + 1)
             cell.data.value = oldTable.columns[key]
@@ -626,12 +628,27 @@ jQuery(async () => {
     initAppHeaderTableDrawer();
 
     SYSTEM.f(()=>{
-        // USER.getSettings().table_database_templates_selected = []
-        // USER.getSettings().table_database_templates = []
-        // USER.getContext().table_tableBase_data = []
-        // delete USER.getContext().context_tableBase_data
-        console.log("测试")
-    }, 'index test 0');
+        // 弹出确认
+        if (confirm("记忆插件：是否清除当前表格数据？")) {
+            delete USER.getSettings().table_database_templates
+            delete USER.getChatMetadata().sheets
+            USER.saveSettings()
+            USER.saveChat();
+            EDITOR.success("表格数据清除成功")
+            console.log("已清除表格数据")
+        } else {
+            console.log("用户取消了清除操作")
+        }
+    }, "销毁新表数据")
+    SYSTEM.f(()=>{
+        let sourceData = {}
+        const s = USER.getChatMetadata().sheets
+        console.log(s, s[0])
+        console.log(s[0].cellHistory[0])
+        console.log(s[0].cellHistory[0].data.description)
+        // console.log(s[0].cells.get(s[0].cellSheet[0][0]))
+        // console.log(s[0].cells.get(s[0].cellSheet[0][0]).data.description)
+    }, "打印表格源")
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);

@@ -31,15 +31,28 @@ const CellType = {
     cell: 'cell',
 }
 
+class SheetBase {
+    SheetDomain = SheetDomain;
+    SheetType = SheetType;
+    constructor() {
+
+    }
+}
+
+export class SheetTemplate extends SheetBase {
+    constructor(target = null, asTemplate = false, options = {}) {
+        super();
+    }
+}
+
 /**
  * 表格类，用于管理表格数据
  * @description 表格类用于管理表格数据，包括表格的名称、域、类型、单元格数据等
  * @description 表格类还提供了对表格的操作，包括创建、保存、删除、渲染等
  */
-export class Sheet {
-    SheetDomain = SheetDomain;
-    SheetType = SheetType;
+export class Sheet extends SheetTemplate {
     constructor(target = null, asTemplate = false, options = {}) {
+        super(target, asTemplate, options);
         this.uid = '';
         this.name = '';
         this.domain = options.domain ?? SheetDomain.global;
@@ -156,7 +169,7 @@ export class Sheet {
 
         if (!this.element) {
             this.element = document.createElement('table');
-            this.element.classList.add('sheet-table');
+            this.element.classList.add('sheet-table', 'tableDom');
             this.element.style.position = 'relative';
             this.element.style.display = 'flex';
             this.element.style.flexDirection = 'column';
@@ -247,7 +260,7 @@ export class Sheet {
     }
     /**
      * 通过行号获取行的所有单元格
-     * @param {number} rowIndex 
+     * @param {number} rowIndex
      * @returns cell[]
      */
     getCellsByRowIndex(rowIndex) {
@@ -350,7 +363,7 @@ export class Sheet {
     }
     /**
      * 获取表格csv格式的内容
-     * @returns 
+     * @returns
      */
     #getSheetCSV() {
         if (this.isEmpty())
@@ -361,7 +374,7 @@ export class Sheet {
     }
     /**
      * 获取表格编辑规则提示词
-     * @returns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+     * @returns
      */
     #getTableEditRules() {
         const source = this.source;
