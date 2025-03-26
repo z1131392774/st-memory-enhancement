@@ -163,7 +163,8 @@ export const defaultSettings = {
             insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
         },
     ],
-    to_chat_container: `<div class="table-preview-bar"><details> <summary>记忆增强表格</summary>
+    to_chat_container: `<div class="table-preview-bar"><details>
+<summary style="display: flex; justify-content: space-between"> <button class="f5-reload-window" onclick="window.location.reload()">刷新</button> <span>记忆增强表格</span> </summary>
 $0
 </details></div>
 
@@ -173,6 +174,17 @@ $0
     border-radius: 10px;
     color: #888;
     font-size: 0.8rem;
+}
+.f5-reload-window {
+    bottom: 10px;
+    left: 10px;
+    padding: 0 10px;
+    border-radius: 5px;
+    background: none;
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    z-index: 999;
+    cursor: pointer;
 }
 </style>`,
     message_template: `# dataTable 说明

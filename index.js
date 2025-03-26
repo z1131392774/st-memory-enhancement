@@ -187,7 +187,7 @@ export async function convertOldTablesToNewSheets(oldTableList) {
             row.forEach((value, colIndex) => {
                 const cell = newSheet.findCellByPosition(rowIndex + 1, colIndex + 1)
                 cell.data.value = value
-                console.log("转化表格", cell)
+                // console.log("转化表格", cell)
             })
         })
 
@@ -572,6 +572,12 @@ async function onMessageSwiped(chat_id) {
     }
 }
 
+async function updateSheetsView() {
+    const { tables: oldTables, index } = findLastestOldTablePiece(true, -1)
+    return await convertOldTablesToNewSheets(oldTables)
+    EDITOR.refreshSheetsView(true)
+}
+
 
 
 jQuery(async () => {
@@ -612,6 +618,8 @@ jQuery(async () => {
 
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
+        updateSheetsView();
+
         openAppHeaderTableDrawer();
     })
     // 设置表格编辑按钮
@@ -673,6 +681,11 @@ jQuery(async () => {
         );
         console.log(confirmed)
     }, "测试confirm")
+    SYSTEM.f(async ()=>{
+        // 点击时 f5 刷新浏览器页面
+        window.location.reload();
+
+    }, "f5")
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
