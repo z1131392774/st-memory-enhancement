@@ -26,6 +26,10 @@ export function compareDataSame(target, source) {
     }
 }
 
+export function cssColorToRgba(name, opacity = 1) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).replace(')', `, ${opacity})`);
+}
+
 /**
  * 创建一个只读属性
  * @param {object} obj 要在其上定义属性的对象

@@ -77,7 +77,7 @@ function createSidebarContainer() {
         backgroundColor: '#c11',
         maxWidth: '100px',
         padding: '2px',
-        zIndex: '1000',
+        zIndex: '999',
         borderRadius: '5px',
         cursor: 'move',
         whiteSpace: 'pre-wrap',
@@ -87,7 +87,7 @@ function createSidebarContainer() {
         color: '#ccc',
         userSelect: 'none',
         border: '1px solid #555',
-        boxShadow: '2px 2px 5px rgba(0, 0, 0, 0.3)'
+        boxShadow: '2px 2px 5px rgba(0, 0, 0, 0.3)',
     });
     container.classList.add('popup');
     return container;

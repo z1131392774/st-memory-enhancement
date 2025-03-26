@@ -73,10 +73,12 @@ function replaceTableToStatusTag(tableStatusHTML) {
 /**
  * 更新最后一条 System 消息的 <tableStatus> 标签内容
  */
-export function updateSystemMessageTableStatus(eventData) {
-    if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isTableToChat === false) {
-        window.document.querySelector('#tableStatusContainer')?.remove();
-        return;
+export function updateSystemMessageTableStatus(force = false) {
+    if (force === false) {
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isTableToChat === false) {
+            window.document.querySelector('#tableStatusContainer')?.remove();
+            return;
+        }
     }
 
     const tables = findLastestOldTablePiece(true).tables;

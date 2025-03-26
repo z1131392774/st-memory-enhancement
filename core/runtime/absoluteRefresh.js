@@ -3,9 +3,10 @@ import {copyTableList, findLastestOldTablePiece, findTableStructureByIndex } fro
 import {insertRow, updateRow, deleteRow} from "../tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {renderTablesDOM,pasteTable} from "../editor/tableDataView.js";
+// import {renderTablesDOM,pasteTable} from "../editor/tableDataView.js";
 import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../standaloneAPI.js";
 import {profile_prompts} from "../../data/profile_prompts.js";
+import {renderSheetsDOM} from "../editor/chatSheetsDataView.js";
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -330,7 +331,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                 // 刷新 UI
                 const tableContainer = document.querySelector('#tableContainer');
                 if (tableContainer) {
-                    renderTablesDOM(clonedTables, tableContainer, true);
+                    renderSheetsDOM(clonedTables, tableContainer, true);
                     updateSystemMessageTableStatus();
                     EDITOR.success('生成表格成功！');
                 } else {
@@ -569,7 +570,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         USER.getContext().saveChat();
         // 刷新 UI
         const tableContainer = document.querySelector('#tableContainer');
-        renderTablesDOM(DERIVED.any.waitingTable, tableContainer, true);
+        renderSheetsDOM(DERIVED.any.waitingTable, tableContainer, true);
         updateSystemMessageTableStatus()
         EDITOR.success('表格整理完成');
     } catch (error) {

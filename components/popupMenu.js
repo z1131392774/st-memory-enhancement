@@ -1,5 +1,6 @@
 // popupMenu.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import {cssColorToRgba} from "../utils/utility.js";
 
 /**
  * @description 弹出菜单类 - 用于创建和管理弹出菜单
@@ -101,14 +102,21 @@ export class PopupMenu {
         this.popupContainer.style.zIndex = '1000';
         this.popupContainer.style.width = '180px';
         this.popupContainer.style.height = 'auto';
-        this.popupContainer.style.border = '1px solid rgba(0,0,0,0.1)';
+        this.popupContainer.style.background = 'none';
+        this.popupContainer.style.border = 'none';
+        this.popupContainer.style.borderRadius = '6px';
+        this.popupContainer.style.boxShadow = '0 0 20px rgba(0,0,0,0.2)';
         this.popupContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
-        this.popupContainer.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
-        this.popupContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
+
 
         this.menuContainer = $('<div class="dynamic-popup-menu" id="dynamic_popup_menu"></div>')[0];
         this.menuContainer.style.position = 'relative';
         this.menuContainer.style.padding = '2px 0';
+        this.menuContainer.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+        this.menuContainer.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
+        this.menuContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
+        this.menuContainer.style.border = '1px solid var(--SmartThemeBorderColor)'
+        this.menuContainer.style.borderRadius = '6px';
 
         this.popupContainer.appendChild(this.menuContainer);
 

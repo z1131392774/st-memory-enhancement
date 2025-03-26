@@ -20,6 +20,8 @@ import {Sheet, SheetTemplate} from "./core/tableBase.js";
 import { saveChat } from '../../../../script.js';
 import { refreshTempView } from './core/editor/tableTemplateEditView.js';
 import {newPopupConfirm, PopupConfirm} from "./components/popupConfirm.js";
+import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
+import {updateSystemMessageTableStatus} from "./core/runtime/tablePushToChat.js";
 
 let derivedData = {}
 
@@ -133,7 +135,11 @@ export const EDITOR = {
     getSlideToggleOptions: getSlideToggleOptions,
     slideToggle: slideToggle,
 
-    refresh: refreshTempView,
+    refreshSheetsView: async (ignoreGlobal = false) => {
+        refreshTempView(ignoreGlobal);
+        updateSystemMessageTableStatus(true);
+        // refreshContextView();
+    },
     confirm: newPopupConfirm,
 
     info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),

@@ -7,7 +7,7 @@ import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/run
 import {openTableHistoryPopup} from "./core/editor/tableHistory.js";
 import {loadSettings} from "./core/renderer/userExtensionSetting.js";
 import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
-import {openTablePopup, tableCellClickEvent} from "./core/editor/tableDataView.js";
+// import {openTablePopup, tableCellClickEvent} from "./core/editor/tableDataView.js";
 import {initAllTable} from "./core/tableActions.js";
 import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
 import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
@@ -195,7 +195,7 @@ export async function convertOldTablesToNewSheets(oldTableList) {
     }
     sheets.forEach(sheet => sheet.save())
     // USER.saveChat
-    EDITOR.refresh(true)
+    EDITOR.refreshSheetsView(true)
     return sheets
 }
 
@@ -447,7 +447,7 @@ function getMesRole() {
 async function onChatCompletionPromptReady(eventData) {
     try {
         // TODO 使用新表格-系统消息
-        updateSystemMessageTableStatus(eventData);   // 将表格数据状态更新到系统消息中
+        // updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
         await BASE.getSheetsData()
         if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
         const promptContent = initTableData()
@@ -455,6 +455,8 @@ async function onChatCompletionPromptReady(eventData) {
             eventData.chat.push({ role: getMesRole(), content: promptContent })
         else
             eventData.chat.splice(-USER.tableBaseSetting.deep, 0, { role: getMesRole(), content: promptContent })
+
+        EDITOR.refreshSheetsView(true)
     } catch (error) {
         // 获取堆栈信息
         const stack = error.stack;
@@ -551,7 +553,7 @@ async function onMessageReceived(chat_id) {
  */
 async function onChatChanged(){
     console.log("聊天变化")
-    EDITOR.refresh(true)
+    EDITOR.refreshSheetsView(true)
 }
 
 
@@ -599,11 +601,11 @@ jQuery(async () => {
     // 添加顶部表格管理工具弹窗
     $('#extensions-settings-button').before(await SYSTEM.getTemplate('appHeaderTableDrawer'));
     // 添加进入表格编辑按钮
-    $('.extraMesButtons').append(`<div title="查看表格" class="mes_button fa-solid fa-table open_table_by_id" />`);
+    // $('.extraMesButtons').append(`<div title="查看表格" class="mes_button fa-solid fa-table open_table_by_id" />`);
     // 添加表格编辑浮窗
-    $('#data_bank_wand_container').append(`<div id="open_table" class="list-group-item flex-container flexGap5 interactable"><i class="fa-solid fa-table"></i>打开表格</div>`);
+    // $('#data_bank_wand_container').append(`<div id="open_table" class="list-group-item flex-container flexGap5 interactable"><i class="fa-solid fa-table"></i>打开表格</div>`);
     // 添加表格编辑浮窗绑定打开表格事件
-    $("#open_table").on('click', () => openTablePopup());
+    // $("#open_table").on('click', () => openTablePopup());
 
     // 应用程序启动时加载设置
     loadSettings();
@@ -628,7 +630,7 @@ jQuery(async () => {
     // 对话数据表格弹出窗
     $(document).on('click', '.open_table_by_id', function () {
         const messageId = $(this).closest('.mes').attr('mesid');
-        openTablePopup(parseInt(messageId));
+        // openTablePopup(parseInt(messageId));
         initRefreshTypeSelector();
     })
     // 设置表格开启开关

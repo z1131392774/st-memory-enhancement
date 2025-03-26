@@ -1,6 +1,6 @@
 import {USER} from "../manager.js";
 
-const bgc = 'var(--SmartThemeChatTintColor)'
+const bgc = 'var(--SmartThemeBlurTintColor)'
 const tc = 'var(--SmartThemeBodyColor)'
 
 export async function newPopupConfirm(text, confirmText = 'Confirm', cancelText = 'Cancel') {

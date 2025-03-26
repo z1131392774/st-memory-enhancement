@@ -13,10 +13,13 @@ import {rebuildTableActions, refreshTableActions,getPromptAndRebuildTable} from 
 import {initAllTable} from "../tableActions.js";
 import {openTableHistoryPopup} from "./tableHistory.js";
 import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
+import {PopupMenu} from "../../components/popupMenu.js";
+// import {renderTablesDOM} from "./tableDataView.js";
 
 let tablePopup = null
 let copyTableData = null
 let selectedCell = null
+let tableContainer = null
 const userTableEditInfo = {
     chatIndex: null,
     editAble: false,
@@ -32,7 +35,14 @@ const userTableEditInfo = {
  */
 export async function copyTable(tables = []) {
     copyTableData = JSON.stringify(tables)
-    EDITOR.success('已复制')
+    const text = `正在复制表格数据 (#${SYSTEM.generateRandomString(4)})`
+    $('#table_drawer_icon').click()
+    if (await EDITOR.confirm(text, '粘贴到当前对话', '取消')) {
+        await pasteTable(userTableEditInfo.chatIndex, tableContainer)
+    }
+    if ($('#table_drawer_icon').hasClass('closedIcon')) {
+        $('#table_drawer_icon').click()
+    }
 }
 
 /**
@@ -40,7 +50,7 @@ export async function copyTable(tables = []) {
  * @param {number} mesId 需要粘贴到的消息id
  * @param {Element} tableContainer 表格容器DOM
  */
-export async function pasteTable(mesId, tableContainer) {
+async function pasteTable(mesId, tableContainer) {
     if (mesId === -1) {
         EDITOR.error("请至少让ai回复一条消息作为表格载体")
         return
@@ -149,7 +159,16 @@ async function exportTable(tables = []) {
  * @param {Element} tableContainer 表格容器DOM
  */
 async function clearTable(mesId, tableContainer) {
-    throw new Error('未实现该方法')
+    if (mesId === -1) return
+    const confirmation = await EDITOR.callGenericPopup('清空此条的所有表格数据，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    if (confirmation) {
+        delete USER.getSettings().table_database_templates
+        delete USER.getChatMetadata().sheets
+        USER.saveSettings()
+        USER.saveChat();
+        EDITOR.success("表格数据清除成功")
+        console.log("已清除表格数据")
+    }
 }
 
 /**
@@ -175,33 +194,106 @@ function setTableEditTips(tableEditTips) {
     }
 }
 
+function templateCellDataEdit(cell) {
+    throw new Error('未实现该方法')
+}
+
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
-    cell.on('click', () => {
-        throw new Error('未实现该方法')
+    cell.on('click', async (event) => {
+        event.stopPropagation();
+        if (cell.parent.currentPopupMenu) {
+            cell.parent.currentPopupMenu.destroy();
+            cell.parent.currentPopupMenu = null;
+        }
+        cell.parent.currentPopupMenu = new PopupMenu();
+
+        const [rowIndex, colIndex] = cell.position;
+        const sheetType = cell.parent.type;
+
+        // cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
+
+        if (rowIndex === 0 && colIndex === 0) {
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+        } else if (rowIndex === 0) {
+            cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
+        } else if (colIndex === 0) {
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
+        } else {
+            cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
+        }
+
+        const rect = cell.element.getBoundingClientRect();
+        const menu = cell.parent.currentPopupMenu.renderMenu();
+        menu.style.zIndex = 9999;
+        window.document.body.appendChild(menu)
+        cell.parent.currentPopupMenu.show(rect.left, rect.top + rect.height);
     })
     cell.on('', () => {
         console.log('cell发生了改变:', cell)
     })
 }
 
-function renderSheetsDOM(sheets, tableContainer) {
-    // console.log(sheets)
+export async function renderSheetsDOM() {
+    updateSystemMessageTableStatus(true);
+    const sheetsData = await USER.getChatMetadata().sheets
+    const sheets = sheetsData.map(sheet => new BASE.Sheet(sheet))
+
     $(tableContainer).empty()
     for (let sheet of sheets) {
         const instance = new BASE.Sheet(sheet)
-        $(tableContainer).append(instance.name)
-        $(tableContainer).append(instance.renderSheet(cellClickEvent))
-        $(tableContainer).append(`<hr />`)
+        const sheetsContainer = document.createElement('div')
+        sheetsContainer.style.overflowX = 'none'
+        sheetsContainer.style.overflowY = 'auto'
+        $(sheetsContainer).append(instance.renderSheet(cellClickEvent))
 
-        // console.log(instance)
+        $(tableContainer).append(`<h3>${instance.name}</h3>`)
+        $(tableContainer).append(sheetsContainer)
+        $(tableContainer).append(`<hr />`)
+    }
+}
+
+export async function refreshContextView(ignoreGlobal = false) {
+    if(ignoreGlobal && scope === 'global') return
+
+    await renderSheetsDOM();
+}
+
+async function rebuildSheets() {
+    const container = document.createElement('div')
+    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    const style = document.createElement('style')
+    style.innerHTML = `
+        .rebuild-preview-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 0 10px;
+        }
+    `
+    container.appendChild(style)
+    $(container).append($('<h3>重建表格数据</h3>'));
+    $(container).append(` <span>重建表格数据将会清空所有表格数据，是否继续？</span> `).append(`<hr>`);
+    $(container).append(`<div class="rebuild-preview-item"><span>更新方式：</span>${USER.tableBaseSetting.bool_silent_refresh ? '静默刷新' : '非静默刷新'}</div>`);
+    $(container).append(`<div class="rebuild-preview-item"><span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}</div>`);
+    $(container).append(`<div class="rebuild-preview-item"><span></span>${$('#table_refresh_type_selector').find('option:selected').text()}</div>`);
+    $(container).append(`<hr>`);
+
+    await confirmation.show();
+    if (confirmation.result) {
+        // rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
+        getPromptAndRebuildTable();
     }
 }
 
 let initializedTableView = null
 async function initTableView(mesId) { // 增加 table_manager_container 参数
     const table_manager_container = await SYSTEM.htmlToDom(await SYSTEM.getTemplate('manager'), 'table_manager_container');
-    const tableContainer = table_manager_container.querySelector('#tableContainer');
+    tableContainer = table_manager_container.querySelector('#tableContainer');
 
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
 
@@ -209,7 +301,7 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
 
     const sheetsData = await USER.getChatMetadata().sheets
     const sheets = sheetsData.map(sheet => new BASE.Sheet(sheet))
-    renderSheetsDOM(sheets, tableContainer)
+    renderSheetsDOM(sheets)
 
     // 设置编辑提示
     // 点击打开查看表格历史按钮
@@ -221,8 +313,7 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
         clearTable(userTableEditInfo.chatIndex, tableContainer);
     })
     $(document).on('click', '#table_rebuild_button', function () {
-        // rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
-        getPromptAndRebuildTable();
+        rebuildSheets()
     })
     // 点击编辑表格按钮
     $(document).on('click', '#table_edit_mode_button', function () {
@@ -232,18 +323,18 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
     $(document).on('click', '#copy_table_button', function () {
         copyTable(userTableEditInfo.tables);
     })
-    // 点击粘贴表格按钮
-    $(document).on('click', '#paste_table_button', function () {
-        pasteTable(userTableEditInfo.chatIndex, tableContainer);
-    })
-    // 点击导入表格按钮
-    $(document).on('click', '#import_clear_up_button', function () {
-        importTable(userTableEditInfo.chatIndex, tableContainer);
-    })
-    // 点击导出表格按钮
-    $(document).on('click', '#export_table_button', function () {
-        exportTable(userTableEditInfo.tables);
-    })
+    // // 点击粘贴表格按钮
+    // $(document).on('click', '#paste_table_button', function () {
+    //     pasteTable(userTableEditInfo.chatIndex, tableContainer);
+    // })
+    // // 点击导入表格按钮
+    // $(document).on('click', '#import_clear_up_button', function () {
+    //     importTable(userTableEditInfo.chatIndex, tableContainer);
+    // })
+    // // 点击导出表格按钮
+    // $(document).on('click', '#export_table_button', function () {
+    //     exportTable(userTableEditInfo.tables);
+    // })
 
     initializedTableView = table_manager_container;
     return initializedTableView;
