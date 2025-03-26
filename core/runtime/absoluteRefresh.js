@@ -1,5 +1,5 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {copyTableList, findLastestSheetsPiece, findTableStructureByIndex } from "../../index.js";
+import {copyTableList, findLastestOldTablePiece, findTableStructureByIndex } from "../../index.js";
 import {insertRow, updateRow, deleteRow} from "../tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
@@ -157,7 +157,10 @@ export async function getPromptAndRebuildTable(templateName = '') {
         // 根据刷新类型获取对应的提示模板
         const selectedPrompt = profile_prompts[refreshType];
         if (!selectedPrompt) {
-            throw new Error('未找到对应的提示模板');
+            // 提供更详细的错误信息
+            const availablePrompts = Object.keys(profile_prompts).join(', ');
+            const errorMsg = `未找到对应的提示模板: ${refreshType}。可用的模板有: ${availablePrompts}`;
+            throw new Error(errorMsg);
         }
         console.log('选择的提示模板名称:', selectedPrompt.name);
 
@@ -229,7 +232,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
     );
 
     try {
-        const latestData = findLastestSheetsPiece(true);
+        const latestData = findLastestOldTablePiece(true);
         if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
@@ -370,7 +373,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         { timeOut: 0 }
     );
     try {
-        const latestData = findLastestSheetsPiece(true);
+        const latestData = findLastestOldTablePiece(true);
         if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
@@ -552,9 +555,11 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
                         console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
                     } else {
                         console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
-                        EDITOR.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
                     }
                     break;
+            }
+            if (USER.tableBaseSetting.bool_ignore_del) {
+                EDITOR.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
             }
         });
 

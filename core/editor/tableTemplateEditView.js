@@ -101,7 +101,7 @@ const formConfigs = {
 
 async function updateDropdownElement() {
     const templates = scope === 'chat' ? BASE.loadChatAllSheets() ?? [] : BASE.loadUserAllTemplates();
-    console.log("下滑模板", templates)
+    // console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
         dropdownElement.id = 'table_template';
@@ -124,7 +124,7 @@ function getAllDropdownOptions() {
 }
 
 function updateSelect2Dropdown() {
-    let selectedSheets = scope ==='global'? USER.getSettings().table_database_templates_selected: getAllDropdownOptions()
+    let selectedSheets = scope ==='global'? USER.getChatMetadata().selected_sheets: getAllDropdownOptions()
     if (selectedSheets === undefined) {
         selectedSheets = [];
     }
@@ -156,7 +156,7 @@ function initializeSelect2Dropdown(dropdownElement) {
 
     $(dropdownElement).on('change', function (e, silent) {
         if(silent || scope === 'chat') return
-        USER.getSettings().table_database_templates_selected = $(this).val();
+        USER.getChatMetadata().selected_sheets = $(this).val();
         USER.saveSettings();
         updateDragTables();
     });
@@ -289,7 +289,7 @@ async function templateCellDataEdit(cell) {
 }
 
 function bindCellClickEvent(cell) {
-    cell.element.addEventListener('click', async (event) => {
+    cell.on('click', async (event) => {
         event.stopPropagation();
         if (cell.parent.currentPopupMenu) {
             cell.parent.currentPopupMenu.destroy();
@@ -311,6 +311,11 @@ function bindCellClickEvent(cell) {
             cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
             cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
         } else if (colIndex === 0) {
+            // if (sheetType === cell.parent.SheetType.dynamic) {
+            //     cell.element.delete();
+            //     return;
+            // }
+
             cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该行', async (e) => { await templateCellDataEdit(cell) });
             if (sheetType === cell.parent.SheetType.free || sheetType === cell.parent.SheetType.static) {
                 cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
@@ -339,7 +344,7 @@ function bindCellClickEvent(cell) {
 }
 
 function getSelectedSheetUids() {
-    return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getSettings().table_database_templates_selected ?? []
+    return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getChatMetadata().selected_sheets ?? []
 }
 
 
@@ -375,7 +380,7 @@ async function updateDragTables() {
     let isFirstTable = true; // 添加一个标志来判断是否是第一个表格
 
     for (const uid of uidsToAdd) {
-        let sheet = scope === 'global' ? new BASE.SheetTemplate(uid) : new BASE.Sheet(uid);
+        let sheet = new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
         if (!sheet || !sheet.cellSheet) {
@@ -473,7 +478,7 @@ async function initTableEdit(mesId) {
 
         currentSelectedValues.push(newTemplateUid);
 
-        USER.getSettings().table_database_templates_selected = currentSelectedValues;
+        USER.getChatMetadata().selected_sheets = currentSelectedValues;
         USER.saveSettings();
         await updateDropdownElement();
         updateDragTables();

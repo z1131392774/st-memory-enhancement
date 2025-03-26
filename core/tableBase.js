@@ -57,55 +57,6 @@ class SheetBase {
         this.cellSheet = [];    // 每回合的 cellSheet 结构，用于渲染出表格
     }
 
-    /**
-     * 渲染表格
-     * @description 接受 cellEventHandler 参数，提供一个 `Cell` 对象作为回调函数参数，用于处理单元格事件
-     * @description 可以通过 `cell.parent` 获取 Sheet 对象，因此不再需要传递 Sheet 对象
-     * @description 如果不传递 cellEventHandler 参数，则使用上一次的 cellEventHandler
-     * @param {Function} cellEventHandler
-     * */
-    renderSheet(cellEventHandler = this.lastCellEventHandler) {
-        this.lastCellEventHandler = cellEventHandler;
-
-        if (!this.element) {
-            this.element = document.createElement('table');
-            this.element.classList.add('sheet-table', 'tableDom');
-            this.element.style.position = 'relative';
-            this.element.style.display = 'flex';
-            this.element.style.flexDirection = 'column';
-            this.element.style.flexGrow = '0';
-            this.element.style.flexShrink = '1';
-
-            const styleElement = document.createElement('style');
-            styleElement.textContent = cellStyle;
-            this.element.appendChild(styleElement);
-        }
-
-        // 确保 element 中有 tbody，没有则创建
-        let tbody = this.element.querySelector('tbody');
-        if (!tbody) {
-            tbody = document.createElement('tbody');
-            this.element.appendChild(tbody);
-        }
-        // 清空 tbody 的内容
-        tbody.innerHTML = '';
-
-        // 遍历 cellSheet，渲染每一个单元格
-        this.cellSheet.forEach((rowUids, rowIndex) => {
-            const rowElement = document.createElement('tr');
-            rowUids.forEach((cellUid, colIndex) => {
-                const cell = this.cells.get(cellUid)
-                const cellElement = cell.initCellRender(rowIndex, colIndex);
-                rowElement.appendChild(cellElement);    // 调用 Cell 的 initCellRender 方法，仍然需要传递 rowIndex, colIndex 用于渲染单元格内容
-                if (cellEventHandler) {
-                    cellEventHandler(cell);
-                }
-            });
-            tbody.appendChild(rowElement); // 将 rowElement 添加到 tbody 中
-        });
-        return this.element;
-    }
-
     init(column = 2, row = 2) {
         this.cells = new Map();
         this.cellHistory = [];
@@ -179,11 +130,10 @@ class SheetBase {
             enable: this.enable,
             required: this.required,
             tochat: this.tochat,
-            cellHistory: this.cellHistory.map(cell => {
-                const { parent, ...data } = cell;
-                return data;
-            }),
             cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
+            cellHistory: this.cellHistory.map(({ parent, element, customEventListeners, ...filter }) => {
+                return filter;
+            }), // 保存 cellHistory (不包含 parent)
         };
     }
 }
@@ -195,6 +145,7 @@ export class SheetTemplate extends SheetBase {
         this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
         this.element = null;                    // 用于存储渲染后的 table 元素
         this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
+        this.asTemplate = true;                 // 用于标记是否作为模板
 
         this.data = new Proxy({}, {
             get: (target, prop) => {
@@ -233,6 +184,56 @@ export class SheetTemplate extends SheetBase {
     //         return this.#createFromTemplate(template);
     //     }
     // }
+
+    /**
+     * 渲染表格
+     * @description 接受 cellEventHandler 参数，提供一个 `Cell` 对象作为回调函数参数，用于处理单元格事件
+     * @description 可以通过 `cell.parent` 获取 Sheet 对象，因此不再需要传递 Sheet 对象
+     * @description 如果不传递 cellEventHandler 参数，则使用上一次的 cellEventHandler
+     * @param {Function} cellEventHandler
+     * */
+    renderSheet(cellEventHandler = this.lastCellEventHandler) {
+        this.lastCellEventHandler = cellEventHandler;
+
+        if (!this.element) {
+            this.element = document.createElement('table');
+            this.element.classList.add('sheet-table', 'tableDom');
+            this.element.style.position = 'relative';
+            this.element.style.display = 'flex';
+            this.element.style.flexDirection = 'column';
+            this.element.style.flexGrow = '0';
+            this.element.style.flexShrink = '1';
+
+            const styleElement = document.createElement('style');
+            styleElement.textContent = cellStyle;
+            this.element.appendChild(styleElement);
+        }
+
+        // 确保 element 中有 tbody，没有则创建
+        let tbody = this.element.querySelector('tbody');
+        if (!tbody) {
+            tbody = document.createElement('tbody');
+            this.element.appendChild(tbody);
+        }
+        // 清空 tbody 的内容
+        tbody.innerHTML = '';
+
+        // 遍历 cellSheet，渲染每一个单元格
+        this.cellSheet.forEach((rowUids, rowIndex) => {
+            if (rowIndex > 0) return;
+            const rowElement = document.createElement('tr');
+            rowUids.forEach((cellUid, colIndex) => {
+                const cell = this.cells.get(cellUid)
+                const cellElement = cell.initCellRender(rowIndex, colIndex);
+                rowElement.appendChild(cellElement);    // 调用 Cell 的 initCellRender 方法，仍然需要传递 rowIndex, colIndex 用于渲染单元格内容
+                if (cellEventHandler) {
+                    cellEventHandler(cell);
+                }
+            });
+            tbody.appendChild(rowElement); // 将 rowElement 添加到 tbody 中
+        });
+        return this.element;
+    }
 
     createNewTemplate(column = 2, row = 2, isSave = true) {
         this.init(column, row); // 初始化基本数据结构
@@ -359,6 +360,9 @@ export class SheetTemplate extends SheetBase {
     load(target, options = {}) {
         let targetUid = target?.uid || target;
         let targetSheetData = BASE.loadUserAllTemplates().find(t => t.uid === targetUid);
+        if (!targetSheetData?.uid) {
+            targetSheetData = BASE.loadContextAllSheets()?.find(t => t.uid === targetUid);
+        }
 
         if (!targetSheetData?.uid) {
             // 创建一个新的空 Sheet
@@ -460,20 +464,71 @@ export class SheetTemplate extends SheetBase {
 export class Sheet extends SheetTemplate {
     constructor(target = null, options = {}) {
         super(target, options);
+
+        this.asTemplate = false;    // 用于标记是否作为模板
     }
 
+    // /**
+    //  * 通过模板创建新的 Sheet 实例
+    //  * @param {Sheet} [template] - 可选的模板 Sheet 实例，用于从模板创建新表格
+    //  * @returns {Sheet} - 返回新的 Sheet 实例
+    //  */
+    // createNewByTemp(template) {
+    //     if (template) {
+    //         throw new Error('无法使用非模板表格创建新表格'); // 错误：尝试使用非模板创建
+    //     }
+    //     // if (template) {
+    //     //     return this.#createFromTemplate(template); // 从模板创建
+    //     // }
+    // }
+
     /**
-     * 通过模板创建新的 Sheet 实例
-     * @param {Sheet} [template] - 可选的模板 Sheet 实例，用于从模板创建新表格
-     * @returns {Sheet} - 返回新的 Sheet 实例
-     */
-    createNewByTemp(template) {
-        if (template) {
-            throw new Error('无法使用非模板表格创建新表格'); // 错误：尝试使用非模板创建
+     * 渲染表格
+     * @description 接受 cellEventHandler 参数，提供一个 `Cell` 对象作为回调函数参数，用于处理单元格事件
+     * @description 可以通过 `cell.parent` 获取 Sheet 对象，因此不再需要传递 Sheet 对象
+     * @description 如果不传递 cellEventHandler 参数，则使用上一次的 cellEventHandler
+     * @param {Function} cellEventHandler
+     * */
+    renderSheet(cellEventHandler = this.lastCellEventHandler) {
+        this.lastCellEventHandler = cellEventHandler;
+
+        if (!this.element) {
+            this.element = document.createElement('table');
+            this.element.classList.add('sheet-table', 'tableDom');
+            this.element.style.position = 'relative';
+            this.element.style.display = 'flex';
+            this.element.style.flexDirection = 'column';
+            this.element.style.flexGrow = '0';
+            this.element.style.flexShrink = '1';
+
+            const styleElement = document.createElement('style');
+            styleElement.textContent = cellStyle;
+            this.element.appendChild(styleElement);
         }
-        // if (template) {
-        //     return this.#createFromTemplate(template); // 从模板创建
-        // }
+
+        // 确保 element 中有 tbody，没有则创建
+        let tbody = this.element.querySelector('tbody');
+        if (!tbody) {
+            tbody = document.createElement('tbody');
+            this.element.appendChild(tbody);
+        }
+        // 清空 tbody 的内容
+        tbody.innerHTML = '';
+
+        // 遍历 cellSheet，渲染每一个单元格
+        this.cellSheet.forEach((rowUids, rowIndex) => {
+            const rowElement = document.createElement('tr');
+            rowUids.forEach((cellUid, colIndex) => {
+                const cell = this.cells.get(cellUid)
+                const cellElement = cell.initCellRender(rowIndex, colIndex);
+                rowElement.appendChild(cellElement);    // 调用 Cell 的 initCellRender 方法，仍然需要传递 rowIndex, colIndex 用于渲染单元格内容
+                if (cellEventHandler) {
+                    cellEventHandler(cell);
+                }
+            });
+            tbody.appendChild(rowElement); // 将 rowElement 添加到 tbody 中
+        });
+        return this.element;
     }
 
     load(target, options) {
@@ -493,7 +548,7 @@ export class Sheet extends SheetTemplate {
             }
         }
 
-        console.log(this)
+        // console.log(this)
         this.loadCells();
 
         return this;
@@ -514,7 +569,7 @@ export class Sheet extends SheetTemplate {
             } else {
                 sheets.push(sheetDataToSave);
             }
-            USER.getContext().chatMetadata.sheets = sheets;
+            USER.getChatMetadata().sheets = sheets;
             USER.saveChat();
             return this;
         } catch (e) {
@@ -565,6 +620,7 @@ class Cell {
             },
         });
 
+        this.customEventListeners = {}; // 存储自定义事件监听器，key 为事件名 (CellAction 或 '')，value 为回调函数
         this.init(target);
     }
 
@@ -590,7 +646,7 @@ class Cell {
         }
 
         // 使用 instanceof 获取 this.parent 是 Sheet类 还是 SheetTemplate类
-        if (this.parent instanceof SheetTemplate) {
+        if (this.parent.asTemplate === true) {
             if (rowIndex === 0 && colIndex === 0) {
                 this.element.classList.add('sheet-cell-origin');
             } else if (rowIndex === 0) {
@@ -618,16 +674,55 @@ class Cell {
         }
         else {
             if (rowIndex === 0 && colIndex === 0) {
+                // this.element.textContent = 0;
                 this.element.classList.add('sheet-cell-origin');
+                // this.element.style.border = 'none';
+                // this.element.style.outline = 'none';
+                this.element.style.color = 'var(--SmartThemeEmColor)';
+                this.element.style.fontWeight = 'normal';
             } else if (rowIndex === 0) {
                 this.element.textContent = this.data.value || ''; // Column headers (A, B, C...)
                 this.element.classList.add('sheet-header-cell-top');
             } else if (colIndex === 0) {
                 this.element.textContent = this.data.value || rowIndex; // Row headers (1, 2, 3...)
                 this.element.classList.add('sheet-header-cell-left');
+                // this.element.style.border = 'none';
+                // this.element.style.outline = 'none';
+                this.element.style.color = 'var(--SmartThemeEmColor)';
+                this.element.style.fontWeight = 'normal';
             } else {
                 this.element.textContent = this.data.value || '';
                 this.element.classList.add('sheet-cell-other');
+                this.element.style.color = 'var(--SmartThemeEmColor)';
+            }
+        }
+    }
+    /**
+     * 监听事件
+     * @description 监听事件，支持监听所有事件、特定 CellAction 事件、原生 DOM 事件
+     * @description 如果 event 为 `''` 字符串，则监听所有事件
+     * @description 如果 event 是 `CellAction` 事件，则监听特定的 CellAction 事件
+     * @description 如果 event 是原生 `DOM` 事件，则监听原生 DOM 事件
+     * @param event
+     * @param callback
+     */
+    on(event, callback) {
+        if (typeof callback !== 'function') throw new Error('回调函数必须是一个函数');
+        if (event === '') {
+            if (!this.customEventListeners['']) {
+                this.customEventListeners[''] = []; // 初始化为数组
+            }
+            this.customEventListeners[''].push(callback);           // 监听所有 #event 事件
+        } else if (CellAction[event]) {
+            if (!this.customEventListeners[event]) {
+                this.customEventListeners[event] = []; // 初始化为数组
+            }
+            this.customEventListeners[event].push(callback);        // 监听特定的 CellAction 事件
+        } else {
+            try {
+                this.element.addEventListener(event, callback); // 监听原生 DOM 事件
+            } catch (e) {
+                throw new Error(`无法监听事件: ${event}`);
             }
         }
     }
@@ -712,9 +807,22 @@ class Cell {
             default:
                 console.warn(`未处理的单元格操作: ${actionName}`);
         }
+
+        // 触发自定义事件监听器
+        if (this.customEventListeners[actionName]) {
+            this.customEventListeners[actionName].forEach(callback => { // 遍历执行数组中的回调函数
+                callback(this, actionName, props); // 传递 cell 实例, actionName, 和 props
+            });
+        }
+        if (this.customEventListeners['']) {
+            this.customEventListeners[''].forEach(callback => { // 遍历执行数组中的回调函数
+                callback(this, actionName, props); // 监听所有事件的监听器
+            });
+        }
+
         this.parent.renderSheet(this.parent.lastCellEventHandler);
         this.parent.save();
-        EDITOR.info(`单元格操作: ${actionName} 位置: ${[rowIndex, colIndex]}`);
+        console.log(`单元格操作: ${actionName} 位置: ${[rowIndex, colIndex]}`);
     }
     #handleEditCell(props = {}) {
         if (!props || Object.keys(props).length === 0) {

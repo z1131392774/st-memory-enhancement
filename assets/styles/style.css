@@ -38,7 +38,7 @@
 .tableDom td,
 .tableDom th {
     border: 1px solid #4e4848;
-    padding: 5px;
+    padding: 3px 5px;
 }
 
 td.selected {

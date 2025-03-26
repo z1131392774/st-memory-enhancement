@@ -19,7 +19,7 @@ import { initRefreshTypeSelector } from './core/editor/initRefreshTypeSelector.j
 
 console.log("______________________记忆插件：开始加载______________________")
 
-const VERSION = '2.0.0-dev.1'
+const VERSION = '2.0.0_dev'
 
 const editErrorInfo = {
     forgotCommentTag: false,
@@ -54,7 +54,7 @@ function checkPrototype(dataTable) {
  * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
  * @returns 自结束索引向上寻找，最近的表格数据
  */
-/* export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1) {
+/* export function findLastestOldTablePiece(isIncludeEndIndex = false, endIndex = -1) {
     let chat = USER.getContext().chat
     if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
     else chat = chat.slice(0, isIncludeEndIndex ? endIndex + 1 : endIndex)
@@ -77,7 +77,7 @@ function checkPrototype(dataTable) {
     }
     return { sheetPiece: newTableList, index: -1 }
 } */
-export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1) {
+export function findLastestOldTablePiece(isIncludeEndIndex = false, endIndex = -1) {
     let chat = USER.getContext().chat
     if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
     else chat = chat.slice(0, isIncludeEndIndex ? endIndex + 1 : endIndex)
@@ -104,7 +104,7 @@ export function findLastestSheetsPiece(isIncludeEndIndex = false, endIndex = -1)
 // function getSheetsData(isIncludeEndIndex = false, endIndex = -1) {
 //     const sheets = BASE.loadChatAllSheets()
 //     if (!sheets) {
-//         const { tables: oldTable } = findLastestSheetsPiece(isIncludeEndIndex, endIndex)
+//         const { tables: oldTable } = findLastestOldTablePiece(isIncludeEndIndex, endIndex)
 //         return convertOldTablesToNewSheets(oldTable)
 //     }
 //     console.log("获取表格数据", sheets)
@@ -177,10 +177,20 @@ export async function convertOldTablesToNewSheets(oldTableList) {
         sourceData.deleteNode = oldTable.deleteNode
         sourceData.insertNode = oldTable.insertNode
         sourceData.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
-        for (const key in oldTable.columns) {
-            const cell = newSheet.findCellByPosition(0, parseInt(key) + 1)
-            cell.data.value = oldTable.columns[key]
-        }
+
+        oldTable.columns.forEach((value, colIndex) => {
+            newSheet.findCellByPosition(0, colIndex + 1).data.value = value
+        })
+        oldTable.content.forEach((row, rowIndex) => {
+            const header = newSheet.findCellByPosition(rowIndex, 0)
+            header.newAction(header.CellAction.insertDownRow)
+            row.forEach((value, colIndex) => {
+                const cell = newSheet.findCellByPosition(rowIndex + 1, colIndex + 1)
+                cell.data.value = value
+                console.log("转化表格", cell)
+            })
+        })
+
         sheets.push(newSheet)
     }
     sheets.forEach(sheet => sheet.save())
@@ -348,7 +358,7 @@ export function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return false
     const functionList = handleTableEditTag(matches)
     // 寻找最近的表格数据
-    const { tables, index: lastestIndex } = findLastestSheetsPiece(false, mesIndex)
+    const { tables, index: lastestIndex } = findLastestOldTablePiece(false, mesIndex)
     DERIVED.any.waitingTableIndex = lastestIndex
     DERIVED.any.waitingTable = copyTableList(tables)
     clearEmpty()

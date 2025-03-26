@@ -2,7 +2,7 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {updateSystemMessageTableStatus} from "../runtime/tablePushToChat.js";
 import {
     copyTableList,
-    findLastestSheetsPiece,
+    findLastestOldTablePiece,
     findNextChatWhitTableData,
     getTableEditActionsStr,
     handleEditStrInMessage,
@@ -456,7 +456,7 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
 
 
     // 开始寻找表格
-    const { tables, index } = await findLastestSheetsPiece(true, mesId)
+    const { tables, index } = await findLastestOldTablePiece(true, mesId)
     userTableEditInfo.chatIndex = index
     userTableEditInfo.tables = tables
 

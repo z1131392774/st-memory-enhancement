@@ -1,5 +1,5 @@
 import {DERIVED, EDITOR, SYSTEM, USER} from "../../manager.js";
-import {getChatSheetsView} from "../editor/chatSheetsManager.js";
+import {getChatSheetsView} from "../editor/chatSheetsDataView.js";
 import {getEditView} from "../editor/tableTemplateEditView.js";
 
 let tableDrawer = null;
@@ -15,17 +15,39 @@ let tableDrawerContentHeader = null;
 let tableViewDom = null;
 let tableEditDom = null;
 let settingContainer = null;
-const timeOut = 300;
+const timeOut = 200;
 const easing = 'easeInOutCubic';
 
-let isEventListenersBound = false; // 添加一个标志来跟踪事件监听器是否已绑定
+let isEventListenersBound = false;
+let currentActiveButton = null; // Track currently active button
+
+/**
+ * 更新按钮选中状态
+ * @param {jQuery} selectedButton 当前选中的按钮
+ */
+function updateButtonStates(selectedButton) {
+    // 如果点击的是当前已激活的按钮，则不执行任何操作
+    if (currentActiveButton && currentActiveButton.is(selectedButton)) {
+        return false;
+    }
+
+    // 重置所有按钮状态
+    databaseButton.css('opacity', '0.5');
+    editorButton.css('opacity', '0.5');
+    settingButton.css('opacity', '0.5');
+
+    // 设置选中按钮状态
+    selectedButton.css('opacity', '1');
+    currentActiveButton = selectedButton;
+    return true;
+}
 
 /**
  * 初始化应用头部表格抽屉 (只调用一次)
  */
 export async function initAppHeaderTableDrawer() {
     if (isEventListenersBound) {
-        return; // 如果事件监听器已绑定，则直接返回，避免重复绑定
+        return;
     }
 
     tableDrawer = $('#table_database_settings_drawer');
@@ -47,7 +69,6 @@ export async function initAppHeaderTableDrawer() {
         tableViewDom = await getChatSheetsView(-1);
     }
     if (tableEditDom === null) {
-        // 使用 jQuery 将 HTML 字符串转换为 jQuery 对象 (代表 DOM 元素)
         tableEditDom = $(`<div style=""></div>`);
         tableEditDom.append(await getEditView(-1));
     }
@@ -56,10 +77,10 @@ export async function initAppHeaderTableDrawer() {
         settingContainer = header.append($('.memory_enhancement_container').find('#memory_enhancement_settings_inline_drawer_content'));
     }
 
-    // 创建容器 div 并将内容包裹起来，并赋予唯一的 ID，添加 overflow: hidden
+    // 创建容器 div 并将内容包裹起来
     const databaseContentDiv = $(`<div id="database-content" style="width: 100%; height: 100%; overflow: hidden;"></div>`).append(tableViewDom);
-    const editorContentDiv = $(`<div id="editor-content" style="width: 100%; height: 100%; display: none; overflow: hidden;"></div>`).append(tableEditDom); // 初始隐藏
-    const settingContentDiv = $(`<div id="setting-content" style="width: 100%; height: 100%; display: none; overflow: hidden;"></div>`).append(settingContainer); // 初始隐藏
+    const editorContentDiv = $(`<div id="editor-content" style="width: 100%; height: 100%; display: none; overflow: hidden;"></div>`).append(tableEditDom);
+    const settingContentDiv = $(`<div id="setting-content" style="width: 100%; height: 100%; display: none; overflow: hidden;"></div>`).append(settingContainer);
 
     // 将所有内容容器添加到 appHeaderTableContainer 中
     appHeaderTableContainer.append(databaseContentDiv);
@@ -70,36 +91,40 @@ export async function initAppHeaderTableDrawer() {
     $('#database-content').show();
     $('#editor-content').hide();
     $('#setting-content').hide();
+
+    // 初始化按钮状态
+    updateButtonStates(databaseButton);
+
     $('#tableUpdateTag').click(function() {
         $('#extensions_details').trigger('click');
     });
 
-
-    // tableDrawerContentHeader.empty(); // 清空抽屉内容的标题
-    // tableDrawerContentHeader.before(inlineDrawerHeaderContent);
-
-    // 添加按钮点击事件监听器 (只绑定一次)
+    // 添加按钮点击事件监听器
     databaseButton.on('click', function() {
+        // 如果当前已经是数据库视图，则不执行任何操作
+        if (!updateButtonStates(databaseButton)) return;
         loadDatabaseContent();
     });
 
     editorButton.on('click', function() {
+        // 如果当前已经是编辑器视图，则不执行任何操作
+        if (!updateButtonStates(editorButton)) return;
         loadEditorContent();
     });
 
     settingButton.on('click', function() {
+        // 如果当前已经是设置视图，则不执行任何操作
+        if (!updateButtonStates(settingButton)) return;
         loadSettingContent();
     });
 
-    isEventListenersBound = true; // 设置标志为已绑定
+    isEventListenersBound = true;
 
     // 移除旧版本在插件页面中的memory_enhancement_container元素
     $('.memory_enhancement_container').remove();
 }
 
-
 export async function openAppHeaderTableDrawer() {
-    // 确保初始化函数已经被调用过 (虽然通常应该在应用启动时就调用)
     if (!isEventListenersBound) {
         await initAppHeaderTableDrawer();
     }
@@ -117,21 +142,18 @@ export async function openAppHeaderTableDrawer() {
         $('.openIcon').not('#table_drawer_icon').not('.drawerPinnedOpen').toggleClass('closedIcon openIcon');
         $('.openDrawer').not('#table_drawer_content').not('.pinnedOpen').toggleClass('closedDrawer openDrawer');
 
-
         // 打开当前的抽屉
         tableDrawerIcon.toggleClass('closedIcon openIcon');
         tableDrawerContent.toggleClass('closedDrawer openDrawer');
 
-        tableDrawerContent.addClass('resizing').each((_, el) => { // 添加 resizing 类，防止动画冲突
+        tableDrawerContent.addClass('resizing').each((_, el) => {
             EDITOR.slideToggle(el, {
                 ...EDITOR.getSlideToggleOptions(),
                 onAnimationEnd: function (el) {
-                    el.closest('.drawer-content').classList.remove('resizing'); // 动画结束后移除 resizing 类
+                    el.closest('.drawer-content').classList.remove('resizing');
                 },
             });
         });
-
-
     } else {
         // 当前是打开状态，需要关闭抽屉
         tableDrawerIcon.toggleClass('openIcon closedIcon');
@@ -148,17 +170,15 @@ export async function openAppHeaderTableDrawer() {
     }
 }
 
-
-// 定义加载不同内容的函数 (修改为同时执行展开和折叠, 并尝试 easing)
 async function loadDatabaseContent() {
-    const currentContent = appHeaderTableContainer.children(':visible'); // 获取当前可见的内容
+    const currentContent = appHeaderTableContainer.children(':visible');
     const targetContent = $('#database-content');
 
     if (currentContent.length > 0) {
-        currentContent.slideUp(timeOut, easing).delay(timeOut).hide(0); // slideUp 当前内容并延迟隐藏, 添加 easing
-        targetContent.slideDown(timeOut, easing); // 同时 slideDown 目标内容, 添加 easing
+        currentContent.slideUp(timeOut, easing).delay(timeOut).hide(0);
+        targetContent.slideDown(timeOut, easing);
     } else {
-        targetContent.slideDown(timeOut, easing); // 如果没有内容，直接 slideDown 目标内容, 添加 easing
+        targetContent.slideDown(timeOut, easing);
     }
 }
 

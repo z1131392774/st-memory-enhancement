@@ -1,5 +1,8 @@
 import {USER} from "../manager.js";
 
+const bgc = 'var(--SmartThemeChatTintColor)'
+const tc = 'var(--SmartThemeBodyColor)'
+
 export async function newPopupConfirm(text, confirmText = 'Confirm', cancelText = 'Cancel') {
     if (USER.tableBaseSetting.confirm_before_execution === true) {
         return await new PopupConfirm().show(text, confirmText, cancelText);
@@ -41,7 +44,8 @@ export class PopupConfirm {
         this.toastElement.style.opacity = '0';
         this.toastElement.style.transition = 'all 0.3s ease';
 
-        this.toastElement.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
+        this.toastElement.style.backgroundColor = bgc;
+        this.toastElement.style.border = '1px solid var(--SmartThemeBorderColor)';
         this.toastElement.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
         this.toastElement.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
 
@@ -50,7 +54,7 @@ export class PopupConfirm {
         messageEl.className = 'toast-message';
         messageEl.textContent = message;
         messageEl.style.marginBottom = '15px';
-        messageEl.style.color = 'var(--SmartThemeBodyColor)';
+        messageEl.style.color = tc;
 
         // Create buttons container
         const buttons = document.createElement('div');
@@ -64,7 +68,7 @@ export class PopupConfirm {
         confirmBtn.style.width = '100%'
         confirmBtn.style.padding = '3px 12px';
         // confirmBtn.style.backgroundColor = '#4CAF50';
-        confirmBtn.style.color = 'var(--SmartThemeBodyColor)';
+        confirmBtn.style.color = tc;
         confirmBtn.style.border = 'none';
         confirmBtn.style.borderRadius = '4px';
         confirmBtn.style.cursor = 'pointer';
@@ -76,8 +80,8 @@ export class PopupConfirm {
         cancelBtn.textContent = cancelText;
         cancelBtn.style.width = '100%'
         cancelBtn.style.padding = '3px 12px';
-        // cancelBtn.style.backgroundColor = '#f44336';
-        cancelBtn.style.color = 'var(--SmartThemeBodyColor)';
+        cancelBtn.style.backgroundColor = bgc;
+        cancelBtn.style.color = tc;
         cancelBtn.style.border = '1px solid var(--SmartThemeBorderColor)';
         cancelBtn.style.borderRadius = '4px';
         cancelBtn.style.cursor = 'pointer';

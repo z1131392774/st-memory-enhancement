@@ -1,6 +1,6 @@
 // tablePushToChat.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {findLastestSheetsPiece, findTableStructureByIndex} from "../../index.js";
+import {findLastestOldTablePiece, findTableStructureByIndex} from "../../index.js";
 import JSON5 from '../../utils/json5.min.mjs'
 
 /**
@@ -79,7 +79,7 @@ export function updateSystemMessageTableStatus(eventData) {
         return;
     }
 
-    const tables = findLastestSheetsPiece(true).tables;
+    const tables = findLastestOldTablePiece(true).tables;
     let tableStatusHTML = '';
     for (let i = 0; i < tables.length; i++) {
         const structure = findTableStructureByIndex(i);
@@ -100,7 +100,7 @@ export async function openTableRendererPopup() {
     const manager = await SYSTEM.getTemplate('renderer');
     const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
     const tableStructure = findTableStructureByIndex(DERIVED.any._currentTableIndex);
-    const table = findLastestSheetsPiece(true).tables[DERIVED.any._currentTableIndex];
+    const table = findLastestOldTablePiece(true).tables[DERIVED.any._currentTableIndex];
     const $dlg = $(tableRendererPopup.dlg);
     const $htmlEditor = $dlg.find('#htmlEditor');
     const $tableRendererDisplay = $dlg.find('#tableRendererDisplay');

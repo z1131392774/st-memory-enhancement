@@ -11,7 +11,7 @@ import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, r
 import {defaultSettings} from "./core/pluginSetting.js";
 import {Drag} from "./components/dragManager.js";
 import {PopupMenu} from "./components/popupMenu.js";
-import {convertOldTablesToNewSheets, findLastestSheetsPiece} from "./index.js";
+import {convertOldTablesToNewSheets, findLastestOldTablePiece} from "./index.js";
 import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
 import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
@@ -95,7 +95,7 @@ export const BASE = {
     getSheetsData: async (isIncludeEndIndex = true, endIndex = -1) => {
         const sheets = BASE.loadChatAllSheets()
         if (!sheets) {
-            const { tables: oldTable } = findLastestSheetsPiece(isIncludeEndIndex, endIndex)
+            const { tables: oldTable } = findLastestOldTablePiece(isIncludeEndIndex, endIndex)
             return await convertOldTablesToNewSheets(oldTable)
         }
         console.log("获取表格数据", sheets)
@@ -105,7 +105,7 @@ export const BASE = {
     destroyAllTemplates() {
         if (confirm("确定要销毁所有表格模板数据吗？") === false) return false;
         USER.getSettings().table_database_templates = [];
-        USER.getSettings().table_database_templates_selected = [];
+        USER.getChatMetadata().selected_sheets = [];
         USER.saveSettings();
         return true;
     },
@@ -149,8 +149,9 @@ export const EDITOR = {
             'user_table_database_setting': USER.getSettings().muyoo_dataTable,
             'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
-            'context_tableBase_data': BASE.loadContextAllSheets(),
             'context_chatMetadata_sheets': USER.getChatMetadata().sheets,
+            'context_oldTable_data': findLastestOldTablePiece(true).tables,
+            'context_tableBase_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),
             'chat_last_sheet': BASE.getLastSheetsPiece(),
         }, 3);
