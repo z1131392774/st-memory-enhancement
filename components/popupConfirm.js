@@ -1,7 +1,10 @@
 import {USER} from "../manager.js";
 
-const bgc = 'var(--SmartThemeBlurTintColor)'
-const tc = 'var(--SmartThemeBodyColor)'
+const bgc = '#3736bb'
+const bgcg = '#de81f1'
+// const bgc = 'var(--SmartThemeBotMesBlurTintColor)'
+// const bgcg = 'var(--SmartThemeUserMesBlurTintColor)'
+const tc = '#fff'
 
 export async function newPopupConfirm(text, confirmText = 'Confirm', cancelText = 'Cancel') {
     if (USER.tableBaseSetting.confirm_before_execution === true) {
@@ -35,7 +38,7 @@ export class PopupConfirm {
         this.toastElement.className = 'toast toast-confirm';
         this.toastElement.setAttribute('aria-live', 'polite');
 
-        this.toastElement.style.padding = '10px 15px';
+        this.toastElement.style.padding = '6px 12px';
         // this.toastElement.style.backgroundColor = getSolidColor('--SmartThemeChatTintColor');
         this.toastElement.style.pointerEvents = 'auto';
         this.toastElement.style.cursor = 'normal';
@@ -44,17 +47,33 @@ export class PopupConfirm {
         this.toastElement.style.opacity = '0';
         this.toastElement.style.transition = 'all 0.3s ease';
 
-        this.toastElement.style.backgroundColor = bgc;
-        this.toastElement.style.border = '1px solid var(--SmartThemeBorderColor)';
+        // 修改了这里，使用 background 而不是 backgroundColor，并设置为线性渐变
+        this.toastElement.style.background = `linear-gradient(to bottom right, ${bgc} 20%, ${bgcg})`;
+        // this.toastElement.style.borderRadius = '12px';
+        // this.toastElement.style.border = '1px solid var(--SmartThemeBorderColor)';
         this.toastElement.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
         this.toastElement.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
 
         // Create message container
-        const messageEl = document.createElement('div');
-        messageEl.className = 'toast-message';
-        messageEl.textContent = message;
-        messageEl.style.marginBottom = '15px';
+        const messageEl = $('<div class="toast-message"></div>')[0];
+        const messageIcon = $('<i class="fa-solid fa-code-branch""></i>')[0];
+        const messageText = $('<span></span>')[0];
+        messageEl.style.display = 'flex';
+        messageEl.style.flexDirection = 'row';
+        messageEl.style.alignItems = 'center';
+        messageEl.style.marginTop = '5px';
+        messageEl.style.marginBottom = '10px';
         messageEl.style.color = tc;
+        messageEl.style.fontWeight = 'bold';
+        messageEl.style.gap = '10px';
+
+        messageIcon.style.fontSize = '1.3rem';
+        messageIcon.style.padding = '0'
+        messageIcon.style.margin = '0'
+
+        messageText.textContent = message;
+        messageEl.appendChild(messageIcon);
+        messageEl.appendChild(messageText);
 
         // Create buttons container
         const buttons = document.createElement('div');
@@ -67,12 +86,13 @@ export class PopupConfirm {
         confirmBtn.textContent = confirmText;
         confirmBtn.style.width = '100%'
         confirmBtn.style.padding = '3px 12px';
-        // confirmBtn.style.backgroundColor = '#4CAF50';
+        confirmBtn.style.backgroundColor = bgc;
         confirmBtn.style.color = tc;
         confirmBtn.style.border = 'none';
-        confirmBtn.style.borderRadius = '4px';
+        confirmBtn.style.borderRadius = '6px';
         confirmBtn.style.cursor = 'pointer';
-        confirmBtn.style.fontSize = '14px';
+        confirmBtn.style.fontSize = '0.85rem';
+        confirmBtn.style.fontWeight = 'bold';
         confirmBtn.classList.add('popup-button-ok', 'menu_button', 'result-control', 'interactable')
 
         // Create cancel button
@@ -80,12 +100,13 @@ export class PopupConfirm {
         cancelBtn.textContent = cancelText;
         cancelBtn.style.width = '100%'
         cancelBtn.style.padding = '3px 12px';
-        cancelBtn.style.backgroundColor = bgc;
+        cancelBtn.style.background = 'none';
+        // cancelBtn.style.backgroundColor = bgcg;
         cancelBtn.style.color = tc;
-        cancelBtn.style.border = '1px solid var(--SmartThemeBorderColor)';
-        cancelBtn.style.borderRadius = '4px';
+        cancelBtn.style.border = `1px solid ${bgc}`;
+        cancelBtn.style.borderRadius = '6px';
         cancelBtn.style.cursor = 'pointer';
-        cancelBtn.style.fontSize = '14px';
+        cancelBtn.style.fontSize = '0.85rem';
         cancelBtn.classList.add('popup-button-cancel', 'menu_button', 'result-control', 'interactable')
 
         // Build the DOM structure
@@ -156,4 +177,3 @@ export class PopupConfirm {
 //     // 确保返回的是 rgb() 格式（不带 alpha）
 //     return rgb.startsWith('rgba') ? rgb.replace(/,[^)]+\)/, ')') : rgb;
 // }
-

@@ -681,11 +681,11 @@ jQuery(async () => {
         );
         console.log(confirmed)
     }, "测试confirm")
-    SYSTEM.f(async ()=>{
-        // 点击时 f5 刷新浏览器页面
-        window.location.reload();
-
-    }, "f5")
+    // SYSTEM.f(async ()=>{
+    //     // 点击时 f5 刷新浏览器页面
+    //     window.location.reload();
+    //
+    // }, "f5")
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
