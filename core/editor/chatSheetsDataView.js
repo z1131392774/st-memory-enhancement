@@ -292,8 +292,6 @@ export async function renderSheetsDOM() {
 }
 
 export async function refreshContextView(ignoreGlobal = false) {
-    if(ignoreGlobal && scope === 'global') return
-
     await renderSheetsDOM();
 }
 

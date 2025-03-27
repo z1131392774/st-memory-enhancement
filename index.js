@@ -16,6 +16,7 @@ import JSON5 from './utils/json5.min.mjs'
 import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './core/editor/initRefreshTypeSelector.js';
 import {refreshTempView} from "./core/editor/tableTemplateEditView.js";
+import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -690,7 +691,7 @@ async function updateSheetsView() {
     const { tables: oldTables, index } = findLastestOldTablePiece(true, -1)
     convertOldTablesToNewSheets(oldTables).then((sheets) => {
         refreshTempView(true);
-        updateSystemMessageTableStatus(true);
+        refreshContextView(true);
     })
 }
 
