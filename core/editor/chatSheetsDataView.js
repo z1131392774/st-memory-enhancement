@@ -229,6 +229,7 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
         }
 
+        // 设置弹出菜单后的一些非功能性派生操作，这里必须使用setTimeout，否则会导致菜单无法正常显示
         setTimeout(() => {
             // 备份当前cell的style，以便在菜单关闭时恢复
             const style = cell.element.style.cssText;

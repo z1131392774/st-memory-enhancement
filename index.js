@@ -155,54 +155,154 @@ function copyCellSheet(cellSheet) {
     return cellSheet.map(row => row.map(cell => cell))
 }
 
+// /**
+//  * 转化旧表格为sheets（优化版）
+//  * @param {DERIVED.Table[]} oldTableList 旧表格数据
+//  */
+// export async function convertOldTablesToNewSheets(oldTableList) {
+//     // 清空现有sheets
+//     USER.getChatMetadata().sheets = [];
+//     const sheets = [];
+//
+//     // 预计算所有表格的最大尺寸
+//     const maxSizes = oldTableList.map(table => ({
+//         rows: table.content.length + 1, // +1 for header row
+//         cols: table.columns.length + 1  // +1 for index column
+//     }));
+//
+//     // 批量处理所有表格
+//     for (const [index, oldTable] of oldTableList.entries()) {
+//         const maxSize = maxSizes[index];
+//
+//         // 一次性创建整张表格
+//         const newSheet = new BASE.Sheet('').createNewSheet(maxSize.cols, maxSize.rows, false);
+//         newSheet.name = oldTable.tableName;
+//         newSheet.domain = newSheet.SheetDomain.chat;
+//         newSheet.type = newSheet.SheetType.dynamic;
+//         newSheet.enable = oldTable.enable;
+//         newSheet.required = oldTable.Required;
+//         newSheet.tochat = oldTable.tochat;
+//
+//         // 设置源数据
+//         const sourceData = newSheet.source.data;
+//         sourceData.note = oldTable.note;
+//         sourceData.initNode = oldTable.initNode;
+//         sourceData.updateNode = oldTable.updateNode;
+//         sourceData.deleteNode = oldTable.deleteNode;
+//         sourceData.insertNode = oldTable.insertNode;
+//         sourceData.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`;
+//
+//         // 批量设置列头
+//         oldTable.columns.forEach((value, colIndex) => {
+//             const cell = newSheet.cellSheet[0][colIndex + 1];
+//             newSheet.cells.get(cell).data.value = value;
+//         });
+//
+//         // 批量插入数据行
+//         if (oldTable.content.length > 0) {
+//             oldTable.content.forEach((row, rowIndex) => {
+//                 if (row && row.length > 0) {
+//                     // 直接设置数据而不触发插入操作
+//                     row.forEach((value, colIndex) => {
+//                         const cellUid = newSheet.cellSheet[rowIndex + 1][colIndex + 1];
+//                         newSheet.cells.get(cellUid).data.value = value;
+//                     });
+//                 }
+//             });
+//         }
+//
+//         sheets.push(newSheet);
+//     }
+//
+//     // 批量保存所有sheet
+//     sheets.forEach(sheet => sheet.save());
+//
+//     return sheets;
+// }
+
 /**
- * 转化旧表格为sheets
+ * 转化旧表格为sheets（终极优化版）
+ * @description 该方法为过渡方法，仅用于兼容旧版表格数据，不应该在后续正式环境中使用
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
  */
 export async function convertOldTablesToNewSheets(oldTableList) {
-    USER.getChatMetadata().sheets = []
-    const sheets = []
-    for (const oldTable of oldTableList) {
-        const newSheet = new BASE.Sheet('').createNewSheet(oldTable.columns.length + 1, 1, false);
-        newSheet.name = oldTable.tableName
-        newSheet.domain = newSheet.SheetDomain.chat
-        newSheet.type = newSheet.SheetType.dynamic
-        newSheet.enable = oldTable.enable
-        newSheet.required = oldTable.Required
-        newSheet.tochat = oldTable.tochat
+    // 该方法为过渡方法，仅用于兼容旧版表格数据，不应该在后续正式环境中使用
+    // 该方法不会创建正确的历史记录，也不会触发任何事件，仅用于快速转换数据
+    // 清空现有sheets（直接赋值比修改原数组更快）
+    const newSheetsMetadata = [];
 
-        const sourceData = newSheet.source.data
-        sourceData.note = oldTable.note
-        sourceData.initNode = oldTable.initNode
-        sourceData.updateNode = oldTable.updateNode
-        sourceData.deleteNode = oldTable.deleteNode
-        sourceData.insertNode = oldTable.insertNode
-        sourceData.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
+    // 使用Promise.all并行处理所有表格
+    const sheets = await Promise.all(oldTableList.map(async (oldTable, index) => {
+        // 预计算表格尺寸
+        const rows = oldTable.content.length + 1;
+        const cols = oldTable.columns.length + 1;
 
-        oldTable.columns.forEach((value, colIndex) => {
-            newSheet.findCellByPosition(0, colIndex + 1).data.value = value
-        })
-        // 如果有数据，则尝试插入数据
-        if (oldTable.content.length !== 0) {
-            oldTable.content.forEach((row, rowIndex) => {
-                // 如果存在行数据，则插入行中的每项数据
-                if (row && row.length !== 0) {
-                    const header = newSheet.findCellByPosition(rowIndex, 0)
-                    header.newAction(header.CellAction.insertDownRow)
-                    row.forEach((value, colIndex) => {
-                        const cell = newSheet.findCellByPosition(rowIndex + 1, colIndex + 1)
-                        cell.data.value = value
-                    })
+        // 直接构造sheet数据对象，避免多次方法调用
+        const sheetData = {
+            uid: `sheet_${SYSTEM.generateRandomString(8)}`,
+            name: oldTable.tableName,
+            domain: 'chat',
+            type: 'dynamic',
+            enable: oldTable.enable,
+            required: oldTable.Required,
+            tochat: oldTable.tochat,
+            cellSheet: [],
+            cellHistory: []
+        };
+
+        // 预填充cellSheet结构
+        const cellSheet = Array.from({ length: rows }, (_, rowIndex) =>
+            Array.from({ length: cols }, (_, colIndex) => {
+                const cellUid = `cell_${sheetData.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
+                const cellData = {
+                    uid: cellUid,
+                    type: (rowIndex === 0 && colIndex === 0) ? 'sheet_origin' :
+                        (rowIndex === 0) ? 'column_header' :
+                            (colIndex === 0) ? 'row_header' : 'cell',
+                    data: {}
+                };
+
+                // 设置源数据（第一行第一列）
+                if (rowIndex === 0 && colIndex === 0) {
+                    cellData.data = {
+                        note: oldTable.note,
+                        initNode: oldTable.initNode,
+                        updateNode: oldTable.updateNode,
+                        deleteNode: oldTable.deleteNode,
+                        insertNode: oldTable.insertNode,
+                        description: `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
+                    };
                 }
-            })
-        }
+                // 设置列头（第一行）
+                else if (rowIndex === 0 && colIndex > 0) {
+                    cellData.data.value = oldTable.columns[colIndex - 1];
+                }
+                // 设置数据行
+                else if (rowIndex > 0 && colIndex > 0 && oldTable.content[rowIndex - 1]) {
+                    cellData.data.value = oldTable.content[rowIndex - 1][colIndex - 1] || '';
+                }
 
-        sheets.push(newSheet)
-    }
-    sheets.forEach(sheet => sheet.save())
-    // USER.saveChat
-    // EDITOR.refreshSheetsView(true)
-    return sheets
+                sheetData.cellHistory.push(cellData);
+                return cellUid;
+            })
+        );
+
+        sheetData.cellSheet = cellSheet;
+        newSheetsMetadata.push(sheetData);
+
+        // 返回一个轻量级Sheet实例（不触发完整初始化）
+        return new Proxy({}, {
+            get: (target, prop) => prop === 'save' ? () => null : sheetData[prop]
+        });
+    }));
+
+    // 一次性更新元数据
+    USER.getChatMetadata().sheets = newSheetsMetadata;
+
+    // 延迟保存（如果需要）
+    await USER.saveChat();
+
+    return sheets;
 }
 
 /**
@@ -589,7 +689,6 @@ async function updateSheetsView() {
     // TODO 使用新表格-系统消息
     const { tables: oldTables, index } = findLastestOldTablePiece(true, -1)
     convertOldTablesToNewSheets(oldTables).then((sheets) => {
-        console.log("更新表格视图", sheets)
         refreshTempView(true);
         updateSystemMessageTableStatus(true);
     })
@@ -635,9 +734,8 @@ jQuery(async () => {
 
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
-        // updateSheetsView();
-
         openAppHeaderTableDrawer();
+        updateSheetsView();
     })
     // 设置表格编辑按钮
     $(document).on('click', '.tableEditor_editButton', function () {
@@ -698,11 +796,6 @@ jQuery(async () => {
         );
         console.log(confirmed)
     }, "测试confirm")
-    // SYSTEM.f(async ()=>{
-    //     // 点击时 f5 刷新浏览器页面
-    //     window.location.reload();
-    //
-    // }, "f5")
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
