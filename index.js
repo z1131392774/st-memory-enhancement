@@ -635,8 +635,7 @@ jQuery(async () => {
 
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
-        // updateSheetsView();
-
+        updateSheetsView();
         openAppHeaderTableDrawer();
     })
     // 设置表格编辑按钮
