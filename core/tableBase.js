@@ -380,7 +380,7 @@ export class SheetTemplate extends SheetBase {
         // this.domain = options.domain ?? SheetDomain.global;
         // this.type = options.domain ?? SheetType.dynamic;
 
-        console.log(this)
+        // console.log(this)
         this.loadCells();
 
         return this;

@@ -208,31 +208,63 @@ function cellClickEvent(cell) {
         }
         cell.parent.currentPopupMenu = new PopupMenu();
 
+        const menu = cell.parent.currentPopupMenu;
         const [rowIndex, colIndex] = cell.position;
         const sheetType = cell.parent.type;
 
-        // cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
+        // menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
 
         if (rowIndex === 0 && colIndex === 0) {
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
         } else if (rowIndex === 0) {
-            cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
+            menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
+            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
+            menu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
         } else if (colIndex === 0) {
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
+            menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
+            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
         } else {
-            cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
         }
 
-        const rect = cell.element.getBoundingClientRect();
-        const menu = cell.parent.currentPopupMenu.renderMenu();
-        menu.style.zIndex = 9999;
-        window.document.body.appendChild(menu)
-        cell.parent.currentPopupMenu.show(rect.left, rect.top + rect.height);
+        setTimeout(() => {
+            // 备份当前cell的style，以便在菜单关闭时恢复
+            const style = cell.element.style.cssText;
+
+            const rect = cell.element.getBoundingClientRect();
+            const menuElement = menu.renderMenu();
+            menuElement.style.zIndex = 9999;
+            window.document.body.appendChild(menuElement)
+
+            // 高亮sheet
+            // const border = $(`<div id="cell_selected_sheet_p"></div>`)[0];
+            // border.style.position = 'absolute';
+            // border.style.top = '0';
+            // border.style.left = '0';
+            // border.style.width = '100%';
+            // border.style.height = '100%';
+            // border.style.border = '2px solid var(--SmartThemeBodyColor)';
+            // border.style.pointerEvents = 'none';
+            // cell.element.appendChild(border);
+
+            // 高亮cell
+            cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+            cell.element.style.color = 'var(--SmartThemeBodyColor)';
+
+            menu.show(rect.left, rect.top + rect.height).then(() => {
+                cell.element.style.cssText = style;
+                document.getElementById('cell_selected_sheet_p')?.remove(); // 移除高亮sheet
+            })
+            menu.frameUpdate((menu) => {
+                // 重新定位菜单
+                const rect = cell.element.getBoundingClientRect();
+                menu.popupContainer.style.left = `${rect.left}px`;
+                menu.popupContainer.style.top = `${rect.top + rect.height}px`;
+            })
+        }, 0)
+
     })
     cell.on('', () => {
         console.log('cell发生了改变:', cell)

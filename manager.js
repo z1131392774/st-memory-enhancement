@@ -42,7 +42,7 @@ export const USER = {
         return chat[chat.length - 1 - deep]
     },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
-    IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA'),
+    IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA', true),
 }
 readonly(USER, 'tableBaseDefaultSettings', () => defaultSettings);
 // readonly(USER, 'tableBaseTemplates', () => power_user.getSettings().table_database_templates);
@@ -94,15 +94,15 @@ export const BASE = {
             }
         }
     },
-    getSheetsData: async (isIncludeEndIndex = true, endIndex = -1) => {
-        const sheets = BASE.loadChatAllSheets()
-        if (!sheets) {
-            const { tables: oldTable } = findLastestOldTablePiece(isIncludeEndIndex, endIndex)
-            return await convertOldTablesToNewSheets(oldTable)
-        }
-        console.log("获取表格数据", sheets)
-        return sheets
-    },
+    // getSheetsData: async (isIncludeEndIndex = true, endIndex = -1) => {
+    //     const sheets = BASE.loadChatAllSheets()
+    //     if (!sheets) {
+    //         const { tables: oldTable } = findLastestOldTablePiece(isIncludeEndIndex, endIndex)
+    //         return await convertOldTablesToNewSheets(oldTable)
+    //     }
+    //     console.log("获取表格数据", sheets)
+    //     return sheets
+    // },
 
     destroyAllTemplates() {
         if (confirm("确定要销毁所有表格模板数据吗？") === false) return false;
@@ -149,15 +149,12 @@ export const EDITOR = {
     clear: () => consoleMessageToEditor.clear(),
     logAll: () => {
         SYSTEM.codePathLog({
-            // 'user_setting': USER.getSettings(),
-            // 'user_table_database_default_setting': defaultSettings,
-            // 'user_important_user_privacy_data': USER.IMPORTANT_USER_PRIVACY_DATA,
             'user_table_database_setting': USER.getSettings().muyoo_dataTable,
             'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
             'context_chatMetadata_sheets': USER.getChatMetadata().sheets,
             'context_oldTable_data': findLastestOldTablePiece(true).tables,
-            'context_tableBase_data': BASE.loadContextAllSheets(),
+            'context_sheets_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),
             'chat_last_sheet': BASE.getLastSheetsPiece(),
         }, 3);

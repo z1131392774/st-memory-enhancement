@@ -25,6 +25,9 @@ export class PopupMenu {
         this.menuItems = [];
         this.lasting = false;
         this.popupContainer = null;
+        this._closePromise = null;
+        this._closeResolver = null;
+        this._frameUpdateId = null;
 
         this.#init(options);
         PopupMenu.instance = this;
@@ -61,33 +64,60 @@ export class PopupMenu {
      * 显示菜单
      * @param {number} x - 菜单显示的横坐标 (相对于父元素)
      * @param {number} y - 菜单显示的纵坐标 (相对于父元素)
+     * @returns {Promise} 返回一个 Promise，在菜单关闭时 resolve
      */
-    show(x = 0, y = 0) {
+    async show(x = 0, y = 0) {
+        // 清理之前的关闭 Promise
+        if (this._closePromise) {
+            this._closeResolver?.();
+            this._closePromise = null;
+            this._closeResolver = null;
+        }
+
         this.popupContainer.style.left = `${x}px`;
         this.popupContainer.style.top = `${y}px`;
         this.popupContainer.style.display = 'block';
 
+        // 创建新的 Promise 用于跟踪关闭事件
+        this._closePromise = new Promise((resolve) => {
+            this._closeResolver = resolve;
+        });
+
         setTimeout(() => {
             document.addEventListener('click', this.handleClickOutside.bind(this));
         }, 0);
+
+        return this._closePromise;
     }
 
     /**
      * 隐藏菜单
      */
     hide() {
+        this.cancelFrameUpdate();
         this.popupContainer.style.display = 'none';
         document.removeEventListener('click', this.handleClickOutside.bind(this));
+
+        // 触发关闭 Promise 的 resolve
+        this._closeResolver?.();
+        this._closePromise = null;
+        this._closeResolver = null;
     }
 
     /**
-     * 销毁菜单实例，从 DOM 中移除
+     * 销毁菜单
      */
     destroy() {
+        this.cancelFrameUpdate();
         document.removeEventListener('click', this.handleClickOutside.bind(this));
-        if (this.popupContainer.parentNode) { // 检查 popupContainer 是否有父节点
-            this.popupContainer.parentNode.removeChild(this.popupContainer); // 从 DOM 中移除外层容器，彻底销毁
+        if (this.popupContainer.parentNode) {
+            this.popupContainer.parentNode.removeChild(this.popupContainer);
         }
+
+        // 触发关闭 Promise 的 resolve
+        this._closeResolver?.();
+        this._closePromise = null;
+        this._closeResolver = null;
     }
 
     #init(options) {
@@ -96,7 +126,6 @@ export class PopupMenu {
         this.menuItemIndexMap = new Map();      // 使用 Map 存储菜单项与其索引的映射关系
 
         this.popupContainer = document.createElement('div');
-        // this.popupContainer.classList.add('margin5', 'wide_dialogue_popup');
         this.popupContainer.style.position = 'absolute';
         this.popupContainer.style.display = 'none';
         this.popupContainer.style.zIndex = '1000';
@@ -108,14 +137,13 @@ export class PopupMenu {
         this.popupContainer.style.boxShadow = '0 0 20px rgba(0,0,0,0.2)';
         this.popupContainer.style.backgroundColor = 'var(--SmartThemeBlurTintColor)';
 
-
         this.menuContainer = $('<div class="dynamic-popup-menu" id="dynamic_popup_menu"></div>')[0];
         this.menuContainer.style.position = 'relative';
         this.menuContainer.style.padding = '2px 0';
         this.menuContainer.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
         this.menuContainer.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
         this.menuContainer.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
-        this.menuContainer.style.border = '1px solid var(--SmartThemeBorderColor)'
+        this.menuContainer.style.border = '1px solid var(--SmartThemeBorderColor)';
         this.menuContainer.style.borderRadius = '6px';
 
         this.popupContainer.appendChild(this.menuContainer);
@@ -124,6 +152,7 @@ export class PopupMenu {
         this.handleClickOutside = this.handleClickOutside.bind(this);
         this.popupContainer.addEventListener('click', this.handleMenuItemClick);
     }
+
     handleMenuItemClick(event) {
         const menuItemElement = event.target.closest('.dynamic-popup-menu-item');
         if (menuItemElement) {
@@ -139,6 +168,7 @@ export class PopupMenu {
             }
         }
     }
+
     /**
      * 处理点击菜单外部区域，用于关闭菜单
      * @param {MouseEvent} event
@@ -150,6 +180,34 @@ export class PopupMenu {
             } else {
                 this.destroy();
             }
+        }
+    }
+
+    frameUpdate(callback) {
+        // 清理现有的动画循环
+        this.cancelFrameUpdate();
+
+        // 只在菜单显示时启动动画循环
+        if (this.popupContainer.style.display !== 'none') {
+            const updateLoop = (timestamp) => {
+                // 如果菜单被隐藏，停止循环
+                if (this.popupContainer.style.display === 'none') {
+                    this.cancelFrameUpdate();
+                    return;
+                }
+
+                callback(this, timestamp); // 添加 timestamp 参数以便更精确的动画控制
+                this._frameUpdateId = requestAnimationFrame(updateLoop);
+            };
+
+            this._frameUpdateId = requestAnimationFrame(updateLoop);
+        }
+    }
+
+    cancelFrameUpdate() {
+        if (this._frameUpdateId) {
+            cancelAnimationFrame(this._frameUpdateId);
+            this._frameUpdateId = null;
         }
     }
 }

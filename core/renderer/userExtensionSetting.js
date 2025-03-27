@@ -347,9 +347,6 @@ function InitBinging() {
 export function renderSetting() {
     // 初始化数值
     $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).attr('selected', true);
-    $('#custom_api_url').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
-    $('#custom_api_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
-    $('#custom_model_name').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
     $('#dataTable_message_template').val(USER.tableBaseSetting.message_template);
     $('#dataTable_deep').val(USER.tableBaseSetting.deep);
     $('#clear_up_stairs').val(USER.tableBaseSetting.clear_up_stairs);
@@ -360,6 +357,11 @@ export function renderSetting() {
     $('#custom_temperature_value').text(USER.tableBaseSetting.custom_temperature);
     $('#step_by_step_threshold').val(USER.tableBaseSetting.step_by_step_threshold);
     $('#step_by_step_threshold_value').text(USER.tableBaseSetting.step_by_step_threshold);
+
+    // private data
+    $('#custom_api_url').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
+    $('#custom_api_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
+    $('#custom_model_name').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
 
     // 初始化开关状态
     updateSwitch('#table_switch', USER.tableBaseSetting.isExtensionAble);

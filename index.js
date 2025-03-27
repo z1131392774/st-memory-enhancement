@@ -15,6 +15,7 @@ import {initTest} from "./components/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
 import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './core/editor/initRefreshTypeSelector.js';
+import {refreshTempView} from "./core/editor/tableTemplateEditView.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -181,21 +182,26 @@ export async function convertOldTablesToNewSheets(oldTableList) {
         oldTable.columns.forEach((value, colIndex) => {
             newSheet.findCellByPosition(0, colIndex + 1).data.value = value
         })
-        oldTable.content.forEach((row, rowIndex) => {
-            const header = newSheet.findCellByPosition(rowIndex, 0)
-            header.newAction(header.CellAction.insertDownRow)
-            row.forEach((value, colIndex) => {
-                const cell = newSheet.findCellByPosition(rowIndex + 1, colIndex + 1)
-                cell.data.value = value
-                // console.log("转化表格", cell)
+        // 如果有数据，则尝试插入数据
+        if (oldTable.content.length !== 0) {
+            oldTable.content.forEach((row, rowIndex) => {
+                // 如果存在行数据，则插入行中的每项数据
+                if (row && row.length !== 0) {
+                    const header = newSheet.findCellByPosition(rowIndex, 0)
+                    header.newAction(header.CellAction.insertDownRow)
+                    row.forEach((value, colIndex) => {
+                        const cell = newSheet.findCellByPosition(rowIndex + 1, colIndex + 1)
+                        cell.data.value = value
+                    })
+                }
             })
-        })
+        }
 
         sheets.push(newSheet)
     }
     sheets.forEach(sheet => sheet.save())
     // USER.saveChat
-    EDITOR.refreshSheetsView(true)
+    // EDITOR.refreshSheetsView(true)
     return sheets
 }
 
@@ -446,9 +452,6 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        // TODO 使用新表格-系统消息
-        // updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
-        await BASE.getSheetsData()
         if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)
@@ -456,7 +459,7 @@ async function onChatCompletionPromptReady(eventData) {
         else
             eventData.chat.splice(-USER.tableBaseSetting.deep, 0, { role: getMesRole(), content: promptContent })
 
-        EDITOR.refreshSheetsView(true)
+        await updateSheetsView()
     } catch (error) {
         // 获取堆栈信息
         const stack = error.stack;
@@ -525,6 +528,8 @@ async function onMessageEdited(this_edit_mes_id) {
             EDITOR.error("记忆插件：表格编辑失败\n原因：", error.message)
         }
     }
+
+    await updateSheetsView()
 }
 
 /**
@@ -546,14 +551,15 @@ async function onMessageReceived(chat_id) {
             EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message)
         }
     }
+
+    await updateSheetsView()
 }
 
 /**
  * 聊天变化时触发
  */
 async function onChatChanged(){
-    console.log("聊天变化")
-    EDITOR.refreshSheetsView(true)
+    await updateSheetsView()
 }
 
 
@@ -570,12 +576,23 @@ async function onMessageSwiped(chat_id) {
     } catch (error) {
         EDITOR.error("记忆插件：swipe切换失败\n原因：", error.message)
     }
+
+    await updateSheetsView()
 }
 
+/**
+ * 更新新表格视图
+ * @description 更新新表格视图，将新表格数据转化为新表格视图，该方法在当前版本可能使用旧表格数据
+ * @returns {Promise<*[]>}
+ */
 async function updateSheetsView() {
+    // TODO 使用新表格-系统消息
     const { tables: oldTables, index } = findLastestOldTablePiece(true, -1)
-    return await convertOldTablesToNewSheets(oldTables)
-    EDITOR.refreshSheetsView(true)
+    convertOldTablesToNewSheets(oldTables).then((sheets) => {
+        console.log("更新表格视图", sheets)
+        refreshTempView(true);
+        updateSystemMessageTableStatus(true);
+    })
 }
 
 
@@ -618,7 +635,7 @@ jQuery(async () => {
 
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
-        updateSheetsView();
+        // updateSheetsView();
 
         openAppHeaderTableDrawer();
     })
@@ -648,7 +665,7 @@ jQuery(async () => {
         tableStructure.enable = $(this).prop('checked');
     })
 
-    initAppHeaderTableDrawer();
+    initAppHeaderTableDrawer().then(updateSheetsView);
 
     SYSTEM.f(()=>{
         // 弹出确认

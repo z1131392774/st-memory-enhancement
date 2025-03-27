@@ -24,7 +24,7 @@ export const createProxy = (obj) => {
     });
 }
 
-export const createProxyWithUserSetting = (target) => {
+export const createProxyWithUserSetting = (target, allowEmpty = false) => {
     return new Proxy({}, {
         get: (_, property) => {
             // console.log(`创建代理对象 ${target}`, property)
@@ -48,7 +48,11 @@ export const createProxyWithUserSetting = (target) => {
                 console.log(`变量 ${property} 未找到, 已从默认设置中获取`)
                 return USER.tableBaseDefaultSettings[property];
             }
-            // 如果 defaultSettings 中也不存在，则返回 undefined
+            // 如果 defaultSettings 中也不存在，则检查是否允许为空
+            if (allowEmpty) {
+                return undefined;
+            }
+            // 如果 defaultSettings 中也不存在，则报错
             EDITOR.error(`变量 ${property} 未在默认设置中找到, 请检查代码`)
             return undefined;
         },
