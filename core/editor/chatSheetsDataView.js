@@ -1,20 +1,9 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {updateSystemMessageTableStatus} from "../runtime/tablePushToChat.js";
-import {
-    copyTableList,
-    findLastestOldTablePiece,
-    findNextChatWhitTableData,
-    getTableEditActionsStr,
-    handleEditStrInMessage,
-    parseTableEditTag,
-    replaceTableEditTag,
-} from "../../index.js";
-import {rebuildTableActions, refreshTableActions,getPromptAndRebuildTable} from "../runtime/absoluteRefresh.js";
-import {initAllTable} from "../tableActions.js";
+import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
+import {findNextChatWhitTableData,} from "../../index.js";
+import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {openTableHistoryPopup} from "./tableHistory.js";
-import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
 import {PopupMenu} from "../../components/popupMenu.js";
-// import {renderTablesDOM} from "./tableDataView.js";
 
 let tablePopup = null
 let copyTableData = null
@@ -160,7 +149,7 @@ async function exportTable(tables = []) {
  */
 async function clearTable(mesId, tableContainer) {
     if (mesId === -1) return
-    const confirmation = await EDITOR.callGenericPopup('清空此条的所有表格数据，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    const confirmation = await EDITOR.callGenericPopup('清空当前对话的所有表格数据，并重置历史记录，该操作无法回退，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         delete USER.getSettings().table_database_templates
         delete USER.getChatMetadata().sheets
@@ -222,6 +211,7 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
             menu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
         } else if (colIndex === 0) {
+            menu.add('<i class="fa-solid fa-bars-staggered"></i> 排序 & 批量操作', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
             menu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
@@ -293,32 +283,6 @@ export async function renderSheetsDOM() {
 
 export async function refreshContextView(ignoreGlobal = false) {
     await renderSheetsDOM();
-}
-
-async function rebuildSheets() {
-    const container = document.createElement('div')
-    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
-    const style = document.createElement('style')
-    style.innerHTML = `
-        .rebuild-preview-item {
-            display: flex;
-            justify-content: space-between;
-            margin: 0 10px;
-        }
-    `
-    container.appendChild(style)
-    $(container).append($('<h3>重建表格数据</h3>'));
-    $(container).append(` <span>重建表格数据将会清空所有表格数据，是否继续？</span> `).append(`<hr>`);
-    $(container).append(`<div class="rebuild-preview-item"><span>更新方式：</span>${USER.tableBaseSetting.bool_silent_refresh ? '静默刷新' : '非静默刷新'}</div>`);
-    $(container).append(`<div class="rebuild-preview-item"><span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}</div>`);
-    $(container).append(`<div class="rebuild-preview-item"><span></span>${$('#table_refresh_type_selector').find('option:selected').text()}</div>`);
-    $(container).append(`<hr>`);
-
-    await confirmation.show();
-    if (confirmation.result) {
-        // rebuildTableActions(USER.tableBaseConfig.bool_force_refresh, USER.tableBaseConfig.bool_silent_refresh);
-        getPromptAndRebuildTable();
-    }
 }
 
 let initializedTableView = null

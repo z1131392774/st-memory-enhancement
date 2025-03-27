@@ -15,7 +15,7 @@ const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</
     <input type="checkbox" id="table_init_refresh_template"><span>表格总结消息模板</span>
 </div>
 <div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_to_chat_container"><span>推至对话的面板样式（不包括自定义表格样式）</span>
+    <input type="checkbox" id="table_init_to_chat_container"><span>推至对话的面板样式（不含表格各自样式）</span>
 </div>
 <div class="checkbox flex-container">
     <input type="checkbox" id="table_init_structure"><span>所有表格结构与提示词</span>

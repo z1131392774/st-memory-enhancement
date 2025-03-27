@@ -163,7 +163,7 @@ export async function TableTwoStepSummary() {
     }
 
     // 检查是否开启执行前确认
-    if (await EDITOR.confirm('是否执行两步总结？', '执行', '取消') === false) {
+    if (await EDITOR.confirm('是否执行两步总结？', '执行总结', '取消') === false) {
         currentChat.two_step_waiting[swipeUid] = true;
         console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
         MarkChatAsWaiting(currentChat, swipeUid);

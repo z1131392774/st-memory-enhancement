@@ -3,18 +3,17 @@ import {uploadFileAttachment} from "../../../../scripts/chats.js";
 import {getBase64Async} from "../../../../scripts/utils.js";
 // import {currentUser} from "../../../../scripts/user.js";
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from './manager.js';
-import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/runtime/tablePushToChat.js";
+import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/renderer/tablePushToChat.js";
 import {openTableHistoryPopup} from "./core/editor/tableHistory.js";
 import {loadSettings} from "./core/renderer/userExtensionSetting.js";
 import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
-// import {openTablePopup, tableCellClickEvent} from "./core/editor/tableDataView.js";
 import {initAllTable} from "./core/tableActions.js";
 import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
 import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
 import {initTest} from "./components/_fotTest.js";
 import JSON5 from './utils/json5.min.mjs'
 import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/renderer/appHeaderTableBaseDrawer.js";
-import { initRefreshTypeSelector } from './core/editor/initRefreshTypeSelector.js';
+import { initRefreshTypeSelector } from './core/runtime/absoluteRefresh.js';
 import {refreshTempView} from "./core/editor/tableTemplateEditView.js";
 import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
 
@@ -238,7 +237,7 @@ export async function convertOldTablesToNewSheets(oldTableList) {
         const rows = oldTable.content.length + 1;
         const cols = oldTable.columns.length + 1;
 
-        // 直接构造sheet数据对象，避免多次方法调用
+        // 直接构造sheet数据对象，而不是创建Sheet实例
         const sheetData = {
             uid: `sheet_${SYSTEM.generateRandomString(8)}`,
             name: oldTable.tableName,
@@ -722,7 +721,7 @@ jQuery(async () => {
     // 添加表格编辑工具栏
     $('#translation_container').after(await SYSTEM.getTemplate('index'));
     // 添加顶部表格管理工具弹窗
-    $('#extensions-settings-button').before(await SYSTEM.getTemplate('appHeaderTableDrawer'));
+    $('#extensions-settings-button').after(await SYSTEM.getTemplate('appHeaderTableDrawer'));
     // 添加进入表格编辑按钮
     // $('.extraMesButtons').append(`<div title="查看表格" class="mes_button fa-solid fa-table open_table_by_id" />`);
     // 添加表格编辑浮窗

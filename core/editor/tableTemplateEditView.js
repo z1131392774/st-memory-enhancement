@@ -237,7 +237,7 @@ function bindSheetSetting(sheet) {
     });
 
     // 表格自定义样式按钮
-    const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-swatchbook" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
+    const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-wand-magic-sparkles" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
     styleButton.on('click', async () => {
         const initialData = {
             toChat: sheet.data.toChat,

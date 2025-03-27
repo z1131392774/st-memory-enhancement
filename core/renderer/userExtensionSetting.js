@@ -1,10 +1,10 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {updateSystemMessageTableStatus} from "../runtime/tablePushToChat.js";
-import {refreshTableActions, rebuildTableActions, getPromptAndRebuildTable} from "../runtime/absoluteRefresh.js";
+import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
+import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
 import {encryptXor, updateModelList} from "../standaloneAPI.js";
 import {filterTableDataPopup} from "../pluginSetting.js";
-import {initRefreshTypeSelector} from "../editor/initRefreshTypeSelector.js";
+import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 
 /**
  * 格式化深度设置
@@ -325,7 +325,7 @@ function InitBinging() {
 
     // 开始整理表格
     $("#table_clear_up").on('click', () => {
-        getPromptAndRebuildTable();
+        rebuildSheets()
     });
 
     // 完整重建表格（合并到上面的下拉框内）
