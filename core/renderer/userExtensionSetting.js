@@ -230,10 +230,10 @@ function InitBinging() {
     $('#ignore_user_sent').change(function() {
         USER.tableBaseSetting.ignore_user_sent = $(this).prop('checked');
     });
-    // 强制刷新
-    $('#bool_force_refresh').change(function() {
-        USER.tableBaseSetting.bool_force_refresh = $(this).prop('checked');
-    });
+    // // 强制刷新
+    // $('#bool_force_refresh').change(function() {
+    //     USER.tableBaseSetting.bool_force_refresh = $(this).prop('checked');
+    // });
     // 静默刷新
     $('#bool_silent_refresh').change(function() {
         USER.tableBaseSetting.bool_silent_refresh = $(this).prop('checked');
@@ -375,7 +375,7 @@ export function renderSetting() {
     updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
     updateSwitch('#ignore_del', USER.tableBaseSetting.bool_ignore_del);
     updateSwitch('#sum_multiple_rounds', USER.tableBaseSetting.sum_multiple_rounds);
-    updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
+    // updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
     updateSwitch('#bool_silent_refresh', USER.tableBaseSetting.bool_silent_refresh);
     updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
     updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);

@@ -791,8 +791,8 @@ jQuery(async () => {
     SYSTEM.f(async ()=>{
         const confirmed = await EDITOR.confirm(
             '执行操作?',
-            '确认',
-            '取消'
+            '取消',
+            '确认'
         );
         console.log(confirmed)
     }, "测试confirm")

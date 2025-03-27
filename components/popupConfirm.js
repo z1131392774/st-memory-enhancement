@@ -6,7 +6,7 @@ const bgcg = '#de81f1'
 // const bgcg = 'var(--SmartThemeUserMesBlurTintColor)'
 const tc = '#fff'
 
-export async function newPopupConfirm(text, confirmText = 'Confirm', cancelText = 'Cancel') {
+export async function newPopupConfirm(text, cancelText = 'Cancel', confirmText = 'Confirm') {
     if (USER.tableBaseSetting.confirm_before_execution === true) {
         return await new PopupConfirm().show(text, confirmText, cancelText);
     } else {

@@ -76,7 +76,7 @@ export async function filterTableDataPopup(originalData) {
     waitingRegister.use_token_limit = '#table_init_refresh_template';
     waitingRegister.rebuild_token_limit_value = '#table_init_refresh_template';
     waitingRegister.bool_silent_refresh = '#table_init_refresh_template';
-    waitingRegister.bool_force_refresh = '#table_init_refresh_template';
+    // waitingRegister.bool_force_refresh = '#table_init_refresh_template';
     // 重新整理表格消息模板
     waitingRegister.refresh_system_message_template = '#table_init_refresh_template';
     waitingRegister.refresh_user_message_template = '#table_init_refresh_template';
@@ -133,7 +133,7 @@ export const defaultSettings = {
     sum_multiple_rounds: true,
     unusedChatText: '',
     bool_silent_refresh: false,
-    bool_force_refresh: false,
+    // bool_force_refresh: false,
     table_base: [
 
     ],

@@ -77,6 +77,7 @@ export class PopupMenu {
         this.popupContainer.style.left = `${x}px`;
         this.popupContainer.style.top = `${y}px`;
         this.popupContainer.style.display = 'block';
+        this.popupContainer.style.zIndex = '9999';
 
         // 创建新的 Promise 用于跟踪关闭事件
         this._closePromise = new Promise((resolve) => {
@@ -150,7 +151,11 @@ export class PopupMenu {
 
         this.handleMenuItemClick = this.handleMenuItemClick.bind(this);
         this.handleClickOutside = this.handleClickOutside.bind(this);
-        this.popupContainer.addEventListener('click', this.handleMenuItemClick);
+        this.popupContainer.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.handleMenuItemClick(event);
+        });
     }
 
     handleMenuItemClick(event) {

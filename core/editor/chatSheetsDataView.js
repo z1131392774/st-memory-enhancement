@@ -26,7 +26,7 @@ export async function copyTable(tables = []) {
     copyTableData = JSON.stringify(tables)
     const text = `正在复制表格数据 (#${SYSTEM.generateRandomString(4)})`
     $('#table_drawer_icon').click()
-    if (await EDITOR.confirm(text, '粘贴到当前对话', '取消')) {
+    if (await EDITOR.confirm(text, '取消', '粘贴到当前对话')) {
         await pasteTable(userTableEditInfo.chatIndex, tableContainer)
     }
     if ($('#table_drawer_icon').hasClass('closedIcon')) {
@@ -187,6 +187,25 @@ function templateCellDataEdit(cell) {
     throw new Error('未实现该方法')
 }
 
+function batchEditMode(cell) {
+    // 高亮sheet
+    // const border = $(`<div id="cell_selected_sheet_p"></div>`)[0];
+    // border.style.position = 'absolute';
+    // border.style.top = '0';
+    // border.style.left = '0';
+    // border.style.width = '100%';
+    // border.style.height = '100%';
+    // border.style.border = '2px solid var(--SmartThemeBodyColor)';
+    // border.style.pointerEvents = 'none';
+    // cell.element.appendChild(border);
+
+    EDITOR.confirm('你已进入表格批量编辑模式', '取消', '保存修改').then((result) => {
+        // document.getElementById('cell_selected_sheet_p')?.remove(); // 移除高亮sheet
+
+        throw new Error('未实现该方法')
+    })
+}
+
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
     cell.on('click', async (event) => {
@@ -211,7 +230,7 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
             menu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
         } else if (colIndex === 0) {
-            menu.add('<i class="fa-solid fa-bars-staggered"></i> 排序 & 批量操作', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
+            menu.add('<i class="fa-solid fa-bars-staggered"></i> 排序 & 批量操作', (e) => { batchEditMode(cell) });
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
             menu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
@@ -224,35 +243,33 @@ function cellClickEvent(cell) {
             // 备份当前cell的style，以便在菜单关闭时恢复
             const style = cell.element.style.cssText;
 
+            // 获取单元格位置
             const rect = cell.element.getBoundingClientRect();
-            const menuElement = menu.renderMenu();
-            menuElement.style.zIndex = 9999;
-            window.document.body.appendChild(menuElement)
+            const tableRect = tableContainer.getBoundingClientRect();
 
-            // 高亮sheet
-            // const border = $(`<div id="cell_selected_sheet_p"></div>`)[0];
-            // border.style.position = 'absolute';
-            // border.style.top = '0';
-            // border.style.left = '0';
-            // border.style.width = '100%';
-            // border.style.height = '100%';
-            // border.style.border = '2px solid var(--SmartThemeBodyColor)';
-            // border.style.pointerEvents = 'none';
-            // cell.element.appendChild(border);
+            // 计算菜单位置（相对于表格容器）
+            const menuLeft = rect.left - tableRect.left;
+            const menuTop = rect.bottom - tableRect.top;
+            const menuElement = menu.renderMenu();
+            $(tableContainer).append(menuElement);
 
             // 高亮cell
             cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
             cell.element.style.color = 'var(--SmartThemeBodyColor)';
 
-            menu.show(rect.left, rect.top + rect.height).then(() => {
+            menu.show(menuLeft, menuTop).then(() => {
                 cell.element.style.cssText = style;
-                document.getElementById('cell_selected_sheet_p')?.remove(); // 移除高亮sheet
             })
             menu.frameUpdate((menu) => {
                 // 重新定位菜单
                 const rect = cell.element.getBoundingClientRect();
-                menu.popupContainer.style.left = `${rect.left}px`;
-                menu.popupContainer.style.top = `${rect.top + rect.height}px`;
+                const tableRect = tableContainer.getBoundingClientRect();
+
+                // 计算菜单位置（相对于表格容器）
+                const menuLeft = rect.left - tableRect.left;
+                const menuTop = rect.bottom - tableRect.top;
+                menu.popupContainer.style.left = `${menuLeft}px`;
+                menu.popupContainer.style.top = `${menuTop}px`;
             })
         }, 0)
 

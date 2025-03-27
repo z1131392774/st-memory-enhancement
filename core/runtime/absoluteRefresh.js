@@ -91,6 +91,7 @@ function getRefreshTableConfigStatus(callerType = 0) {
 `;}
 
 function confirmTheOperationPerformed(content) {
+    console.log('content:', content);
     return `
 <div class="wide100p padding5 dataBankAttachments">
     <div class="refresh-title-bar">
@@ -101,41 +102,48 @@ function confirmTheOperationPerformed(content) {
     </div>
     <div id="tableRefresh" class="refresh-scroll-content">
         <div>
-            <div class="operation-list-container"> ${content.map(action => {
-        const { action: type, tableIndex, rowIndex, data } = action;
-        return `<div class="operation-item">
-                        <div class="operation-detail">
-                            <span class="detail-label">操作类型:</span>
-                            <span class="detail-value">${type}</span>
-                        </div>
-                        <div class="operation-detail">
-                            <span class="detail-label">表格索引:</span>
-                            <span class="detail-value">${tableIndex}</span>
-                        </div>
-                        <div class="operation-detail">
-                            <span class="detail-label">行索引:</span>
-                            <span class="detail-value">${rowIndex}</span>
-                        </div>
-                        <div class="operation-detail data-detail">
-                            <span class="detail-label">数据:</span>
-                            <div class="detail-value data-json">
-                                ${typeof data === 'object' && data !== null ?
-            Object.entries(data).map(([key, value]) => {
-                return `<div class="json-item">
-                        <span class="json-key">"${key}":</span>
-                        <span class="json-value">"${value}"</span>
-                    </div>`;
-            }).join('')
-            : `<span class="json-fallback">${JSON.stringify(data, null, 2)}</span>`
-        }
-                            </div>
-                        </div>
-                    </div>`;
+            <div class="operation-list-container"> ${content.map(table => {
+                return `
+<h3 class="operation-list-title">${table.tableName}</h3>
+<div class="operation-list">
+    <table class="tableDom sheet-table">
+        <thead>
+            <tr>
+                ${table.columns.map(column => `<th>${column}</th>`).join('')}
+            </tr>
+        </thead>
+        <tbody>
+            ${table.content.map(row => `
+            <tr>
+                ${row.map(cell => `<td>${cell}</td>`).join('')}
+            </tr>
+            `).join('')}
+        </tbody>
+    </table>
+</div>
+<hr>
+`;
     }).join('')}
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .operation-list-title {
+        text-align: left;
+        margin-top: 10px;
+    }
+    .operation-list-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .operation-list {
+        width: 100%;
+        max-width: 100%;
+        overflow: auto;
+    }
+</style>
 `;
 }
 
@@ -224,9 +232,10 @@ export function initRefreshTypeSelector() {
 /**
  * 根据选择的刷新类型获取对应的提示模板并调用rebuildTableActions
  * @param {string} templateName 提示模板名称
+ * @param {string} additionalPrompt 附加的提示内容
  * @returns {Promise<void>}
  */
-async function getPromptAndRebuildTable(templateName = '') {
+async function getPromptAndRebuildTable(templateName = '', additionalPrompt) {
     let systemPrompt = '';
     let userPrompt = '';
 
@@ -239,7 +248,7 @@ async function getPromptAndRebuildTable(templateName = '') {
             const errorMsg = `未找到对应的提示模板: ${refreshType}。可用的模板有: ${availablePrompts}`;
             throw new Error(errorMsg);
         }
-        console.log('选择的提示模板名称:', selectedPrompt.name);
+        console.log('选择的提示模板名称:', selectedPrompt.name, '附加的提示内容:', additionalPrompt);
 
         systemPrompt = selectedPrompt.system_prompt;
         // 构建userPrompt，由四部分组成：user_prompt_begin、history、last_table和core_rules
@@ -256,6 +265,7 @@ async function getPromptAndRebuildTable(templateName = '') {
         if (selectedPrompt.core_rules) {
             userPrompt += `\n${selectedPrompt.core_rules}`;
         }
+        userPrompt += `\n<用户附加需求>\n${additionalPrompt}\n</用户附加需求>\n`;
 
         // 将获取到的提示模板设置到USER.tableBaseSetting中
         USER.tableBaseSetting.rebuild_system_message_template = systemPrompt;
@@ -264,15 +274,15 @@ async function getPromptAndRebuildTable(templateName = '') {
         console.log('获取到的提示模板:', systemPrompt, userPrompt);
 
         // 根据提示模板类型选择不同的表格处理函数
-        const force = $('#bool_force_refresh').prop('checked');
+        // const force = $('#bool_force_refresh').prop('checked');
         const silentUpdate = $('#bool_silent_refresh').prop('checked');
         if (selectedPrompt.type === 'rebuild') {
-            await rebuildTableActions(force, silentUpdate);
+            await rebuildTableActions(true, silentUpdate);
         } else if (selectedPrompt.type === 'refresh') {
-            await refreshTableActions(force, silentUpdate);
+            await refreshTableActions(true, silentUpdate);
         } else {
             // 默认使用rebuildTableActions
-            await rebuildTableActions(force, silentUpdate);
+            await rebuildTableActions(true, silentUpdate);
         }
     } catch (error) {
         console.error('获取提示模板失败:', error);
@@ -657,12 +667,87 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
     }
 }
 
+export async function rebuildSheets() {
+    const container = document.createElement('div');
+    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
+        okButton: "继续",
+        cancelButton: "取消"
+    });
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .rebuild-preview-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .rebuild-preview-text {
+            display: flex;
+            justify-content: left
+        }
+    `;
+    container.appendChild(style);
+
+    $(container).append($('<h3>重建表格数据</h3>'));
+    $(container).append(`<div class="rebuild-preview-item"><span>执行前确认？：</span>${USER.tableBaseSetting.bool_silent_refresh ? '否' : '是'}</div>`);
+    $(container).append(`<div class="rebuild-preview-item"><span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}</div>`);
+    $(container).append(`<hr>`);
+
+    // 创建选择器容器
+    const selectorContainer = $('<div>').appendTo(container);
+
+    // 添加提示模板选择器
+    selectorContainer.append(`
+        <span class="rebuild-preview-text" style="margin-top: 10px">提示模板：</span>
+        <select id="rebuild_template_selector" class="rebuild-preview-text text_pole" style="width: 100%">
+            <option value="">加载中...</option>
+        </select>
+        <span class="rebuild-preview-text" style="margin-top: 10px">模板末尾补充提示词：</span>
+        <textarea id="rebuild_additional_prompt" rows="5" style="width: 100%"></textarea>
+    `);
+
+    // 初始化选择器选项
+    const $selector = $('#rebuild_template_selector', container);
+    const $additionalPrompt = $('#rebuild_additional_prompt', container);
+    $selector.empty(); // 清空加载中状态
+
+    // 添加选项
+    Object.entries(profile_prompts).forEach(([key, prompt]) => {
+        let prefix = '';
+        if (prompt.type === 'refresh') prefix = '**旧** ';
+        if (prompt.type === 'third_party') prefix = '**第三方** ';
+
+        $selector.append(
+            $('<option></option>')
+                .val(key)
+                .text(prefix + (prompt.name || key))
+        );
+    });
+
+    // 设置默认选中项
+    $selector.val('rebuild_base');
+    $additionalPrompt.val('');
+
+    await confirmation.show();
+    if (confirmation.result) {
+        // 获取当前选中的模板
+        const selectedTemplate = $selector.val();
+        const additionalPrompt = $additionalPrompt.val();
+        if (!selectedTemplate) {
+            EDITOR.error('请选择一个有效的提示模板');
+            return;
+        }
+        getPromptAndRebuildTable(selectedTemplate, additionalPrompt);
+    }
+}
 
 
 
-//=================================================================
-//========================以下是辅助函数============================
-//=================================================================
+
+
+/**________________________________________以下是辅助函数_________________________________________*/
+/**________________________________________以下是辅助函数_________________________________________*/
+/**________________________________________以下是辅助函数_________________________________________*/
 
 
 
@@ -811,7 +896,7 @@ async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false, to
  * @param {boolean} [options.removeBlockComments=true] - 是否移除块注释
  * @returns {string} 清洗后的标准化内容
  */
-export function cleanApiResponse(rawContent, options = {}) {
+function cleanApiResponse(rawContent, options = {}) {
     const {
         removeCodeBlock = true,       // 移除代码块标记
         extractJson = true,           // 提取JSON部分
@@ -943,76 +1028,5 @@ function fixTableFormat(inputText) {
         const sixTables = rawTables.slice(0,6).map(t => JSON.parse(t.replace(/'/g, '"')));
         console.log('前6个表格为:', sixTables);
         return sixTables
-    }
-}
-
-export async function rebuildSheets() {
-    const container = document.createElement('div');
-    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
-        okButton: "继续",
-        cancelButton: "取消"
-    });
-
-    const style = document.createElement('style');
-    style.innerHTML = `
-        .rebuild-preview-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .rebuild-preview-text {
-            display: flex;
-            justify-content: left
-        }
-    `;
-    container.appendChild(style);
-
-    $(container).append($('<h3>重建表格数据</h3>'));
-    $(container).append(`<div class="rebuild-preview-item"><span>执行前确认？：</span>${USER.tableBaseSetting.bool_silent_refresh ? '否' : '是'}</div>`);
-    $(container).append(`<div class="rebuild-preview-item"><span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}</div>`);
-    $(container).append(`<hr>`);
-
-    // 创建选择器容器
-    const selectorContainer = $('<div>').appendTo(container);
-
-    // 添加提示模板选择器
-    selectorContainer.append(`
-        <span class="rebuild-preview-text" style="margin-top: 10px">提示模板：</span>
-        <select id="rebuild_template_selector" class="rebuild-preview-text text_pole" style="width: 100%">
-            <option value="">加载中...</option>
-        </select>
-        <span class="rebuild-preview-text" style="margin-top: 10px">模板末尾补充提示词：</span>
-        <textarea id="rebuild-preview" rows="5" style="width: 100%"></textarea>
-    `);
-
-    // 初始化选择器选项
-    const $selector = $('#rebuild_template_selector', container);
-    $selector.empty(); // 清空加载中状态
-
-    // 添加选项
-    Object.entries(profile_prompts).forEach(([key, prompt]) => {
-        let prefix = '';
-        if (prompt.type === 'refresh') prefix = '**旧** ';
-        if (prompt.type === 'third_party') prefix = '**第三方** ';
-
-        $selector.append(
-            $('<option></option>')
-                .val(key)
-                .text(prefix + (prompt.name || key))
-        );
-    });
-
-    // 设置默认选中项
-    $selector.val('rebuild_base');
-
-    await confirmation.show();
-    if (confirmation.result) {
-        // 获取当前选中的模板
-        const selectedTemplate = $selector.val();
-        if (!selectedTemplate) {
-            EDITOR.error('请选择一个有效的提示模板');
-            return;
-        }
-        getPromptAndRebuildTable(selectedTemplate);
     }
 }
