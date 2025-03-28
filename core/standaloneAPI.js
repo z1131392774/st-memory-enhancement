@@ -1,5 +1,9 @@
 // standaloneAPI.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import LLMApiService from "../services/llmApi.js";
+import {PopupConfirm} from "../components/popupConfirm.js";
+
+let loadingToast = null;
 
 /**
  * 加密
@@ -51,12 +55,30 @@ async function getDecryptedApiKey() {
     }
 }
 
+async function createLoadingToast(isUseMainAPI = true) {
+    loadingToast?.close()
+    loadingToast = new PopupConfirm();
+    return await loadingToast.show(
+        isUseMainAPI
+            ? '正在使用【主API】重新生成完整表格...'
+            : '正在使用【自定义API】重新生成完整表格...',
+        '后台继续',
+        '中止执行',
+    )
+}
+
 /**主API调用
  * @param {string} systemPrompt - 系统提示
  * @param {string} userPrompt - 用户提示
  * @returns {Promise<string>} 生成的响应内容
  */
 export async function handleMainAPIRequest(systemPrompt, userPrompt) {
+    let suspended = false;
+    createLoadingToast().then((r) => {
+        loadingToast.close()
+        suspended = r;
+    })
+
     const response = await EDITOR.generateRaw(
         userPrompt,
         '',
@@ -64,7 +86,8 @@ export async function handleMainAPIRequest(systemPrompt, userPrompt) {
         false,
         systemPrompt,
     );
-    return response;
+    loadingToast.close()
+    return suspended ? 'suspended' : response;
 }
 
 /**自定义API调用
@@ -82,57 +105,81 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         return;
     }
 
-    // 公共请求配置
-    const requestConfig = {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${USER_API_KEY}`
-        },
-        body: JSON.stringify({
-            model: USER_API_MODEL,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt }
-            ],
-            temperature: USER.tableBaseSetting.custom_temperature
-        })
-    };
+    let suspended = false;
+    createLoadingToast(false).then((r) => {
+        loadingToast.close()
+        suspended = r;
+    })
 
-    // 通用请求函数
-    const makeRequest = async (url) => {
-        const response = await fetch(url, requestConfig);
-        if (!response.ok) {
-            const errorBody = await response.text();
-            throw { status: response.status, message: errorBody };
-        }
-        return response.json();
-    };
-    let firstError;
-    try {
-        // 第一次尝试补全/chat/completions
-        const modifiedUrl = new URL(USER_API_URL);
-        modifiedUrl.pathname = modifiedUrl.pathname.replace(/\/$/, '') + '/chat/completions';
-        const result = await makeRequest(modifiedUrl.href);
-        if (result?.choices?.[0]?.message?.content) {
-            return result.choices[0].message.content;
-        }
-    } catch (error) {
-        firstError = error;
-    }
+    // 创建LLMApiService实例
+    const llmService = new LLMApiService({
+        api_url: USER_API_URL,
+        api_key: USER_API_KEY,
+        model_name: USER_API_MODEL,
+        system_prompt: systemPrompt,
+        temperature: USER.tableBaseSetting.custom_temperature
+    });
 
-    try {
-        // 第二次尝试原始URL
-        const result = await makeRequest(USER_API_URL);
-        return result.choices[0].message.content;
-    } catch (secondError) {
-        const combinedError = new Error('API请求失败');
-        combinedError.details = {
-            firstAttempt: firstError?.message || '第一次请求无错误信息',
-            secondAttempt: secondError.message
-        };
-        throw combinedError;
-    }
+    // 调用API
+    const response = await llmService.callLLM(userPrompt, (chunk) => {
+        loadingToast.text = `正在使用【自定义API】重新生成完整表格: ${chunk}`;
+    });
+    console.log('请求成功:', response);
+    loadingToast.close()
+    return suspended ? 'suspended' : response;
+
+    // // 公共请求配置
+    // const requestConfig = {
+    //     method: 'POST',
+    //     headers: {
+    //         'Content-Type': 'application/json',
+    //         'Authorization': `Bearer ${USER_API_KEY}`
+    //     },
+    //     body: JSON.stringify({
+    //         model: USER_API_MODEL,
+    //         messages: [
+    //             { role: "system", content: systemPrompt },
+    //             { role: "user", content: userPrompt }
+    //         ],
+    //         temperature: USER.tableBaseSetting.custom_temperature
+    //     })
+    // };
+    //
+    // // 通用请求函数
+    // const makeRequest = async (url) => {
+    //     const response = await fetch(url, requestConfig);
+    //     if (!response.ok) {
+    //         const errorBody = await response.text();
+    //         throw { status: response.status, message: errorBody };
+    //     }
+    //     return response.json();
+    // };
+    // let firstError;
+    // try {
+    //     // 第一次尝试补全/chat/completions
+    //     const modifiedUrl = new URL(USER_API_URL);
+    //     modifiedUrl.pathname = modifiedUrl.pathname.replace(/\/$/, '') + '/chat/completions';
+    //     const result = await makeRequest(modifiedUrl.href);
+    //     if (result?.choices?.[0]?.message?.content) {
+    //         console.log('请求成功:', result.choices[0].message.content)
+    //         return result.choices[0].message.content;
+    //     }
+    // } catch (error) {
+    //     firstError = error;
+    // }
+    //
+    // try {
+    //     // 第二次尝试原始URL
+    //     const result = await makeRequest(USER_API_URL);
+    //     return result.choices[0].message.content;
+    // } catch (secondError) {
+    //     const combinedError = new Error('API请求失败');
+    //     combinedError.details = {
+    //         firstAttempt: firstError?.message || '第一次请求无错误信息',
+    //         secondAttempt: secondError.message
+    //     };
+    //     throw combinedError;
+    // }
 }
 
 /**请求模型列表

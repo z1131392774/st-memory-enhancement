@@ -6,6 +6,7 @@ import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
 import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../standaloneAPI.js";
 import {profile_prompts} from "../../data/profile_prompts.js";
 import {renderSheetsDOM} from "../editor/chatSheetsDataView.js";
+import {PopupConfirm} from "../../components/popupConfirm.js";
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -311,12 +312,6 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
     // 开始重新生成完整表格
     console.log('开始重新生成完整表格');
     const isUseMainAPI = $('#use_main_api').prop('checked');
-    const loadingToast = EDITOR.info(isUseMainAPI
-          ? '正在使用【主API】重新生成完整表格...'
-            : '正在使用【自定义API】重新生成完整表格...',
-        '',
-        { timeOut: 0 }
-    );
 
     try {
         const latestData = findLastestOldTablePiece(true);
@@ -359,6 +354,10 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         if (isUseMainAPI) {
             try{
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return
+                }
             }catch (error) {
                 EDITOR.error('主API请求错误: ' + error.message);
             }
@@ -366,6 +365,10 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         else {
             try {
                 rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return
+                }
             } catch (error) {
                 EDITOR.error('自定义API请求错误: ' + error.message);
             }
@@ -436,7 +439,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         console.error('Error in rebuildTableActions:', e);
         return;
     }finally {
-        EDITOR.clear(loadingToast);
+
     }
 }
 
@@ -453,12 +456,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 
     // 开始执行整理表格
     const isUseMainAPI = $('#use_main_api').prop('checked');
-    const loadingToast = EDITOR.info(isUseMainAPI
-            ? '正在使用【主API】整理表格...'
-            : '正在使用【自定义API】整理表格...',
-        '',
-        { timeOut: 0 }
-    );
+
     try {
         const latestData = findLastestOldTablePiece(true);
         if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
@@ -492,6 +490,10 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         if (isUseMainAPI) {
             try{
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return
+                }
             }catch (error) {
                 EDITOR.error('主API请求错误: ' + error.message);
             }
@@ -499,6 +501,10 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         else {
             try {
                 rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return
+                }
             } catch (error) {
                 EDITOR.error('自定义API请求错误: ' + error.message);
             }
@@ -663,7 +669,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         console.error('整理过程出错:', error);
         EDITOR.error(`整理失败：${error.message}`);
     } finally {
-        EDITOR.clear(loadingToast);
+
     }
 }
 

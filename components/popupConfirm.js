@@ -1,4 +1,4 @@
-import {USER} from "../manager.js";
+import {SYSTEM, USER} from "../manager.js";
 
 const bgc = '#3736bb'
 const bgcg = '#de81f1'
@@ -6,23 +6,38 @@ const bgcg = '#de81f1'
 // const bgcg = 'var(--SmartThemeUserMesBlurTintColor)'
 const tc = '#fff'
 
-export async function newPopupConfirm(text, cancelText = 'Cancel', confirmText = 'Confirm') {
-    let r = true;
-    if (USER.tableBaseSetting.confirm_before_execution === true) {
-        r = await new PopupConfirm().show(text, confirmText, cancelText);
-    }
-    return r;
+export async function newPopupConfirm(text, cancelText = 'Cancel', confirmText = 'Confirm', id = '') {
+    return await new PopupConfirm().show(text, cancelText, confirmText);
 }
 
 export class PopupConfirm {
     constructor() {
+        this.uid = SYSTEM.generateRandomString(10);
         this.confirm = false;
         this.toastContainer = null;
         this.toastElement = null;
         this.resolvePromise = null;
+        this._text = '';
+        this.messageText = null; // 保存文本元素的引用
     }
 
-    async show(message = 'Are you sure?', confirmText = 'Confirm', cancelText = 'Cancel') {
+    // 添加text属性的getter和setter
+    get text() {
+        return this._text;
+    }
+
+    set text(value) {
+        this._text = value;
+        // 如果messageText元素已创建，则更新其内容
+        if (this.messageText) {
+            this.messageText.textContent = value;
+        }
+    }
+
+    async show(message = 'Are you sure?', cancelText = 'Cancel', confirmText = 'Confirm') {
+        // 设置初始文本
+        this._text = message;
+
         // Check if toast container exists, if not create one
         this.toastContainer = document.getElementById('toast-container');
         if (!this.toastContainer) {
@@ -35,11 +50,11 @@ export class PopupConfirm {
 
         // Create toast element
         this.toastElement = document.createElement('div');
+        this.toastElement.id = this.uid;
         this.toastElement.className = 'toast toast-confirm';
         this.toastElement.setAttribute('aria-live', 'polite');
 
         this.toastElement.style.padding = '6px 12px';
-        // this.toastElement.style.backgroundColor = getSolidColor('--SmartThemeChatTintColor');
         this.toastElement.style.pointerEvents = 'auto';
         this.toastElement.style.cursor = 'normal';
         this.toastElement.style.boxShadow = '0 0 10px rgba(0, 0, 0, 1)';
@@ -47,17 +62,14 @@ export class PopupConfirm {
         this.toastElement.style.opacity = '0';
         this.toastElement.style.transition = 'all 0.3s ease';
 
-        // 修改了这里，使用 background 而不是 backgroundColor，并设置为线性渐变
         this.toastElement.style.background = `linear-gradient(to bottom right, ${bgc} 20%, ${bgcg})`;
-        // this.toastElement.style.borderRadius = '12px';
-        // this.toastElement.style.border = '1px solid var(--SmartThemeBorderColor)';
         this.toastElement.style.backdropFilter = 'blur(calc(var(--SmartThemeBlurStrength)*2))';
         this.toastElement.style.webkitBackdropFilter = 'blur(var(--SmartThemeBlurStrength))';
 
         // Create message container
         const messageEl = $('<div class="toast-message"></div>')[0];
         const messageIcon = $('<i class="fa-solid fa-code-branch""></i>')[0];
-        const messageText = $('<span></span>')[0];
+        this.messageText = $('<span></span>')[0]; // 保存为类属性
         messageEl.style.display = 'flex';
         messageEl.style.flexDirection = 'row';
         messageEl.style.alignItems = 'center';
@@ -71,9 +83,9 @@ export class PopupConfirm {
         messageIcon.style.padding = '0'
         messageIcon.style.margin = '0'
 
-        messageText.textContent = message;
+        this.messageText.textContent = this._text; // 使用存储的text值
         messageEl.appendChild(messageIcon);
-        messageEl.appendChild(messageText);
+        messageEl.appendChild(this.messageText);
 
         // Create buttons container
         const buttons = document.createElement('div');
@@ -157,6 +169,49 @@ export class PopupConfirm {
                 resolve(false);
             };
         });
+    }
+
+    // 关闭弹窗
+    close() {
+        this.cancelFrameUpdate();
+        if (this.toastElement) {
+            this.toastElement.style.transform = 'translateY(-30px)';
+            this.toastElement.style.opacity = '0';
+            setTimeout(() => {
+                this.toastContainer.removeChild(this.toastElement);
+                if (this.toastContainer.children.length === 0) {
+                    document.body.removeChild(this.toastContainer);
+                }
+            }, 300);
+        }
+    }
+
+    frameUpdate(callback) {
+        // 清理现有的动画循环
+        this.cancelFrameUpdate();
+
+        // 只在菜单显示时启动动画循环
+        if (this.toastElement.style.display !== 'none') {
+            const updateLoop = (timestamp) => {
+                // 如果菜单被隐藏，停止循环
+                if (this.toastElement.style.display === 'none') {
+                    this.cancelFrameUpdate();
+                    return;
+                }
+
+                callback(this, timestamp); // 添加 timestamp 参数以便更精确的动画控制
+                this._frameUpdateId = requestAnimationFrame(updateLoop);
+            };
+
+            this._frameUpdateId = requestAnimationFrame(updateLoop);
+        }
+    }
+
+    cancelFrameUpdate() {
+        if (this._frameUpdateId) {
+            cancelAnimationFrame(this._frameUpdateId);
+            this._frameUpdateId = null;
+        }
     }
 }
 

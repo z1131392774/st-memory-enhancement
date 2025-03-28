@@ -1,6 +1,11 @@
 import {EDITOR, SYSTEM, USER} from "../manager.js";
 import LLMApiService from "./llmApi.js";
 
+/**______________________请注意不要把填写后的API密钥上传了______________________*/
+/**
+ * 请注意不要把填写后的API密钥上传了
+ * @type {{model_name: string, api_url: string, api_key: string, max_tokens: number, temperature: number, system_prompt: string}}
+ */
 const testConfig = {
     api_url: "",
     api_key: "",
@@ -8,8 +13,8 @@ const testConfig = {
     system_prompt: "你是一个专业的翻译助手",
     temperature: 0.7,
     max_tokens: 2000,
-    stream: false,
 };
+/**______________________请注意不要把填写后的API密钥上传了______________________*/
 
 export function functionToBeRegistered() {
     SYSTEM.f(()=>{
@@ -36,12 +41,13 @@ export function functionToBeRegistered() {
     //     EDITOR.info("测试信息")
     // }, "测试信息")
     SYSTEM.f(async ()=>{
-        const confirmed = await EDITOR.confirm(
+        EDITOR.confirm(
             '执行操作?',
             '取消',
             '确认'
-        );
-        console.log(confirmed)
+        ).then((r)=>{
+            console.log(r)
+        })
     }, "测试confirm")
     // 测试非流式API调用
     SYSTEM.f(async () => {
@@ -68,10 +74,7 @@ export function functionToBeRegistered() {
 
     // 测试流式API调用
     SYSTEM.f(async () => {
-        const llmService = new LLMApiService({
-            ...testConfig,
-            stream: true // 开启流式模式
-        });
+        const llmService = new LLMApiService(testConfig);
 
         try {
             console.log("正在测试 API 连接(流式模式)...");

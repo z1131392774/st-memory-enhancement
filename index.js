@@ -764,9 +764,8 @@ jQuery(async () => {
         tableStructure.enable = $(this).prop('checked');
     })
 
-    initAppHeaderTableDrawer().then(updateSheetsView);
-
-    functionToBeRegistered()
+    initAppHeaderTableDrawer().then(updateSheetsView);  // 初始化表格编辑器
+    functionToBeRegistered()    // 注册用于调试的各种函数
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);

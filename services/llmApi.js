@@ -4,10 +4,10 @@ export class LLMApiService {
             api_url: config.api_url || "https://api.openai.com/v1",
             api_key: config.api_key || "",
             model_name: config.model_name || "gpt-3.5-turbo",
-            system_prompt: config.system_prompt || "你是一个专业的助手",
+            system_prompt: config.system_prompt || "You are a helpful assistant.",
             temperature: config.temperature || 1.0,
             max_tokens: config.max_tokens || 4096,
-            stream: config.stream || false
+            stream: config.stream || false,
         };
     }
 
@@ -35,6 +35,8 @@ export class LLMApiService {
             { role: 'user', content: textToTranslate }
         ];
 
+        this.config.stream = streamCallback !== null;
+
         const data = {
             model: this.config.model_name,
             messages: messages,
@@ -49,9 +51,9 @@ export class LLMApiService {
                     throw new Error("流式模式下必须提供有效的streamCallback函数");
                 }
 
-                return await this._handleStreamResponse(apiEndpoint, headers, data, streamCallback);
+                return await this.#handleStreamResponse(apiEndpoint, headers, data, streamCallback);
             } else {
-                return await this._handleRegularResponse(apiEndpoint, headers, data);
+                return await this.#handleRegularResponse(apiEndpoint, headers, data);
             }
         } catch (error) {
             console.error("LLM API调用错误:", error);
@@ -59,7 +61,7 @@ export class LLMApiService {
         }
     }
 
-    async _handleRegularResponse(apiEndpoint, headers, data) {
+    async #handleRegularResponse(apiEndpoint, headers, data) {
         const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: headers,
@@ -79,10 +81,10 @@ export class LLMApiService {
         }
 
         let translatedText = responseData.choices[0].message.content;
-        return this._cleanResponse(translatedText);
+        return this.#cleanResponse(translatedText);
     }
 
-    async _handleStreamResponse(apiEndpoint, headers, data, streamCallback) {
+    async #handleStreamResponse(apiEndpoint, headers, data, streamCallback) {
         const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: headers,
@@ -148,13 +150,13 @@ export class LLMApiService {
                 }
             }
 
-            return this._cleanResponse(fullResponse);
+            return this.#cleanResponse(fullResponse);
         } finally {
             reader.releaseLock();
         }
     }
 
-    _cleanResponse(text) {
+    #cleanResponse(text) {
         if (!text || text.trim() === "") {
             throw new Error("API返回了空的翻译结果");
         }
@@ -209,46 +211,6 @@ export class LLMApiService {
             throw error;
         }
     }
-}
-
-// 浏览器环境使用示例
-export async function testStreamingAPI(outputElementId = 'stream-output') {
-    const testConfig = {
-        api_key: '',
-        stream: true
-    };
-
-    const llmService = new LLMApiService(testConfig);
-    const testText = "This is a test sentence for streaming response.";
-    const outputElement = document.getElementById(outputElementId);
-
-    if (!outputElement) {
-        console.error("输出元素未找到");
-        return;
-    }
-
-    console.log("开始流式传输测试...");
-    outputElement.innerHTML = "开始流式传输测试...<br>";
-
-    let receivedChunks = 0;
-    const startTime = Date.now();
-
-    await llmService.callLLM(testText, (chunk) => {
-        receivedChunks++;
-        outputElement.innerHTML += chunk;
-        outputElement.scrollTop = outputElement.scrollHeight; // 自动滚动到底部
-    });
-
-    const duration = (Date.now() - startTime) / 1000;
-    const summary = `<br><br>测试完成，共接收 ${receivedChunks} 个数据块，耗时 ${duration.toFixed(2)} 秒`;
-    outputElement.innerHTML += summary;
-    console.log(summary);
-}
-
-// 自动挂载到window对象
-if (typeof window !== 'undefined') {
-    window.LLMApiService = LLMApiService;
-    window.testStreamingAPI = testStreamingAPI;
 }
 
 export default LLMApiService;
