@@ -1,8 +1,4 @@
-import { eventSource, event_types, getRequestHeaders } from '../../../../script.js';
-import {uploadFileAttachment} from "../../../../scripts/chats.js";
-import {getBase64Async} from "../../../../scripts/utils.js";
-// import {currentUser} from "../../../../scripts/user.js";
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from './manager.js';
+import {APP, BASE, DERIVED, EDITOR, SYSTEM, USER} from './manager.js';
 import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/renderer/tablePushToChat.js";
 import {openTableHistoryPopup} from "./core/editor/tableHistory.js";
 import {loadSettings} from "./core/renderer/userExtensionSetting.js";
@@ -768,10 +764,10 @@ jQuery(async () => {
     functionToBeRegistered()    // 注册用于调试的各种函数
 
     // 监听主程序事件
-    eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
-    eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
-    eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
-    eventSource.on(event_types.MESSAGE_EDITED, onMessageEdited);
-    eventSource.on(event_types.MESSAGE_SWIPED, onMessageSwiped);
+    APP.eventSource.on(APP.event_types.MESSAGE_RECEIVED, onMessageReceived);
+    APP.eventSource.on(APP.event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
+    APP.eventSource.on(APP.event_types.CHAT_CHANGED, onChatChanged);
+    APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
+    APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
     console.log("______________________记忆插件：加载完成______________________")
 });

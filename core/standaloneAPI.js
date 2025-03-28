@@ -79,6 +79,11 @@ export async function handleMainAPIRequest(systemPrompt, userPrompt) {
         suspended = r;
     })
 
+    let startTime = Date.now();
+    loadingToast.frameUpdate(() => {
+        loadingToast.text = `正在使用【主API】重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
+    })
+
     const response = await EDITOR.generateRaw(
         userPrompt,
         '',

@@ -1,9 +1,4 @@
-import { saveSettingsDebounced, saveSettings, getSlideToggleOptions, generateRaw } from '../../../../../../../script.js';
-import { DOMPurify, Bowser, slideToggle } from '../../../../../../../lib.js';
-import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../../../../../scripts/extensions.js';
-import { POPUP_TYPE, Popup, callGenericPopup } from '../../../../../../../scripts/popup.js';
-import { power_user, applyPowerUserSettings, getContextSettings, loadPowerUserSettings } from "../../../../../../../scripts/power-user.js";
-import { LoadLocal, SaveLocal, LoadLocalBool } from '../../../../../../../scripts/f-localStorage.js';
+import applicationFunctionManager from "./services/appFuncManager.js";
 import { Table } from "./core/table.js";
 import { TableEditAction } from "./core/tableActions.js";
 import { consoleMessageToEditor } from "./core/runtime/devConsole.js";
@@ -17,7 +12,6 @@ import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
 import {createProxy, createProxyWithUserSetting} from "./utils/codeProxy.js";
 import {Sheet, SheetTemplate} from "./core/tableBase.js";
-import { saveChat } from '../../../../script.js';
 import { refreshTempView } from './core/editor/tableTemplateEditView.js';
 import {newPopupConfirm, PopupConfirm} from "./components/popupConfirm.js";
 import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
@@ -25,27 +19,29 @@ import {updateSystemMessageTableStatus} from "./core/renderer/tablePushToChat.js
 
 let derivedData = {}
 
+export const APP = applicationFunctionManager
+
 /**
  * @description `USER` 用户数据管理器
  * @description 该管理器用于管理用户的设置、上下文、聊天记录等数据
  * @description 请注意，用户数据应该通过该管理器提供的方法进行访问，而不应该直接访问用户数据
  */
 export const USER = {
-    getSettings: () => power_user,
-    saveSettings: () => saveSettings(),
-    saveChat:()=> saveChat(),
-    getContext: () => getContext(),
-    getChatMetadata: () => getContext().chatMetadata,
+    getSettings: () => APP.power_user,
+    getExtensionSettings: () => APP.extension_settings,
+    saveSettings: () => APP.saveSettings(),
+    saveChat:()=> APP.saveChat(),
+    getContext: () => APP.getContext(),
+    getChatMetadata: () => APP.getContext().chatMetadata,
     getChatPiece: (deep = 0) => {
-        const chat = getContext().chat;
+        const chat = APP.getContext().chat;
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
         return chat[chat.length - 1 - deep]
     },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
+    tableBaseDefaultSettings: {...defaultSettings},
     IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA', true),
 }
-readonly(USER, 'tableBaseDefaultSettings', () => defaultSettings);
-// readonly(USER, 'tableBaseTemplates', () => power_user.getSettings().table_database_templates);
 
 
 /**
@@ -84,7 +80,7 @@ export const BASE = {
         return sheets;
     },
     getLastSheetsPiece: (deep = 0, cutoff = 1000) => {
-        const chat = getContext().chat;
+        const chat = APP.getContext().chat;
         // throw new Error('Not implemented yet');
         if (!chat || chat.length === 0) return null;
         for (let i = 0; i < chat.length && i < cutoff; i++) {
@@ -128,12 +124,12 @@ export const BASE = {
 export const EDITOR = {
     Drag: Drag,
     PopupMenu: PopupMenu,
-    Popup: Popup,
-    callGenericPopup: callGenericPopup,
-    POPUP_TYPE: POPUP_TYPE,
-    generateRaw: generateRaw,
-    getSlideToggleOptions: getSlideToggleOptions,
-    slideToggle: slideToggle,
+    Popup: APP.Popup,
+    callGenericPopup: APP.callGenericPopup,
+    POPUP_TYPE: APP.POPUP_TYPE,
+    generateRaw: APP.generateRaw,
+    getSlideToggleOptions: APP.getSlideToggleOptions,
+    slideToggle: APP.slideToggle,
 
     refreshSheetsView: async (ignoreGlobal = false) => {
         refreshTempView(ignoreGlobal);
@@ -169,12 +165,7 @@ export const EDITOR = {
  * */
 export const DERIVED = {
     get any() {
-        let data = derivedData;
-        if (!data) {
-            console.warn("data (props) is undefined, please ensure 'let props = {}' is defined in the same file.");
-            return {};
-        }
-        return createProxy(data);
+        return createProxy(derivedData);
     },
     Table: Table,
     TableEditAction: TableEditAction,
@@ -188,7 +179,7 @@ export const DERIVED = {
 export const SYSTEM = {
     getTemplate: (name) => {
         console.log('getTemplate', name);
-        return renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
+        return APP.renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
     },
     htmlToDom: (html, targetId = '') => {
         const dom = new DOMParser().parseFromString(html, 'text/html');
@@ -206,8 +197,8 @@ export const SYSTEM = {
     generateRandomNumber: generateRandomNumber,
     calculateStringHash: calculateStringHash,
 
-    readFile: fileManager.readFile,
-    writeFile: fileManager.writeFile,
+    // readFile: fileManager.readFile,
+    // writeFile: fileManager.writeFile,
 
     // taskTiming: ,
     f: (f, name) => pushCodeToQueue(f, name),

@@ -51,7 +51,7 @@ export class Drag {
         // 分离手机和电脑事件
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
             this.dragThreshold = 1;
-            this.dragSpace.style.transition = 'transform 0.04s ease-out';
+            this.dragSpace.style.transition = 'transform 0.03s ease-out';
             // this.dragSpace.style.transition = 'none';
             this.dragContainer.addEventListener('touchstart', this.handleMouseDown);
         } else {

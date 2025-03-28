@@ -69,7 +69,7 @@ export class PopupConfirm {
         // Create message container
         const messageEl = $('<div class="toast-message"></div>')[0];
         const messageIcon = $('<i class="fa-solid fa-code-branch""></i>')[0];
-        this.messageText = $('<span></span>')[0]; // 保存为类属性
+        this.messageText = $('<span id="toast_message_text"></span>')[0]; // 保存为类属性
         messageEl.style.display = 'flex';
         messageEl.style.flexDirection = 'row';
         messageEl.style.alignItems = 'center';
@@ -127,7 +127,9 @@ export class PopupConfirm {
         // this.toastElement.appendChild(closeButton);
         this.toastElement.appendChild(messageEl);
         this.toastElement.appendChild(buttons);
-        this.toastContainer.appendChild(this.toastElement);
+        // this.toastContainer.appendChild(this.toastElement);
+        // 插入到容器的顶部而不是底部
+        this.toastContainer.insertBefore(this.toastElement, this.toastContainer.firstChild);
 
         // Trigger animation
         setTimeout(() => {
@@ -141,7 +143,7 @@ export class PopupConfirm {
 
             const cleanup = () => {
                 // Start fade out animation
-                this.toastElement.style.transform = 'translateY(-30px)';
+                // this.toastElement.style.transform = 'translateY(-30px)';
                 this.toastElement.style.opacity = '0';
 
                 // Remove element after animation completes
@@ -175,7 +177,7 @@ export class PopupConfirm {
     close() {
         this.cancelFrameUpdate();
         if (this.toastElement) {
-            this.toastElement.style.transform = 'translateY(-30px)';
+            // this.toastElement.style.transform = 'translateY(-30px)';
             this.toastElement.style.opacity = '0';
             setTimeout(() => {
                 this.toastContainer.removeChild(this.toastElement);
