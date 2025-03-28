@@ -16,6 +16,8 @@ import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/rendere
 import { initRefreshTypeSelector } from './core/runtime/absoluteRefresh.js';
 import {refreshTempView} from "./core/editor/tableTemplateEditView.js";
 import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
+import LLMApiService from "./services/llmApi.js";
+import {functionToBeRegistered} from "./services/debugs.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -639,8 +641,7 @@ async function onMessageEdited(this_edit_mes_id) {
 async function onMessageReceived(chat_id) {
     if (USER.tableBaseSetting.isExtensionAble === false) return
     if (USER.tableBaseSetting.step_by_step === true) {
-        // TODO 待双步重构
-        await TableTwoStepSummary();
+        TableTwoStepSummary();  // 请勿使用await，否则会导致主进程阻塞引起的连锁bug
     } else {
         if (USER.tableBaseSetting.isAiWriteTable === false) return
         const chat = USER.getContext().chat[chat_id];
@@ -765,37 +766,7 @@ jQuery(async () => {
 
     initAppHeaderTableDrawer().then(updateSheetsView);
 
-    SYSTEM.f(()=>{
-        // 弹出确认
-        if (confirm("记忆插件：是否清除当前表格数据？")) {
-            delete USER.getSettings().table_database_templates
-            delete USER.getChatMetadata().sheets
-            USER.saveSettings()
-            USER.saveChat();
-            EDITOR.success("表格数据清除成功")
-            console.log("已清除表格数据")
-        } else {
-            console.log("用户取消了清除操作")
-        }
-    }, "销毁新表数据")
-    SYSTEM.f(()=>{
-        let sourceData = {}
-        const s = USER.getChatMetadata().sheets
-        console.log(s, s[0])
-        console.log(s[0].cellHistory[0])
-        console.log(s[0].cellHistory[0].data.description)
-    }, "打印表格源")
-    SYSTEM.f(()=>{
-        EDITOR.info("测试信息")
-    }, "测试信息")
-    SYSTEM.f(async ()=>{
-        const confirmed = await EDITOR.confirm(
-            '执行操作?',
-            '取消',
-            '确认'
-        );
-        console.log(confirmed)
-    }, "测试confirm")
+    functionToBeRegistered()
 
     // 监听主程序事件
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);

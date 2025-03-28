@@ -163,20 +163,21 @@ export async function TableTwoStepSummary() {
     }
 
     // 检查是否开启执行前确认
-    if (await EDITOR.confirm('是否执行两步总结？', '取消', '执行总结') === false) {
-        currentChat.two_step_waiting[swipeUid] = true;
-        console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
-        MarkChatAsWaiting(currentChat, swipeUid);
-        return;
-    }
+    EDITOR.confirm(`累计 ${todoChats.length} 长度的待总结文本，是否执行两步总结？`, '取消', '执行两步总结').then(async (r) => {
+        if (r === false) {
+            currentChat.two_step_waiting[swipeUid] = true;
+            console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
+            MarkChatAsWaiting(currentChat, swipeUid);
+            return false;
+        } else {
+            await refreshTableActions(true, true, todoChats);   // 执行两步总结
 
-    // 执行两步总结
-    console.log('执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
-    await refreshTableActions(true, true, todoChats);
+            toBeExecuted.forEach(chat => {
+                const chatSwipeUid = getSwipeUid(chat);
+                chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
+            })
 
-    // 标记已执行的两步总结
-    toBeExecuted.forEach(chat => {
-        const chatSwipeUid = getSwipeUid(chat);
-        chat.two_step_links[chatSwipeUid].push(swipeUid);
+            return true;
+        }
     })
 }

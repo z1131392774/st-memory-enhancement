@@ -63,7 +63,7 @@ const formConfigs = {
         formDescription: "设置表格的域、类型和名称。",
         fields: [
             {
-                label: '域', type: 'select', dataKey: 'domain',
+                label: '默认保存位置', type: 'select', dataKey: 'domain',
                 options: [
                     // { value: 'global', text: `<i class="fa-solid fa-earth-asia"></i> Global（该模板储存于用户数据中）` },
                     // { value: 'role', text: `<i class="fa-solid fa-user-tag"></i> Role（该模板储存于当前所选角色）` },
@@ -80,7 +80,7 @@ const formConfigs = {
                 ],
             },
             { label: '表格名', type: 'text', dataKey: 'name' },
-            { label: '表格说明（提示词）', description: '(作为该表总体提示词，给AI解释此表格的作用)', type: 'textarea', rows: 10, dataKey: 'description' },
+            { label: '表格说明（提示词）', type: 'textarea', rows: 10, dataKey: 'description', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
         ],
     },
     // sheetSetting: {
@@ -161,18 +161,13 @@ function initializeSelect2Dropdown(dropdownElement) {
         updateDragTables();
     });
 
+    // 创建父级复选框与下拉框的关联
     const firstOptionText = $(dropdownElement).find('option:first-child').text();
     const tableMultipleSelectionDropdown = $('<span class="select2-option" style="width: 100%"></span>');
     const checkboxForParent = $('<input type="checkbox" class="select2-option-checkbox"/>');
     tableMultipleSelectionDropdown.append(checkboxForParent);
     tableMultipleSelectionDropdown.append(firstOptionText);
-
-    const parentFileBox = $('#parentFileBox');
-    if (parentFileBox.length) {
-        parentFileBox.append(tableMultipleSelectionDropdown);
-    } else {
-        console.warn('未找到 ID 为 parentFileBox 的父文件框，请检查您的 HTML 结构。');
-    }
+    $('#parentFileBox')?.append(tableMultipleSelectionDropdown);
 
     const select2MultipleSelection = $(dropdownElement).next('.select2-container--default');
     if (select2MultipleSelection.length) {

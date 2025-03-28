@@ -26,12 +26,15 @@ export async function copyTable(tables = []) {
     copyTableData = JSON.stringify(tables)
     const text = `正在复制表格数据 (#${SYSTEM.generateRandomString(4)})`
     $('#table_drawer_icon').click()
-    if (await EDITOR.confirm(text, '取消', '粘贴到当前对话')) {
-        await pasteTable(userTableEditInfo.chatIndex, tableContainer)
-    }
-    if ($('#table_drawer_icon').hasClass('closedIcon')) {
-        $('#table_drawer_icon').click()
-    }
+
+    EDITOR.confirm(text, '取消', '粘贴到当前对话').then(async (r) => {
+        if (r) {
+            await pasteTable(userTableEditInfo.chatIndex, tableContainer)
+        }
+        if ($('#table_drawer_icon').hasClass('closedIcon')) {
+            $('#table_drawer_icon').click()
+        }
+    })
 }
 
 /**

@@ -50,11 +50,15 @@ function replaceTableToStatusTag(tableStatusHTML) {
 
     setTimeout(() => {
         if (tableStatusContainer) {
-            // 移除之前的事件监听器，防止重复添加 (虽然在这个场景下不太可能重复添加)
-            tableStatusContainer.removeEventListener('touchstart', touchstartHandler);
-            tableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
-            tableStatusContainer.removeEventListener('touchend', touchendHandler);
-            chatContainer.removeChild(tableStatusContainer); // 移除旧的 tableStatusContainer
+            try {
+                // 移除之前的事件监听器，防止重复添加 (虽然在这个场景下不太可能重复添加)
+                tableStatusContainer.removeEventListener('touchstart', touchstartHandler);
+                tableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
+                tableStatusContainer.removeEventListener('touchend', touchendHandler);
+                chatContainer.removeChild(tableStatusContainer); // 移除旧的 tableStatusContainer
+            } catch (error) {
+                console.warn('移除旧的 tableStatusContainer 失败:', error)
+            }
         }
         chatContainer.insertAdjacentHTML('beforeend', `<div class="wide100p" id="tableStatusContainer">${r}</div>`);
         // 获取新创建的 tableStatusContainer

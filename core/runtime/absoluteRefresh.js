@@ -990,12 +990,12 @@ function fixTableFormat(inputText) {
 
         // 关键预处理：修复常见格式错误
         jsonStr = jsonStr
-            .replace(/(\w)\s*"/g, '$1"')       // 键名后空格
-            .replace(/:\s*([^"{\[]+)(\s*[,}])/g, ': "$1"$2')  // 值缺失引号
-            .replace(/"tableIndex":\s*"(\d+)"/g, '"tableIndex": $1')  // 移除tableIndex的引号
+            .replace(/(\w)\s*"/g, '$1"')        // 键名后空格
+            .replace(/:\s*([^"{\[]+)(\s*[,}])/g, ': "$1"$2')    // 值缺失引号
+            .replace(/"tableIndex":\s*"(\d+)"/g, '"tableIndex": $1')    // 移除tableIndex的引号
             .replace(/"\s*\+\s*"/g, '')         // 拼接字符串残留
             .replace(/\\n/g, '')                // 移除换行转义
-            .replace(/({|,)\s*([a-zA-Z_]+)\s*:/g, '$1"$2":') // 键名标准化
+            .replace(/({|,)\s*([a-zA-Z_]+)\s*:/g, '$1"$2":')    // 键名标准化
             .replace(/"(\d+)":/g, '$1:')  // 修复数字键格式
 
         console.log('关键预处理修复常见格式错误后:', jsonStr);

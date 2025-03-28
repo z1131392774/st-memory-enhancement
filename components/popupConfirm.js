@@ -7,11 +7,11 @@ const bgcg = '#de81f1'
 const tc = '#fff'
 
 export async function newPopupConfirm(text, cancelText = 'Cancel', confirmText = 'Confirm') {
+    let r = true;
     if (USER.tableBaseSetting.confirm_before_execution === true) {
-        return await new PopupConfirm().show(text, confirmText, cancelText);
-    } else {
-        return true;
+        r = await new PopupConfirm().show(text, confirmText, cancelText);
     }
+    return r;
 }
 
 export class PopupConfirm {
