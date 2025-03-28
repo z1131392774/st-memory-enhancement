@@ -170,7 +170,14 @@ export async function TableTwoStepSummary() {
             MarkChatAsWaiting(currentChat, swipeUid);
             return false;
         } else {
-            await refreshTableActions(true, true, todoChats);   // 执行两步总结
+            const r = await refreshTableActions(true, true, todoChats);   // 执行两步总结
+
+            if (r === 'suspended') {
+                currentChat.two_step_waiting[swipeUid] = true;
+                console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
+                MarkChatAsWaiting(currentChat, swipeUid);
+                return false;
+            }
 
             toBeExecuted.forEach(chat => {
                 const chatSwipeUid = getSwipeUid(chat);

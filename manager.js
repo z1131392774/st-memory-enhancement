@@ -131,11 +131,11 @@ export const EDITOR = {
     getSlideToggleOptions: APP.getSlideToggleOptions,
     slideToggle: APP.slideToggle,
 
-    refreshSheetsView: async (ignoreGlobal = false) => {
-        refreshTempView(ignoreGlobal);
-        updateSystemMessageTableStatus(true);
-        // refreshContextView();
-    },
+    // refreshSheetsView: async (ignoreGlobal = false) => {
+    //     refreshTempView(ignoreGlobal);
+    //     updateSystemMessageTableStatus(true);
+    //     // refreshContextView();
+    // },
     confirm: newPopupConfirm,
 
     info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),

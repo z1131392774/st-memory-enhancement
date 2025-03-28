@@ -492,7 +492,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消');
-                    return
+                    return 'suspended'
                 }
             }catch (error) {
                 EDITOR.error('主API请求错误: ' + error.message);
@@ -503,7 +503,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
                 rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消');
-                    return
+                    return 'suspended'
                 }
             } catch (error) {
                 EDITOR.error('自定义API请求错误: ' + error.message);
@@ -651,10 +651,11 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
                     }
                     break;
             }
-            if (USER.tableBaseSetting.bool_ignore_del) {
-                EDITOR.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
-            }
         });
+
+        if (USER.tableBaseSetting.bool_ignore_del) {
+            EDITOR.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
+        }
 
         // 更新聊天数据
         chat = USER.getContext().chat[USER.getContext().chat.length - 1];
