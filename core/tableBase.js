@@ -561,7 +561,7 @@ export class Sheet extends SheetTemplate {
     save() {
         const sheetDataToSave = this.filterSavingData()
 
-        let sheets = BASE.loadChatAllSheets();
+        let sheets = BASE.loadContextAllSheets();
         if (!sheets) sheets = [];
         try {
             if (sheets.some(t => t.uid === sheetDataToSave.uid)) {

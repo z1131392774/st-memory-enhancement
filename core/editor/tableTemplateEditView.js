@@ -100,7 +100,7 @@ const formConfigs = {
 
 
 async function updateDropdownElement() {
-    const templates = scope === 'chat' ? BASE.loadChatAllSheets() ?? [] : BASE.loadUserAllTemplates();
+    const templates = scope === 'chat' ? BASE.loadContextAllSheets() ?? [] : BASE.loadUserAllTemplates();
     // console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');

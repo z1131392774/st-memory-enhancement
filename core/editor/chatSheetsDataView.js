@@ -10,6 +10,7 @@ let copyTableData = null
 let selectedCell = null
 let editModeSelectedRows = []
 let viewSheetsContainer = null
+let lastHashSheetsMap = null
 const userTableEditInfo = {
     chatIndex: null,
     editAble: false,
@@ -195,17 +196,66 @@ function batchEditMode(cell) {
 // 新的事件处理函数
 function cellClickEditModeEvent(cell) {
     cell.element.style.cursor = 'pointer'
+    if (cell.type === cell.CellType.row_header) {
+        cell.element.classList.add('flex-container')
+        cell.element.textContent = ''
+
+        // 在 cell.element 中添加三个 div，一个用于显示排序，一个用于显示锁定按钮，一个用于显示删除按钮
+        const indexDiv = $(`<span class="menu_button_icon interactable" style="margin: 0; padding: 0 6px; cursor: move; color: var(--SmartThemeBodyColor)">${cell.position[0]}</span>`)
+        const lockDiv = $(`<div><i class="menu_button menu_button_icon interactable fa fa-lock" style="margin: 0; border: none; color: var(--SmartThemeEmColor)"></i></div>`)
+        const deleteDiv = $(`<div><i class="menu_button menu_button_icon interactable fa fa-xmark" style="margin: 0; border: none; color: var(--SmartThemeEmColor)"></i></div>`)
+
+        $(lockDiv).on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (cell._pre_deletion) return
+
+            cell.parent.hashSheet.forEach(row => {
+                if (row[0] === cell.uid) {
+                    row.forEach((hash) => {
+                        const target = cell.parent.cells.get(hash)
+                        target.locked = !target.locked
+                        target.element.style.backgroundColor = target.locked ? '#00ff0022' : ''
+                    })
+                }
+            })
+        })
+        $(deleteDiv).on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (cell.locked) return
+
+            cell.parent.hashSheet.forEach(row => {
+                if (row[0] === cell.uid) {
+                    row.forEach((hash) => {
+                        const target = cell.parent.cells.get(hash)
+                        target._pre_deletion = !target._pre_deletion
+                        target.element.style.backgroundColor = target._pre_deletion ? '#ff000022' : ''
+                    })
+                }
+            })
+        })
+
+        $(cell.element).append(indexDiv).append(lockDiv).append(deleteDiv)
+    }
 
     cell.on('click', async (event) => {
         event.stopPropagation();
         event.preventDefault();
-
-
     })
 }
 
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
+
+    // TODO:当前为功能预留，需要完全移除旧表格数据的逻辑后才能使用
+    // 判断是否需要根据历史数据进行高亮
+    // const lastCellUid = lastHashSheetsMap.get(cell.uid)
+    // if (!lastCellUid) {
+    //     cell.element.style.backgroundColor = '#00ff0011'
+    // } else if (cell.parent.cells.get(lastCellUid).data.value !== cell.data.value) {
+    //     cell.element.style.backgroundColor = '#0000ff11'
+    // }
 
     cell.on('click', async (event) => {
         event.stopPropagation();
@@ -283,7 +333,18 @@ function cellClickEvent(cell) {
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus(true);
     const sheetsData = await USER.getChatMetadata().sheets
-    const lastHashSheet = BASE.getLastSheetsPiece(0, 1)
+    const lastHashSheets = BASE.getLastSheetsPiece(1, 3)?.hash_sheets;
+    lastHashSheetsMap = new Map();
+    if (lastHashSheets) {
+        // 使用flat将二维数组转换为一维数组
+        Object.keys(lastHashSheets).forEach((key) => {
+            const res = lastHashSheets[key].flat();
+            res.forEach((hash) => {
+                lastHashSheetsMap.set(hash, key);
+            })
+        })
+    }
+
 
     $(viewSheetsContainer).empty()
     for (let sheet of sheetsData) {

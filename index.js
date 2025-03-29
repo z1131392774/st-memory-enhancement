@@ -94,19 +94,29 @@ function convertOldContentToHashSheet(content, sheet) {
  * 深拷贝 hashSheet
  */
 function copyHashSheet(hashSheet) {
-    return hashSheet.map(row => row.map(cell => cell))
+    return hashSheet.map(row => row.map(hash => hash))
 }
 
 /**
  * 转化旧表格为sheets（终极优化版）
  * @description 该方法为过渡方法，仅用于兼容旧版表格数据，不应该在后续正式环境中使用
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
+ * @param force 是否强制转换
  */
-export async function convertOldTablesToNewSheets(oldTableList) {
-    // 该方法为过渡方法，仅用于兼容旧版表格数据，不应该在后续正式环境中使用
-    // 该方法不会创建正确的历史记录，也不会触发任何事件，仅用于快速转换数据
+export async function convertOldTablesToNewSheets(oldTableList, force = false) {
     // 清空现有sheets（直接赋值比修改原数组更快）
     const newSheetsMetadata = [];
+
+    if (force) {
+        USER.getChatPiece().hash_sheets = {};
+    } else {
+        // const hashSheets = [...BASE.getLastSheetsPiece().hash_sheets];
+        // const sheets = await Promise.all(hashSheets.map(async (hashSheet, index) => {
+        //
+        // }));
+    }
+
+    let sheetsLength = 0;
 
     // 使用Promise.all并行处理所有表格
     const sheets = await Promise.all(oldTableList.map(async (oldTable, index) => {
@@ -166,15 +176,16 @@ export async function convertOldTablesToNewSheets(oldTableList) {
 
         sheetData.hashSheet = hashSheet;
         newSheetsMetadata.push(sheetData);
+        USER.getChatPiece().hash_sheets[sheetData.uid] = copyHashSheet(hashSheet);
+
+        sheetsLength += JSON.stringify(sheetData).length
 
         // 返回一个轻量级Sheet实例（不触发完整初始化）
         return new Proxy({}, {
             get: (target, prop) => prop === 'save' ? () => null : sheetData[prop]
         });
     }));
-
-    // 一次性更新元数据
-    USER.getChatMetadata().sheets = newSheetsMetadata;
+    console.log(`数据量：${(sheetsLength / 1024).toFixed(2)}KB`);
 
     // 延迟保存（如果需要）
     await USER.saveChat();
@@ -231,7 +242,7 @@ export function initTableData() {
  * @returns 完整提示词
  */
 function getAllPrompt() {
-    const sheets = BASE.loadChatAllSheets()
+    const sheets = BASE.loadContextAllSheets()
     const tableDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
     return USER.tableBaseSetting.message_template.replace('{{tableData}}', tableDataPrompt)
 }
@@ -564,7 +575,10 @@ async function onMessageSwiped(chat_id) {
 async function updateSheetsView() {
     // TODO 使用新表格-系统消息
     const { tables: oldTables, index } = findLastestOldTablePiece(true, -1)
-    convertOldTablesToNewSheets(oldTables).then((sheets) => {
+    if (BASE.getLastSheetsPiece()) {
+        console.log("历史数据中已存在新表格数据")
+    }
+    convertOldTablesToNewSheets(oldTables, true).then((sheets) => {
         refreshTempView(true);
         refreshContextView(true);
     })

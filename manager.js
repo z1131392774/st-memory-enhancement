@@ -6,7 +6,7 @@ import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, r
 import {defaultSettings} from "./core/pluginSetting.js";
 import {Drag} from "./components/dragManager.js";
 import {PopupMenu} from "./components/popupMenu.js";
-import {convertOldTablesToNewSheets, findLastestOldTablePiece} from "./index.js";
+import {findLastestOldTablePiece} from "./index.js";
 import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
 import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
@@ -67,10 +67,6 @@ export const BASE = {
         }
         return templates;
     },
-    loadChatAllSheets() {
-        const chatMetadata = USER.getContext().chatMetadata;
-        return chatMetadata.sheets
-    },
     loadContextAllSheets() {
         let sheets = USER.getChatMetadata().sheets;
         if (!Array.isArray(sheets)) {
@@ -82,23 +78,15 @@ export const BASE = {
     getLastSheetsPiece: (deep = 0, cutoff = 1000) => {
         const chat = APP.getContext().chat;
         // throw new Error('Not implemented yet');
-        if (!chat || chat.length === 0) return null;
-        for (let i = 0; i < chat.length && i < cutoff; i++) {
+        if (!chat || chat.length === 0 || chat.length <= deep) return null;
+        for (let i = deep; i < chat.length && i < cutoff; i++) {
             const piece = chat[chat.length - 1 - i];
             if (piece.hash_sheets) {
                 return piece;
             }
         }
     },
-    // getSheetsData: async (isIncludeEndIndex = true, endIndex = -1) => {
-    //     const sheets = BASE.loadChatAllSheets()
-    //     if (!sheets) {
-    //         const { tables: oldTable } = findLastestOldTablePiece(isIncludeEndIndex, endIndex)
-    //         return await convertOldTablesToNewSheets(oldTable)
-    //     }
-    //     console.log("获取表格数据", sheets)
-    //     return sheets
-    // },
+
 
     destroyAllTemplates() {
         if (confirm("确定要销毁所有表格模板数据吗？") === false) return false;
@@ -152,7 +140,7 @@ export const EDITOR = {
             'context_oldTable_data': findLastestOldTablePiece(true).tables,
             'context_sheets_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),
-            'chat_last_sheet': BASE.getLastSheetsPiece(),
+            'chat_last_sheet': BASE.getLastSheetsPiece().hash_sheets,
         }, 3);
     },
 }
