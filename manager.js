@@ -136,11 +136,11 @@ export const EDITOR = {
             'user_table_database_setting': USER.getSettings().muyoo_dataTable,
             'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
-            'context_chatMetadata_sheets': USER.getChatMetadata().sheets,
-            'context_oldTable_data': findLastestOldTablePiece(true).tables,
+            'context_chatMetadata_sheets': USER.getChatMetadata()?.sheets,
+            'context_oldTable_data': findLastestOldTablePiece(true)?.tables,
             'context_sheets_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),
-            'chat_last_sheet': BASE.getLastSheetsPiece().hash_sheets,
+            'chat_last_sheet': BASE.getLastSheetsPiece()?.hash_sheets,
         }, 3);
     },
 }

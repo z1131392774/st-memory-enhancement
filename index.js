@@ -104,6 +104,9 @@ function copyHashSheet(hashSheet) {
  * @param force 是否强制转换
  */
 export async function convertOldTablesToNewSheets(oldTableList, force = false) {
+    // 检查是否存在模板？该检查只执行一次
+    const hasTemplate = USER.getSettings().table_database_templates?.length !== 0;
+
     // 清空现有sheets（直接赋值比修改原数组更快）
     const newSheetsMetadata = [];
 
@@ -185,10 +188,17 @@ export async function convertOldTablesToNewSheets(oldTableList, force = false) {
             get: (target, prop) => prop === 'save' ? () => null : sheetData[prop]
         });
     }));
-    console.log(`数据量：${(sheetsLength / 1024).toFixed(2)}KB`);
 
-    // 延迟保存（如果需要）
-    await USER.saveChat();
+    if (hasTemplate !== true) {
+        sheets.forEach(sheet => {
+            const template = new BASE.SheetTemplate(sheet).save()
+            template.save()
+        })
+    }
+
+    console.log(`新表格数据量：${(sheetsLength / 1024).toFixed(2)}KB`);
+    USER.getChatMetadata().sheets = newSheetsMetadata;
+    await USER.saveChat();      // 延迟保存（如果需要）
 
     return sheets;
 }

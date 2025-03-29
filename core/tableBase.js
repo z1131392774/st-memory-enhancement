@@ -58,6 +58,7 @@ class SheetBase {
     }
 
     init(column = 2, row = 2) {
+        console.log(`初始化 Sheet: ${this.name} (${this.uid})`);
         this.cells = new Map();
         this.cellHistory = [];
         this.hashSheet = [];
@@ -358,6 +359,19 @@ export class SheetTemplate extends SheetBase {
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
     load(target, options = {}) {
+        // // 如果target是Sheet类
+        // if (target instanceof Sheet) {
+        //     // 如果target是Sheet类，则直接使用target的属性
+        //     try {
+        //         Object.assign(this, target);
+        //     } catch (e) {
+        //         console.error(`加载模板失败：${e}`);
+        //         return false;
+        //     }
+        //     this.loadCells();
+        //     return this;
+        // }
+
         let targetUid = target?.uid || target;
         let targetSheetData = BASE.loadUserAllTemplates().find(t => t.uid === targetUid);
         if (!targetSheetData?.uid) {

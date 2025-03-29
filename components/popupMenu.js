@@ -2,10 +2,16 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import {cssColorToRgba} from "../utils/utility.js";
 
+const MenuItemType = {
+    normal: 'normal',
+    warning: 'warning',
+}
+
 /**
  * @description 弹出菜单类 - 用于创建和管理弹出菜单
  */
 export class PopupMenu {
+    ItemType = MenuItemType
     /**
      * 静态属性，用于存储当前活动的 PopupMenu 实例，使其在全局范围内作为单例使用
      * @type {null}
@@ -33,16 +39,16 @@ export class PopupMenu {
         PopupMenu.instance = this;
     }
 
-    add(html, event) {
+    add(html, event, type = MenuItemType.normal) {
         const index = this.menuItems.length;
-        this.menuItems.push({ html, event });
+        this.menuItems.push({ html, event, type });
         this.menuItemIndexMap.set(html, index); // 存储 HTML 内容与索引的映射
     }
 
     renderMenu() {
         this.menuContainer.innerHTML = '';
 
-        this.menuItems.forEach((item, index) => {
+        this.menuItems.forEach((item, index, type) => {
             const menuItem = document.createElement('div');
             menuItem.innerHTML = item.html;
             menuItem.style.padding = '5px 10px';
@@ -51,6 +57,11 @@ export class PopupMenu {
             menuItem.style.justifyContent = 'flex-start';
             menuItem.style.alignItems = 'center';
             menuItem.classList.add('dynamic-popup-menu-item', 'list-group-item');
+
+            if (item.type === MenuItemType.warning) {
+                menuItem.classList.add('redWarningText');
+            }
+
             this.menuContainer.appendChild(menuItem);
 
             // 存储菜单项元素与索引的映射

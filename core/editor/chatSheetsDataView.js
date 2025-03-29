@@ -147,10 +147,17 @@ async function clearTable(mesId, viewSheetsContainer) {
     if (confirmation) {
         delete USER.getSettings().table_database_templates
         delete USER.getChatMetadata().sheets
-        USER.saveSettings()
-        USER.saveChat();
-        EDITOR.success("表格数据清除成功")
-        console.log("已清除表格数据")
+        await USER.getContext().chat.forEach((piece => {
+            if (piece.hash_sheets) {
+                delete piece.hash_sheets
+            }
+        }))
+        setTimeout(() => {
+            USER.saveSettings()
+            USER.saveChat();
+            EDITOR.success("表格数据清除成功")
+            console.log("已清除表格数据")
+        }, 100)
     }
 }
 
@@ -197,13 +204,14 @@ function batchEditMode(cell) {
 function cellClickEditModeEvent(cell) {
     cell.element.style.cursor = 'pointer'
     if (cell.type === cell.CellType.row_header) {
-        cell.element.classList.add('flex-container')
         cell.element.textContent = ''
 
         // 在 cell.element 中添加三个 div，一个用于显示排序，一个用于显示锁定按钮，一个用于显示删除按钮
+        const containerDiv = $(`<div class="flex-container" style="display: flex; flex-direction: row; justify-content: space-between; width: 100%;"></div>`)
+        const rightDiv = $(`<div class="flex-container" style="margin-right: 3px"></div>`)
         const indexDiv = $(`<span class="menu_button_icon interactable" style="margin: 0; padding: 0 6px; cursor: move; color: var(--SmartThemeBodyColor)">${cell.position[0]}</span>`)
         const lockDiv = $(`<div><i class="menu_button menu_button_icon interactable fa fa-lock" style="margin: 0; border: none; color: var(--SmartThemeEmColor)"></i></div>`)
-        const deleteDiv = $(`<div><i class="menu_button menu_button_icon interactable fa fa-xmark" style="margin: 0; border: none; color: var(--SmartThemeEmColor)"></i></div>`)
+        const deleteDiv = $(`<div><i class="menu_button menu_button_icon interactable fa fa-xmark redWarningBG" style="margin: 0; border: none; color: var(--SmartThemeEmColor)"></i></div>`)
 
         $(lockDiv).on('click', (e) => {
             e.stopPropagation();
@@ -230,19 +238,38 @@ function cellClickEditModeEvent(cell) {
                     row.forEach((hash) => {
                         const target = cell.parent.cells.get(hash)
                         target._pre_deletion = !target._pre_deletion
-                        target.element.style.backgroundColor = target._pre_deletion ? '#ff000022' : ''
+                        target.element.style.backgroundColor = target._pre_deletion ? '#ff000044' : ''
                     })
                 }
             })
         })
 
-        $(cell.element).append(indexDiv).append(lockDiv).append(deleteDiv)
+        $(rightDiv).append(lockDiv).append(deleteDiv)
+        $(containerDiv).append(indexDiv).append(rightDiv)
+        $(cell.element).append(containerDiv)
+
+    } else if (cell.type === cell.CellType.cell) {
+        cell.element.style.cursor = 'text'
+        cell.element.contentEditable = true
+        cell.element.focus()
+        cell.element.addEventListener('blur', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            cell.data.value = cell.element.textContent.trim()
+        })
     }
 
     cell.on('click', async (event) => {
         event.stopPropagation();
         event.preventDefault();
     })
+}
+
+async function confirmAction(event, text = '是否继续该操作？') {
+    const confirmation = new EDITOR.Popup(text, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+
+    await confirmation.show();
+    if (!confirmation.result) return { filterData: null, confirmation: false };
 }
 
 function cellClickEvent(cell) {
@@ -279,12 +306,12 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', (e) => { batchEditMode(cell) });
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
-            menu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfRow)}, '确认删除行？') }, menu.ItemType.warning);
         } else if (rowIndex === 0) {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
             menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
-            menu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
+            menu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfColumn)}, '确认删除列？') }, menu.ItemType.warning);
         } else {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
         }
@@ -323,7 +350,6 @@ function cellClickEvent(cell) {
                 menu.popupContainer.style.top = `${menuTop}px`;
             })
         }, 0)
-
     })
     cell.on('', () => {
         console.log('cell发生了改变:', cell)
