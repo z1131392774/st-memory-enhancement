@@ -283,6 +283,7 @@ function cellClickEvent(cell) {
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus(true);
     const sheetsData = await USER.getChatMetadata().sheets
+    const lastHashSheet = BASE.getLastSheetsPiece(0, 1)
 
     $(viewSheetsContainer).empty()
     for (let sheet of sheetsData) {

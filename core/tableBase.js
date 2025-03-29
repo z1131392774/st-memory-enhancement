@@ -54,15 +54,15 @@ class SheetBase {
 
         this.cells = new Map(); // cells 在每次 Sheet 初始化时从 cellHistory 加载
         this.cellHistory = [];  // cellHistory 持久保持，只增不减
-        this.cellSheet = [];    // 每回合的 cellSheet 结构，用于渲染出表格
+        this.hashSheet = [];    // 每回合的 hashSheet 结构，用于渲染出表格
     }
 
     init(column = 2, row = 2) {
         this.cells = new Map();
         this.cellHistory = [];
-        this.cellSheet = [];
+        this.hashSheet = [];
 
-        // 初始化 cellSheet 结构
+        // 初始化 hashSheet 结构
         const r = Array.from({ length: row }, (_, i) => Array.from({ length: column }, (_, j) => {
             let cell = new Cell(this);
             this.cells.set(cell.uid, cell);
@@ -76,7 +76,7 @@ class SheetBase {
             }
             return cell.uid;
         }));
-        this.cellSheet = r;
+        this.hashSheet = r;
 
         return this;
     };
@@ -95,10 +95,10 @@ class SheetBase {
             return false;
         }
 
-        // 加载后，根据 cellSheet 结构重新初始化所有 Cell
+        // 加载后，根据 hashSheet 结构重新初始化所有 Cell
         try {
-            if (this.cellSheet && this.cellSheet.length > 0) {
-                this.cellSheet.forEach((rowUids, rowIndex) => {
+            if (this.hashSheet && this.hashSheet.length > 0) {
+                this.hashSheet.forEach((rowUids, rowIndex) => {
                     rowUids.forEach((cellUid, colIndex) => {
                         const cell = this.cells.get(cellUid);
                         if (cell) {
@@ -130,7 +130,7 @@ class SheetBase {
             enable: this.enable,
             required: this.required,
             tochat: this.tochat,
-            cellSheet: this.cellSheet, // 保存 cellSheet (只包含 cell uid)
+            hashSheet: this.hashSheet, // 保存 hashSheet (只包含 cell uid)
             cellHistory: this.cellHistory.map(({ parent, element, customEventListeners, ...filter }) => {
                 return filter;
             }), // 保存 cellHistory (不包含 parent)
@@ -157,18 +157,18 @@ export class SheetTemplate extends SheetBase {
             },
         });
         this.rowCount = new Proxy({}, {
-            get: () => this.cellSheet.length,
+            get: () => this.hashSheet.length,
             set: () => { throw new Error("不允许修改 rowCount") }
         });
         this.colCount = new Proxy({}, {
-            get: () => this.cellSheet[0].length,
+            get: () => this.hashSheet[0].length,
             set: () => { throw new Error("不允许修改 colCount") }
         });
 
         this.load(target, options);
     }
     get source() {
-        return this.cells.get(this.cellSheet[0][0]);
+        return this.cells.get(this.hashSheet[0][0]);
     }
 
 
@@ -218,8 +218,8 @@ export class SheetTemplate extends SheetBase {
         // 清空 tbody 的内容
         tbody.innerHTML = '';
 
-        // 遍历 cellSheet，渲染每一个单元格
-        this.cellSheet.forEach((rowUids, rowIndex) => {
+        // 遍历 hashSheet，渲染每一个单元格
+        this.hashSheet.forEach((rowUids, rowIndex) => {
             if (rowIndex > 0) return;
             const rowElement = document.createElement('tr');
             rowUids.forEach((cellUid, colIndex) => {
@@ -268,8 +268,8 @@ export class SheetTemplate extends SheetBase {
 
     updateSheetStructure(column, row) {
         const r = Array.from({ length: row }, (_, i) => Array.from({ length: column }, (_, j) => {
-            if (this.cellSheet[i]?.[j]) {
-                return this.cellSheet[i][j];
+            if (this.hashSheet[i]?.[j]) {
+                return this.hashSheet[i][j];
             }
             let cell = new Cell(this);
             this.cells.set(cell.uid, cell);
@@ -283,20 +283,20 @@ export class SheetTemplate extends SheetBase {
             }
             return cell.uid;
         }));
-        this.cellSheet = r;
+        this.hashSheet = r;
     }
     findCellByPosition(rowIndex, colIndex) {
         if (rowIndex === 0 && colIndex === 0) {
             return this.source;
         }
-        if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.cellSheet.length || colIndex >= this.cellSheet[0].length) {
+        if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.hashSheet.length || colIndex >= this.hashSheet[0].length) {
             console.warn('无效的行列索引');
             return null;
         }
-        const p = this.cellSheet[rowIndex][colIndex]
+        const h = this.hashSheet[rowIndex][colIndex]
         const t = this.cells.get(p) || null;
         if (!t) {
-            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${p}`);
+            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${h}`);
             return null;
         }
         return t;
@@ -307,11 +307,11 @@ export class SheetTemplate extends SheetBase {
      * @returns cell[]
      */
     getCellsByRowIndex(rowIndex) {
-        if (rowIndex < 0 || rowIndex >= this.cellSheet.length) {
+        if (rowIndex < 0 || rowIndex >= this.hashSheet.length) {
             console.warn('无效的行索引');
             return null;
         }
-        return this.cellSheet[rowIndex].map(uid => this.cells.get(uid));
+        return this.hashSheet[rowIndex].map(uid => this.cells.get(uid));
     }
     /**
      * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
@@ -349,7 +349,7 @@ export class SheetTemplate extends SheetBase {
      * @returns 是否为空
      */
     isEmpty() {
-        return this.cellSheet.length <= 1;
+        return this.hashSheet.length <= 1;
     }
 
 
@@ -393,7 +393,7 @@ export class SheetTemplate extends SheetBase {
         if (this.isEmpty())
             if (this.required) return this.source.initNode;
             else return '';
-        const content = this.cellSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.cells.get(cellUid)?.data[key]).join(',')).join('\n');
+        const content = this.hashSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.cells.get(cellUid)?.data[key]).join(',')).join('\n');
         return content + "\n";
     }
     /**
@@ -435,8 +435,8 @@ export class SheetTemplate extends SheetBase {
         this.domain = template.domain;
         this.type = template.type;
 
-        // 初始化新的 cellSheet 结构，并复制模板的单元格数据
-        this.cellSheet = template.cellSheet.map(row => {
+        // 初始化新的 hashSheet 结构，并复制模板的单元格数据
+        this.hashSheet = template.hashSheet.map(row => {
             return row.map(cellUid => {
                 const templateCell = template.cells.get(cellUid);
                 let newCell = new Cell(this);
@@ -515,8 +515,8 @@ export class Sheet extends SheetTemplate {
         // 清空 tbody 的内容
         tbody.innerHTML = '';
 
-        // 遍历 cellSheet，渲染每一个单元格
-        this.cellSheet.forEach((rowUids, rowIndex) => {
+        // 遍历 hashSheet，渲染每一个单元格
+        this.hashSheet.forEach((rowUids, rowIndex) => {
             const rowElement = document.createElement('tr');
             rowUids.forEach((cellUid, colIndex) => {
                 const cell = this.cells.get(cellUid)
@@ -757,20 +757,20 @@ class Cell {
         this.element = document.createElement('td');
     }
     #positionInParentCellSheet() {
-        if (!this.parent || !this.parent.cellSheet) {
-            return [-1, -1]; // 如果没有父级 Sheet 或 cellSheet，则返回 [-1, -1]
+        if (!this.parent || !this.parent.hashSheet) {
+            return [-1, -1]; // 如果没有父级 Sheet 或 hashSheet，则返回 [-1, -1]
         }
-        const cellSheet = this.parent.cellSheet;
-        for (let rowIndex = 0; rowIndex < cellSheet.length; rowIndex++) {
-            const row = cellSheet[rowIndex];
+        const hashSheet = this.parent.hashSheet;
+        for (let rowIndex = 0; rowIndex < hashSheet.length; rowIndex++) {
+            const row = hashSheet[rowIndex];
             for (let colIndex = 0; colIndex < row.length; colIndex++) {
                 if (row[colIndex] === this.uid) {
                     return [rowIndex, colIndex]; // 找到匹配的 UID，返回 [rowIndex, colIndex]
                 }
             }
         }
-        console.warn('未找到匹配的 UID'); // 如果遍历完 cellSheet 仍未找到匹配的 UID，则输出警告
-        return [-1, -1]; // 如果遍历完 cellSheet 仍未找到匹配的 UID，则返回 [-1, -1] (理论上不应该发生)
+        console.warn('未找到匹配的 UID'); // 如果遍历完 hashSheet 仍未找到匹配的 UID，则输出警告
+        return [-1, -1]; // 如果遍历完 hashSheet 仍未找到匹配的 UID，则返回 [-1, -1] (理论上不应该发生)
     }
 
     #event(actionName, props = {}) {
@@ -833,18 +833,18 @@ class Cell {
     }
 
     #insertRow(targetRowIndex) {
-        // 使用Array.from()方法在cellSheet中targetRowIndex+1的位置插入新行
-        const newRow = Array.from({ length: this.parent.cellSheet[0].length }, (_, j) => {
+        // 使用Array.from()方法在 hashSheet 中 targetRowIndex + 1 的位置插入新行
+        const newRow = Array.from({ length: this.parent.hashSheet[0].length }, (_, j) => {
             let cell = new Cell(this.parent); // [BUG修复点1] 使用 this.parent
             this.parent.cells.set(cell.uid, cell);
             this.parent.cellHistory.push(cell);
             return cell.uid;
         });
-        this.parent.cellSheet.splice(targetRowIndex + 1, 0, newRow);
+        this.parent.hashSheet.splice(targetRowIndex + 1, 0, newRow);
     }
     #insertColumn(colIndex) {
         // 遍历每一行，在指定的 colIndex 位置插入新的单元格 UID
-        this.parent.cellSheet = this.parent.cellSheet.map(row => {
+        this.parent.hashSheet = this.parent.hashSheet.map(row => {
             const newCell = new Cell(this.parent);
             this.parent.cells.set(newCell.uid, newCell);
             this.parent.cellHistory.push(newCell);
@@ -854,13 +854,13 @@ class Cell {
     }
     #deleteRow(rowIndex) {
         if (rowIndex === 0) return;
-        if (this.parent.cellSheet.length <= 2) return;
-        this.parent.cellSheet.splice(rowIndex, 1);
+        if (this.parent.hashSheet.length <= 2) return;
+        this.parent.hashSheet.splice(rowIndex, 1);
     }
     #deleteColumn(colIndex) {
         if (colIndex === 0) return;
-        if (this.parent.cellSheet[0].length <= 2) return;
-        this.parent.cellSheet = this.parent.cellSheet.map(row => {
+        if (this.parent.hashSheet[0].length <= 2) return;
+        this.parent.hashSheet = this.parent.hashSheet.map(row => {
             row.splice(colIndex, 1);
             return row;
         });

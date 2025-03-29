@@ -85,7 +85,7 @@ export const BASE = {
         if (!chat || chat.length === 0) return null;
         for (let i = 0; i < chat.length && i < cutoff; i++) {
             const piece = chat[chat.length - 1 - i];
-            if (piece.tablebase_sheets) {
+            if (piece.hash_sheets) {
                 return piece;
             }
         }

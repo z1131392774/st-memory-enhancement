@@ -378,7 +378,7 @@ async function updateDragTables() {
         let sheet = new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
-        if (!sheet || !sheet.cellSheet) {
+        if (!sheet || !sheet.hashSheet) {
             console.warn(`无法加载模板或模板数据为空，UID: ${uid}`);
             continue;
         }

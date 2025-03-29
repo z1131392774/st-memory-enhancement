@@ -74,7 +74,7 @@ function executeMCPResponse(response) {
             // 示例：假设 params 包含 rowIndex
             if (params.rowIndex > 0 && sheetInstance.rowCount.get() > 1) { // 避免删除标题行和空表格
                 const rowIndexToDelete = parseInt(params.rowIndex);
-                sheetInstance.cellSheet.splice(rowIndexToDelete, 1); // 删除行
+                sheetInstance.hashSheet.splice(rowIndexToDelete, 1); // 删除行
                 sheetInstance.renderSheet();
             }
             break;

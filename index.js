@@ -31,7 +31,7 @@ const editErrorInfo = {
  * @returns 此索引的表格结构
  */
 export function findTableStructureByIndex(index) {
-    return USER.tableBaseSetting.tableStructure.find(table => table.tableIndex === index);
+    return USER.tableBaseSetting.tableStructure[index];
 }
 
 /**
@@ -53,29 +53,6 @@ function checkPrototype(dataTable) {
  * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
  * @returns 自结束索引向上寻找，最近的表格数据
  */
-/* export function findLastestOldTablePiece(isIncludeEndIndex = false, endIndex = -1) {
-    let chat = USER.getContext().chat
-    if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
-    else chat = chat.slice(0, isIncludeEndIndex ? endIndex + 1 : endIndex)
-    for (let i = chat.length - 1; i >= 0; i--) {
-        if (chat[i].is_user === false && (chat[i].dataTable || chat[i].sheetPiece)) {
-            if (chat[i].sheetPiece) return { sheetPiece: chat[i].sheetPiece, index: i }
-            else {
-                checkPrototype(chat[i].dataTable)
-                const sheetPiece = convertOldTablesToSheetPiece(chat[i].dataTable)
-
-                return { sheetPiece, index: i }
-            }
-        }
-    }
-    const newTableList =  ()
-    for (let i = chat.length - 1; i >= 0; i--) {
-        if (chat[i].is_user === false) {
-            return { sheetPiece: newTableList, index: i }
-        }
-    }
-    return { sheetPiece: newTableList, index: -1 }
-} */
 export function findLastestOldTablePiece(isIncludeEndIndex = false, endIndex = -1) {
     let chat = USER.getContext().chat
     if (endIndex === -1) chat = isIncludeEndIndex ? chat : chat.slice(0, -1)
@@ -95,45 +72,12 @@ export function findLastestOldTablePiece(isIncludeEndIndex = false, endIndex = -
     return { tables: newTableList, index: -1 }
 }
 
-// /**
-//  * 返回聊天中的Sheets对象
-//  * @param isIncludeEndIndex 搜索时是否包含endIndex
-//  * @param endIndex 结束索引，自此索引向上寻找，默认是最新的消息索引
-//  */
-// function getSheetsData(isIncludeEndIndex = false, endIndex = -1) {
-//     const sheets = BASE.loadChatAllSheets()
-//     if (!sheets) {
-//         const { tables: oldTable } = findLastestOldTablePiece(isIncludeEndIndex, endIndex)
-//         return convertOldTablesToNewSheets(oldTable)
-//     }
-//     console.log("获取表格数据", sheets)
-//     return sheets
-// }
-
 /**
- * 转化旧表格为sheetPiece
- * @param {DERIVED.Table[]} oldTableList 旧表格数据
- */
-function convertOldTablesToSheetPiece(oldTableList) {
-    const tempList = BASE.loadContextAllSheets().map(sheet => {
-        for (const oldTable of oldTableList) {
-            if (sheet.name === oldTable.tableName) return { sheet, oldTable }
-        }
-    }).filter(Boolean)
-    return tempList.map(({ sheet, oldTable }) => {
-        const oldCellSheet = copyCellSheet(sheet.cellSheet)
-        const newCellSheet = convertOldContentToCellSheet(oldTable.content, sheet)
-        sheet.cellSheet = oldCellSheet
-        return newCellSheet
-    })
-}
-
-/**
- * 转化旧表格content为cellSheet
+ * 转化旧表格 content 为 hashSheet
  * @param {string[][]} content 旧表格数据
  * @param {*} sheet 新表格
  */
-function convertOldContentToCellSheet(content, sheet) {
+function convertOldContentToHashSheet(content, sheet) {
     const cols = content[0].length + 1
     const rows = content.length + 1
     sheet.updateSheetStructure(cols, rows)
@@ -143,80 +87,15 @@ function convertOldContentToCellSheet(content, sheet) {
             cell.data.value = content[i][j]
         }
     }
-    return sheet.cellSheet
+    return sheet.hashSheet
 }
 
 /**
- * 深拷贝cellSheet
+ * 深拷贝 hashSheet
  */
-function copyCellSheet(cellSheet) {
-    return cellSheet.map(row => row.map(cell => cell))
+function copyHashSheet(hashSheet) {
+    return hashSheet.map(row => row.map(cell => cell))
 }
-
-// /**
-//  * 转化旧表格为sheets（优化版）
-//  * @param {DERIVED.Table[]} oldTableList 旧表格数据
-//  */
-// export async function convertOldTablesToNewSheets(oldTableList) {
-//     // 清空现有sheets
-//     USER.getChatMetadata().sheets = [];
-//     const sheets = [];
-//
-//     // 预计算所有表格的最大尺寸
-//     const maxSizes = oldTableList.map(table => ({
-//         rows: table.content.length + 1, // +1 for header row
-//         cols: table.columns.length + 1  // +1 for index column
-//     }));
-//
-//     // 批量处理所有表格
-//     for (const [index, oldTable] of oldTableList.entries()) {
-//         const maxSize = maxSizes[index];
-//
-//         // 一次性创建整张表格
-//         const newSheet = new BASE.Sheet('').createNewSheet(maxSize.cols, maxSize.rows, false);
-//         newSheet.name = oldTable.tableName;
-//         newSheet.domain = newSheet.SheetDomain.chat;
-//         newSheet.type = newSheet.SheetType.dynamic;
-//         newSheet.enable = oldTable.enable;
-//         newSheet.required = oldTable.Required;
-//         newSheet.tochat = oldTable.tochat;
-//
-//         // 设置源数据
-//         const sourceData = newSheet.source.data;
-//         sourceData.note = oldTable.note;
-//         sourceData.initNode = oldTable.initNode;
-//         sourceData.updateNode = oldTable.updateNode;
-//         sourceData.deleteNode = oldTable.deleteNode;
-//         sourceData.insertNode = oldTable.insertNode;
-//         sourceData.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`;
-//
-//         // 批量设置列头
-//         oldTable.columns.forEach((value, colIndex) => {
-//             const cell = newSheet.cellSheet[0][colIndex + 1];
-//             newSheet.cells.get(cell).data.value = value;
-//         });
-//
-//         // 批量插入数据行
-//         if (oldTable.content.length > 0) {
-//             oldTable.content.forEach((row, rowIndex) => {
-//                 if (row && row.length > 0) {
-//                     // 直接设置数据而不触发插入操作
-//                     row.forEach((value, colIndex) => {
-//                         const cellUid = newSheet.cellSheet[rowIndex + 1][colIndex + 1];
-//                         newSheet.cells.get(cellUid).data.value = value;
-//                     });
-//                 }
-//             });
-//         }
-//
-//         sheets.push(newSheet);
-//     }
-//
-//     // 批量保存所有sheet
-//     sheets.forEach(sheet => sheet.save());
-//
-//     return sheets;
-// }
 
 /**
  * 转化旧表格为sheets（终极优化版）
@@ -244,12 +123,12 @@ export async function convertOldTablesToNewSheets(oldTableList) {
             enable: oldTable.enable,
             required: oldTable.Required,
             tochat: oldTable.tochat,
-            cellSheet: [],
+            hashSheet: [],
             cellHistory: []
         };
 
-        // 预填充cellSheet结构
-        const cellSheet = Array.from({ length: rows }, (_, rowIndex) =>
+        // 预填充 hashSheet 结构
+        const hashSheet = Array.from({ length: rows }, (_, rowIndex) =>
             Array.from({ length: cols }, (_, colIndex) => {
                 const cellUid = `cell_${sheetData.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
                 const cellData = {
@@ -285,7 +164,7 @@ export async function convertOldTablesToNewSheets(oldTableList) {
             })
         );
 
-        sheetData.cellSheet = cellSheet;
+        sheetData.hashSheet = hashSheet;
         newSheetsMetadata.push(sheetData);
 
         // 返回一个轻量级Sheet实例（不触发完整初始化）
