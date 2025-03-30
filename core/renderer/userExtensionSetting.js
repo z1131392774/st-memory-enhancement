@@ -246,8 +246,11 @@ function InitBinging() {
     });
     // 初始化API设置显示状态
     $('#use_main_api').change(function() {
-        $('#custom_api_settings').toggle(!this.checked);
         USER.tableBaseSetting.use_main_api = this.checked;
+    });
+    // 初始化API设置显示状态
+    $('#step_by_step_use_main_api').change(function() {
+        USER.tableBaseSetting.step_by_step_use_main_api = this.checked;
     });
     // 根据下拉列表选择的模型更新自定义模型名称
     $('#model_selector').change(function() {
@@ -373,6 +376,7 @@ export function renderSetting() {
     updateSwitch('#step_by_step', USER.tableBaseSetting.step_by_step);
     updateSwitch('#confirm_before_execution', USER.tableBaseSetting.confirm_before_execution);
     updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
+    updateSwitch('#step_by_step_use_main_api', USER.tableBaseSetting.step_by_step_use_main_api);
     updateSwitch('#ignore_del', USER.tableBaseSetting.bool_ignore_del);
     updateSwitch('#sum_multiple_rounds', USER.tableBaseSetting.sum_multiple_rounds);
     // updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
@@ -382,7 +386,7 @@ export function renderSetting() {
 
     // 设置元素结构可见性
     // $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
-    $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
+    // $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
 

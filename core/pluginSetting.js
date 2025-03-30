@@ -120,6 +120,7 @@ export const defaultSettings = {
     confirm_before_execution: true,
     //自动整理表格
     use_main_api: true,
+    step_by_step_use_main_api: true,
     custom_temperature: 1.0,
     custom_max_tokens: 2048,
     custom_top_p: 1,

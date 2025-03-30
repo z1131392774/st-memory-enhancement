@@ -39,57 +39,6 @@ function validateActions(actions) {
         return true;
     });
 }
-/**
- * 显示表格刷新配置信息，用于二次确认
- * @param {*} callerType 用于调用的时候控制显示的信息，
- * 默认值 0 表示保持原样  1 rebuild 不显示"不允许AI删除"
- * @returns
- */
-function getRefreshTableConfigStatus(callerType = 0) {
-    // 显示所有相关的配置信息
-    const userApiUrl = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
-    const userApiModel = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-    const userApiTemperature = USER.tableBaseSetting.custom_temperature;
-    const clearUpStairs = USER.tableBaseSetting.clear_up_stairs;
-    const isIgnoreDel = USER.tableBaseSetting.bool_ignore_del;
-    const isIgnoreUserSent = USER.tableBaseSetting.ignore_user_sent;
-    const isUseTokenLimit = USER.tableBaseSetting.use_token_limit;
-    const rebuild_token_limit_value = USER.tableBaseSetting.rebuild_token_limit_value;
-    const isUseMainAPI = USER.tableBaseSetting.use_main_api;
-
-    const refreshType = $('#table_refresh_type_selector').val();
-    const selectedPrompt = profile_prompts[refreshType];
-    if(selectedPrompt === undefined) {
-        EDITOR.error(`未找到对应的提示模板: ${refreshType}`);
-        console.error(`未找到对应的提示模板: ${refreshType}`);
-        return;
-    }
-
-    return `<div class="wide100p padding5 dataBankAttachments">
-                <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
-                <br><div id="config_sheet_container" style="justify-content: center; display: flex; margin: 10px;">
-                    <table class="table table-bordered table-striped">
-                        <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
-                        <tbody>
-                        <tr> <td>当前整理方式</td> <td>${selectedPrompt.name}</td> </tr>
-                        ${isUseTokenLimit ? `
-                        <tr> <td>发送的聊天记录token数限制</td> <td>${rebuild_token_limit_value}</td> </tr>
-                        ` : `
-                        <tr> <td>纳入参考的聊天记录</td> <td>${clearUpStairs}条</td> </tr>
-                        `}
-                        <td>忽略用户消息</td> <td>${isIgnoreUserSent ? '是' : '否'}</td>
-                        ${callerType === 1 ? '' : `<tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>`}
-                        <tr> <td>使用的API</td> <td>${isUseMainAPI ? '主API' : '自定义API'}</td> </tr>
-                        ${isUseMainAPI ? '' : `
-                        <tr> <td>API URL</td> <td>${userApiUrl}</td> </tr>
-                        <tr> <td>API Model</td> <td>${userApiModel}</td> </tr>
-                        <tr> <td>Temperature</td> <td>${userApiTemperature}</td> </tr>
-                        `}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-`;}
 
 function confirmTheOperationPerformed(content) {
     console.log('content:', content);
@@ -455,7 +404,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
     // }
 
     // 开始执行整理表格
-    const isUseMainAPI = $('#use_main_api').prop('checked');
+    const twoStepIsUseMainAPI = $('#step_by_step_use_main_api').prop('checked');
 
     try {
         const latestData = findLastestOldTablePiece(true);
@@ -487,7 +436,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 
         // 生成响应内容
         let rawContent;
-        if (isUseMainAPI) {
+        if (twoStepIsUseMainAPI) {
             try{
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
                 if (rawContent === 'suspended') {

@@ -11,7 +11,20 @@
 .--SmartThemeUserMesBlurTintColor {}    /* 用户消息模糊背景颜色 */
 .--SmartThemeBotMesBlurTintColor {}     /* 机器人消息模糊背景颜色 */
 
+/* .world_entry_thin_controls, */
+#persona_management_left_column,
+#character_popup .flex-container {
+    flex-direction: column;
+}
 
+/*#persona-management-block .paginationjs-nav {*/
+/*    width: max-content;*/
+/*}*/
+
+/*#persona-management-block .avatar_container_states .menu_button {*/
+/*    padding: 3px 5px;*/
+/*    pointer-events: initial;*/
+/*}*/
 
 .line-first {
     margin: 0 10px;
@@ -327,13 +340,7 @@ td.selected {
 
 
 
-#use_main_api:not(:checked) ~ #custom_api_settings {
-    display: flex;
-}
-#custom_api_settings .slider-container {
-    width: auto;
-    display: flex !important; /* 强制弹性布局 */
-}
+
 
 #custom_temperature {
     flex: 1;
