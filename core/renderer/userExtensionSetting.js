@@ -217,11 +217,11 @@ function InitBinging() {
     $('#confirm_before_execution').change(function() {
         USER.tableBaseSetting.confirm_before_execution = $(this).prop('checked');
     })
-    //整理表格相关高级设置
-    $('#advanced_settings').change(function() {
-        $('#advanced_options').toggle(this.checked);
-        USER.tableBaseSetting.advanced_settings = this.checked;
-    });
+    // //整理表格相关高级设置
+    // $('#advanced_settings').change(function() {
+    //     $('#advanced_options').toggle(this.checked);
+    //     USER.tableBaseSetting.advanced_settings = this.checked;
+    // });
     // 忽略删除
     $('#ignore_del').change(function() {
         USER.tableBaseSetting.bool_ignore_del = $(this).prop('checked');
@@ -369,7 +369,7 @@ export function renderSetting() {
     updateSwitch('#table_read_switch', USER.tableBaseSetting.isAiReadTable);
     updateSwitch('#table_edit_switch', USER.tableBaseSetting.isAiWriteTable);
     updateSwitch('#table_to_chat', USER.tableBaseSetting.isTableToChat);
-    updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
+    // updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
     updateSwitch('#step_by_step', USER.tableBaseSetting.step_by_step);
     updateSwitch('#confirm_before_execution', USER.tableBaseSetting.confirm_before_execution);
     updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
@@ -381,7 +381,7 @@ export function renderSetting() {
     updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);
 
     // 设置元素结构可见性
-    $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
+    // $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
     $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);

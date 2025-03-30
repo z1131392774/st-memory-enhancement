@@ -1,18 +1,15 @@
 import {APP, BASE, DERIVED, EDITOR, SYSTEM, USER} from './manager.js';
 import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/renderer/tablePushToChat.js";
-import {openTableHistoryPopup} from "./core/editor/tableHistory.js";
 import {loadSettings} from "./core/renderer/userExtensionSetting.js";
 import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
-import {initAllTable} from "./core/tableActions.js";
+import {initAllTable, TableEditAction} from "./core/tableActions.js";
 import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
 import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
 import {initTest} from "./components/_fotTest.js";
-import JSON5 from './utils/json5.min.mjs'
 import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './core/runtime/absoluteRefresh.js';
 import {refreshTempView} from "./core/editor/tableTemplateEditView.js";
 import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
-import LLMApiService from "./services/llmApi.js";
 import {functionToBeRegistered} from "./services/debugs.js";
 
 
@@ -70,24 +67,6 @@ export function findLastestOldTablePiece(isIncludeEndIndex = false, endIndex = -
         }
     }
     return { tables: newTableList, index: -1 }
-}
-
-/**
- * 转化旧表格 content 为 hashSheet
- * @param {string[][]} content 旧表格数据
- * @param {*} sheet 新表格
- */
-function convertOldContentToHashSheet(content, sheet) {
-    const cols = content[0].length + 1
-    const rows = content.length + 1
-    sheet.updateSheetStructure(cols, rows)
-    for (let i = 0; i < content.length; i++) {
-        for (let j = 0; j < content[i].length; j++) {
-            const cell = sheet.findCellByPosition(j + 1, i + 1)
-            cell.data.value = content[i][j]
-        }
-    }
-    return sheet.hashSheet
 }
 
 /**
@@ -201,21 +180,6 @@ export async function convertOldTablesToNewSheets(oldTableList, force = false) {
     await USER.saveChat();      // 延迟保存（如果需要）
 
     return sheets;
-}
-
-/**
- * 对比新旧表格数据是否相同
- * @param {DERIVED.Table} oldTable 旧表格数据
- * @param {BASE.Sheet} newSheet 新表格数据
- * @returns 是否相同
- */
-function compareSheetData(oldTable, newSheet) {
-    const oldCols = oldTable.columns.length
-    if (oldCols !== newSheet.colCount) return false
-    for (let i = 0; i < oldCols; i++) {
-        if (oldTable.columns[i] !== newTable.findCellByPosition(0, i).data.value) return false
-    }
-    return true
 }
 
 /**
@@ -367,7 +331,7 @@ export function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     DERIVED.any.waitingTable = copyTableList(tables)
     clearEmpty()
     // 对最近的表格执行操作
-    DERIVED.any.tableEditActions = functionList.map(functionStr => new DERIVED.TableEditAction(functionStr))
+    DERIVED.any.tableEditActions = functionList.map(functionStr => new TableEditAction(functionStr))
     dryRunExecuteTableEditTag()
     return true
 }

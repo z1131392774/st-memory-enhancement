@@ -1,6 +1,5 @@
 import applicationFunctionManager from "./services/appFuncManager.js";
 import { Table } from "./core/table.js";
-import { TableEditAction } from "./core/tableActions.js";
 import { consoleMessageToEditor } from "./core/runtime/devConsole.js";
 import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly,} from "./utils/utility.js";
 import {defaultSettings} from "./core/pluginSetting.js";
@@ -156,7 +155,6 @@ export const DERIVED = {
         return createProxy(derivedData);
     },
     Table: Table,
-    TableEditAction: TableEditAction,
 };
 
 

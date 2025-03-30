@@ -13,6 +13,10 @@
 
 
 
+.line-first {
+    margin: 0 10px;
+}
+
 .redWarningText {
     /*color: var(--crimson70a) !important;*/
 }

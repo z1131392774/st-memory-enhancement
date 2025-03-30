@@ -2,6 +2,68 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 import JSON5 from '../utils/json5.min.mjs'
 import {handleCellValue} from "./table.js";
 
+const OldTableAction = {
+    updateRow: 'updateRow',
+    insertRow: 'insertRow',
+    deleteRow: 'deleteRow',
+}
+
+// function event(actionName, props = {}) {
+//     const [rowIndex, colIndex] = this.#positionInParentCellSheet();
+//     switch (actionName) {
+//         case OldTableAction.updateRow:
+//             this.#handleEditCell(props);
+//             break;
+//         case OldTableAction.insertRow:
+//             if (colIndex <= 0) return;
+//             this.#insertColumn(colIndex - 1);
+//             break;
+//         case OldTableAction.deleteRow:
+//             this.#insertColumn(colIndex);
+//             break;
+//         case OldTableAction.insertUpRow:
+//             if (rowIndex <= 0) return;
+//             this.#insertRow(rowIndex - 1);
+//             break;
+//         case OldTableAction.insertDownRow:
+//             this.#insertRow(rowIndex);
+//             break;
+//         case OldTableAction.deleteSelfColumn:
+//             if (colIndex <= 0) return;
+//             this.#deleteColumn(colIndex);
+//             break;
+//         case OldTableAction.deleteSelfRow:
+//             if (rowIndex <= 0) return;
+//             this.#deleteRow(rowIndex);
+//             break;
+//         case OldTableAction.clearSheet:
+//             this.#clearSheet();
+//             break;
+//         default:
+//             console.warn(`未处理的单元格操作: ${actionName}`);
+//     }
+//
+//     // 触发自定义事件监听器
+//     if (this.customEventListeners[actionName]) {
+//         this.customEventListeners[actionName].forEach(callback => { // 遍历执行数组中的回调函数
+//             callback(this, actionName, props); // 传递 cell 实例, actionName, 和 props
+//         });
+//     }
+//     if (this.customEventListeners['']) {
+//         this.customEventListeners[''].forEach(callback => { // 遍历执行数组中的回调函数
+//             callback(this, actionName, props); // 监听所有事件的监听器
+//         });
+//     }
+//
+//     this.parent.renderSheet(this.parent.lastCellEventHandler);
+//     this.parent.save();
+//     console.log(`单元格操作: ${actionName} 位置: ${[rowIndex, colIndex]}`);
+// }
+
+export function oldTableAction(actionName, index, props) {
+
+}
+
 /**
  * 命令执行对象
  */
@@ -13,13 +75,6 @@ export class TableEditAction {
         this.parsingFunctionStr()
     }
 
-    setActionInfo(type, tableIndex, rowIndex, data) {
-        this.type = type
-        this.tableIndex = tableIndex
-        this.rowIndex = rowIndex
-        this.data = data
-    }
-
     parsingFunctionStr() {
         const { type, newFunctionStr } = isTableEditFunction(this.str)
         this.type = type
@@ -27,7 +82,7 @@ export class TableEditAction {
             if (!this.str.startsWith('//')) this.str = '// ' + this.str
         }
         this.params = ParseFunctionParams(newFunctionStr)
-        this.AssignParams()
+        this.AssignParams()     // 为参数赋值
     }
 
     AssignParams() {
