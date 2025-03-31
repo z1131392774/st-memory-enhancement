@@ -21,7 +21,7 @@ export function functionToBeRegistered() {
         // 弹出确认
         if (confirm("记忆插件：是否清除当前表格数据？")) {
             delete USER.getSettings().table_database_templates
-            delete USER.getChatMetadata().sheets
+            delete BASE.sheetsData.chat
             USER.saveSettings()
             USER.saveChat();
             EDITOR.success("表格数据清除成功")
@@ -32,7 +32,7 @@ export function functionToBeRegistered() {
     }, "销毁新表数据")
     SYSTEM.f(()=>{
         let sourceData = {}
-        const s = USER.getChatMetadata().sheets
+        const s = BASE.sheetsData.chat
         console.log(s, s[0])
         console.log(s[0].cellHistory[0])
         console.log(s[0].cellHistory[0].data.description)

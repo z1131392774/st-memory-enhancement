@@ -59,6 +59,15 @@ class SheetBase {
 
         // 以下为派生数据
         this.cells = new Map();                 // cells 在每次 Sheet 初始化时从 cellHistory 加载
+        this.data = new Proxy({}, {     // 用于存储用户自定义的表格数据
+            get: (target, prop) => {
+                return this.source.data[prop];
+            },
+            set: (target, prop, value) => {
+                this.source.data[prop] = value;
+                return true;
+            },
+        });
         this._cellPositionCacheDirty = true;    // 用于标记是否需要重新计算 sheetCellPosition
         this.positionCache = new Proxy(new Map(), {
             get: (map, uid) => {
@@ -69,11 +78,14 @@ class SheetBase {
                             map.set(cellUid, [rowIndex, colIndex]);
                         });
                     });
-                    this._cellPositionCacheDirty = false; // 更新完成，标记为干净
+                    this._cellPositionCacheDirty = false;   // 更新完成，标记为干净
                 }
                 return map.get(uid);
             },
         });
+    }
+    get source() {
+        return this.cells.get(this.hashSheet[0][0]);
     }
 
     markPositionCacheDirty() {
@@ -172,43 +184,8 @@ export class SheetTemplate extends SheetBase {
         this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
         this.asTemplate = true;                 // 用于标记是否作为模板
 
-        this.data = new Proxy({}, {
-            get: (target, prop) => {
-                return this.source.data[prop];
-            },
-            set: (target, prop, value) => {
-                this.source.data[prop] = value;
-                return true;
-            },
-        });
-        this.rowCount = new Proxy({}, {
-            get: () => this.hashSheet.length,
-            set: () => { throw new Error("不允许修改 rowCount") }
-        });
-        this.colCount = new Proxy({}, {
-            get: () => this.hashSheet[0].length,
-            set: () => { throw new Error("不允许修改 colCount") }
-        });
-
         this.load(target, options);
     }
-    get source() {
-        return this.cells.get(this.hashSheet[0][0]);
-    }
-
-
-    // /**
-    //  * 通过模板创建新的 Sheet 实例
-    //  * @param {Sheet} [template] - 可选的模板 Sheet 实例，用于从模板创建新表格
-    //  * @returns {Sheet} - 返回新的 Sheet 实例
-    //  */
-    // createNewByTemp(template) {
-    //     if (!template) {
-    //         return this.createNewTemplate(); // 如果 template 为空，则回退到创建空表格
-    //     } else {
-    //         return this.#createFromTemplate(template);
-    //     }
-    // }
 
     /**
      * 渲染表格
@@ -319,13 +296,13 @@ export class SheetTemplate extends SheetBase {
             console.warn('无效的行列索引');
             return null;
         }
-        const h = this.hashSheet[rowIndex][colIndex]
-        const t = this.cells.get(p) || null;
-        if (!t) {
-            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${h}`);
+        const hash = this.hashSheet[rowIndex][colIndex]
+        const target = this.cells.get(hash) || null;
+        if (!target) {
+            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${hash}`);
             return null;
         }
-        return t;
+        return target;
     }
     /**
      * 通过行号获取行的所有单元格
@@ -569,7 +546,7 @@ export class Sheet extends SheetTemplate {
             } else {
                 sheets.push(sheetDataToSave);
             }
-            USER.getChatMetadata().sheets = sheets;
+            BASE.sheetsData.chat = sheets;
             USER.saveChat();
             return this;
         } catch (e) {

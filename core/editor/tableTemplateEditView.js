@@ -124,7 +124,7 @@ function getAllDropdownOptions() {
 }
 
 function updateSelect2Dropdown() {
-    let selectedSheets = scope ==='global'? USER.getChatMetadata().selected_sheets: getAllDropdownOptions()
+    let selectedSheets = scope ==='global'? USER.getContext().chatMetadata.selected_sheets: getAllDropdownOptions()
     if (selectedSheets === undefined) {
         selectedSheets = [];
     }
@@ -156,7 +156,7 @@ function initializeSelect2Dropdown(dropdownElement) {
 
     $(dropdownElement).on('change', function (e, silent) {
         if(silent || scope === 'chat') return
-        USER.getChatMetadata().selected_sheets = $(this).val();
+        USER.getContext().chatMetadata.selected_sheets = $(this).val();
         USER.saveSettings();
         updateDragTables();
     });
@@ -339,7 +339,7 @@ function bindCellClickEvent(cell) {
 }
 
 function getSelectedSheetUids() {
-    return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getChatMetadata().selected_sheets ?? []
+    return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getContext().chatMetadata.selected_sheets ?? []
 }
 
 
@@ -473,7 +473,7 @@ async function initTableEdit(mesId) {
 
         currentSelectedValues.push(newTemplateUid);
 
-        USER.getChatMetadata().selected_sheets = currentSelectedValues;
+        USER.getContext().chatMetadata.selected_sheets = currentSelectedValues;
         USER.saveSettings();
         await updateDropdownElement();
         updateDragTables();

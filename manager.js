@@ -31,7 +31,9 @@ export const USER = {
     saveSettings: () => APP.saveSettings(),
     saveChat:()=> APP.saveChat(),
     getContext: () => APP.getContext(),
-    getChatMetadata: () => APP.getContext().chatMetadata,
+    // getContextSheets: () => APP.getContext().chatMetadata.sheets,
+    // getRoleSheets: () => APP,
+    // getGlobalSheets: () => APP,
     getChatPiece: (deep = 0) => {
         const chat = APP.getContext().chat;
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
@@ -57,6 +59,23 @@ export const BASE = {
     Sheet: Sheet,
     SheetTemplate: SheetTemplate,
 
+    sheetsData: new Proxy({}, {
+        get(_, target) {
+            switch (target) {
+                case 'all':
+
+                case 'chat':
+                    return USER.getContext().chatMetadata.sheets;
+                case 'global':
+
+                case 'role':
+
+                default:
+                    throw new Error(`Unknown sheetsData target: ${target}`);
+            }
+        }
+    }),
+
     loadUserAllTemplates() {
         let templates = USER.getSettings().table_database_templates;
         if (!Array.isArray(templates)) {
@@ -67,10 +86,10 @@ export const BASE = {
         return templates;
     },
     loadContextAllSheets() {
-        let sheets = USER.getChatMetadata().sheets;
+        let sheets = BASE.sheetsData.chat;
         if (!Array.isArray(sheets)) {
             sheets = [];
-            USER.getChatMetadata().sheets = sheets;
+            BASE.sheetsData.chat = sheets;
         }
         return sheets;
     },
@@ -90,13 +109,13 @@ export const BASE = {
     destroyAllTemplates() {
         if (confirm("确定要销毁所有表格模板数据吗？") === false) return false;
         USER.getSettings().table_database_templates = [];
-        USER.getChatMetadata().selected_sheets = [];
+        USER.getContext().chatMetadata.selected_sheets = [];
         USER.saveSettings();
         return true;
     },
     destroyAllContextSheets() {
         if (confirm("确定要销毁所有表格数据吗？") === false) return false;
-        USER.getChatMetadata().sheets = [];
+        BASE.sheetsData.chat = [];
         USER.saveChat();
         return true;
     }
@@ -135,7 +154,7 @@ export const EDITOR = {
             'user_table_database_setting': USER.getSettings().muyoo_dataTable,
             'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
-            'context_chatMetadata_sheets': USER.getChatMetadata()?.sheets,
+            'context_chatMetadata_sheets': USER.getContext().chatMetadata?.sheets,
             'context_oldTable_data': findLastestOldTablePiece(true)?.tables,
             'context_sheets_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),

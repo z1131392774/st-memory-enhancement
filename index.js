@@ -176,7 +176,7 @@ export async function convertOldTablesToNewSheets(oldTableList, force = false) {
     }
 
     console.log(`新表格数据量：${(sheetsLength / 1024).toFixed(2)}KB`);
-    USER.getChatMetadata().sheets = newSheetsMetadata;
+    BASE.sheetsData.chat = newSheetsMetadata;
     await USER.saveChat();      // 延迟保存（如果需要）
 
     return sheets;

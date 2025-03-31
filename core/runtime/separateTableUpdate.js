@@ -8,15 +8,15 @@ let toBeExecuted = [];
  * @param chat
  * */
 function InitChatForTableTwoStepSummary(chat) {
-    // 如果currentChat.uid未定义，则初始化为随机字符串
+    // 如果currentPiece.uid未定义，则初始化为随机字符串
     if (chat.uid === undefined) {
-        chat.uid = SYSTEM.generateRandomString();
+        chat.uid = SYSTEM.generateRandomString(22);
     }
-    // 如果currentChat.uid_that_references_table_step_update未定义，则初始化为{}
+    // 如果currentPiece.uid_that_references_table_step_update未定义，则初始化为{}
     if (chat.two_step_links === undefined) {
         chat.two_step_links = {};
     }
-    // 如果currentChat.uid_that_references_table_step_update未定义，则初始化为{}
+    // 如果currentPiece.uid_that_references_table_step_update未定义，则初始化为{}
     if (chat.two_step_waiting === undefined) {
         chat.two_step_waiting = {};
     }
@@ -119,63 +119,65 @@ export async function TableTwoStepSummary() {
 
     // 获取当前对话
     const chats = USER.getContext().chat;
-    const currentChat = chats[chats.length - 1];
-    if (currentChat.is_user === true) return;
+    const currentPiece = chats[chats.length - 1];
+    if (currentPiece.is_user === true) return;
 
-    const swipeUid = getSwipeUid(currentChat);
-    if (currentChat.mes.length < 10) {
-        console.log('当前对话长度过短, 跳过执行分步总结: ', currentChat.mes);
-        MarkChatAsWaiting(currentChat, swipeUid);
+    const swipeUid = getSwipeUid(currentPiece);
+    if (currentPiece.mes.length < 20) {
+        console.log('当前对话长度过短, 跳过执行分步总结: ', currentPiece.mes);
+        MarkChatAsWaiting(currentPiece, swipeUid);
         return;
     }
 
     // 如果不开启多轮累计
     if (USER.tableBaseSetting.sum_multiple_rounds === false) {
         // 如果当前对话长度未达到阈值，则跳过，待出现能够执行的对话时再一起执行
-        if (currentChat.mes.length < USER.tableBaseSetting.step_by_step_threshold) {
-            console.log('当前对话长度未达到阈值, 跳过执行分步总结: ', currentChat.mes);
-            MarkChatAsWaiting(currentChat, swipeUid);
+        if (currentPiece.mes.length < USER.tableBaseSetting.step_by_step_threshold) {
+            console.log('当前对话长度未达到阈值, 跳过执行分步总结: ', currentPiece.mes);
+            MarkChatAsWaiting(currentPiece, swipeUid);
             return;
         }
     }
 
-    // 往前找到所有未执行的两步总结，如果没有，则跳过
+    // 往前找到所有未执行的两步总结
     toBeExecuted = [];
     GetUnexecutedMarkChats(swipeUid);
+
+    // 如果没有找到需要执行的两步总结，则跳过
     if (toBeExecuted.length === 0) {
-        console.log('未找到需要执行的两步总结: ', currentChat.mes);
-        MarkChatAsWaiting(currentChat, swipeUid);
+        console.log('未找到需要执行的两步总结: ', currentPiece.mes);
+        MarkChatAsWaiting(currentPiece, swipeUid);
         return;
     }
 
     // 获取需要执行的两步总结
-    let todoChats = '';
-    toBeExecuted.forEach(chat => {
-        todoChats += handleMessages(chat.mes);
-    })
+    let todoChats = toBeExecuted.map(chat => chat.mes).join('');
 
-    // 检查是否达到执行两步总结的阈值
+    // 再次检查是否达到执行两步总结的阈值
     if (todoChats.length < USER.tableBaseSetting.step_by_step_threshold) {
-        currentChat.two_step_waiting[swipeUid] = true;
         console.log('需要执行两步总结的对话长度未达到阈值: ', `(${todoChats.length}) `, toBeExecuted);
-        MarkChatAsWaiting(currentChat, swipeUid);
+        MarkChatAsWaiting(currentPiece, swipeUid);
         return;
     }
 
     // 检查是否开启执行前确认
-    EDITOR.confirm(`累计 ${todoChats.length} 长度的待总结文本，是否执行两步总结？`, '取消', '执行两步总结').then(async (r) => {
-        if (r === false) {
-            currentChat.two_step_waiting[swipeUid] = true;
+    EDITOR.confirm(`累计 ${todoChats.length} 长度的待总结文本，是否执行两步总结？`, '取消', '执行两步总结').then(async (result) => {
+        if (result === false) {
             console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
-            MarkChatAsWaiting(currentChat, swipeUid);
+            MarkChatAsWaiting(currentPiece, swipeUid);
             return false;
         } else {
             const r = await refreshTableActions(true, true, todoChats);   // 执行两步总结
 
+            if (!r || r === '' || r === 'error') {
+                console.log('执行两步总结失败: ', `(${todoChats.length}) `, toBeExecuted);
+                MarkChatAsWaiting(currentPiece, swipeUid);
+                return false;
+            }
+
             if (r === 'suspended') {
-                currentChat.two_step_waiting[swipeUid] = true;
                 console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
-                MarkChatAsWaiting(currentChat, swipeUid);
+                MarkChatAsWaiting(currentPiece, swipeUid);
                 return false;
             }
 
@@ -183,6 +185,7 @@ export async function TableTwoStepSummary() {
                 const chatSwipeUid = getSwipeUid(chat);
                 chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
             })
+            toBeExecuted = [];
 
             return true;
         }

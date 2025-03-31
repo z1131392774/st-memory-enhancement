@@ -146,7 +146,7 @@ async function clearTable(mesId, viewSheetsContainer) {
     const confirmation = await EDITOR.callGenericPopup('清空当前对话的所有表格数据，并重置历史记录，该操作无法回退，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         delete USER.getSettings().table_database_templates
-        delete USER.getChatMetadata().sheets
+        delete BASE.sheetsData.chat
         await USER.getContext().chat.forEach((piece => {
             if (piece.hash_sheets) {
                 delete piece.hash_sheets
@@ -357,7 +357,7 @@ function cellClickEvent(cell) {
 
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus(true);
-    const sheetsData = await USER.getChatMetadata().sheets
+    const sheetsData = await BASE.sheetsData.chat
     const lastHashSheets = BASE.getLastSheetsPiece(1, 3)?.hash_sheets;
     lastHashSheetsMap = new Map();
     if (lastHashSheets) {
