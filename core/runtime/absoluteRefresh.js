@@ -1,3 +1,4 @@
+// absoluteRefresh.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {copyTableList, findLastestOldTablePiece, findTableStructureByIndex } from "../../index.js";
 import {insertRow, updateRow, deleteRow} from "../tableActions.js";

@@ -1,5 +1,5 @@
 import applicationFunctionManager from "./services/appFuncManager.js";
-import { Table } from "./core/table.js";
+// 移除旧表格系统引用
 import { consoleMessageToEditor } from "./core/runtime/devConsole.js";
 import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly,} from "./utils/utility.js";
 import {defaultSettings} from "./core/pluginSetting.js";
@@ -65,6 +65,12 @@ export const BASE = {
                 case 'all':
 
                 case 'chat':
+                    if (!USER.getContext().chatMetadata) {
+                        USER.getContext().chatMetadata = {};
+                    }
+                    if (!USER.getContext().chatMetadata.sheets) {
+                        USER.getContext().chatMetadata.sheets = [];
+                    }
                     return USER.getContext().chatMetadata.sheets;
                 case 'global':
 
@@ -104,21 +110,6 @@ export const BASE = {
             }
         }
     },
-
-
-    destroyAllTemplates() {
-        if (confirm("确定要销毁所有表格模板数据吗？") === false) return false;
-        USER.getSettings().table_database_templates = [];
-        USER.getContext().chatMetadata.selected_sheets = [];
-        USER.saveSettings();
-        return true;
-    },
-    destroyAllContextSheets() {
-        if (confirm("确定要销毁所有表格数据吗？") === false) return false;
-        BASE.sheetsData.chat = [];
-        USER.saveChat();
-        return true;
-    }
 };
 
 
@@ -173,7 +164,7 @@ export const DERIVED = {
     get any() {
         return createProxy(derivedData);
     },
-    Table: Table,
+    // 移除旧的Table类引用，使用新的Sheet和SheetTemplate类
 };
 
 

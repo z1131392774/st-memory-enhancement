@@ -1,7 +1,6 @@
 // tablePushToChat.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {findLastestOldTablePiece, findTableStructureByIndex} from "../../index.js";
-import JSON5 from '../../utils/json5.min.mjs'
 
 /**
  * 解析html，将其中代表表格单元格的\$\w\d+字符串替换为对应的表格单元格内容
@@ -85,15 +84,30 @@ export function updateSystemMessageTableStatus(force = false) {
         }
     }
 
-    const tables = findLastestOldTablePiece(true).tables;
+    const { tables, isNewSystem } = findLastestOldTablePiece(true);
     let tableStatusHTML = '';
     for (let i = 0; i < tables.length; i++) {
         const structure = findTableStructureByIndex(i);
         if (!structure.enable || !structure.toChat) continue;
-        // 如果有自定义渲染器，则使用自定义渲染器，否则使用默认渲染器
-        tableStatusHTML += structure.tableRender
-            ? parseTableRender(structure.tableRender, tables[i])
-            : tables[i].render().outerHTML;
+        
+        // 处理新旧系统的表格渲染
+        if (isNewSystem && tables[i].uid) {
+            // 新系统：使用Sheet类的renderSheet方法
+            const sheet = new BASE.Sheet(tables[i].uid);
+            tableStatusHTML += structure.tableRender
+                ? parseTableRender(structure.tableRender, tables[i])
+                : sheet.renderSheet().outerHTML;
+        } else {
+            // 旧系统：使用旧的render方法或提供兼容处理
+            if (typeof tables[i].render === 'function') {
+                tableStatusHTML += structure.tableRender
+                    ? parseTableRender(structure.tableRender, tables[i])
+                    : tables[i].render().outerHTML;
+            } else {
+                console.warn('表格没有render方法，可能需要转换为新系统');
+                tableStatusHTML += `<div class="table-warning">表格数据格式不兼容，请刷新页面</div>`;
+            }
+        }
     }
     replaceTableToStatusTag(tableStatusHTML);
 }
