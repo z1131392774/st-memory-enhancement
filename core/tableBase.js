@@ -44,6 +44,7 @@ class SheetBase {
     SheetType = SheetType;
 
     constructor() {
+        // 以下为基本属性
         this.uid = '';
         this.name = '';
         this.domain = '';
@@ -52,9 +53,32 @@ class SheetBase {
         this.required = false;                  // 用于标记是否必填
         this.tochat = false;                    // 用于标记是否发送到聊天
 
-        this.cells = new Map(); // cells 在每次 Sheet 初始化时从 cellHistory 加载
-        this.cellHistory = [];  // cellHistory 持久保持，只增不减
-        this.hashSheet = [];    // 每回合的 hashSheet 结构，用于渲染出表格
+        // 以下为持久化数据
+        this.cellHistory = [];                  // cellHistory 持久保持，只增不减
+        this.hashSheet = [];                    // 每回合的 hashSheet 结构，用于渲染出表格
+
+        // 以下为派生数据
+        this.cells = new Map();                 // cells 在每次 Sheet 初始化时从 cellHistory 加载
+        this._cellPositionCacheDirty = true;    // 用于标记是否需要重新计算 sheetCellPosition
+        this.positionCache = new Proxy(new Map(), {
+            get: (map, uid) => {
+                if (this._cellPositionCacheDirty) {
+                    map.clear();
+                    this.hashSheet.forEach((row, rowIndex) => {
+                        row.forEach((cellUid, colIndex) => {
+                            map.set(cellUid, [rowIndex, colIndex]);
+                        });
+                    });
+                    this._cellPositionCacheDirty = false; // 更新完成，标记为干净
+                }
+                return map.get(uid);
+            },
+        });
+    }
+
+    markPositionCacheDirty() {
+        this._cellPositionCacheDirty = true;
+        console.log(`标记 Sheet: ${this.name} (${this.uid}) 的 positionCache 为脏`);
     }
 
     init(column = 2, row = 2) {
@@ -285,6 +309,7 @@ export class SheetTemplate extends SheetBase {
             return cell.uid;
         }));
         this.hashSheet = r;
+        this.markPositionCacheDirty();
     }
     findCellByPosition(rowIndex, colIndex) {
         if (rowIndex === 0 && colIndex === 0) {
@@ -443,31 +468,6 @@ export class SheetTemplate extends SheetBase {
             return false;
         }
     }
-
-    #createFromTemplate(template) {
-        // 复制模板的基本属性
-        this.domain = template.domain;
-        this.type = template.type;
-
-        // 初始化新的 hashSheet 结构，并复制模板的单元格数据
-        this.hashSheet = template.hashSheet.map(row => {
-            return row.map(cellUid => {
-                const templateCell = template.cells.get(cellUid);
-                let newCell = new Cell(this);
-                // **[可选项]：决定是否复制单元格的值，这里选择不复制，只复制单元格类型**
-                newCell.type = templateCell.type;
-                this.cells.set(newCell.uid, newCell);
-                this.cellHistory.push(newCell);
-                return newCell.uid;
-            });
-        });
-
-        this.uid = `sheet_${SYSTEM.generateRandomString(8)}`; // 新表格使用 'sheet_' 前缀
-        this.name = `新表格_${this.uid.slice(-4)}`; // 新表格默认名称
-        this.save(); // 保存新创建的 Sheet
-        return this; // 返回 Sheet 实例自身
-    }
-
 }
 
 /**
@@ -481,20 +481,6 @@ export class Sheet extends SheetTemplate {
 
         this.asTemplate = false;    // 用于标记是否作为模板
     }
-
-    // /**
-    //  * 通过模板创建新的 Sheet 实例
-    //  * @param {Sheet} [template] - 可选的模板 Sheet 实例，用于从模板创建新表格
-    //  * @returns {Sheet} - 返回新的 Sheet 实例
-    //  */
-    // createNewByTemp(template) {
-    //     if (template) {
-    //         throw new Error('无法使用非模板表格创建新表格'); // 错误：尝试使用非模板创建
-    //     }
-    //     // if (template) {
-    //     //     return this.#createFromTemplate(template); // 从模板创建
-    //     // }
-    // }
 
     /**
      * 渲染表格
@@ -771,20 +757,7 @@ class Cell {
         this.element = document.createElement('td');
     }
     #positionInParentCellSheet() {
-        if (!this.parent || !this.parent.hashSheet) {
-            return [-1, -1]; // 如果没有父级 Sheet 或 hashSheet，则返回 [-1, -1]
-        }
-        const hashSheet = this.parent.hashSheet;
-        for (let rowIndex = 0; rowIndex < hashSheet.length; rowIndex++) {
-            const row = hashSheet[rowIndex];
-            for (let colIndex = 0; colIndex < row.length; colIndex++) {
-                if (row[colIndex] === this.uid) {
-                    return [rowIndex, colIndex]; // 找到匹配的 UID，返回 [rowIndex, colIndex]
-                }
-            }
-        }
-        console.warn('未找到匹配的 UID'); // 如果遍历完 hashSheet 仍未找到匹配的 UID，则输出警告
-        return [-1, -1]; // 如果遍历完 hashSheet 仍未找到匹配的 UID，则返回 [-1, -1] (理论上不应该发生)
+        return this.parent.positionCache[this.uid] || [-1, -1];
     }
 
     #event(actionName, props = {}) {
@@ -855,6 +828,7 @@ class Cell {
             return cell.uid;
         });
         this.parent.hashSheet.splice(targetRowIndex + 1, 0, newRow);
+        this.parent.markPositionCacheDirty();
     }
     #insertColumn(colIndex) {
         // 遍历每一行，在指定的 colIndex 位置插入新的单元格 UID
@@ -865,11 +839,13 @@ class Cell {
             row.splice(colIndex + 1, 0, newCell.uid);
             return row;
         });
+        this.parent.markPositionCacheDirty();
     }
     #deleteRow(rowIndex) {
         if (rowIndex === 0) return;
         if (this.parent.hashSheet.length <= 2) return;
         this.parent.hashSheet.splice(rowIndex, 1);
+        this.parent.markPositionCacheDirty();
     }
     #deleteColumn(colIndex) {
         if (colIndex === 0) return;
@@ -878,6 +854,7 @@ class Cell {
             row.splice(colIndex, 1);
             return row;
         });
+        this.parent.markPositionCacheDirty();
     }
     #clearSheet() {
         throw new Error('未实现的方法');

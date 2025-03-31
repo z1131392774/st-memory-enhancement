@@ -196,7 +196,6 @@ function batchEditMode(cell) {
         DERIVED.any.batchEditModeSheet = null;
         renderSheetsDOM();
     })
-
     renderSheetsDOM();
 }
 
@@ -299,21 +298,21 @@ function cellClickEvent(cell) {
         const sheetType = cell.parent.type;
 
         if (rowIndex === 0 && colIndex === 0) {
-            menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', (e) => { batchEditMode(cell) });
-            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
-            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+            menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
+            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => cell.newAction(cell.CellAction.insertRightColumn));
+            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => cell.newAction(cell.CellAction.insertDownRow));
         } else if (colIndex === 0) {
-            menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', (e) => { batchEditMode(cell) });
-            menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
-            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
-            menu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfRow)}, '确认删除行？') }, menu.ItemType.warning);
+            menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
+            menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => cell.newAction(cell.CellAction.insertUpRow));
+            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => cell.newAction(cell.CellAction.insertDownRow));
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfRow)}, '确认删除行？'), menu.ItemType.warning);
         } else if (rowIndex === 0) {
-            menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
-            menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
-            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
-            menu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfColumn)}, '确认删除列？') }, menu.ItemType.warning);
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await templateCellDataEdit(cell));
+            menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => cell.newAction(cell.CellAction.insertLeftColumn));
+            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => cell.newAction(cell.CellAction.insertRightColumn));
+            menu.add('<i class="fa fa-trash-alt"></i> 删除列', () => confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfColumn)}, '确认删除列？'), menu.ItemType.warning);
         } else {
-            menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async (e) => { await templateCellDataEdit(cell) });
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async () => await templateCellDataEdit(cell));
         }
 
         // 设置弹出菜单后的一些非功能性派生操作，这里必须使用setTimeout，否则会导致菜单无法正常显示
