@@ -164,6 +164,32 @@ export const defaultSettings = {
             insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
         },
     ],
+    sheetTemplates: [
+        {
+            name: "时空表格", columns: ['日期', '时间', '地点（当前描写）', '此地角色'], note: "记录时空信息的表格，应保持在一行",
+            initNode: '本轮需要记录当前时间、地点、人物信息，使用insertRow函数', updateNode: "当描写的场景，时间，人物变更时", deleteNode: "此表大于一行时应删除多余行"
+        },
+        {
+            name: '角色特征表格', columns: ['角色名', '身体特征', '性格', '职业', '爱好', '喜欢的事物（作品、虚拟人物、物品等）', '住所', '其他重要信息'], note: '角色天生或不易改变的特征csv表格，思考本轮有否有其中的角色，他应作出什么反应',
+            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色的身体出现持久性变化时，例如伤痕/当角色有新的爱好，职业，喜欢的事物时/当角色更换住所时/当角色提到重要信息时", deleteNode: ""
+        },
+        {
+            name: '角色与<user>社交表格', columns: ['角色名', '对<user>关系', '对<user>态度', '对<user>好感'], note: '思考如果有角色和<user>互动，应什么态度',
+            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色和<user>的交互不再符合原有的记录时/当角色和<user>的关系改变时", deleteNode: ""
+        },
+        {
+            name: '任务、命令或者约定表格', columns: ['角色', '任务', '地点', '持续时间'], note: '思考本轮是否应该执行任务/赴约',
+            insertNode: '当特定时间约定一起去做某事时/某角色收到做某事的命令或任务时', updateNode: "", deleteNode: "当大家赴约时/任务或命令完成时/任务，命令或约定被取消时"
+        },
+        {
+            name: '重要事件历史表格', columns: ['角色', '事件简述', '日期', '地点', '情绪'], note: '记录<user>或角色经历的重要事件',
+            initNode: '本轮必须从上文寻找可以插入的事件并使用insertRow插入', insertNode: '当某个角色经历让自己印象深刻的事件时，比如表白、分手等', updateNode: "", deleteNode: ""
+        },
+        {
+            name: '重要物品表格', columns: ['拥有人', '物品描述', '物品名', '重要原因'], note: '对某人很贵重或有特殊纪念意义的物品',
+            insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
+        },
+    ],
     to_chat_container: `<div class="table-preview-bar"><details>
 <summary style="display: flex; justify-content: space-between"> <button class="f5-reload-window" onclick="window.location.reload()">刷新</button> <span>记忆增强表格</span> </summary>
 $0

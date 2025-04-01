@@ -405,14 +405,15 @@ export function loadSettings() {
     if (USER.tableBaseSetting.updateIndex < 3) {
         USER.getSettings().message_template = USER.tableBaseDefaultSettings.message_template
         USER.tableBaseSetting.to_chat_container = USER.tableBaseDefaultSettings.to_chat_container
-        USER.tableBaseSetting.tableStructure = USER.tableBaseDefaultSettings.tableStructure
+        // USER.tableBaseSetting.tableStructure = USER.tableBaseDefaultSettings.tableStructure
         USER.tableBaseSetting.updateIndex = 3
     }
 
     // 2版本表格结构兼容
     console.log("updateIndex", USER.tableBaseSetting.updateIndex)
     if (USER.tableBaseSetting.updateIndex < 4) {
-        tableStructureToTemplate(USER.tableBaseSetting.tableStructure)
+        // tableStructureToTemplate(USER.tableBaseSetting.tableStructure)
+        initTableStructureToTemplate()
         USER.tableBaseSetting.updateIndex = 4
     }
     if (USER.tableBaseSetting.deep < 0) formatDeep()
@@ -422,18 +423,32 @@ export function loadSettings() {
     initRefreshTypeSelector(); // 初始化表格刷新类型选择器
 }
 
-/**
- * 表格结构转为表格模板
- * @param {object[]} tableStructure 表格结构
- * @returns 表格模板
- */
-function tableStructureToTemplate(tableStructure) {
-    return tableStructure.map((structure) => {
-        const newTemplate = new BASE.SheetTemplate('').createNewSheet(structure.columns.length + 1, 1);
-        for (const key in structure.columns) {
-            const cell = newTemplate.findCellByPosition(0, parseInt(key) + 1)
-            cell.data.value = structure.columns[key]
-        }
-    })
-
+export function initTableStructureToTemplate() {
+    const sheetDefaultTemplates = USER.tableBaseDefaultSettings.sheetTemplates
+    for (let defaultTemplate of sheetDefaultTemplates) {
+        const newTemplate = new BASE.SheetTemplate()
+        newTemplate.createNewTemplate(defaultTemplate.columns.length + 1, 1, false)
+        newTemplate.name = defaultTemplate.name
+        defaultTemplate.columns.forEach((column, index) => {
+            newTemplate.findCellByPosition(0, index + 1).data.value = column
+        })
+        newTemplate.save()
+    }
+    USER.saveSettings()
 }
+
+// /**
+//  * 表格结构转为表格模板
+//  * @param {object[]} tableStructure 表格结构
+//  * @returns 表格模板
+//  */
+// function tableStructureToTemplate(tableStructure) {
+//     return tableStructure.map((structure) => {
+//         const newTemplate = new BASE.SheetTemplate('').createNewSheet(structure.columns.length + 1, 1);
+//         for (const key in structure.columns) {
+//             const cell = newTemplate.findCellByPosition(0, parseInt(key) + 1)
+//             cell.data.value = structure.columns[key]
+//         }
+//     })
+//
+// }

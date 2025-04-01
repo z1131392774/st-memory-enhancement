@@ -39,6 +39,15 @@ export const USER = {
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
         return chat[chat.length - 1 - deep]
     },
+    loadUserAllTemplates() {
+        let templates = USER.getSettings().table_database_templates;
+        if (!Array.isArray(templates)) {
+            templates = [];
+            USER.getSettings().table_database_templates = templates;
+            USER.saveSettings();
+        }
+        return templates;
+    },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
     tableBaseDefaultSettings: {...defaultSettings},
     IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA', true),
@@ -58,7 +67,7 @@ export const BASE = {
      */
     Sheet: Sheet,
     SheetTemplate: SheetTemplate,
-
+    templates: USER.loadUserAllTemplates(),
     sheetsData: new Proxy({}, {
         get(_, target) {
             switch (target) {
@@ -82,31 +91,14 @@ export const BASE = {
         }
     }),
 
-    loadUserAllTemplates() {
-        let templates = USER.getSettings().table_database_templates;
-        if (!Array.isArray(templates)) {
-            templates = [];
-            USER.getSettings().table_database_templates = templates;
-            USER.saveSettings();
-        }
-        return templates;
-    },
-    loadContextAllSheets() {
-        let sheets = BASE.sheetsData.context;
-        if (!Array.isArray(sheets)) {
-            sheets = [];
-            BASE.sheetsData.context = sheets;
-        }
-        return sheets;
-    },
     getLastSheetsPiece(deep = 0, cutoff = 1000) {
         // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
-        let chat = APP.getContext().chat
+        const chat = APP.getContext().chat
         if (!chat || chat.length === 0 || chat.length <= deep) return null;
 
         for (let i = chat.length - deep - 1; i >= 0 && i >= chat.length - cutoff; i--) {
             if (chat[i].hash_sheets) {
-                console.log("向上查询表格数据，找到表格数据", chat[i])
+                // console.log("向上查询表格数据，找到表格数据", chat[i])
                 return chat[i]
             }
             // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
@@ -118,8 +110,7 @@ export const BASE = {
             }
         }
 
-        // TODO 开始从模板中加载表格数据
-
+        // initTableStructureToNewSheet()
 
         // 如果都没有找到，则返回空数组
         console.log("向上查询表格数据，未找到表格数据")
@@ -171,7 +162,7 @@ export const EDITOR = {
             'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
             'context_chatMetadata_sheets': USER.getContext().chatMetadata?.sheets,
-            'context_sheets_data': BASE.loadContextAllSheets(),
+            'context_sheets_data': BASE.sheetsData.context,
             'chat_last_piece': USER.getChatPiece(),
             'chat_last_sheet': BASE.getLastSheetsPiece()?.hash_sheets,
             'chat_last_old_table': BASE.getLastSheetsPiece()?.dataTable,
@@ -201,11 +192,6 @@ export const SYSTEM = {
     getTemplate: (name) => {
         console.log('getTemplate', name);
         return APP.renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
-    },
-    htmlToDom: (html, targetId = '') => {
-        const dom = new DOMParser().parseFromString(html, 'text/html');
-        if (targetId === '') return dom;
-        return dom.getElementById(targetId);
     },
 
     codePathLog: function (context = '', deep = 2) {

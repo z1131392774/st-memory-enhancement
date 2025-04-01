@@ -5,14 +5,6 @@ import { Form } from '../../components/formManager.js';
 import { openSheetStyleRendererPopup } from "./sheetStyleEditor.js";
 import { compareDataDiff } from "../../utils/utility.js";
 
-const userSheetEditInfo = {
-    chatIndex: null,
-    editAble: false,
-    tables: null,
-    tableIndex: null,
-    rowIndex: null,
-    colIndex: null,
-}
 let drag = null;
 let currentPopupMenu = null;
 let dropdownElement = null;
@@ -100,7 +92,7 @@ const formConfigs = {
 
 
 async function updateDropdownElement() {
-    const templates = scope === 'chat' ? BASE.loadContextAllSheets() ?? [] : BASE.loadUserAllTemplates();
+    const templates = BASE.templates;
     // console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
@@ -372,8 +364,6 @@ async function updateDragTables() {
     const uidsToAdd = selectedSheetUids.filter(uid => !renderedTableUids.includes(uid));
     const uidsToUpdate = selectedSheetUids.filter(uid => renderedTableUids.includes(uid));
 
-    let isFirstTable = true; // 添加一个标志来判断是否是第一个表格
-
     for (const uid of uidsToAdd) {
         let sheet = new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
@@ -418,10 +408,6 @@ async function updateDragTables() {
             }
         }
     }
-    // 如果没有表格显示，重置 isFirstTable 标志，避免下次添加表格时错误判断
-    if (selectedSheetUids.length === 0) {
-        isFirstTable = true;
-    }
 }
 
 export async function refreshTempView(ignoreGlobal = false) {
@@ -432,7 +418,7 @@ export async function refreshTempView(ignoreGlobal = false) {
 }
 
 async function initTableEdit(mesId) {
-    const table_editor_container = await SYSTEM.htmlToDom(await SYSTEM.getTemplate('editor'), 'table_editor_container');
+    const table_editor_container = $(await SYSTEM.getTemplate('editor')).get(0);
     const tableEditTips = table_editor_container.querySelector('#tableEditTips');
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');
@@ -452,12 +438,6 @@ async function initTableEdit(mesId) {
         console.log("切换到", scope)
         await refreshTempView()
     })
-
-    // if (!userSheetEditInfo.editAble) {
-    //     $('#contentContainer #paste_table_button').hide();
-    // } else {
-    //     $('#contentContainer #paste_table_button').show();
-    // }
 
     $(document).on('click', '#add_table_template_button', async function () {
         const newTemplate = new BASE.SheetTemplate('').createNewTemplate();
@@ -479,15 +459,15 @@ async function initTableEdit(mesId) {
         updateDragTables();
         $(dropdownElement).val(currentSelectedValues).trigger('change');
     });
-    // $(document).on('click', '#sort_table_template_button', function () {
-    //
-    // })
     $(document).on('click', '#import_table_template_button', function () {
 
     })
     $(document).on('click', '#export_table_template_button', function () {
 
     })
+    // $(document).on('click', '#sort_table_template_button', function () {
+    //
+    // })
 
     // $(document).on('click', '#table_template_history_button', function () {
     //
@@ -507,5 +487,11 @@ async function initTableEdit(mesId) {
 }
 
 export async function getEditView(mesId = -1) {
-    return table_editor_container || await initTableEdit(mesId);
+    // 如果已经初始化过，直接返回缓存的容器，避免重复创建
+    if (table_editor_container) {
+        // 更新下拉菜单和表格，但不重新创建整个容器
+        await refreshTempView(false);
+        return table_editor_container;
+    }
+    return await initTableEdit(mesId);
 }

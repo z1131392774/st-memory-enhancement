@@ -90,7 +90,7 @@ class SheetBase {
 
     markPositionCacheDirty() {
         this._cellPositionCacheDirty = true;
-        console.log(`标记 Sheet: ${this.name} (${this.uid}) 的 positionCache 为脏`);
+        // console.log(`标记 Sheet: ${this.name} (${this.uid}) 的 positionCache 为脏`);
     }
 
     init(column = 2, row = 2) {
@@ -134,6 +134,14 @@ class SheetBase {
         // 加载后，根据 hashSheet 结构重新初始化所有 Cell
         try {
             if (this.hashSheet && this.hashSheet.length > 0) {
+                // 如果 hashSheet 只有一行，说明没有数据，只初始化表头行
+                if (this.hashSheet.length === 1) {
+                    this.hashSheet[0].forEach(hash => {
+                        const cell = this.cells.get(hash);
+                        this.cells.set(cell.uid, cell);
+                    });
+                }
+                // 如果 hashSheet 有数据，遍历 hashSheet，初始化每一个 Cell
                 this.hashSheet.forEach((rowUids, rowIndex) => {
                     rowUids.forEach((cellUid, colIndex) => {
                         const cell = this.cells.get(cellUid);
@@ -157,6 +165,43 @@ class SheetBase {
         }
     }
 
+    findCellByPosition(rowIndex, colIndex) {
+        if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.hashSheet.length || colIndex >= this.hashSheet[0].length) {
+            console.warn('无效的行列索引');
+            return null;
+        }
+        const hash = this.hashSheet[rowIndex][colIndex]
+        const target = this.cells.get(hash) || null;
+        if (!target) {
+            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${hash}`);
+            return null;
+        }
+        return target;
+    }
+    /**
+     * 通过行号获取行的所有单元格
+     * @param {number} rowIndex
+     * @returns cell[]
+     */
+    getCellsByRowIndex(rowIndex) {
+        if (rowIndex < 0 || rowIndex >= this.hashSheet.length) {
+            console.warn('无效的行索引');
+            return null;
+        }
+        return this.hashSheet[rowIndex].map(uid => this.cells.get(uid));
+    }
+    /**
+     * 获取表格csv格式的内容
+     * @returns
+     */
+    getSheetCSV(key = 'value') {
+        if (this.isEmpty())
+            if (this.required) return this.source.initNode;
+            else return '';
+        const content = this.hashSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.cells.get(cellUid)?.data[key]).join(',')).join('\n');
+        return content + "\n";
+    }
+
     filterSavingData() {
         return {
             uid: this.uid,
@@ -175,15 +220,14 @@ class SheetBase {
 }
 
 export class SheetTemplate extends SheetBase {
-    constructor(target = null, options = {}) {
+    constructor(target = null) {
         super();
 
         this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
         this.element = null;                    // 用于存储渲染后的 table 元素
         this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
-        this.asTemplate = true;                 // 用于标记是否作为模板
 
-        this.load(target, options);
+        this.#load(target);
     }
 
     /**
@@ -245,76 +289,39 @@ export class SheetTemplate extends SheetBase {
         return this; // 返回 Sheet 实例自身
     }
 
-
-
     /**
      * 保存表格数据
-     * @returns {Sheet|boolean}
+     * @returns {SheetTemplate}
      */
     save() {
-        const sheetDataToSave = this.filterSavingData()
-        return this.#saveSheetToGlobal(sheetDataToSave);
+        let templates = BASE.templates;
+        if (!templates) templates = [];
+        try {
+            const sheetDataToSave = this.filterSavingData();
+            if (templates.some(t => t.uid === sheetDataToSave.uid)) {
+                templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
+            } else {
+                templates.push(sheetDataToSave);
+            }
+            USER.getSettings().table_database_templates = templates;
+            USER.saveSettings();
+            return this;
+        } catch (e) {
+            EDITOR.error(`保存模板失败：${e}`);
+            return null;
+        }
     }
     /**
      * 删除表格数据，根据 domain 决定删除的位置
      * @returns {*}
      */
     delete() {
-        console.error('基于域的模板删除逻辑未实现，当前仅支持全局模板删除')
-        let templates = BASE.loadUserAllTemplates();
+        let templates = BASE.templates;
         USER.getSettings().table_database_templates = templates.filter(t => t.uid !== this.uid);
         USER.saveSettings();
         return templates;
     }
 
-    updateSheetStructure(column, row) {
-        const r = Array.from({ length: row }, (_, i) => Array.from({ length: column }, (_, j) => {
-            if (this.hashSheet[i]?.[j]) {
-                return this.hashSheet[i][j];
-            }
-            let cell = new Cell(this);
-            this.cells.set(cell.uid, cell);
-            this.cellHistory.push(cell);
-            if (i === 0 && j === 0) {
-                cell.type = CellType.sheet_origin;
-            } else if (i === 0) {
-                cell.type = CellType.column_header;
-            } else if (j === 0) {
-                cell.type = CellType.row_header;
-            }
-            return cell.uid;
-        }));
-        this.hashSheet = r;
-        this.markPositionCacheDirty();
-    }
-    findCellByPosition(rowIndex, colIndex) {
-        // if (rowIndex === 0 && colIndex === 0) {
-        //     return this.source;
-        // }
-        if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.hashSheet.length || colIndex >= this.hashSheet[0].length) {
-            console.warn('无效的行列索引');
-            return null;
-        }
-        const hash = this.hashSheet[rowIndex][colIndex]
-        const target = this.cells.get(hash) || null;
-        if (!target) {
-            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${hash}`);
-            return null;
-        }
-        return target;
-    }
-    /**
-     * 通过行号获取行的所有单元格
-     * @param {number} rowIndex
-     * @returns cell[]
-     */
-    getCellsByRowIndex(rowIndex) {
-        if (rowIndex < 0 || rowIndex >= this.hashSheet.length) {
-            console.warn('无效的行索引');
-            return null;
-        }
-        return this.hashSheet[rowIndex].map(uid => this.cells.get(uid));
-    }
     /**
      * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
      * @returns 表格内容提示词
@@ -354,62 +361,36 @@ export class SheetTemplate extends SheetBase {
         return this.hashSheet.length <= 1;
     }
 
-
-    /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
-    /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
-    load(target, options = {}) {
-        // // 如果target是Sheet类
-        // if (target instanceof Sheet) {
-        //     // 如果target是Sheet类，则直接使用target的属性
-        //     try {
-        //         Object.assign(this, target);
-        //     } catch (e) {
-        //         console.error(`加载模板失败：${e}`);
-        //         return false;
-        //     }
-        //     this.loadCells();
-        //     return this;
-        // }
-
-        let targetUid = target?.uid || target;
-        let targetSheetData = BASE.loadUserAllTemplates().find(t => t.uid === targetUid);
-        if (!targetSheetData?.uid) {
-            targetSheetData = BASE.loadContextAllSheets()?.find(t => t.uid === targetUid);
-        }
-
-        if (!targetSheetData?.uid) {
+    #load(target) {
+        if (target === null) {
             // 创建一个新的空 Sheet
             this.init();
-        } else {
-            // 从 targetSheetData 加载 Sheet 对象
-            try {
-                Object.assign(this, targetSheetData);
-            } catch (e) {
-                console.error(`加载模板失败：${e}`);
-                return false;
-            }
+            return this;
         }
+        if (target instanceof Sheet) {
+            // 从 Sheet 实例模板化
+            this.uid = `template_${SYSTEM.generateRandomString(8)}`;
+            this.name = `${target.name}_模板`;
+            this.hashSheet = [target.hashSheet[0]];
+            this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
+            this.loadCells();
+            this.markPositionCacheDirty();
+            return this;
+        } else {
+            // 从模板库中加载
+            let targetUid = target?.uid || target;
+            let targetSheetData = BASE.templates?.find(t => t.uid === targetUid);
+            if (targetSheetData?.uid) {
+                Object.assign(this, targetSheetData);
+                this.loadCells();
+                this.markPositionCacheDirty();
+                return this;
+            }
 
-        // this.domain = options.domain ?? SheetDomain.global;
-        // this.type = options.domain ?? SheetType.dynamic;
-
-        // console.log(this)
-        this.loadCells();
-
-        return this;
-    }
-    /**
-     * 获取表格csv格式的内容
-     * @returns
-     */
-    getSheetCSV(key = 'value') {
-        if (this.isEmpty())
-            if (this.required) return this.source.initNode;
-            else return '';
-        const content = this.hashSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.cells.get(cellUid)?.data[key]).join(',')).join('\n');
-        return content + "\n";
+            throw new Error('未找到对应的模板');
+        }
     }
     /**
      * 获取表格编辑规则提示词
@@ -426,24 +407,6 @@ export class SheetTemplate extends SheetBase {
             return editRules
         }
     }
-
-    #saveSheetToGlobal(sheetDataToSave) {
-        let templates = BASE.loadUserAllTemplates();
-        if (!templates) templates = [];
-        try {
-            if (templates.some(t => t.uid === sheetDataToSave.uid)) {
-                templates = templates.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
-            } else {
-                templates.push(sheetDataToSave);
-            }
-            USER.getSettings().table_database_templates = templates;
-            USER.saveSettings();
-            return this;
-        } catch (e) {
-            EDITOR.error(`保存模板失败：${e}`);
-            return false;
-        }
-    }
 }
 
 /**
@@ -451,11 +414,16 @@ export class SheetTemplate extends SheetBase {
  * @description 表格类用于管理表格数据，包括表格的名称、域、类型、单元格数据等
  * @description 表格类还提供了对表格的操作，包括创建、保存、删除、渲染等
  */
-export class Sheet extends SheetTemplate {
-    constructor(target = null, options = {}) {
-        super(target, options);
+export class Sheet extends SheetBase {
+    constructor(target = null) {
+        super(target);
 
-        this.asTemplate = false;    // 用于标记是否作为模板
+        this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
+        this.element = null;                    // 用于存储渲染后的 table 元素
+        this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
+        this.template = null;       // 用于存储模板
+
+        this.#load(target);
     }
 
     /**
@@ -507,37 +475,15 @@ export class Sheet extends SheetTemplate {
         return this.element;
     }
 
-    load(target, options) {
-        let targetUid = target?.uid || target;
-        let targetSheetData = BASE.loadContextAllSheets()?.find(t => t.uid === targetUid);
-
-        if (!targetSheetData?.uid) {
-            // 创建一个新的空 Sheet
-            this.init();
-        } else {
-            // 从 targetSheetData 加载 Sheet 对象
-            try {
-                Object.assign(this, targetSheetData);
-            } catch (e) {
-                console.error(`加载表格失败：${e}`);
-                return false;
-            }
-        }
-
-        // console.log(this)
-        this.loadCells();
-
-        return this;
-    }
-
     /**
      * 保存表格数据
      * @returns {Sheet|boolean}
      */
     save() {
         const sheetDataToSave = this.filterSavingData()
+        sheetDataToSave.template = this.template?.uid;
 
-        let sheets = BASE.loadContextAllSheets();
+        let sheets = BASE.sheetsData.context;
         if (!sheets) sheets = [];
         try {
             if (sheets.some(t => t.uid === sheetDataToSave.uid)) {
@@ -566,6 +512,27 @@ export class Sheet extends SheetTemplate {
         this.name = `新表格_${this.uid.slice(-4)}`;
         if (isSave) this.save();    // 保存新创建的 Sheet
         return this;                // 返回 Sheet 实例自身
+    }
+
+    /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
+
+    #load(target) {
+        if (target instanceof SheetTemplate) {
+            throw new Error('暂时不支持从模板创建 Sheet');
+        }
+        if (target === null) {
+            return this;
+        }
+        let targetUid = target?.uid || target;
+        let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === targetUid);
+        if (targetSheetData?.uid) {
+            Object.assign(this, targetSheetData);
+            this.loadCells();
+            this.markPositionCacheDirty();
+            return this;
+        }
+
+        throw new Error('未找到对应的模板');
     }
 }
 
@@ -623,7 +590,7 @@ class Cell {
         }
 
         // 使用 instanceof 获取 this.parent 是 Sheet类 还是 SheetTemplate类
-        if (this.parent.asTemplate === true) {
+        if (this.parent instanceof SheetTemplate) {
             if (rowIndex === 0 && colIndex === 0) {
                 this.element.classList.add('sheet-cell-origin');
             } else if (rowIndex === 0) {
@@ -648,8 +615,7 @@ class Cell {
                 }
                 this.element.classList.add('sheet-cell-other');
             }
-        }
-        else {
+        } else if (this.parent instanceof Sheet) {
             if (rowIndex === 0 && colIndex === 0) {
                 // this.element.textContent = 0;
                 this.element.classList.add('sheet-cell-origin');

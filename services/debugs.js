@@ -3,7 +3,7 @@ import LLMApiService from "./llmApi.js";
 
 /**______________________请注意不要把填写后的API密钥上传了______________________*/
 /**
- * 请注意不要把填写后的API密钥上传了
+ * 仅用于测试，请注意不要把填写后的API密钥上传了
  * @type {{model_name: string, api_url: string, api_key: string, max_tokens: number, temperature: number, system_prompt: string}}
  */
 const testConfig = {
@@ -19,7 +19,8 @@ const testConfig = {
 export function functionToBeRegistered() {
     SYSTEM.f(()=>{
         // 弹出确认
-        if (confirm("是否销毁当前对话的所有新表数据？（用于调试）")) {
+        if (confirm("模拟回退上一版本？（将销毁当前对话的所有新表数据，用于模拟回退上一版本，该功能仅用于调试）")) {
+            USER.tableBaseSetting.updateIndex = 3
             delete USER.getSettings().table_database_templates
             delete USER.getContext().chatMetadata.sheets
 
@@ -38,7 +39,7 @@ export function functionToBeRegistered() {
         } else {
             console.log("用户取消了清除操作")
         }
-    }, "销毁新表数据")
+    }, "回退上一版本")
     // SYSTEM.f(()=>{
     //     let sourceData = {}
     //     const s = BASE.sheetsData.context

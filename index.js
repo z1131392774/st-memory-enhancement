@@ -1,9 +1,9 @@
 import {APP, BASE, DERIVED, EDITOR, SYSTEM, USER} from './manager.js';
 import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/renderer/tablePushToChat.js";
 import {loadSettings} from "./core/renderer/userExtensionSetting.js";
-import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
 // 移除旧表格系统引用
 // import {initAllTable, TableEditAction} from "./core/tableActions.js";
+// import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
 import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
 import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
 import {initTest} from "./components/_fotTest.js";
@@ -50,6 +50,8 @@ function copyHashSheet(hashSheet) {
     return hashSheet.map(row => row.map(hash => hash))
 }
 
+
+
 /**
  * 转化旧表格为sheets
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
@@ -88,105 +90,6 @@ export function convertOldTablesToNewSheets(oldTableList) {
     return sheets
 }
 
-// /**
-//  * 转化旧表格为sheets（终极优化版）
-//  * @description 该方法为过渡方法，仅用于兼容旧版表格数据，不应该在后续正式环境中使用
-//  * @param {DERIVED.Table[]} oldTableList 旧表格数据
-//  * @param force 是否强制转换
-//  */
-// export async function convertOldTablesToNewSheets(oldTableList, force = false) {
-//     // 检查是否存在模板？该检查只执行一次
-//     // const hasTemplate = USER.getSettings().table_database_templates?.length !== 0;
-//
-//     // 清空现有sheets（直接赋值比修改原数组更快）
-//     const newSheetsMetadata = [];
-//     USER.getChatPiece().hash_sheets = {};
-//
-//     let sheetsLength = 0;
-//
-//     // 使用Promise.all并行处理所有表格
-//     const sheets = await Promise.all(oldTableList.map(async (oldTable, index) => {
-//         // 预计算表格尺寸
-//         const rows = oldTable.content.length + 1;
-//         const cols = oldTable.columns.length + 1;
-//
-//         // 直接构造sheet数据对象，而不是创建Sheet实例
-//         const sheetData = {
-//             uid: `sheet_${SYSTEM.generateRandomString(8)}`,
-//             name: oldTable.tableName,
-//             domain: 'chat',
-//             type: 'dynamic',
-//             enable: oldTable.enable,
-//             required: oldTable.Required,
-//             tochat: oldTable.tochat,
-//             hashSheet: [],
-//             cellHistory: []
-//         };
-//
-//         // 预填充 hashSheet 结构
-//         const hashSheet = Array.from({ length: rows }, (_, rowIndex) =>
-//             Array.from({ length: cols }, (_, colIndex) => {
-//                 const cellUid = `cell_${sheetData.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
-//                 const cellData = {
-//                     uid: cellUid,
-//                     type: (rowIndex === 0 && colIndex === 0) ? 'sheet_origin' :
-//                         (rowIndex === 0) ? 'column_header' :
-//                             (colIndex === 0) ? 'row_header' : 'cell',
-//                     data: {}
-//                 };
-//
-//                 // 设置源数据（第一行第一列）
-//                 if (rowIndex === 0 && colIndex === 0) {
-//                     cellData.data = {
-//                         note: oldTable.note,
-//                         initNode: oldTable.initNode,
-//                         updateNode: oldTable.updateNode,
-//                         deleteNode: oldTable.deleteNode,
-//                         insertNode: oldTable.insertNode,
-//                         description: `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
-//                     };
-//                 }
-//                 // 设置列头（第一行）
-//                 else if (rowIndex === 0 && colIndex > 0) {
-//                     cellData.data.value = oldTable.columns[colIndex - 1];
-//                 }
-//                 // 设置数据行
-//                 else if (rowIndex > 0 && colIndex > 0 && oldTable.content[rowIndex - 1]) {
-//                     cellData.data.value = oldTable.content[rowIndex - 1][colIndex - 1] || '';
-//                 }
-//
-//                 sheetData.cellHistory.push(cellData);
-//                 return cellUid;
-//             })
-//         );
-//         // console.log('转换表格数据', oldTable, sheetData, hashSheet);
-//
-//         sheetData.hashSheet = hashSheet;
-//         newSheetsMetadata.push(sheetData);
-//         USER.getChatPiece().hash_sheets[sheetData.uid] = copyHashSheet(hashSheet);
-//
-//         sheetsLength += JSON.stringify(sheetData).length
-//
-//         // 返回一个轻量级Sheet实例（不触发完整初始化）
-//         return new Proxy({}, {
-//             get: (target, prop) => prop === 'save' ? () => null : sheetData[prop]
-//         });
-//     }));
-//
-//     // if (hasTemplate !== true) {
-//     //     sheets.forEach(sheet => {
-//     //         const template = new BASE.SheetTemplate(sheet).save()
-//     //         template.save()
-//     //     })
-//     // }
-//
-//     console.log(`新表格数据量：${(sheetsLength / 1024).toFixed(2)}KB`);
-//     BASE.sheetsData.context = newSheetsMetadata;
-//     await USER.saveChat();      // 延迟保存（如果需要）
-//
-//     return sheets;
-// }
-
 /**
  * 寻找下一个含有表格数据的消息，如寻找不到，则返回null
  * @param startIndex 开始寻找的索引
@@ -221,7 +124,7 @@ export function initTableData() {
  * @returns 完整提示词
  */
 function getAllPrompt() {
-    const sheets = BASE.loadContextAllSheets()
+    const sheets = BASE.sheetsData.context
     const tableDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
     return USER.tableBaseSetting.message_template.replace('{{tableData}}', tableDataPrompt)
 }
@@ -544,7 +447,7 @@ async function onMessageSwiped(chat_id) {
  */
 export async function updateSheetsView() {
     // 直接使用新的Sheet系统更新表格视图
-    const piece = BASE.getLastSheetsPiece()
+    // const piece = BASE.getLastSheetsPiece()
 
     // 刷新表格视图
     refreshTempView(true);
@@ -593,11 +496,11 @@ jQuery(async () => {
     $(document).on('click', '#table_drawer_icon', function () {
         openAppHeaderTableDrawer();
     })
-    // 设置表格编辑按钮
-    $(document).on('click', '.tableEditor_editButton', function () {
-        let index = $(this).data('index'); // 获取当前点击的索引
-        openTableSettingPopup(index);
-    })
+    // // 设置表格编辑按钮
+    // $(document).on('click', '.tableEditor_editButton', function () {
+    //     let index = $(this).data('index'); // 获取当前点击的索引
+    //     openTableSettingPopup(index);
+    // })
     // 点击表格渲染样式设置按钮
     $(document).on('click', '.tableEditor_renderButton', function () {
         openTableRendererPopup();

@@ -361,6 +361,8 @@ function cellClickEvent(cell) {
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus(true);
     const piece = BASE.getLastSheetsPiece();
+    if (!piece || !piece.hash_sheets) return;
+
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
     console.log('renderSheetsDOM:', piece, sheets)
 
@@ -414,16 +416,13 @@ export async function refreshContextView(ignoreGlobal = false) {
 }
 
 let initializedTableView = null
-async function initTableView(mesId) { // 增加 table_manager_container 参数
-    const table_manager_container = await SYSTEM.htmlToDom(await SYSTEM.getTemplate('manager'), 'table_manager_container');
-    viewSheetsContainer = table_manager_container.querySelector('#tableContainer');
+async function initTableView(mesId) {
+    initializedTableView = $(await SYSTEM.getTemplate('manager')).get(0);
+    viewSheetsContainer = initializedTableView.querySelector('#tableContainer');
 
     userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
 
-    setTableEditTips($(table_manager_container).find('#tableEditTips'));    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
-
-    // 渲染表格
-    renderSheetsDOM()
+    setTableEditTips($(initializedTableView).find('#tableEditTips'));    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
 
     // 设置编辑提示
     // 点击打开查看表格历史按钮
@@ -453,16 +452,16 @@ async function initTableView(mesId) { // 增加 table_manager_container 参数
     $(document).on('click', '#export_table_button', function () {
         exportTable(userTableEditInfo.tables);
     })
-    // // 点击粘贴表格按钮
-    // $(document).on('click', '#paste_table_button', function () {
-    //     pasteTable(userTableEditInfo.chatIndex, viewSheetsContainer);
-    // })
 
-
-    initializedTableView = table_manager_container;
     return initializedTableView;
 }
 
 export async function getChatSheetsView(mesId = -1) {
-    return initializedTableView || await initTableView(mesId);
+    // 如果已经初始化过，直接返回缓存的容器，避免重复创建
+    if (initializedTableView) {
+        // 更新表格内容，但不重新创建整个容器
+        renderSheetsDOM();
+        return initializedTableView;
+    }
+    return await initTableView(mesId);
 }

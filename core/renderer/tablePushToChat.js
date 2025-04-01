@@ -34,7 +34,6 @@ function parseTableRender(html, table) {
 function replaceTableToStatusTag(tableStatusHTML) {
     const r = USER.tableBaseSetting.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
     const chatContainer = window.document.querySelector('#chat');
-    let tableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
 
     // 定义具名的事件监听器函数
     const touchstartHandler = function(event) {
@@ -48,13 +47,16 @@ function replaceTableToStatusTag(tableStatusHTML) {
     };
 
     setTimeout(() => {
-        if (tableStatusContainer) {
+        // 此处注意竞态条件，可能在setTimeout执行前，上一轮tableStatusContainer还未被添加
+        const currentTableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
+        if (currentTableStatusContainer) {
             try {
+                // console.log('tableStatusContainer:', tableStatusContainer);
                 // 移除之前的事件监听器，防止重复添加 (虽然在这个场景下不太可能重复添加)
-                tableStatusContainer.removeEventListener('touchstart', touchstartHandler);
-                tableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
-                tableStatusContainer.removeEventListener('touchend', touchendHandler);
-                chatContainer.removeChild(tableStatusContainer); // 移除旧的 tableStatusContainer
+                currentTableStatusContainer.removeEventListener('touchstart', touchstartHandler);
+                currentTableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
+                currentTableStatusContainer.removeEventListener('touchend', touchendHandler);
+                chatContainer.removeChild(currentTableStatusContainer); // 移除旧的 tableStatusContainer
             } catch (error) {
                 console.warn('移除旧的 tableStatusContainer 失败:', error)
             }
@@ -68,8 +70,6 @@ function replaceTableToStatusTag(tableStatusHTML) {
             newTableStatusContainer.addEventListener('touchmove', touchmoveHandler, { passive: false });
             newTableStatusContainer.addEventListener('touchend', touchendHandler, { passive: false });
         }
-        // 更新 tableStatusContainer 变量指向新的元素，以便下次移除
-        tableStatusContainer = newTableStatusContainer;
     }, 0);
 }
 
