@@ -1,6 +1,6 @@
 // tablePushToChat.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {findLastestOldTablePiece, findTableStructureByIndex} from "../../index.js";
+import {findTableStructureByIndex} from "../../index.js";
 
 /**
  * 解析html，将其中代表表格单元格的\$\w\d+字符串替换为对应的表格单元格内容
@@ -84,59 +84,44 @@ export function updateSystemMessageTableStatus(force = false) {
         }
     }
 
-    const { tables, isNewSystem } = findLastestOldTablePiece(true);
     let tableStatusHTML = '';
-    for (let i = 0; i < tables.length; i++) {
-        const structure = findTableStructureByIndex(i);
-        if (!structure.enable || !structure.toChat) continue;
-        
-        // 处理新旧系统的表格渲染
-        if (isNewSystem && tables[i].uid) {
-            // 新系统：使用Sheet类的renderSheet方法
-            const sheet = new BASE.Sheet(tables[i].uid);
-            tableStatusHTML += structure.tableRender
-                ? parseTableRender(structure.tableRender, tables[i])
-                : sheet.renderSheet().outerHTML;
-        } else {
-            // 旧系统：使用旧的render方法或提供兼容处理
-            if (typeof tables[i].render === 'function') {
-                tableStatusHTML += structure.tableRender
-                    ? parseTableRender(structure.tableRender, tables[i])
-                    : tables[i].render().outerHTML;
-            } else {
-                console.warn('表格没有render方法，可能需要转换为新系统');
-                tableStatusHTML += `<div class="table-warning">表格数据格式不兼容，请刷新页面</div>`;
-            }
-        }
+    const sheetsData = BASE.getLastSheetsPiece()?.hash_sheets;
+    if (!sheetsData) return;
+    for (let sheet of BASE.hashSheetsToSheets(sheetsData)) {
+        if (!sheet.tochat) continue;
+        tableStatusHTML += sheet.renderSheet().outerHTML;
     }
+
     replaceTableToStatusTag(tableStatusHTML);
 }
 
 /**
- * +.新增代码，打开自定义表格推送渲染器弹窗
+ * 新增代码，打开自定义表格推送渲染器弹窗
  * @returns {Promise<void>}
  */
 export async function openTableRendererPopup() {
     const manager = await SYSTEM.getTemplate('renderer');
     const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    const tableStructure = findTableStructureByIndex(DERIVED.any._currentTableIndex);
-    const table = findLastestOldTablePiece(true).tables[DERIVED.any._currentTableIndex];
+    // const tableStructure = findTableStructureByIndex(DERIVED.any._currentTableIndex);
+    // const table = findLastestSheetsPiece(true).tables[DERIVED.any._currentTableIndex];
     const $dlg = $(tableRendererPopup.dlg);
     const $htmlEditor = $dlg.find('#htmlEditor');
     const $tableRendererDisplay = $dlg.find('#tableRendererDisplay');
 
-    const tableRenderContent = tableStructure?.tableRender || "";
+    // TODO
+
+    // const tableRenderContent = tableStructure?.tableRender || "";
     // $tablePreview.html(tablePreview.render().outerHTML);
-    $htmlEditor.val(tableRenderContent);
+    // $htmlEditor.val(tableRenderContent);
 
     // 修改中实时渲染
     const renderHTML = () => {
-        $tableRendererDisplay.html(parseTableRender($htmlEditor.val(), table));
+        // $tableRendererDisplay.html(parseTableRender($htmlEditor.val(), table));
     };
     renderHTML();
     $htmlEditor.on('input', renderHTML); // 监听 input 事件，实时渲染
 
     await tableRendererPopup.show();
-    tableStructure.tableRender = $htmlEditor.val();
-    DERIVED.any._currentTablePD.find('#dataTable_tableSetting_tableRender').val($htmlEditor.val());
+    // tableStructure.tableRender = $htmlEditor.val();
+    // DERIVED.any._currentTablePD.find('#dataTable_tableSetting_tableRender').val($htmlEditor.val());
 }

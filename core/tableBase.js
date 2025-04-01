@@ -94,7 +94,6 @@ class SheetBase {
     }
 
     init(column = 2, row = 2) {
-        console.log(`初始化 Sheet: ${this.name} (${this.uid})`);
         this.cells = new Map();
         this.cellHistory = [];
         this.hashSheet = [];
@@ -289,9 +288,9 @@ export class SheetTemplate extends SheetBase {
         this.markPositionCacheDirty();
     }
     findCellByPosition(rowIndex, colIndex) {
-        if (rowIndex === 0 && colIndex === 0) {
-            return this.source;
-        }
+        // if (rowIndex === 0 && colIndex === 0) {
+        //     return this.source;
+        // }
         if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.hashSheet.length || colIndex >= this.hashSheet[0].length) {
             console.warn('无效的行列索引');
             return null;
@@ -546,7 +545,9 @@ export class Sheet extends SheetTemplate {
             } else {
                 sheets.push(sheetDataToSave);
             }
-            BASE.sheetsData.chat = sheets;
+            BASE.sheetsData.context = sheets;
+            if (!USER.getChatPiece().hash_sheets) USER.getChatPiece().hash_sheets = {};
+            USER.getChatPiece().hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
             USER.saveChat();
             return this;
         } catch (e) {
@@ -559,13 +560,12 @@ export class Sheet extends SheetTemplate {
      * 创建新的 Sheet 实例
      * @returns {Sheet} - 返回新的 Sheet 实例
      */
-    createNewSheet(column = 2, row = 2, isSave = true) {
-        this.init(column, row); // 初始化基本数据结构
+    async createNewSheet(column = 2, row = 2, isSave = true) {
+        this.init(column, row);     // 初始化基本数据结构
         this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
         this.name = `新表格_${this.uid.slice(-4)}`;
-        this.loadCells();
-        isSave && this.save();  // 保存新创建的 Sheet
-        return this;            // 返回 Sheet 实例自身
+        if (isSave) this.save();    // 保存新创建的 Sheet
+        return this;                // 返回 Sheet 实例自身
     }
 }
 
@@ -725,7 +725,7 @@ class Cell {
                 throw new Error(`未找到单元格，UID: ${targetUid}`);
             }
         }
-        this.uid = targetCell.uid || `cell_${this.parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(8)}`;
+        this.uid = targetCell.uid || `cell_${this.parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(16)}`;
         this.type = targetCell.type || CellType.cell;
         this.status = targetCell.status || '';
         this.element = targetCell.element || null;

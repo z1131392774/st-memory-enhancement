@@ -5,7 +5,7 @@ import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, r
 import {defaultSettings} from "./core/pluginSetting.js";
 import {Drag} from "./components/dragManager.js";
 import {PopupMenu} from "./components/popupMenu.js";
-import {findLastestOldTablePiece} from "./index.js";
+import {convertOldTablesToNewSheets} from "./index.js";
 import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
 import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
@@ -64,7 +64,7 @@ export const BASE = {
             switch (target) {
                 case 'all':
 
-                case 'chat':
+                case 'context':
                     if (!USER.getContext().chatMetadata) {
                         USER.getContext().chatMetadata = {};
                     }
@@ -92,23 +92,48 @@ export const BASE = {
         return templates;
     },
     loadContextAllSheets() {
-        let sheets = BASE.sheetsData.chat;
+        let sheets = BASE.sheetsData.context;
         if (!Array.isArray(sheets)) {
             sheets = [];
-            BASE.sheetsData.chat = sheets;
+            BASE.sheetsData.context = sheets;
         }
         return sheets;
     },
-    getLastSheetsPiece: (deep = 0, cutoff = 1000) => {
-        const chat = APP.getContext().chat;
-        // throw new Error('Not implemented yet');
+    getLastSheetsPiece(deep = 0, cutoff = 1000) {
+        // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
+        let chat = APP.getContext().chat
         if (!chat || chat.length === 0 || chat.length <= deep) return null;
-        for (let i = deep; i < chat.length && i < cutoff; i++) {
-            const piece = chat[chat.length - 1 - i];
-            if (piece.hash_sheets) {
-                return piece;
+
+        for (let i = chat.length - deep - 1; i >= 0 && i >= chat.length - cutoff; i--) {
+            if (chat[i].hash_sheets) {
+                console.log("向上查询表格数据，找到表格数据", chat[i])
+                return chat[i]
+            }
+            // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
+            // 请注意不再使用旧的Table类
+            if (chat[i].dataTable) {
+                // 为了兼容旧系统，将旧数据转换为新的Sheet格式
+                convertOldTablesToNewSheets(chat[i].dataTable)
+                return chat[i]
             }
         }
+
+        // TODO 开始从模板中加载表格数据
+
+
+        // 如果都没有找到，则返回空数组
+        console.log("向上查询表格数据，未找到表格数据")
+        return null
+    },
+    hashSheetsToSheets(hashSheets) {
+        if (!hashSheets) return [];
+        const sheets = Object.keys(hashSheets).map(sheetUid => {
+            const sheet = new Sheet(sheetUid)
+            sheet.hashSheet = hashSheets[sheetUid].map(row => row.map(hash => hash));
+            return sheet
+        });
+        // console.log('hashSheetsToSheets', sheets);
+        return sheets;
     },
 };
 
@@ -146,10 +171,10 @@ export const EDITOR = {
             'user_tableBase_templates': USER.getSettings().table_database_templates,
             'context': USER.getContext(),
             'context_chatMetadata_sheets': USER.getContext().chatMetadata?.sheets,
-            'context_oldTable_data': findLastestOldTablePiece(true)?.tables,
             'context_sheets_data': BASE.loadContextAllSheets(),
             'chat_last_piece': USER.getChatPiece(),
             'chat_last_sheet': BASE.getLastSheetsPiece()?.hash_sheets,
+            'chat_last_old_table': BASE.getLastSheetsPiece()?.dataTable,
         }, 3);
     },
 }

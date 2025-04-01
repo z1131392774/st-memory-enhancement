@@ -1,4 +1,4 @@
-import {EDITOR, SYSTEM, USER} from "../manager.js";
+import {BASE, EDITOR, SYSTEM, USER} from "../manager.js";
 import LLMApiService from "./llmApi.js";
 
 /**______________________请注意不要把填写后的API密钥上传了______________________*/
@@ -19,36 +19,45 @@ const testConfig = {
 export function functionToBeRegistered() {
     SYSTEM.f(()=>{
         // 弹出确认
-        if (confirm("记忆插件：是否清除当前表格数据？")) {
+        if (confirm("是否销毁当前对话的所有新表数据？（用于调试）")) {
             delete USER.getSettings().table_database_templates
-            delete BASE.sheetsData.chat
+            delete USER.getContext().chatMetadata.sheets
+
+            const context_chat = USER.getContext().chat
+            if (context_chat) {
+                for (let piece of context_chat) {
+                    delete piece.hash_sheets
+                    delete piece.two_step_links
+                    delete piece.two_step_waiting
+                }
+            }
+
             USER.saveSettings()
             USER.saveChat();
-            EDITOR.success("表格数据清除成功")
-            console.log("已清除表格数据")
+            console.log("已清除表格数据: ", USER.getSettings(), USER.getContext().chatMetadata, USER.getChatPiece())
         } else {
             console.log("用户取消了清除操作")
         }
     }, "销毁新表数据")
-    SYSTEM.f(()=>{
-        let sourceData = {}
-        const s = BASE.sheetsData.chat
-        console.log(s, s[0])
-        console.log(s[0].cellHistory[0])
-        console.log(s[0].cellHistory[0].data.description)
-    }, "打印表格源")
-    SYSTEM.f(()=>{
-        EDITOR.info("测试信息")
-    }, "测试信息")
-    SYSTEM.f(async ()=>{
-        EDITOR.confirm(
-            '执行操作?',
-            '取消',
-            '确认'
-        ).then((r)=>{
-            console.log(r)
-        })
-    }, "测试confirm")
+    // SYSTEM.f(()=>{
+    //     let sourceData = {}
+    //     const s = BASE.sheetsData.context
+    //     console.log(s, s[0])
+    //     console.log(s[0].cellHistory[0])
+    //     console.log(s[0].cellHistory[0].data.description)
+    // }, "打印表格源")
+    // SYSTEM.f(()=>{
+    //     EDITOR.info("测试信息")
+    // }, "测试信息")
+    // SYSTEM.f(async ()=>{
+    //     EDITOR.confirm(
+    //         '执行操作?',
+    //         '取消',
+    //         '确认'
+    //     ).then((r)=>{
+    //         console.log(r)
+    //     })
+    // }, "测试confirm")
     // // 测试非流式API调用
     // SYSTEM.f(async () => {
     //     const llmService = new LLMApiService(testConfig);

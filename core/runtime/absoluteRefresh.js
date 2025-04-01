@@ -1,6 +1,6 @@
 // absoluteRefresh.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {copyTableList, findLastestOldTablePiece, findTableStructureByIndex } from "../../index.js";
+import {findTableStructureByIndex } from "../../index.js";
 import {insertRow, updateRow, deleteRow} from "../tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
@@ -264,12 +264,12 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
     const isUseMainAPI = $('#use_main_api').prop('checked');
 
     try {
-        const latestData = findLastestOldTablePiece(true);
-        if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
+        const piece = BASE.getLastSheetsPiece();
+        if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
-        const { tables: latestTables } = latestData;
-        DERIVED.any.waitingTable = copyTableList(latestTables);
+        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets);
+        DERIVED.any.waitingTable = latestTables;
 
         let originText = tablesToString(latestTables);
         // let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
@@ -337,6 +337,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                     throw new Error("生成的新表格数据不是数组");
                 }
                 //标记改动
+                // TODO
                 compareAndMarkChanges(latestTables, cleanContentTable);
                 // console.log('compareAndMarkChanges后的cleanContent:', cleanContentTable);
 
@@ -408,12 +409,12 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
     const twoStepIsUseMainAPI = $('#step_by_step_use_main_api').prop('checked');
 
     try {
-        const latestData = findLastestOldTablePiece(true);
-        if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
+        const piece = BASE.getLastSheetsPiece();
+        if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
-        const { tables: latestTables } = latestData;
-        DERIVED.any.waitingTable = copyTableList(latestTables);
+        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets);
+        DERIVED.any.waitingTable = latestTables;
 
         let originText = '<表格内容>\n' + latestTables
             .map(table => table.getTableText(['title', 'node', 'headers', 'rows']))

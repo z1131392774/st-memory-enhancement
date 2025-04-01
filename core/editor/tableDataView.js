@@ -2,7 +2,7 @@
 // import {updateSystemMessageTableStatus} from "../runtime/tablePushToChat.js";
 // import {
 //     copyTableList,
-//     findLastestOldTablePiece,
+//     findLastestSheetsPiece,
 //     findNextChatWhitTableData,
 //     getTableEditActionsStr,
 //     handleEditStrInMessage,
@@ -456,7 +456,7 @@
 //
 //
 //     // 开始寻找表格
-//     const { tables, index } = await findLastestOldTablePiece(true, mesId)
+//     const { tables, index } = await findLastestSheetsPiece(true, mesId)
 //     userTableEditInfo.chatIndex = index
 //     userTableEditInfo.tables = tables
 //

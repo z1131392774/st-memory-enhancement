@@ -1,16 +1,16 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
-import {findLastestOldTablePiece, findNextChatWhitTableData,} from "../../index.js";
+import {findNextChatWhitTableData,} from "../../index.js";
 import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {openTableHistoryPopup} from "./tableHistory.js";
 import {PopupMenu} from "../../components/popupMenu.js";
 
 let tablePopup = null
-let copyTableData = null
+let copyTableData = {}
 let selectedCell = null
 let editModeSelectedRows = []
 let viewSheetsContainer = null
-let lastHashSheetsMap = null
+let lastCellsHashMap = null
 const userTableEditInfo = {
     chatIndex: null,
     editAble: false,
@@ -25,13 +25,15 @@ const userTableEditInfo = {
  * @param {*} tables 所有表格数据
  */
 export async function copyTable() {
-    copyTableData = findLastestOldTablePiece(true).tables
-    const text = `正在复制表格数据 (#${SYSTEM.generateRandomString(4)})`
+    copyTableData = {}
+    copyTableData.hash_sheets = BASE.getLastSheetsPiece().hash_sheets
+    copyTableData.sheets_data = BASE.sheetsData.context
+
     $('#table_drawer_icon').click()
 
-    EDITOR.confirm(text, '取消', '粘贴到当前对话').then(async (r) => {
+    EDITOR.confirm(`正在复制表格数据 (#${SYSTEM.generateRandomString(4)})`, '取消', '粘贴到当前对话').then(async (r) => {
         if (r) {
-            await pasteTable(userTableEditInfo.chatIndex, viewSheetsContainer)
+            await pasteTable()
         }
         if ($('#table_drawer_icon').hasClass('closedIcon')) {
             $('#table_drawer_icon').click()
@@ -44,15 +46,17 @@ export async function copyTable() {
  * @param {number} mesId 需要粘贴到的消息id
  * @param {Element} viewSheetsContainer 表格容器DOM
  */
-async function pasteTable(mesId, viewSheetsContainer) {
-    if (mesId === -1) {
+async function pasteTable() {
+    if (USER.getContext().chat.length === 0) {
         EDITOR.error("请至少让ai回复一条消息作为表格载体")
         return
     }
     const confirmation = await EDITOR.callGenericPopup('粘贴会清空原有的表格数据，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         if (copyTableData) {
-            USER.getChatPiece().dataTable = copyTableData
+            USER.getChatPiece().hash_sheets = copyTableData.hash_sheets
+            BASE.sheetsData.context = copyTableData.sheets_data
+            USER.saveChat()
         } else {
             EDITOR.error("粘贴失败：剪切板没有表格数据")
         }
@@ -146,7 +150,7 @@ async function clearTable(mesId, viewSheetsContainer) {
     const confirmation = await EDITOR.callGenericPopup('清空当前对话的所有表格数据，并重置历史记录，该操作无法回退，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         delete USER.getSettings().table_database_templates
-        delete BASE.sheetsData.chat
+        delete BASE.sheetsData.context
         await USER.getContext().chat.forEach((piece => {
             if (piece.hash_sheets) {
                 delete piece.hash_sheets
@@ -274,14 +278,13 @@ async function confirmAction(event, text = '是否继续该操作？') {
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
 
-    // TODO:当前为功能预留，需要完全移除旧表格数据的逻辑后才能使用
     // 判断是否需要根据历史数据进行高亮
-    // const lastCellUid = lastHashSheetsMap.get(cell.uid)
-    // if (!lastCellUid) {
-    //     cell.element.style.backgroundColor = '#00ff0011'
-    // } else if (cell.parent.cells.get(lastCellUid).data.value !== cell.data.value) {
-    //     cell.element.style.backgroundColor = '#0000ff11'
-    // }
+    const lastCellUid = lastCellsHashMap.get(cell.uid)
+    if (!lastCellUid) {
+        cell.element.style.backgroundColor = '#00ff0011'
+    } else if (cell.parent.cells.get(lastCellUid).data.value !== cell.data.value) {
+        cell.element.style.backgroundColor = '#0000ff11'
+    }
 
     cell.on('click', async (event) => {
         event.stopPropagation();
@@ -357,22 +360,24 @@ function cellClickEvent(cell) {
 
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus(true);
-    const sheetsData = await BASE.sheetsData.chat
+    const piece = BASE.getLastSheetsPiece();
+    const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
+    console.log('renderSheetsDOM:', piece, sheets)
+
+    // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
     const lastHashSheets = BASE.getLastSheetsPiece(1, 3)?.hash_sheets;
-    lastHashSheetsMap = new Map();
+    lastCellsHashMap = new Map();
     if (lastHashSheets) {
         // 使用flat将二维数组转换为一维数组
         Object.keys(lastHashSheets).forEach((key) => {
-            const res = lastHashSheets[key].flat();
-            res.forEach((hash) => {
-                lastHashSheetsMap.set(hash, key);
+            lastHashSheets[key].flat().forEach((hash) => {
+                lastCellsHashMap.set(hash, key);
             })
         })
     }
 
-
     $(viewSheetsContainer).empty()
-    for (let sheet of sheetsData) {
+    for (let sheet of sheets) {
         const instance = new BASE.Sheet(sheet)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
