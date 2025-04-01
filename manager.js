@@ -5,7 +5,7 @@ import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, r
 import {defaultSettings} from "./core/pluginSetting.js";
 import {Drag} from "./components/dragManager.js";
 import {PopupMenu} from "./components/popupMenu.js";
-import {convertOldTablesToNewSheets} from "./index.js";
+import {buildSheetsByTemplates, convertOldTablesToNewSheets} from "./index.js";
 import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
 import {fileManager} from "./services/router.js";
 import {pushCodeToQueue} from "./components/_fotTest.js";
@@ -110,7 +110,15 @@ export const BASE = {
             }
         }
 
-        // initTableStructureToNewSheet()
+        if (!BASE.sheetsData.context) {
+            // 尝试从模板中构建表格数据
+            const currentPiece = USER.getChatPiece()
+            buildSheetsByTemplates(currentPiece)
+            if (currentPiece.hash_sheets) {
+                // console.log('使用模板创建了新的表格数据', currentPiece)
+                return currentPiece
+            }
+        }
 
         // 如果都没有找到，则返回空数组
         console.log("向上查询表格数据，未找到表格数据")

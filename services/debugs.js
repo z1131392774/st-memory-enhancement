@@ -1,19 +1,19 @@
 import {BASE, EDITOR, SYSTEM, USER} from "../manager.js";
 import LLMApiService from "./llmApi.js";
 
-/**______________________请注意不要把填写后的API密钥上传了______________________*/
-/**
- * 仅用于测试，请注意不要把填写后的API密钥上传了
- * @type {{model_name: string, api_url: string, api_key: string, max_tokens: number, temperature: number, system_prompt: string}}
- */
-const testConfig = {
-    api_url: "",
-    api_key: "",
-    model_name: "gemini-2.0-flash",
-    system_prompt: "你是一个专业的翻译助手",
-    temperature: 0.7,
-    max_tokens: 2000,
-};
+// /**______________________请注意不要把填写后的API密钥上传了______________________*/
+// /**
+//  * 仅用于测试，请注意不要把填写后的API密钥上传了
+//  * @type {{model_name: string, api_url: string, api_key: string, max_tokens: number, temperature: number, system_prompt: string}}
+//  */
+// const testConfig = {
+//     api_url: "",
+//     api_key: "",
+//     model_name: "gemini-2.0-flash",
+//     system_prompt: "你是一个专业的翻译助手",
+//     temperature: 0.7,
+//     max_tokens: 2000,
+// };
 /**______________________请注意不要把填写后的API密钥上传了______________________*/
 
 export function functionToBeRegistered() {

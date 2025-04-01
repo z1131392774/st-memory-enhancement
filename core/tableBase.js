@@ -372,7 +372,7 @@ export class SheetTemplate extends SheetBase {
         if (target instanceof Sheet) {
             // 从 Sheet 实例模板化
             this.uid = `template_${SYSTEM.generateRandomString(8)}`;
-            this.name = `${target.name}_模板`;
+            this.name = target.name.replace('表格', '模板');
             this.hashSheet = [target.hashSheet[0]];
             this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
             this.loadCells();
@@ -479,7 +479,7 @@ export class Sheet extends SheetBase {
      * 保存表格数据
      * @returns {Sheet|boolean}
      */
-    save() {
+    save(targetPiece = USER.getChatPiece()) {
         const sheetDataToSave = this.filterSavingData()
         sheetDataToSave.template = this.template?.uid;
 
@@ -492,8 +492,8 @@ export class Sheet extends SheetBase {
                 sheets.push(sheetDataToSave);
             }
             BASE.sheetsData.context = sheets;
-            if (!USER.getChatPiece().hash_sheets) USER.getChatPiece().hash_sheets = {};
-            USER.getChatPiece().hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
+            if (!targetPiece.hash_sheets) targetPiece.hash_sheets = {};
+            targetPiece.hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
             USER.saveChat();
             return this;
         } catch (e) {
@@ -518,7 +518,14 @@ export class Sheet extends SheetBase {
 
     #load(target) {
         if (target instanceof SheetTemplate) {
-            throw new Error('暂时不支持从模板创建 Sheet');
+            this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
+            this.name = target.name.replace('模板', '表格');
+            this.hashSheet = [target.hashSheet[0]];
+            this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
+            this.loadCells();
+            this.markPositionCacheDirty();
+            this.template = target;
+            return
         }
         if (target === null) {
             return this;

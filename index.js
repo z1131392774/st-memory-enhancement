@@ -3,7 +3,6 @@ import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/ren
 import {loadSettings} from "./core/renderer/userExtensionSetting.js";
 // 移除旧表格系统引用
 // import {initAllTable, TableEditAction} from "./core/tableActions.js";
-// import {openTableSettingPopup} from "./core/editor/tableStructureSetting.js";
 import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
 import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
 import {initTest} from "./components/_fotTest.js";
@@ -50,7 +49,16 @@ function copyHashSheet(hashSheet) {
     return hashSheet.map(row => row.map(hash => hash))
 }
 
-
+export function buildSheetsByTemplates(targetPiece) {
+    BASE.sheetsData.context = [];
+    USER.getChatPiece().hash_sheets = {};
+    const templates = BASE.templates
+    templates.forEach(template => {
+        const newSheet = new BASE.Sheet(template);
+        newSheet.save(targetPiece)
+    })
+    USER.saveChat()
+}
 
 /**
  * 转化旧表格为sheets
