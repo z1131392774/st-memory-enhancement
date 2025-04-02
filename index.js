@@ -78,7 +78,7 @@ export function convertOldTablesToNewSheets(oldTableList) {
         newSheet.type = newSheet.SheetType.dynamic
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required
-        newSheet.tochat = oldTable.tochat
+        newSheet.tochat = true
 
         newSheet.data.note = oldTable.note
         newSheet.data.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
@@ -209,12 +209,12 @@ function clearEmpty() {
 export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
     if (!parseTableEditTag(chat, mesIndex, ignoreCheck)) {
         // TODO 待重构
-        updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+        updateSystemMessageTableStatus();   // 新增代码，将表格数据状态更新到系统消息中
         return
     }
     executeTableEditTag(chat, mesIndex)
     // TODO 待重构
-    updateSystemMessageTableStatus();   // +.新增代码，将表格数据状态更新到系统消息中
+    updateSystemMessageTableStatus();   // 新增代码，将表格数据状态更新到系统消息中
 }
 
 /**

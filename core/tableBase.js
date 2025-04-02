@@ -51,7 +51,7 @@ class SheetBase {
         this.type = SheetType.dynamic;
         this.enable = true;                     // 用于标记是否启用
         this.required = false;                  // 用于标记是否必填
-        this.tochat = false;                    // 用于标记是否发送到聊天
+        this.tochat = true;                     // 用于标记是否发送到聊天
 
         // 以下为持久化数据
         this.cellHistory = [];                  // cellHistory 持久保持，只增不减

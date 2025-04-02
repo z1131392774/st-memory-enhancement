@@ -125,14 +125,14 @@ export const BASE = {
         return null
     },
     hashSheetsToSheets(hashSheets) {
-        if (!hashSheets) return [];
-        const sheets = Object.keys(hashSheets).map(sheetUid => {
+        if (!hashSheets) {
+            return [];
+        }
+        return Object.keys(hashSheets).map(sheetUid => {
             const sheet = new Sheet(sheetUid)
             sheet.hashSheet = hashSheets[sheetUid].map(row => row.map(hash => hash));
             return sheet
         });
-        // console.log('hashSheetsToSheets', sheets);
-        return sheets;
     },
 };
 
