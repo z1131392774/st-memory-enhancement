@@ -1,16 +1,17 @@
-import {APP, BASE, DERIVED, EDITOR, SYSTEM, USER} from './manager.js';
-import {openTableRendererPopup, updateSystemMessageTableStatus} from "./core/renderer/tablePushToChat.js";
-import {loadSettings} from "./core/renderer/userExtensionSetting.js";
+import { APP, BASE, DERIVED, EDITOR, SYSTEM, USER } from './manager.js';
+import { openTableRendererPopup, updateSystemMessageTableStatus } from "./core/renderer/tablePushToChat.js";
+import { loadSettings } from "./core/renderer/userExtensionSetting.js";
 // 移除旧表格系统引用
 // import {initAllTable, TableEditAction} from "./core/tableActions.js";
-import {openTableDebugLogPopup} from "./core/runtime/devConsole.js";
-import {TableTwoStepSummary} from "./core/runtime/separateTableUpdate.js";
-import {initTest} from "./components/_fotTest.js";
-import {initAppHeaderTableDrawer, openAppHeaderTableDrawer} from "./core/renderer/appHeaderTableBaseDrawer.js";
+import { openTableDebugLogPopup } from "./core/runtime/devConsole.js";
+import { TableTwoStepSummary } from "./core/runtime/separateTableUpdate.js";
+import { initTest } from "./components/_fotTest.js";
+import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./core/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './core/runtime/absoluteRefresh.js';
-import {refreshTempView} from "./core/editor/tableTemplateEditView.js";
-import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
-import {functionToBeRegistered} from "./services/debugs.js";
+import { refreshTempView } from "./core/editor/tableTemplateEditView.js";
+import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
+import { functionToBeRegistered } from "./services/debugs.js";
+import { parseLooseDict } from "./utils/stringUtil.js"
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -93,7 +94,7 @@ export function convertOldTablesToNewSheets(oldTableList) {
         newSheet.save()
         sheets.push(newSheet)
     }
-    USER.saveChat()
+    // USER.saveChat()
     console.log("转换旧表格数据为新表格数据", sheets)
     return sheets
 }
@@ -145,33 +146,39 @@ function getAllPrompt() {
  * @returns 单条执行语句数组
  */
 function handleTableEditTag(matches) {
-    let functionList = [];
-    matches.forEach(matchBlock => {
-        const lines = trimString(matchBlock)
-            .split('\n')
-            .filter(line => line.length > 0);
-        let currentFunction = '';
-        let parenthesisCount = 0;
-        for (const line of lines) {
-            const trimmedLine = line.trim()
-            if (trimmedLine.startsWith('//')) {
-                functionList.push(trimmedLine)
-                continue
-            };
-            currentFunction += trimmedLine;
-            parenthesisCount += (trimmedLine.match(/\(/g) || []).length;
-            parenthesisCount -= (trimmedLine.match(/\)/g) || []).length;
-            if (parenthesisCount === 0 && currentFunction) {
-                const formatted = currentFunction
-                    .replace(/\s*\(\s*/g, '(')   // 移除参数括号内空格
-                    .replace(/\s*\)\s*/g, ')')   // 移除结尾括号空格
-                    .replace(/\s*,\s*/g, ',');   // 统一逗号格式
-                functionList.push(formatted);
-                currentFunction = '';
+    const functionRegex = /(updateRow|insertRow|deleteRow)\(/g;
+    let A = [];
+    let match;
+    let positions = [];
+    matches.forEach(input => {
+        while ((match = functionRegex.exec(input)) !== null) {
+            positions.push({
+                index: match.index,
+                name: match[1].replace("Row", "") // 转换成 update/insert/delete
+            });
+        }
+
+        // 合并函数片段和位置
+        for (let i = 0; i < positions.length; i++) {
+            const start = positions[i].index;
+            const end = i + 1 < positions.length ? positions[i + 1].index : input.length;
+            const fullCall = input.slice(start, end);
+            const lastParenIndex = fullCall.lastIndexOf(")");
+
+            if (lastParenIndex !== -1) {
+                const sliced = fullCall.slice(0, lastParenIndex); // 去掉最后一个 )
+                const argsPart = sliced.slice(sliced.indexOf("(") + 1);
+                const args = argsPart.match(/("[^"]*"|\{.*\}|[0-9]+)/g).map(s => s.trim());
+                A.push({
+                    type: positions[i].name,
+                    param: args,
+                    index: positions[i].index,
+                    length: end - start
+                });
             }
         }
     });
-    return functionList;
+    return A;
 }
 
 /**
@@ -208,12 +215,10 @@ function clearEmpty() {
  */
 export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
     if (!parseTableEditTag(chat, mesIndex, ignoreCheck)) {
-        // TODO 待重构
         updateSystemMessageTableStatus();   // 新增代码，将表格数据状态更新到系统消息中
         return
     }
     executeTableEditTag(chat, mesIndex)
-    // TODO 待重构
     updateSystemMessageTableStatus();   // 新增代码，将表格数据状态更新到系统消息中
 }
 
@@ -226,6 +231,9 @@ export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false)
 export function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     const { matches } = getTableEditTag(chat.mes)
     if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return false
+    const tableEditActions = handleTableEditTag(matches)
+    tableEditActions.forEach((action, index) => tableEditActions[index].param = formatParams(action.param))
+    console.log("解析到的表格编辑指令", tableEditActions)
 
     // 使用新的Sheet系统处理表格编辑
     // 这里不再使用旧的TableEditAction类
@@ -241,6 +249,27 @@ export function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
     // TODO
 
     return true
+}
+
+/**
+ * 格式化参数
+ * @description 将参数数组中的字符串转换为数字或对象
+ * @param {} paramArray 
+ * @returns 
+ */
+function formatParams(paramArray) {
+    return paramArray.map(item => {
+        const trimmed = item.trim();
+        if (!isNaN(trimmed) && trimmed !== "") {
+            return Number(trimmed);
+        }
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return parseLooseDict(trimmed);
+        }
+
+        // 其他情况都返回字符串
+        return trimmed;
+    });
 }
 
 /**
@@ -426,7 +455,7 @@ async function onMessageReceived(chat_id) {
 /**
  * 聊天变化时触发
  */
-async function onChatChanged(){
+async function onChatChanged() {
     await updateSheetsView()
 }
 
