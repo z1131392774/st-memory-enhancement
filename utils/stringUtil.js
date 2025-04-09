@@ -46,7 +46,7 @@ export function truncateAfterLastParenthesis(str) {
  */
 export function parseLooseDict(str) {
     const result = {};
-    const content = str.trim().slice(1, -1); // 去除最外层 {}
+    const content = str.trim().slice(1, -1).trim(); // 去除最外层 {}
 
     let i = 0;
     const len = content.length;
@@ -78,7 +78,7 @@ export function parseLooseDict(str) {
             if (inString) {
                 // 如果遇到嵌套引号，替换为另一种
                 if (char === quoteChar) {
-                    if (content[i + 1] === ',') {
+                    if (content[i + 1] === ','||content[i + 1] == null) {
                         i++; // 跳过结尾引号
                         break;
                     } else {
