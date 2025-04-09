@@ -260,11 +260,21 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
         switch (EditAction.type) {
             case 'update':
                 // 执行更新操作
-                console.log("表格的hashSheet", sheet.hashSheet)
                 Object.entries(action.data).forEach(([key, value]) => {
-                    const cell = sheet.findCellByPosition(parseInt(action.rowIndex) + 1, parseInt(key) +1)
-                    if(!cell) return
+                    const cell = sheet.findCellByPosition(parseInt(action.rowIndex) + 1, parseInt(key) + 1)
+                    if (!cell) return
                     cell.newAction(cell.CellAction.editCell, { value }, false)
+                })
+                break
+            case 'insert':
+                // 执行插入操作
+                const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0)
+                cell.newAction(cell.CellAction.insertDownRow, {}, false)
+                const lastestRow = sheet.getRowCount() - 1
+                const cells = sheet.getCellsByRowIndex(lastestRow)
+                cells.forEach((cell, index) => {
+                    if (index === 0) return
+                    cell.data.value = action.data[index - 1]
                 })
                 break
         }

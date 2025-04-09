@@ -234,6 +234,10 @@ class SheetBase {
     filterSavingData() {
         return filterSavingData(this)
     }
+
+    getRowCount() {
+        return this.hashSheet.length;
+    }
 }
 
 export class SheetTemplate extends SheetBase {
