@@ -93,6 +93,7 @@ const formConfigs = {
 
 async function updateDropdownElement() {
     const templates = BASE.templates;
+    console.log("全局模板", templates)
     // console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
@@ -412,6 +413,7 @@ async function updateDragTables() {
 
 export async function refreshTempView(ignoreGlobal = false) {
     if(ignoreGlobal && scope === 'global') return
+    console.log("刷新表格模板视图")
     await updateDropdownElement()
     initializeSelect2Dropdown(dropdownElement);
     await updateDragTables();

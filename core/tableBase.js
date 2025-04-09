@@ -117,6 +117,27 @@ class SheetBase {
         return this;
     };
 
+    rebuildHashSheetByValueSheet(valueSheet) {
+        const cols = valueSheet[0].length
+        const rows = valueSheet.length
+        const newHashSheet = Array.from({ length: rows }, (_, i) => Array.from({ length: cols }, (_, j) => {
+            const cell = new Cell(this);
+            this.cells.set(cell.uid, cell);
+            this.cellHistory.push(cell);
+            cell.data.value = valueSheet[i][j] || ''; // 设置单元格的值
+            if (i === 0 && j === 0) {
+                cell.type = CellType.sheet_origin;
+            } else if (i === 0) {
+                cell.type = CellType.column_header;
+            } else if (j === 0) {
+                cell.type = CellType.row_header;
+            }
+            return cell.uid;
+        }));
+        this.hashSheet = newHashSheet
+        return this
+    }
+
     loadCells() {
         // 从 cellHistory 遍历加载 Cell 对象
         try {
@@ -165,6 +186,14 @@ class SheetBase {
         }
     }
 
+    findCellByValue(value) {
+        const cell = this.cellHistory.find(cell => cell.data.value === value);
+        if (!cell) {
+            return null;
+        }
+        return cell;
+    }
+
     findCellByPosition(rowIndex, colIndex) {
         if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.hashSheet.length || colIndex >= this.hashSheet[0].length) {
             console.warn('无效的行列索引');
@@ -203,19 +232,7 @@ class SheetBase {
     }
 
     filterSavingData() {
-        return {
-            uid: this.uid,
-            name: this.name,
-            domain: this.domain,
-            type: this.type,
-            enable: this.enable,
-            required: this.required,
-            tochat: this.tochat,
-            hashSheet: this.hashSheet, // 保存 hashSheet (只包含 cell uid)
-            cellHistory: this.cellHistory.map(({ parent, element, customEventListeners, ...filter }) => {
-                return filter;
-            }), // 保存 cellHistory (不包含 parent)
-        };
+        return filterSavingData(this)
     }
 }
 
@@ -422,7 +439,6 @@ export class Sheet extends SheetBase {
         this.element = null;                    // 用于存储渲染后的 table 元素
         this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
         this.template = null;       // 用于存储模板
-
         this.#load(target);
     }
 
@@ -479,12 +495,11 @@ export class Sheet extends SheetBase {
      * 保存表格数据
      * @returns {Sheet|boolean}
      */
-    save(targetPiece = USER.getChatPiece()) {
+    save(targetPiece = USER.getChatPiece(), manualSave = false) {
         const sheetDataToSave = this.filterSavingData()
         sheetDataToSave.template = this.template?.uid;
 
-        let sheets = BASE.sheetsData.context;
-        if (!sheets) sheets = [];
+        let sheets = BASE.sheetsData.context ?? [];
         try {
             if (sheets.some(t => t.uid === sheetDataToSave.uid)) {
                 sheets = sheets.map(t => t.uid === sheetDataToSave.uid ? sheetDataToSave : t);
@@ -494,7 +509,8 @@ export class Sheet extends SheetBase {
             BASE.sheetsData.context = sheets;
             if (!targetPiece.hash_sheets) targetPiece.hash_sheets = {};
             targetPiece.hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
-            USER.saveChat();
+            console.log('保存表格数据', BASE.sheetsData.context, targetPiece.hash_sheets);
+            if (!manualSave) USER.saveChat();
             return this;
         } catch (e) {
             EDITOR.error(`保存模板失败：${e}`);
@@ -533,12 +549,12 @@ export class Sheet extends SheetBase {
         let targetUid = target?.uid || target;
         let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === targetUid);
         if (targetSheetData?.uid) {
-            Object.assign(this, targetSheetData);
+            Object.assign(this, filterSavingData(targetSheetData));
             this.loadCells();
             this.markPositionCacheDirty();
             return this;
         }
-
+        console.log(`未找到对应的模板`, target)
         throw new Error('未找到对应的模板');
     }
 }
@@ -578,9 +594,16 @@ class Cell {
     get position() {
         return this.#positionInParentCellSheet();
     }
-    newAction(actionName) {
-        this.#event(actionName);
+    newAction(actionName, props, isSave = true) {
+        this.#event(actionName, props, isSave);
     }
+    /* newActions(actionList) {
+        for (const action of actionList) {
+            this.#event(action.type, { value: action.value }, [action.rowIndex, action.colIndex], false);
+        }
+        this.parent.renderSheet(this.parent.lastCellEventHandler);
+        this.parent.save();
+    } */
     editCellData(props) {
         this.#event(CellAction.editCell, props);
     }
@@ -710,8 +733,8 @@ class Cell {
         return this.parent.positionCache[this.uid] || [-1, -1];
     }
 
-    #event(actionName, props = {}) {
-        const [rowIndex, colIndex] = this.#positionInParentCellSheet();
+    #event(actionName, props = {}, isSave = true) {
+        const [rowIndex, colIndex] =this.#positionInParentCellSheet();
         switch (actionName) {
             case CellAction.editCell:
                 this.#handleEditCell(props);
@@ -756,9 +779,11 @@ class Cell {
                 callback(this, actionName, props); // 监听所有事件的监听器
             });
         }
+        if (isSave) {
+            this.parent.renderSheet(this.parent.lastCellEventHandler);
+            this.parent.save();
+        }
 
-        this.parent.renderSheet(this.parent.lastCellEventHandler);
-        this.parent.save();
         console.log(`单元格操作: ${actionName} 位置: ${[rowIndex, colIndex]}`);
     }
     #handleEditCell(props = {}) {
@@ -766,7 +791,14 @@ class Cell {
             console.warn('未提供任何要修改的属性');
             return;
         }
-        this.data = { ...this.data, ...props };
+        let cell = new Cell(this.parent);
+        cell.data = { ...this.data, ...props };
+        const [rowIndex, colIndex] =this.#positionInParentCellSheet()
+        this.parent.cells.set(cell.uid, cell);
+        console.log("保存前的 cell", this.parent.cellHistory);
+        this.parent.cellHistory.push(cell);
+        this.parent.hashSheet[rowIndex][colIndex] = cell.uid;
+        this.parent.markPositionCacheDirty();
     }
 
     #insertRow(targetRowIndex) {
@@ -820,4 +852,20 @@ function getColumnLetter(colIndex) {
         num = Math.floor(num / 26) - 1;
     }
     return letter;
+}
+
+function filterSavingData(sheet) {
+    return {
+        uid: sheet.uid,
+        name: sheet.name,
+        domain: sheet.domain,
+        type: sheet.type,
+        enable: sheet.enable,
+        required: sheet.required,
+        tochat: sheet.tochat,
+        hashSheet: sheet.hashSheet, // 保存 hashSheet (只包含 cell uid)
+        cellHistory: sheet.cellHistory.map(({ parent, element, customEventListeners, ...filter }) => {
+            return filter;
+        }), // 保存 cellHistory (不包含 parent)
+    };
 }

@@ -37,7 +37,12 @@ export const USER = {
     getChatPiece: (deep = 0) => {
         const chat = APP.getContext().chat;
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
-        return chat[chat.length - 1 - deep]
+        let index = chat.length - 1 - deep
+        while(chat[index].is_user === true) {
+            index--;
+            if (index < 0) return null; // 如果没有找到非用户消息，则返回null
+        }
+        return chat[index]
     },
     loadUserAllTemplates() {
         let templates = USER.getSettings().table_database_templates;
@@ -88,29 +93,47 @@ export const BASE = {
                 default:
                     throw new Error(`Unknown sheetsData target: ${target}`);
             }
+        },
+        set(_, target, value) {
+            switch (target) {
+                case 'context':
+                    if (!USER.getContext().chatMetadata) {
+                        USER.getContext().chatMetadata = {};
+                    }
+                    USER.getContext().chatMetadata.sheets = value;
+                    return true;
+                case 'all':
+                case 'global':
+                case 'role':
+                default:
+                    throw new Error(`Cannot set sheetsData target: ${target}`);
+            }
         }
     }),
 
-    getLastSheetsPiece(deep = 0, cutoff = 1000) {
+    getLastSheetsPiece(deep = 0, cutoff = 1000, startAtLastest = true) {
+        console.log("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
         // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
         const chat = APP.getContext().chat
         if (!chat || chat.length === 0 || chat.length <= deep) return null;
-
-        for (let i = chat.length - deep - 1; i >= 0 && i >= chat.length - cutoff; i--) {
+        const startIndex = startAtLastest ? chat.length - deep - 1 : deep;
+        for (let i = startIndex; i >= 0 && i >= chat.length - cutoff; i--) {
+            if(chat[i].is_user === true) continue; // 跳过用户消息
             if (chat[i].hash_sheets) {
-                // console.log("向上查询表格数据，找到表格数据", chat[i])
+                console.log("向上查询表格数据，找到表格数据", chat[i])
                 return chat[i]
             }
             // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
             // 请注意不再使用旧的Table类
             if (chat[i].dataTable) {
                 // 为了兼容旧系统，将旧数据转换为新的Sheet格式
-                convertOldTablesToNewSheets(chat[i].dataTable)
+                convertOldTablesToNewSheets(chat[i].dataTable, chat[i])
                 return chat[i]
             }
         }
 
         if (!BASE.sheetsData.context) {
+            console.log("尝试从模板中构建表格数据")
             // 尝试从模板中构建表格数据
             const currentPiece = USER.getChatPiece()
             buildSheetsByTemplates(currentPiece)
@@ -128,11 +151,13 @@ export const BASE = {
         if (!hashSheets) {
             return [];
         }
-        return Object.keys(hashSheets).map(sheetUid => {
-            const sheet = new Sheet(sheetUid)
-            sheet.hashSheet = hashSheets[sheetUid].map(row => row.map(hash => hash));
-            return sheet
-        });
+        return BASE.sheetsData.context.map(sheet => {
+            if (hashSheets[sheet.uid]) {
+                const newSheet = new Sheet(sheet.uid)
+                newSheet.hashSheet = hashSheets[sheet.uid].map(row => row.map(hash => hash));
+                return newSheet
+            }else return 
+        }).filter(Boolean)
     },
 };
 

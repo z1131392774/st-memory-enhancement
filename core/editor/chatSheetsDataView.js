@@ -279,12 +279,13 @@ function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
 
     // 判断是否需要根据历史数据进行高亮
-    const lastCellUid = lastCellsHashMap.get(cell.uid)
+    const lastCellUid = lastCellsHashMap.has(cell.uid)
     if (!lastCellUid) {
         cell.element.style.backgroundColor = '#00ff0011'
-    } else if (cell.parent.cells.get(lastCellUid).data.value !== cell.data.value) {
-        cell.element.style.backgroundColor = '#0000ff11'
     }
+    /* else if (cell.parent.cells.get(lastCellUid).data.value !== cell.data.value) {
+        cell.element.style.backgroundColor = '#0000ff11'
+    } */
 
     cell.on('click', async (event) => {
         event.stopPropagation();
@@ -361,8 +362,8 @@ function cellClickEvent(cell) {
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus(true);
     const piece = BASE.getLastSheetsPiece();
+    console.log('现在的表格模板数据:', BASE.sheetsData.context, piece)
     if (!piece || !piece.hash_sheets) return;
-
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
     console.log('renderSheetsDOM:', piece, sheets)
 
@@ -377,6 +378,7 @@ async function renderSheetsDOM() {
             })
         })
     }
+    console.log('记录上次的Hash:', lastHashSheets, lastCellsHashMap)
 
     $(viewSheetsContainer).empty()
     for (let sheet of sheets) {

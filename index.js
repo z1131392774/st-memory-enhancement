@@ -65,14 +65,26 @@ export function buildSheetsByTemplates(targetPiece) {
  * 转化旧表格为sheets
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
  */
-export function convertOldTablesToNewSheets(oldTableList) {
-    BASE.sheetsData.context = [];
+export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
     USER.getChatPiece().hash_sheets = {};
     const sheets = []
     for (const oldTable of oldTableList) {
-        const newSheet = new BASE.Sheet();
         const valueSheet = [oldTable.columns, ...oldTable.content].map(row => ['', ...row])
-        newSheet.createNewSheet(valueSheet[0].length, valueSheet.length, false);
+        const cols = valueSheet[0].length
+        const rows = valueSheet.length
+        const targetSheetUid = BASE.sheetsData.context.find(sheet => sheet.name === oldTable.tableName)?.uid
+        if (targetSheetUid) {
+            // 如果表格已存在，则更新表格数据
+            const targetSheet = new BASE.Sheet(targetSheetUid)
+            console.log("表格已存在，更新表格数据", targetSheet)
+            targetSheet.rebuildHashSheetByValueSheet(valueSheet)
+            targetSheet.save(targetPiece)
+            sheets.push(targetSheet)
+            continue
+        }
+        // 如果表格未存在，则创建新的表格
+        const newSheet = new BASE.Sheet();
+        newSheet.createNewSheet(cols, rows, false);
 
         newSheet.name = oldTable.tableName
         newSheet.domain = newSheet.SheetDomain.chat
@@ -91,7 +103,7 @@ export function convertOldTablesToNewSheets(oldTableList) {
             })
         })
 
-        newSheet.save()
+        newSheet.save(targetPiece)
         sheets.push(newSheet)
     }
     // USER.saveChat()
@@ -224,23 +236,44 @@ export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false)
 
 /**
  * 解析回复中的表格编辑标签
- * @param {Chat} chat 单个聊天对象
+ * @param {Chat} piece 单个聊天对象
  * @param {number} mesIndex 修改的消息索引
  * @param {boolean} ignoreCheck 是否跳过重复性检查
  */
-export function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
-    const { matches } = getTableEditTag(chat.mes)
-    if (!ignoreCheck && !isTableEditStrChanged(chat, matches)) return false
+export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
+    const { matches } = getTableEditTag(piece.mes)
+    if (!ignoreCheck && !isTableEditStrChanged(piece, matches)) return false
     const tableEditActions = handleTableEditTag(matches)
-    tableEditActions.forEach((action, index) => tableEditActions[index].param = formatParams(action.param))
+    tableEditActions.forEach((action, index) => tableEditActions[index].action = classifyParams(formatParams(action.param)))
     console.log("解析到的表格编辑指令", tableEditActions)
 
-    // 使用新的Sheet系统处理表格编辑
-    // 这里不再使用旧的TableEditAction类
-    // 而是直接使用新的Sheet类的方法
-
-    // 获取最新的表格数据
-    const piece = BASE.getLastSheetsPiece()
+    // 获取上一个表格数据
+    const prePiece = BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
+    const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
+    for (const EditAction of tableEditActions) {
+        const action = EditAction.action
+        const sheet = sheets[action.tableIndex]
+        if (!sheet) {
+            console.error("表格不存在，无法执行编辑操作", EditAction)
+            continue
+        }
+        switch (EditAction.type) {
+            case 'update':
+                // 执行更新操作
+                console.log("表格的hashSheet", sheet.hashSheet)
+                Object.entries(action.data).forEach(([key, value]) => {
+                    const cell = sheet.findCellByPosition(parseInt(action.rowIndex) + 1, parseInt(key) +1)
+                    if(!cell) return
+                    cell.newAction(cell.CellAction.editCell, { value }, false)
+                })
+                break
+        }
+        console.log("执行表格编辑操作", EditAction)
+    }
+    sheets.forEach(sheet => sheet.save(piece, true))
+    console.log("聊天模板：", BASE.sheetsData.context)
+    console.log("获取到的表格数据", prePiece)
+    console.log("测试总chat", USER.getContext().chat)
 
     // 将编辑操作应用到新的Sheet系统
     // 这里需要实现新的编辑逻辑，使用Sheet类的方法
@@ -254,7 +287,7 @@ export function parseTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
 /**
  * 格式化参数
  * @description 将参数数组中的字符串转换为数字或对象
- * @param {} paramArray 
+ * @param {string[]} paramArray 
  * @returns 
  */
 function formatParams(paramArray) {
@@ -270,6 +303,24 @@ function formatParams(paramArray) {
         // 其他情况都返回字符串
         return trimmed;
     });
+}
+
+/**
+ * 分类参数
+ * @param {string[]} param 参数
+ * @returns {Object} 分类后的参数对象
+ */
+function classifyParams(param) {
+    const action = {};
+    for (const key in param) {
+        if (typeof param[key] === 'number') {
+            if (key === '0') action.tableIndex = param[key]
+            else if (key === '1') action.rowIndex = param[key]
+        } else if (typeof param[key] === 'object') {
+            action.data = param[key]
+        }
+    }
+    return action
 }
 
 /**
@@ -487,7 +538,9 @@ export async function updateSheetsView() {
     // const piece = BASE.getLastSheetsPiece()
 
     // 刷新表格视图
+    console.log("========================================\n更新表格视图")
     refreshTempView(true);
+    console.log("========================================\n更新表格内容视图")
     refreshContextView(true);
 
     // 更新系统消息中的表格状态
