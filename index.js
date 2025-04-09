@@ -250,7 +250,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     // 获取上一个表格数据
     const prePiece = BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
-    for (const EditAction of tableEditActions) {
+    for (const EditAction of sortActions(tableEditActions)) {
         const action = EditAction.action
         const sheet = sheets[action.tableIndex]
         if (!sheet) {
@@ -277,6 +277,13 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
                     cell.data.value = action.data[index - 1]
                 })
                 break
+            case 'delete':
+                // 执行删除操作
+                const deleteRow = parseInt(action.rowIndex) + 1
+                const cell = sheet.findCellByPosition(deleteRow, 0)
+                if (!cell) return
+                cell.newAction(cell.CellAction.deleteSelfRow, {}, false)
+                break
         }
         console.log("执行表格编辑操作", EditAction)
     }
@@ -284,14 +291,22 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     console.log("聊天模板：", BASE.sheetsData.context)
     console.log("获取到的表格数据", prePiece)
     console.log("测试总chat", USER.getContext().chat)
-
-    // 将编辑操作应用到新的Sheet系统
-    // 这里需要实现新的编辑逻辑，使用Sheet类的方法
-
-    // 标记为已处理，但实际上不再执行旧的编辑逻辑
-    // TODO
-
     return true
+}
+
+/**
+ * 为actions排序
+ * @param {Object[]} actions 要排序的actions
+ * @returns 排序后的actions
+ */
+function sortActions(actions) {
+    // 定义排序优先级
+    const priority = {
+        update: 0,
+        insert: 1,
+        delete: 2
+    };
+    return actions.sort((a, b) => priority[a.type] - priority[b.type]);
 }
 
 /**
