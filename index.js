@@ -118,7 +118,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
 function addOldTablePrompt(sheet) {
     const tableStructure = USER.tableBaseSetting.tableStructure.find(table => table.tableName === sheet.name)
     console.log("添加旧表格提示词", tableStructure, USER.tableBaseSetting.tableStructure, sheet.name)
-    if(!tableStructure) return false
+    if (!tableStructure) return false
     const source = sheet.source
     source.data.initNode = tableStructure.initNode
     source.data.insertNode = tableStructure.insertNode
@@ -244,12 +244,9 @@ function clearEmpty() {
  * @returns
  */
 export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false) {
-    if (!parseTableEditTag(chat, mesIndex, ignoreCheck)) {
-        updateSystemMessageTableStatus();   // 新增代码，将表格数据状态更新到系统消息中
-        return
-    }
-    executeTableEditTag(chat, mesIndex)
+    parseTableEditTag(chat, mesIndex, ignoreCheck)
     updateSystemMessageTableStatus();   // 新增代码，将表格数据状态更新到系统消息中
+    //executeTableEditTag(chat, mesIndex)
 }
 
 /**
@@ -266,7 +263,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     console.log("解析到的表格编辑指令", tableEditActions)
 
     // 获取上一个表格数据
-    const prePiece = BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
+    const prePiece = mesIndex === -1 ? BASE.getLastSheetsPiece() : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
     for (const EditAction of sortActions(tableEditActions)) {
         const action = EditAction.action
@@ -440,7 +437,7 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
+        if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })

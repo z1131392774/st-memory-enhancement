@@ -10,7 +10,7 @@ let copyTableData = {}
 let selectedCell = null
 let editModeSelectedRows = []
 let viewSheetsContainer = null
-let lastCellsHashMap = null
+let lastCellsHashSheet = null
 const userTableEditInfo = {
     chatIndex: null,
     editAble: false,
@@ -278,15 +278,20 @@ async function confirmAction(event, text = '是否继续该操作？') {
     if (!confirmation.result) return { filterData: null, confirmation: false };
 }
 
+/**
+ * 单元格高亮
+ * @param {} cell 
+ */
+
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
 
     // 判断是否需要根据历史数据进行高亮
-    const lastCellUid = lastCellsHashMap.has(cell.uid)
+    /* const lastCellUid = lastCellsHashSheet.has(cell.uid)
     if (!lastCellUid) {
         cell.element.style.backgroundColor = '#00ff0011'
     }
-    /* else if (cell.parent.cells.get(lastCellUid).data.value !== cell.data.value) {
+    else if (cell.parent.cells.get(lastCellUid).data.value !== cell.data.value) {
         cell.element.style.backgroundColor = '#0000ff11'
     } */
 
@@ -371,17 +376,7 @@ async function renderSheetsDOM() {
     console.log('renderSheetsDOM:', piece, sheets)
 
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
-    const lastHashSheets = BASE.getLastSheetsPiece(1, 3)?.hash_sheets;
-    lastCellsHashMap = new Map();
-    if (lastHashSheets) {
-        // 使用flat将二维数组转换为一维数组
-        Object.keys(lastHashSheets).forEach((key) => {
-            lastHashSheets[key].flat().forEach((hash) => {
-                lastCellsHashMap.set(hash, key);
-            })
-        })
-    }
-    console.log('记录上次的Hash:', lastHashSheets, lastCellsHashMap)
+    lastCellsHashSheet = BASE.getLastSheetsPiece(1, 3)?.hash_sheets;
 
     $(viewSheetsContainer).empty()
     for (let sheet of sheets) {
