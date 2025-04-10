@@ -188,8 +188,11 @@ function setTableEditTips(tableEditTips) {
     }
 }
 
-function templateCellDataEdit(cell) {
-    throw new Error('未实现该方法')
+async function templateCellDataEdit(cell) {
+    const result = await EDITOR.callGenericPopup("编辑单元格", EDITOR.POPUP_TYPE.INPUT, cell.data.value, { rows: 3 })
+    if (result) {
+        cell.editCellData({value: result})
+    }
 }
 
 function batchEditMode(cell) {

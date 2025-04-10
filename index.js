@@ -79,13 +79,13 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
             console.log("表格已存在，更新表格数据", targetSheet)
             targetSheet.rebuildHashSheetByValueSheet(valueSheet)
             targetSheet.save(targetPiece)
+            addOldTablePrompt(targetSheet)
             sheets.push(targetSheet)
             continue
         }
         // 如果表格未存在，则创建新的表格
         const newSheet = new BASE.Sheet();
         newSheet.createNewSheet(cols, rows, false);
-
         newSheet.name = oldTable.tableName
         newSheet.domain = newSheet.SheetDomain.chat
         newSheet.type = newSheet.SheetType.dynamic
@@ -93,7 +93,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         newSheet.required = oldTable.Required
         newSheet.tochat = true
 
-        newSheet.data.note = oldTable.note
+        addOldTablePrompt(newSheet)
         newSheet.data.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
 
         valueSheet.forEach((row, rowIndex) => {
@@ -109,6 +109,22 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
     // USER.saveChat()
     console.log("转换旧表格数据为新表格数据", sheets)
     return sheets
+}
+
+/**
+ * 添加旧表格结构中的提示词到新的表格中
+ * @param {*} sheet 表格对象
+ */
+function addOldTablePrompt(sheet) {
+    const tableStructure = USER.tableBaseSetting.tableStructure.find(table => table.tableName === sheet.name)
+    console.log("添加旧表格提示词", tableStructure, USER.tableBaseSetting.tableStructure, sheet.name)
+    if(!tableStructure) return false
+    const source = sheet.source
+    source.data.initNode = tableStructure.initNode
+    source.data.insertNode = tableStructure.insertNode
+    source.data.updateNode = tableStructure.updateNode
+    source.data.deleteNode = tableStructure.deleteNode
+    source.data.note = tableStructure.note
 }
 
 /**
@@ -145,9 +161,11 @@ export function initTableData() {
  * @returns 完整提示词
  */
 function getAllPrompt() {
-    const sheets = BASE.sheetsData.context
-    const tableDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
-    return USER.tableBaseSetting.message_template.replace('{{tableData}}', tableDataPrompt)
+    const hash_sheets = BASE.getLastSheetsPiece()?.hash_sheets
+    const sheets = BASE.hashSheetsToSheets(hash_sheets)
+    console.log("构建提示词", hash_sheets, sheets)
+    const sheetDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
+    return USER.tableBaseSetting.message_template.replace('{{tableData}}', sheetDataPrompt)
 }
 
 
@@ -236,7 +254,7 @@ export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false)
 
 /**
  * 解析回复中的表格编辑标签
- * @param {Chat} piece 单个聊天对象
+ * @param {*} piece 单个聊天对象
  * @param {number} mesIndex 修改的消息索引
  * @param {boolean} ignoreCheck 是否跳过重复性检查
  */
@@ -266,7 +284,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
                     cell.newAction(cell.CellAction.editCell, { value }, false)
                 })
                 break
-            case 'insert':
+            case 'insert': {
                 // 执行插入操作
                 const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0)
                 cell.newAction(cell.CellAction.insertDownRow, {}, false)
@@ -276,6 +294,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
                     if (index === 0) return
                     cell.data.value = action.data[index - 1]
                 })
+            }
                 break
             case 'delete':
                 // 执行删除操作
@@ -354,11 +373,6 @@ function classifyParams(param) {
  * @param {number} mesIndex 修改的消息索引
  */
 function executeTableEditTag(chat, mesIndex = -1, ignoreCheck = false) {
-    // 使用新的Sheet系统处理表格编辑
-    // 这里不再执行旧的编辑逻辑
-
-    // 更新表格视图
-    updateSheetsView()
 
     // 如果不是最新的消息，则更新接下来的表格
     if (mesIndex !== -1) {
@@ -426,7 +440,7 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })

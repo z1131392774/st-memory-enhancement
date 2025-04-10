@@ -218,7 +218,7 @@ class SheetBase {
             return null;
         }
         return this.hashSheet[rowIndex].map(uid => this.cells.get(uid));
-    }
+    }                                                                                                   
     /**
      * 获取表格csv格式的内容
      * @returns
@@ -227,8 +227,19 @@ class SheetBase {
         if (this.isEmpty())
             if (this.required) return this.source.initNode;
             else return '';
-        const content = this.hashSheet.slice(1).map((row, index) => `${index},` + row.map(cellUid => this.cells.get(cellUid)?.data[key]).join(',')).join('\n');
+        const content = this.hashSheet.slice(1).map((row, index) => row.map(cellUid => {
+            const cell = this.cells.get(cellUid)
+            if (!cell) return
+            return cell.type === CellType.row_header ? index : cell.data[key]
+        }).join(',')).join('\n');
         return content + "\n";
+    }
+    /**
+     * 表格是否为空
+     * @returns 是否为空
+     */
+    isEmpty() {
+        return this.hashSheet.length <= 1;
     }
 
     filterSavingData() {
@@ -343,45 +354,6 @@ export class SheetTemplate extends SheetBase {
         return templates;
     }
 
-    /**
-     * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
-     * @returns 表格内容提示词
-     */
-    getTableText(customParts = ['title', 'node', 'headers', 'rows', 'editRules']) {
-        const title = `* ${this.name}:${replaceUserTag(this.name)}\n`;
-        const node = this.source.note && this.source.note !== '' ? '【说明】' + this.source.note + '\n' : '';
-        const headers = "rowIndex," + this.getCellsByRowIndex(0).map((cell, index) => index + ':' + replaceUserTag(cell.data.value)).join(',') + '\n';
-        const rows = this.getSheetCSV()
-        const editRules = this.#getTableEditRules() + '\n';
-
-        let result = '';
-
-        if (customParts.includes('title')) {
-            result += title;
-        }
-        if (customParts.includes('node')) {
-            result += node;
-        }
-        if (customParts.includes('headers')) {
-            result += '【表格内容】\n' + headers;
-        }
-        if (customParts.includes('rows')) {
-            result += rows;
-        }
-        if (customParts.includes('editRules')) {
-            result += editRules;
-        }
-
-        return result;
-    }
-    /**
-     * 表格是否为空
-     * @returns 是否为空
-     */
-    isEmpty() {
-        return this.hashSheet.length <= 1;
-    }
-
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
     #load(target) {
@@ -413,21 +385,7 @@ export class SheetTemplate extends SheetBase {
             throw new Error('未找到对应的模板');
         }
     }
-    /**
-     * 获取表格编辑规则提示词
-     * @returns
-     */
-    #getTableEditRules() {
-        const source = this.source;
-        if (this.required && this.isEmpty()) return '【增删改触发条件】\n插入：' + replaceUserTag(source.initNode) + '\n'
-        else {
-            let editRules = '【增删改触发条件】\n'
-            if (source.insertNode) editRules += ('插入：' + replaceUserTag(source.insertNode) + '\n')
-            if (source.updateNode) editRules += ('更新：' + replaceUserTag(source.updateNode) + '\n')
-            if (source.deleteNode) editRules += ('删除：' + replaceUserTag(source.deleteNode) + '\n')
-            return editRules
-        }
-    }
+
 }
 
 /**
@@ -534,6 +492,38 @@ export class Sheet extends SheetBase {
         return this;                // 返回 Sheet 实例自身
     }
 
+    /**
+     * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
+     * @returns 表格内容提示词
+     */
+    getTableText(customParts = ['title', 'node', 'headers', 'rows', 'editRules']) {
+        console.log('获取表格内容提示词', this)
+        const title = `* ${this.name}:${replaceUserTag(this.name)}\n`;
+        const node = this.source.data.note && this.source.data.note !== '' ? '【说明】' + this.source.data.note + '\n' : '';
+        const headers = "rowIndex," + this.getCellsByRowIndex(0).map((cell, index) => index + ':' + replaceUserTag(cell.data.value)).join(',') + '\n';
+        const rows = this.getSheetCSV()
+        const editRules = this.#getTableEditRules() + '\n';
+
+        let result = '';
+
+        if (customParts.includes('title')) {
+            result += title;
+        }
+        if (customParts.includes('node')) {
+            result += node;
+        }
+        if (customParts.includes('headers')) {
+            result += '【表格内容】\n' + headers;
+        }
+        if (customParts.includes('rows')) {
+            result += rows;
+        }
+        if (customParts.includes('editRules')) {
+            result += editRules;
+        }
+
+        return result;
+    }
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
     #load(target) {
@@ -560,6 +550,21 @@ export class Sheet extends SheetBase {
         }
         console.log(`未找到对应的模板`, target)
         throw new Error('未找到对应的模板');
+    }
+    /**
+     * 获取表格编辑规则提示词
+     * @returns
+     */
+    #getTableEditRules() {
+        const source = this.source;
+        if (this.required && this.isEmpty()) return '【增删改触发条件】\n插入：' + replaceUserTag(source.data.initNode) + '\n'
+        else {
+            let editRules = '【增删改触发条件】\n'
+            if (source.data.insertNode) editRules += ('插入：' + replaceUserTag(source.data.insertNode) + '\n')
+            if (source.data.updateNode) editRules += ('更新：' + replaceUserTag(source.data.updateNode) + '\n')
+            if (source.data.deleteNode) editRules += ('删除：' + replaceUserTag(source.data.deleteNode) + '\n')
+            return editRules
+        }
     }
 }
 
@@ -738,7 +743,7 @@ class Cell {
     }
 
     #event(actionName, props = {}, isSave = true) {
-        const [rowIndex, colIndex] =this.#positionInParentCellSheet();
+        const [rowIndex, colIndex] = this.#positionInParentCellSheet();
         switch (actionName) {
             case CellAction.editCell:
                 this.#handleEditCell(props);
@@ -797,7 +802,7 @@ class Cell {
         }
         let cell = new Cell(this.parent);
         cell.data = { ...this.data, ...props };
-        const [rowIndex, colIndex] =this.#positionInParentCellSheet()
+        const [rowIndex, colIndex] = this.#positionInParentCellSheet()
         this.parent.cells.set(cell.uid, cell);
         console.log("保存前的 cell", this.parent.cellHistory);
         this.parent.cellHistory.push(cell);
