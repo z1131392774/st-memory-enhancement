@@ -427,6 +427,7 @@ export function initTableStructureToTemplate() {
     const sheetDefaultTemplates = USER.tableBaseDefaultSettings.sheetTemplates
     for (let defaultTemplate of sheetDefaultTemplates) {
         const newTemplate = new BASE.SheetTemplate()
+        newTemplate.domain = 'global'
         newTemplate.createNewTemplate(defaultTemplate.columns.length + 1, 1, false)
         newTemplate.name = defaultTemplate.name
         defaultTemplate.columns.forEach((column, index) => {

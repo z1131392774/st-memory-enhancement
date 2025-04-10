@@ -132,9 +132,8 @@ export const BASE = {
             }
         }
 
-        if (!BASE.sheetsData.context) {
+        if (BASE.sheetsData.context.length === 0) {
             console.log("尝试从模板中构建表格数据")
-            // 尝试从模板中构建表格数据
             const currentPiece = USER.getChatPiece()
             buildSheetsByTemplates(currentPiece)
             if (currentPiece.hash_sheets) {
@@ -144,7 +143,7 @@ export const BASE = {
         }
 
         // 如果都没有找到，则返回空数组
-        console.log("向上查询表格数据，未找到表格数据")
+        console.log("向上查询表格数据，未找到表格数据",BASE.sheetsData.context)
         return null
     },
     hashSheetsToSheets(hashSheets) {

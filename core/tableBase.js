@@ -527,10 +527,10 @@ export class Sheet extends SheetBase {
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
     #load(target) {
-        if (target instanceof SheetTemplate) {
+        if (target.domain === SheetDomain.global) {
             this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
             this.name = target.name.replace('模板', '表格');
-            this.hashSheet = [target.hashSheet[0]];
+            this.hashSheet = [target.hashSheet[0].map(uid => uid)];
             this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
             this.loadCells();
             this.markPositionCacheDirty();
