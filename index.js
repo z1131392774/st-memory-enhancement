@@ -161,7 +161,9 @@ export function initTableData() {
  * @returns 完整提示词
  */
 function getAllPrompt() {
-    const hash_sheets = BASE.getLastSheetsPiece()?.hash_sheets
+    const lastSheetsPiece = USER.getContext().chat.at(-1).is_user === false ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
+    if(!lastSheetsPiece) return ''
+    const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
     console.log("构建提示词", hash_sheets, sheets)
     const sheetDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
@@ -263,7 +265,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     console.log("解析到的表格编辑指令", tableEditActions)
 
     // 获取上一个表格数据
-    const prePiece = mesIndex === -1 ? BASE.getLastSheetsPiece() : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
+    const prePiece = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
     for (const EditAction of sortActions(tableEditActions)) {
         const action = EditAction.action
@@ -438,6 +440,7 @@ function getMesRole() {
 async function onChatCompletionPromptReady(eventData) {
     try {
         if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
+        console.log("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
@@ -529,6 +532,7 @@ async function onMessageReceived(chat_id) {
         if (USER.tableBaseSetting.isAiWriteTable === false) return
         const chat = USER.getContext().chat[chat_id];
         console.log("收到消息", chat_id)
+        handleEditStrInMessage(chat)
         try {
             handleEditStrInMessage(chat)
         } catch (error) {
