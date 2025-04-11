@@ -463,7 +463,7 @@ async function onChatCompletionPromptReady(eventData) {
             }
         }
 
-        EDITOR.error(`记忆插件：表格数据注入失败\n原因：${error.message}\n位置：第${lineNumber}`);
+        EDITOR.error(`记忆插件：表格数据注入失败\n位置：第${lineNumber}\n原因：`, '', error);
     }
     console.log("注入表格总体提示词", eventData.chat)
 }
@@ -513,7 +513,7 @@ async function onMessageEdited(this_edit_mes_id) {
         try {
             handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
         } catch (error) {
-            EDITOR.error("记忆插件：表格编辑失败\n原因：", error.message)
+            EDITOR.error("记忆插件：表格编辑失败\n原因：", error.message, error)
         }
     }
 
@@ -532,11 +532,10 @@ async function onMessageReceived(chat_id) {
         if (USER.tableBaseSetting.isAiWriteTable === false) return
         const chat = USER.getContext().chat[chat_id];
         console.log("收到消息", chat_id)
-        handleEditStrInMessage(chat)
         try {
             handleEditStrInMessage(chat)
         } catch (error) {
-            EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message)
+            EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message, error)
         }
     }
 
@@ -562,7 +561,7 @@ async function onMessageSwiped(chat_id) {
     try {
         handleEditStrInMessage(chat)
     } catch (error) {
-        EDITOR.error("记忆插件：swipe切换失败\n原因：", error.message)
+        EDITOR.error("记忆插件：swipe切换失败\n原因：", error.message, error)
     }
 
     await updateSheetsView()

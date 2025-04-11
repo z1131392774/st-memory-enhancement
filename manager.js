@@ -186,7 +186,7 @@ export const EDITOR = {
     info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),
     success: (message, detail = '', timeout = 500) => consoleMessageToEditor.success(message, detail, timeout),
     warning: (message, detail = '', timeout = 2000) => consoleMessageToEditor.warning(message, detail, timeout),
-    error: (message, detail = '', timeout = 2000) => consoleMessageToEditor.error(message, detail, timeout),
+    error: (message, detail = '',error ,timeout = 2000) => consoleMessageToEditor.error(message, detail,error, timeout),
     clear: () => consoleMessageToEditor.clear(),
     logAll: () => {
         SYSTEM.codePathLog({

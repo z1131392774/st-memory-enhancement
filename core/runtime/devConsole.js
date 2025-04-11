@@ -5,11 +5,12 @@ import JSON5 from '../../utils/json5.min.mjs'
 let isPopupOpening = false; // 防止在弹窗打开时推送日志导致循环
 let debugEventHistory = [];
 
-function updateTableDebugLog(type, message, detail, timeout) {
+function updateTableDebugLog(type, message, detail, timeout, stack) {
     const newLog = {
         time: new Date().toLocaleTimeString(),
         type: type,
-        message: message || ''
+        message: message || '',
+        stack,
     };
     switch (type) {
         case 'info':
@@ -26,16 +27,6 @@ function updateTableDebugLog(type, message, detail, timeout) {
             console.error(message, detail);
             toastr.error(message, detail, timeout);
             if (isPopupOpening) break;
-
-            // 获取堆栈回调，将堆栈回调信息记录到newLog
-            newLog.stack = new Error().stack;
-            // 移除堆栈回调中的第2-4行，保留第一行，即移除Error对象创建和updateTableDebugLog调用的行
-            newLog.stack = newLog.stack.split('\n').filter((_, index) => index === 0 || index > 3).join('\n');
-            if (USER.tableBaseSetting.tableDebugModeAble) {
-                setTimeout(() => {
-                    openTableDebugLogPopup().then(r => {});
-                }, 0);
-            }
             break;
         case 'clear':
             toastr.clear();
@@ -132,7 +123,7 @@ export const consoleMessageToEditor = {
     info: (message, detail, timeout) => updateTableDebugLog('info', message, detail, timeout),
     success: (message, detail, timeout) => updateTableDebugLog('success', message, detail, timeout),
     warning: (message, detail, timeout) => updateTableDebugLog('warning', message, detail, timeout),
-    error: (message, detail, timeout) => updateTableDebugLog('error', message, detail, timeout),
+    error: (message, detail, error, timeout) => updateTableDebugLog('error', message+error?.name, detail, timeout, error?.stack),
     clear: () => updateTableDebugLog('clear', ''),
 }
 
