@@ -192,6 +192,7 @@ async function templateCellDataEdit(cell) {
     const result = await EDITOR.callGenericPopup("编辑单元格", EDITOR.POPUP_TYPE.INPUT, cell.data.value, { rows: 3 })
     if (result) {
         cell.editCellData({ value: result })
+        refreshContextView(true);
     }
 }
 
@@ -331,18 +332,18 @@ function cellClickEvent(cell) {
 
         if (rowIndex === 0 && colIndex === 0) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
-            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => cell.newAction(cell.CellAction.insertRightColumn));
-            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => cell.newAction(cell.CellAction.insertDownRow));
+            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
+            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
         } else if (colIndex === 0) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
-            menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => cell.newAction(cell.CellAction.insertUpRow));
-            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => cell.newAction(cell.CellAction.insertDownRow));
-            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => confirmAction(() => { cell.newAction(cell.CellAction.deleteSelfRow) }, '确认删除行？'), menu.ItemType.warning);
+            menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));
+            menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow) )
         } else if (rowIndex === 0) {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await templateCellDataEdit(cell));
-            menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => cell.newAction(cell.CellAction.insertLeftColumn));
-            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => cell.newAction(cell.CellAction.insertRightColumn));
-            menu.add('<i class="fa fa-trash-alt"></i> 删除列', () => confirmAction(() => { cell.newAction(cell.CellAction.deleteSelfColumn) }, '确认删除列？'), menu.ItemType.warning);
+            menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => handleAction(cell, cell.CellAction.insertLeftColumn));
+            menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
+            menu.add('<i class="fa fa-trash-alt"></i> 删除列', () => confirmAction(() => { handleAction(cell, cell.CellAction.deleteSelfColumn) }, '确认删除列？'), menu.ItemType.warning);
         } else {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async () => await templateCellDataEdit(cell));
         }
@@ -385,6 +386,11 @@ function cellClickEvent(cell) {
     cell.on('', () => {
         console.log('cell发生了改变:', cell)
     })
+}
+
+function handleAction(cell, action){
+    cell.newAction(action)
+    refreshContextView(true);
 }
 
 async function renderSheetsDOM() {

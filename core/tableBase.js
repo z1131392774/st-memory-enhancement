@@ -475,7 +475,7 @@ export class Sheet extends SheetBase {
             }
             if (!targetPiece.hash_sheets) targetPiece.hash_sheets = {};
             targetPiece.hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
-            console.log('保存表格数据', BASE.sheetsData.context, targetPiece.hash_sheets);
+            console.log('保存表格数据', targetPiece, this.hashSheet);
             if (!manualSave) USER.saveChat();
             return this;
         } catch (e) {
@@ -793,7 +793,6 @@ class Cell {
             });
         }
         if (isSave) {
-            this.parent.renderSheet(this.parent.lastCellEventHandler);
             this.parent.save();
         }
 
@@ -837,6 +836,7 @@ class Cell {
         this.parent.markPositionCacheDirty();
     }
     #deleteRow(rowIndex) {
+        console.log("删除行", rowIndex, this.parent.hashSheet.length)
         if (rowIndex === 0) return;
         if (this.parent.hashSheet.length <= 2) return;
         this.parent.hashSheet.splice(rowIndex, 1);
