@@ -469,6 +469,10 @@ export class Sheet extends SheetBase {
                 sheets.push(sheetDataToSave);
             }
             BASE.sheetsData.context = sheets;
+            if( !targetPiece ){
+                console.log("没用消息能承载hash_sheets数据，不予保存")
+                return this
+            }
             if (!targetPiece.hash_sheets) targetPiece.hash_sheets = {};
             targetPiece.hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
             console.log('保存表格数据', BASE.sheetsData.context, targetPiece.hash_sheets);

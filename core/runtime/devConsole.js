@@ -27,6 +27,11 @@ function updateTableDebugLog(type, message, detail, timeout, stack) {
             console.error(message, detail);
             toastr.error(message, detail, timeout);
             if (isPopupOpening) break;
+            if (USER.tableBaseSetting.tableDebugModeAble) {
+                setTimeout(() => {
+                    openTableDebugLogPopup().then(r => {});
+                }, 0);
+            }
             break;
         case 'clear':
             toastr.clear();

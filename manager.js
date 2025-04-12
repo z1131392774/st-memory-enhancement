@@ -1,20 +1,20 @@
 import applicationFunctionManager from "./services/appFuncManager.js";
 // 移除旧表格系统引用
 import { consoleMessageToEditor } from "./core/runtime/devConsole.js";
-import {calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly,} from "./utils/utility.js";
-import {defaultSettings} from "./core/pluginSetting.js";
-import {Drag} from "./components/dragManager.js";
-import {PopupMenu} from "./components/popupMenu.js";
-import {buildSheetsByTemplates, convertOldTablesToNewSheets} from "./index.js";
-import {getRelativePositionOfCurrentCode} from "./utils/codePathProcessing.js";
-import {fileManager} from "./services/router.js";
-import {pushCodeToQueue} from "./components/_fotTest.js";
-import {createProxy, createProxyWithUserSetting} from "./utils/codeProxy.js";
-import {Sheet, SheetTemplate} from "./core/tableBase.js";
+import { calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly, } from "./utils/utility.js";
+import { defaultSettings } from "./core/pluginSetting.js";
+import { Drag } from "./components/dragManager.js";
+import { PopupMenu } from "./components/popupMenu.js";
+import { buildSheetsByTemplates, convertOldTablesToNewSheets } from "./index.js";
+import { getRelativePositionOfCurrentCode } from "./utils/codePathProcessing.js";
+import { fileManager } from "./services/router.js";
+import { pushCodeToQueue } from "./components/_fotTest.js";
+import { createProxy, createProxyWithUserSetting } from "./utils/codeProxy.js";
+import { Sheet, SheetTemplate } from "./core/tableBase.js";
 import { refreshTempView } from './core/editor/tableTemplateEditView.js';
-import {newPopupConfirm, PopupConfirm} from "./components/popupConfirm.js";
-import {refreshContextView} from "./core/editor/chatSheetsDataView.js";
-import {updateSystemMessageTableStatus} from "./core/renderer/tablePushToChat.js";
+import { newPopupConfirm, PopupConfirm } from "./components/popupConfirm.js";
+import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
+import { updateSystemMessageTableStatus } from "./core/renderer/tablePushToChat.js";
 
 let derivedData = {}
 
@@ -29,7 +29,7 @@ export const USER = {
     getSettings: () => APP.power_user,
     getExtensionSettings: () => APP.extension_settings,
     saveSettings: () => APP.saveSettings(),
-    saveChat:()=> APP.saveChat(),
+    saveChat: () => APP.saveChat(),
     getContext: () => APP.getContext(),
     // getContextSheets: () => APP.getContext().chatMetadata.sheets,
     // getRoleSheets: () => APP,
@@ -38,7 +38,7 @@ export const USER = {
         const chat = APP.getContext().chat;
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
         let index = chat.length - 1 - deep
-        while(chat[index].is_user === true) {
+        while (chat[index].is_user === true) {
             index--;
             if (index < 0) return null; // 如果没有找到非用户消息，则返回null
         }
@@ -54,7 +54,7 @@ export const USER = {
         return templates;
     },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
-    tableBaseDefaultSettings: {...defaultSettings},
+    tableBaseDefaultSettings: { ...defaultSettings },
     IMPORTANT_USER_PRIVACY_DATA: createProxyWithUserSetting('IMPORTANT_USER_PRIVACY_DATA', true),
 }
 
@@ -115,10 +115,12 @@ export const BASE = {
         console.log("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
         // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
         const chat = APP.getContext().chat
-        if (!chat || chat.length === 0 || chat.length <= deep) return null;
+        if (!chat || chat.length === 0 || chat.length <= deep) {
+            return BASE.initHashSheet()
+        }
         const startIndex = startAtLastest ? chat.length - deep - 1 : deep;
         for (let i = startIndex; i >= 0 && i >= chat.length - cutoff; i--) {
-            if(chat[i].is_user === true) continue; // 跳过用户消息
+            if (chat[i].is_user === true) continue; // 跳过用户消息
             if (chat[i].hash_sheets) {
                 console.log("向上查询表格数据，找到表格数据", chat[i])
                 return chat[i]
@@ -131,20 +133,7 @@ export const BASE = {
                 return chat[i]
             }
         }
-
-        if (BASE.sheetsData.context.length === 0) {
-            console.log("尝试从模板中构建表格数据")
-            const currentPiece = USER.getChatPiece()
-            buildSheetsByTemplates(currentPiece)
-            if (currentPiece.hash_sheets) {
-                // console.log('使用模板创建了新的表格数据', currentPiece)
-                return currentPiece
-            }
-        }
-
-        // 如果都没有找到，则返回空数组
-        console.log("向上查询表格数据，未找到表格数据",BASE.sheetsData.context)
-        return null
+        return BASE.initHashSheet()
     },
     hashSheetsToSheets(hashSheets) {
         if (!hashSheets) {
@@ -155,9 +144,27 @@ export const BASE = {
                 const newSheet = new Sheet(sheet.uid)
                 newSheet.hashSheet = hashSheets[sheet.uid].map(row => row.map(hash => hash));
                 return newSheet
-            }else return 
+            } else return
         }).filter(Boolean)
     },
+    initHashSheet() {
+        if (BASE.sheetsData.context.length === 0) {
+            console.log("尝试从模板中构建表格数据")
+            const currentPiece = USER.getChatPiece()
+            buildSheetsByTemplates(currentPiece)
+            if (currentPiece?.hash_sheets) {
+                // console.log('使用模板创建了新的表格数据', currentPiece)
+                return currentPiece
+            }
+        }
+        return {
+            hash_sheets: BASE.sheetsData.context.map(sheet => {
+                return {
+                    [sheet.uid]: [sheet.hashSheet[0].map(hash => hash)]
+                }
+            })
+        }
+    }
 };
 
 
@@ -186,7 +193,7 @@ export const EDITOR = {
     info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),
     success: (message, detail = '', timeout = 500) => consoleMessageToEditor.success(message, detail, timeout),
     warning: (message, detail = '', timeout = 2000) => consoleMessageToEditor.warning(message, detail, timeout),
-    error: (message, detail = '',error ,timeout = 2000) => consoleMessageToEditor.error(message, detail,error, timeout),
+    error: (message, detail = '', error, timeout = 2000) => consoleMessageToEditor.error(message, detail, error, timeout),
     clear: () => consoleMessageToEditor.clear(),
     logAll: () => {
         SYSTEM.codePathLog({

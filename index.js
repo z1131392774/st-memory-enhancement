@@ -52,7 +52,7 @@ function copyHashSheet(hashSheet) {
 
 export function buildSheetsByTemplates(targetPiece) {
     BASE.sheetsData.context = [];
-    USER.getChatPiece().hash_sheets = {};
+    // USER.getChatPiece().hash_sheets = {};
     const templates = BASE.templates
     templates.forEach(template => {
         const newSheet = new BASE.Sheet(template);
