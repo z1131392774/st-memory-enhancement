@@ -110,7 +110,14 @@ export const BASE = {
             }
         }
     }),
-
+    copyHashSheets(hashSheets) {
+        const newHashSheet = {}
+        for (const sheetUid in hashSheets) {
+            const hashSheet = hashSheets[sheetUid];
+            newHashSheet[sheetUid] = hashSheet.map(row => row.map(hash => hash));
+        }
+        return newHashSheet
+    },
     getLastSheetsPiece(deep = 0, cutoff = 1000, startAtLastest = true) {
         console.log("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
         // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
@@ -129,6 +136,7 @@ export const BASE = {
             // 请注意不再使用旧的Table类
             if (chat[i].dataTable) {
                 // 为了兼容旧系统，将旧数据转换为新的Sheet格式
+                console.log("找到旧表格数据", chat[i])
                 convertOldTablesToNewSheets(chat[i].dataTable, chat[i])
                 return chat[i]
             }
@@ -157,13 +165,11 @@ export const BASE = {
                 return currentPiece
             }
         }
-        return {
-            hash_sheets: BASE.sheetsData.context.map(sheet => {
-                return {
-                    [sheet.uid]: [sheet.hashSheet[0].map(hash => hash)]
-                }
-            })
-        }
+        const hash_sheets = {}
+        BASE.sheetsData.context.forEach(sheet => {
+            hash_sheets[sheet.uid] = [sheet.hashSheet[0].map(hash => hash)]
+        })
+        return { hash_sheets }
     }
 };
 

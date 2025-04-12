@@ -531,6 +531,9 @@ export class Sheet extends SheetBase {
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
     #load(target) {
+        if (target === null) {
+            return this;
+        }
         if (target.domain === SheetDomain.global) {
             this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
             this.name = target.name.replace('模板', '表格');
@@ -540,9 +543,6 @@ export class Sheet extends SheetBase {
             this.markPositionCacheDirty();
             this.template = target;
             return
-        }
-        if (target === null) {
-            return this;
         }
         let targetUid = target?.uid || target;
         let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === targetUid);

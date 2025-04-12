@@ -1,9 +1,9 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
-import {findNextChatWhitTableData,} from "../../index.js";
-import {rebuildSheets} from "../runtime/absoluteRefresh.js";
-import {openTableHistoryPopup} from "./tableHistory.js";
-import {PopupMenu} from "../../components/popupMenu.js";
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../manager.js';
+import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
+import { findNextChatWhitTableData, } from "../../index.js";
+import { rebuildSheets } from "../runtime/absoluteRefresh.js";
+import { openTableHistoryPopup } from "./tableHistory.js";
+import { PopupMenu } from "../../components/popupMenu.js";
 
 let tablePopup = null
 let copyTableData = {}
@@ -80,7 +80,7 @@ async function importTable(mesId, viewSheetsContainer) {
     fileInput.accept = '.json';
 
     // 2. 添加事件监听器，监听文件选择的变化 (change 事件)
-    fileInput.addEventListener('change', function(event) {
+    fileInput.addEventListener('change', function (event) {
         // 获取用户选择的文件列表 (FileList 对象)
         const files = event.target.files;
 
@@ -94,7 +94,7 @@ async function importTable(mesId, viewSheetsContainer) {
 
             // 4. 定义 FileReader 的 onload 事件处理函数
             // 当文件读取成功后，会触发 onload 事件
-            reader.onload = function(loadEvent) {
+            reader.onload = function (loadEvent) {
                 const tables = JSON.parse(loadEvent.target.result)
                 // loadEvent.target.result 包含了读取到的文件内容 (文本格式)
                 try {
@@ -191,7 +191,7 @@ function setTableEditTips(tableEditTips) {
 async function templateCellDataEdit(cell) {
     const result = await EDITOR.callGenericPopup("编辑单元格", EDITOR.POPUP_TYPE.INPUT, cell.data.value, { rows: 3 })
     if (result) {
-        cell.editCellData({value: result})
+        cell.editCellData({ value: result })
     }
 }
 
@@ -280,8 +280,29 @@ async function confirmAction(event, text = '是否继续该操作？') {
 
 /**
  * 单元格高亮
- * @param {} cell 
  */
+function cellHighlight(sheet) {
+    const lastHashSheet = lastCellsHashSheet[sheet.uid] || []
+    const changeSheet = sheet.hashSheet.map((row) => {
+        const isNewRow = lastHashSheet.includes(row[0])
+        return row.map((hash) => {
+            if (!isNewRow) return { hash, type: "newRow" }
+            if (!lastHashSheet.includes(hash)) return { hash, type: "update" }
+            return { hash, type: "keep" }
+        })
+    })
+    console.log("diff比较：前项",lastHashSheet, "后项",changeSheet )
+    changeSheet.forEach((row) => {
+        row.forEach((cell) => {
+            const cellElement = sheet.cells.get(cell.hash).element
+            if (cell.type === "newRow") {
+                cellElement.style.backgroundColor = '#00ff0011'
+            } else if (cell.type === "update") {
+                cellElement.style.backgroundColor = '#0000ff11'
+            }
+        })
+    })
+}
 
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
@@ -317,12 +338,12 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => cell.newAction(cell.CellAction.insertUpRow));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => cell.newAction(cell.CellAction.insertDownRow));
-            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfRow)}, '确认删除行？'), menu.ItemType.warning);
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => confirmAction(() => { cell.newAction(cell.CellAction.deleteSelfRow) }, '确认删除行？'), menu.ItemType.warning);
         } else if (rowIndex === 0) {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await templateCellDataEdit(cell));
             menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => cell.newAction(cell.CellAction.insertLeftColumn));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => cell.newAction(cell.CellAction.insertRightColumn));
-            menu.add('<i class="fa fa-trash-alt"></i> 删除列', () => confirmAction(() => {cell.newAction(cell.CellAction.deleteSelfColumn)}, '确认删除列？'), menu.ItemType.warning);
+            menu.add('<i class="fa fa-trash-alt"></i> 删除列', () => confirmAction(() => { cell.newAction(cell.CellAction.deleteSelfColumn) }, '确认删除列？'), menu.ItemType.warning);
         } else {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async () => await templateCellDataEdit(cell));
         }
@@ -377,6 +398,12 @@ async function renderSheetsDOM() {
 
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
     lastCellsHashSheet = BASE.getLastSheetsPiece(1, 3)?.hash_sheets;
+    console.log("找到的diff前项", lastCellsHashSheet)
+    if (lastCellsHashSheet)
+        lastCellsHashSheet = BASE.copyHashSheets(lastCellsHashSheet)
+        for (const sheetUid in lastCellsHashSheet) {
+            lastCellsHashSheet[sheetUid] = lastCellsHashSheet[sheetUid].flat()
+        }
 
     $(viewSheetsContainer).empty()
     for (let sheet of sheets) {
@@ -388,6 +415,7 @@ async function renderSheetsDOM() {
         sheetTitleText.innerText = sheet.name
 
         let sheetElement = null
+        cellHighlight(instance)
         if (DERIVED.any.batchEditMode === true) {
             if (DERIVED.any.batchEditModeSheet?.name === instance.name) {
                 sheetElement = await instance.renderSheet(cellClickEditModeEvent)

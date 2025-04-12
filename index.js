@@ -43,13 +43,6 @@ function checkPrototype(dataTable) {
     return dataTable;
 }
 
-/**
- * 深拷贝 hashSheet
- */
-function copyHashSheet(hashSheet) {
-    return hashSheet.map(row => row.map(hash => hash))
-}
-
 export function buildSheetsByTemplates(targetPiece) {
     BASE.sheetsData.context = [];
     // USER.getChatPiece().hash_sheets = {};
@@ -66,7 +59,7 @@ export function buildSheetsByTemplates(targetPiece) {
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
  */
 export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
-    USER.getChatPiece().hash_sheets = {};
+    //USER.getChatPiece().hash_sheets = {};
     const sheets = []
     for (const oldTable of oldTableList) {
         const valueSheet = [oldTable.columns, ...oldTable.content].map(row => ['', ...row])
