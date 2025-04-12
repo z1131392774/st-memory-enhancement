@@ -26,7 +26,7 @@ const userTableEditInfo = {
  */
 export async function copyTable() {
     copyTableData = {}
-    copyTableData.hash_sheets = BASE.getLastSheetsPiece().hash_sheets
+    copyTableData.hash_sheets = BASE.getLastSheetsPiece().piece.hash_sheets
     copyTableData.sheets_data = BASE.sheetsData.context
 
     $('#table_drawer_icon').click()
@@ -291,7 +291,6 @@ function cellHighlight(sheet) {
             return { hash, type: "keep" }
         })
     })
-    console.log("diff比较：前项",lastHashSheet, "后项",changeSheet )
     changeSheet.forEach((row) => {
         row.forEach((cell) => {
             const cellElement = sheet.cells.get(cell.hash).element
@@ -364,7 +363,7 @@ function cellClickEvent(cell) {
             $(viewSheetsContainer).append(menuElement);
 
             // 高亮cell
-            cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+            //cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
             cell.element.style.color = 'var(--SmartThemeBodyColor)';
 
             menu.show(menuLeft, menuTop).then(() => {
@@ -390,20 +389,21 @@ function cellClickEvent(cell) {
 
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus(true);
-    const piece = BASE.getLastSheetsPiece();
+    const { piece, deep } = BASE.getLastSheetsPiece();
     console.log('现在的表格模板数据:', BASE.sheetsData.context, piece)
     if (!piece || !piece.hash_sheets) return;
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
     console.log('renderSheetsDOM:', piece, sheets)
 
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
-    lastCellsHashSheet = BASE.getLastSheetsPiece(1, 3)?.hash_sheets;
+    lastCellsHashSheet = BASE.getLastSheetsPiece(deep - 1, 3, false)?.piece.hash_sheets;
     console.log("找到的diff前项", lastCellsHashSheet)
-    if (lastCellsHashSheet)
+    if (lastCellsHashSheet) {
         lastCellsHashSheet = BASE.copyHashSheets(lastCellsHashSheet)
         for (const sheetUid in lastCellsHashSheet) {
             lastCellsHashSheet[sheetUid] = lastCellsHashSheet[sheetUid].flat()
         }
+    }
 
     $(viewSheetsContainer).empty()
     for (let sheet of sheets) {
@@ -415,7 +415,7 @@ async function renderSheetsDOM() {
         sheetTitleText.innerText = sheet.name
 
         let sheetElement = null
-        cellHighlight(instance)
+        
         if (DERIVED.any.batchEditMode === true) {
             if (DERIVED.any.batchEditModeSheet?.name === instance.name) {
                 sheetElement = await instance.renderSheet(cellClickEditModeEvent)
@@ -430,7 +430,7 @@ async function renderSheetsDOM() {
         } else {
             sheetElement = instance.renderSheet(cellClickEvent)
         }
-
+        cellHighlight(instance)
         $(sheetContainer).append(sheetElement)
 
         $(viewSheetsContainer).append(sheetTitleText)

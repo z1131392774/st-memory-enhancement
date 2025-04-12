@@ -123,14 +123,14 @@ export const BASE = {
         // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
         const chat = APP.getContext().chat
         if (!chat || chat.length === 0 || chat.length <= deep) {
-            return BASE.initHashSheet()
+            return {deep: -1, piece: BASE.initHashSheet()}
         }
         const startIndex = startAtLastest ? chat.length - deep - 1 : deep;
         for (let i = startIndex; i >= 0 && i >= chat.length - cutoff; i--) {
             if (chat[i].is_user === true) continue; // 跳过用户消息
             if (chat[i].hash_sheets) {
                 console.log("向上查询表格数据，找到表格数据", chat[i])
-                return chat[i]
+                return {deep:i, piece: chat[i]}
             }
             // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
             // 请注意不再使用旧的Table类
@@ -138,10 +138,10 @@ export const BASE = {
                 // 为了兼容旧系统，将旧数据转换为新的Sheet格式
                 console.log("找到旧表格数据", chat[i])
                 convertOldTablesToNewSheets(chat[i].dataTable, chat[i])
-                return chat[i]
+                return {deep:i, piece: chat[i]}
             }
         }
-        return BASE.initHashSheet()
+        return {deep: -1, piece: BASE.initHashSheet()}
     },
     hashSheetsToSheets(hashSheets) {
         if (!hashSheets) {
@@ -209,8 +209,8 @@ export const EDITOR = {
             'context_chatMetadata_sheets': USER.getContext().chatMetadata?.sheets,
             'context_sheets_data': BASE.sheetsData.context,
             'chat_last_piece': USER.getChatPiece(),
-            'chat_last_sheet': BASE.getLastSheetsPiece()?.hash_sheets,
-            'chat_last_old_table': BASE.getLastSheetsPiece()?.dataTable,
+            'chat_last_sheet': BASE.getLastSheetsPiece()?.piece.hash_sheets,
+            'chat_last_old_table': BASE.getLastSheetsPiece()?.piece.dataTable,
         }, 3);
     },
 }

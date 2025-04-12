@@ -80,7 +80,7 @@ export function updateSystemMessageTableStatus(force = false) {
         }
     }
 
-    const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.hash_sheets);
+    const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
     let tableStatusHTML = '';
     for (let sheet of sheets) {
         if (sheet.tochat) {
@@ -102,7 +102,7 @@ export function updateSystemMessageTableStatus(force = false) {
 export async function openTableRendererPopup() {
     const manager = await SYSTEM.getTemplate('customSheetStyle');
     const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: true });
-    const sheetsData = BASE.getLastSheetsPiece()?.hash_sheets;
+    const sheetsData = BASE.getLastSheetsPiece()?.piece.hash_sheets;
     if (!sheetsData) {
         // console.warn("openTableRendererPopup: 未能获取到有效的 table 对象。");
         return;

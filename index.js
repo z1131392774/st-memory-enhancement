@@ -154,7 +154,7 @@ export function initTableData() {
  * @returns 完整提示词
  */
 function getAllPrompt() {
-    const lastSheetsPiece = USER.getContext().chat.at(-1).is_user === false ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
+    const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === false ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
@@ -258,7 +258,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     console.log("解析到的表格编辑指令", tableEditActions)
 
     // 获取上一个表格数据
-    const prePiece = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
+    const {piece:prePiece} = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
     for (const EditAction of sortActions(tableEditActions)) {
         const action = EditAction.action
@@ -566,9 +566,6 @@ async function onMessageSwiped(chat_id) {
  * @returns {Promise<*[]>}
  */
 export async function updateSheetsView() {
-    // 直接使用新的Sheet系统更新表格视图
-    // const piece = BASE.getLastSheetsPiece()
-
     // 刷新表格视图
     console.log("========================================\n更新表格视图")
     refreshTempView(true);
