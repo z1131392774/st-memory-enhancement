@@ -394,7 +394,7 @@ function handleAction(cell, action){
 }
 
 async function renderSheetsDOM() {
-    updateSystemMessageTableStatus(true);
+    updateSystemMessageTableStatus();
     const { piece, deep } = BASE.getLastSheetsPiece();
     console.log('现在的表格模板数据:', BASE.sheetsData.context, piece)
     if (!piece || !piece.hash_sheets) return;

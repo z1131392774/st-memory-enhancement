@@ -73,13 +73,14 @@ function replaceTableToStatusTag(tableStatusHTML) {
  * 更新最后一条 System 消息的 <tableStatus> 标签内容
  */
 export function updateSystemMessageTableStatus(force = false) {
+    console.log("更新最后一条 System 消息的 <tableStatus> 标签内容", USER.tableBaseSetting.isTableToChat)
     if (force === false) {
         if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isTableToChat === false) {
             window.document.querySelector('#tableStatusContainer')?.remove();
             return;
         }
     }
-
+    console.log("更新最后一条 System ")
     const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
     let tableStatusHTML = '';
     for (let sheet of sheets) {
