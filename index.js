@@ -48,6 +48,7 @@ export function buildSheetsByTemplates(targetPiece) {
     // USER.getChatPiece().hash_sheets = {};
     const templates = BASE.templates
     templates.forEach(template => {
+        if(template.enable === false) return
         const newSheet = new BASE.Sheet(template);
         newSheet.save(targetPiece)
     })

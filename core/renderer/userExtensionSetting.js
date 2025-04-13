@@ -425,6 +425,7 @@ export function loadSettings() {
 
 export function initTableStructureToTemplate() {
     const sheetDefaultTemplates = USER.tableBaseDefaultSettings.sheetTemplates
+    USER.getSettings().table_selected_sheets = []
     for (let defaultTemplate of sheetDefaultTemplates) {
         const newTemplate = new BASE.SheetTemplate()
         newTemplate.domain = 'global'
@@ -433,6 +434,12 @@ export function initTableStructureToTemplate() {
         defaultTemplate.columns.forEach((column, index) => {
             newTemplate.findCellByPosition(0, index + 1).data.value = column
         })
+        newTemplate.source.data.note = defaultTemplate.note
+        newTemplate.source.data.initNode = defaultTemplate.initNode
+        newTemplate.source.data.deleteNode = defaultTemplate.deleteNode
+        newTemplate.source.data.updateNode = defaultTemplate.updateNode
+        newTemplate.source.data.insertNode = defaultTemplate.insertNode
+        USER.getSettings().table_selected_sheets.push(newTemplate.uid)
         newTemplate.save()
     }
     USER.saveSettings()

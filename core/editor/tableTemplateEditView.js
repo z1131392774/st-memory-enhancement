@@ -72,7 +72,11 @@ const formConfigs = {
                 ],
             },
             { label: '表格名', type: 'text', dataKey: 'name' },
-            { label: '表格说明（提示词）', type: 'textarea', rows: 10, dataKey: 'description', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
+            { label: '表格说明（提示词）', type: 'textarea', rows: 3, dataKey: 'note', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
+            { label: '初始化提示词', type: 'textarea', rows: 2, dataKey: 'initNode', description: '' },
+            { label: '插入提示词', type: 'textarea', rows: 2, dataKey: 'insertNode', description: '' },
+            { label: '删除提示词', type: 'textarea', rows: 2, dataKey: 'deleteNode', description: '' },
+            { label: '更新提示词', type: 'textarea', rows: 2, dataKey: 'updateNode', description: '' },
         ],
     },
     // sheetSetting: {
@@ -116,7 +120,8 @@ function getAllDropdownOptions() {
 }
 
 function updateSelect2Dropdown() {
-    let selectedSheets = scope ==='global'? USER.getContext().chatMetadata.selected_sheets: getAllDropdownOptions()
+    // let selectedSheets = scope ==='global'? USER.getContext().chatMetadata.selected_sheets: getAllDropdownOptions()
+    let selectedSheets = USER.getSettings().table_selected_sheets
     if (selectedSheets === undefined) {
         selectedSheets = [];
     }
@@ -147,8 +152,11 @@ function initializeSelect2Dropdown(dropdownElement) {
     updateSelect2Dropdown()
 
     $(dropdownElement).on('change', function (e, silent) {
-        if(silent || scope === 'chat') return
-        USER.getContext().chatMetadata.selected_sheets = $(this).val();
+        //if(silent || scope === 'chat') return
+        if(silent) return
+        USER.getSettings().table_selected_sheets = $(this).val();
+        updateSheetStatusBySelect()
+        console.log("更改选中的模板", $(this).val())
         USER.saveSettings();
         updateDragTables();
     });
@@ -165,6 +173,14 @@ function initializeSelect2Dropdown(dropdownElement) {
     if (select2MultipleSelection.length) {
         select2MultipleSelection.css('width', '100%');
     }
+}
+
+function updateSheetStatusBySelect(){
+    const selectedSheetsUid = USER.getSettings().table_selected_sheets
+    BASE.templates.forEach(temp=>{
+        if(selectedSheetsUid.includes(temp.uid)) temp.enable = true
+        else temp.enable = false
+    })
 }
 
 
@@ -189,10 +205,14 @@ function bindSheetSetting(sheet) {
             domain: sheet.domain,
             type: sheet.type,
             name: sheet.name,
-            description: sheet.data.description,
+            note: sheet.data.note,
+            initNode: sheet.data.initNode,
+            insertNode: sheet.data.insertNode,
+            deleteNode: sheet.data.deleteNode,
+            updateNode: sheet.data.updateNode
         };
         const formInstance = new Form(formConfigs.sheetConfig, initialData);
-        const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, { large: false }, { okButton: "保存", cancelButton: "取消" });
+        const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "保存", allowVerticalScrolling: true, cancelButton: "取消" });
 
         await popup.show();
         if (popup.result) {
@@ -212,9 +232,20 @@ function bindSheetSetting(sheet) {
                         sheet.name = diffData[key];
                         needRerender = true
                         break;
-                    case 'description':
-                        console.log(diffData[key])
-                        sheet.data.description = diffData[key];
+                    case 'note':
+                        sheet.data.note = diffData[key];
+                        break;
+                    case 'initNode':
+                        sheet.data.initNode = diffData[key];
+                        break;
+                    case 'insertNode':
+                        sheet.data.insertNode = diffData[key];
+                        break;
+                    case 'deleteNode':
+                        sheet.data.deleteNode = diffData[key];
+                        break;
+                    case 'updateNode':
+                        sheet.data.updateNode = diffData[key];
                         break;
                     default:
                         break;
@@ -333,7 +364,8 @@ function bindCellClickEvent(cell) {
 }
 
 function getSelectedSheetUids() {
-    return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getContext().chatMetadata.selected_sheets ?? []
+    //return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getContext().chatMetadata.selected_sheets ?? []
+    return USER.getSettings().table_selected_sheets ?? []
 }
 
 
@@ -455,8 +487,7 @@ async function initTableEdit(mesId) {
         }
 
         currentSelectedValues.push(newTemplateUid);
-
-        USER.getContext().chatMetadata.selected_sheets = currentSelectedValues;
+        USER.getSettings().table_selected_sheets = currentSelectedValues;
         USER.saveSettings();
         await updateDropdownElement();
         updateDragTables();
