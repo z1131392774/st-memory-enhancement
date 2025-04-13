@@ -1,11 +1,13 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import {copyTableList, findLastestTableData, findTableStructureByIndex } from "../../index.js";
-import {insertRow, updateRow, deleteRow} from "../source/tableActions.js";
+// absoluteRefresh.js
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import {findTableStructureByIndex } from "../../index.js";
+import {insertRow, updateRow, deleteRow} from "../tableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
-import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {renderTablesDOM,pasteTable} from "./tableDataView.js";
-import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../source/standaloneAPI.js";
+import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
+import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../standaloneAPI.js";
 import {profile_prompts} from "../../data/profile_prompts.js";
+import {refreshContextView} from "../editor/chatSheetsDataView.js";
+import {PopupConfirm} from "../../components/popupConfirm.js";
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -38,59 +40,9 @@ function validateActions(actions) {
         return true;
     });
 }
-/**
- * 显示表格刷新配置信息，用于二次确认
- * @param {*} callerType 用于调用的时候控制显示的信息，
- * 默认值 0 表示保持原样  1 rebuild 不显示"不允许AI删除"
- * @returns
- */
-function getRefreshTableConfigStatus(callerType = 0) {
-    // 显示所有相关的配置信息
-    const userApiUrl = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
-    const userApiModel = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-    const userApiTemperature = USER.tableBaseSetting.custom_temperature;
-    const clearUpStairs = USER.tableBaseSetting.clear_up_stairs;
-    const isIgnoreDel = USER.tableBaseSetting.bool_ignore_del;
-    const isIgnoreUserSent = USER.tableBaseSetting.ignore_user_sent;
-    const isUseTokenLimit = USER.tableBaseSetting.use_token_limit;
-    const rebuild_token_limit_value = USER.tableBaseSetting.rebuild_token_limit_value;
-    const isUseMainAPI = USER.tableBaseSetting.use_main_api;
-
-    const refreshType = $('#table_refresh_type_selector').val();
-    const selectedPrompt = profile_prompts[refreshType];
-    if(selectedPrompt === undefined) {
-        EDITOR.error(`未找到对应的提示模板: ${refreshType}`);
-        console.error(`未找到对应的提示模板: ${refreshType}`);
-        return;
-    }
-
-    return `<div class="wide100p padding5 dataBankAttachments">
-                <span>将重新整理表格，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
-                <br><div id="config_sheet_container" style="justify-content: center; display: flex; margin: 10px;">
-                    <table class="table table-bordered table-striped">
-                        <thead><tr><th>配置项</th><th style="padding: 0 20px">配置值</th></tr></thead>
-                        <tbody>
-                        <tr> <td>当前整理方式</td> <td>${selectedPrompt.name}</td> </tr>
-                        ${isUseTokenLimit ? `
-                        <tr> <td>发送的聊天记录token数限制</td> <td>${rebuild_token_limit_value}</td> </tr>
-                        ` : `
-                        <tr> <td>纳入参考的聊天记录</td> <td>${clearUpStairs}条</td> </tr>
-                        `}
-                        <td>忽略用户消息</td> <td>${isIgnoreUserSent ? '是' : '否'}</td>
-                        ${callerType === 1 ? '' : `<tr> <td>不允许AI删除</td> <td>${isIgnoreDel ? '是' : '否'}</td> </tr>`}
-                        <tr> <td>使用的API</td> <td>${isUseMainAPI ? '主API' : '自定义API'}</td> </tr>
-                        ${isUseMainAPI ? '' : `
-                        <tr> <td>API URL</td> <td>${userApiUrl}</td> </tr>
-                        <tr> <td>API Model</td> <td>${userApiModel}</td> </tr>
-                        <tr> <td>Temperature</td> <td>${userApiTemperature}</td> </tr>
-                        `}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-`;}
 
 function confirmTheOperationPerformed(content) {
+    console.log('content:', content);
     return `
 <div class="wide100p padding5 dataBankAttachments">
     <div class="refresh-title-bar">
@@ -101,42 +53,129 @@ function confirmTheOperationPerformed(content) {
     </div>
     <div id="tableRefresh" class="refresh-scroll-content">
         <div>
-            <div class="operation-list-container"> ${content.map(action => {
-        const { action: type, tableIndex, rowIndex, data } = action;
-        return `<div class="operation-item">
-                        <div class="operation-detail">
-                            <span class="detail-label">操作类型:</span>
-                            <span class="detail-value">${type}</span>
-                        </div>
-                        <div class="operation-detail">
-                            <span class="detail-label">表格索引:</span>
-                            <span class="detail-value">${tableIndex}</span>
-                        </div>
-                        <div class="operation-detail">
-                            <span class="detail-label">行索引:</span>
-                            <span class="detail-value">${rowIndex}</span>
-                        </div>
-                        <div class="operation-detail data-detail">
-                            <span class="detail-label">数据:</span>
-                            <div class="detail-value data-json">
-                                ${typeof data === 'object' && data !== null ?
-            Object.entries(data).map(([key, value]) => {
-                return `<div class="json-item">
-                        <span class="json-key">"${key}":</span>
-                        <span class="json-value">"${value}"</span>
-                    </div>`;
-            }).join('')
-            : `<span class="json-fallback">${JSON.stringify(data, null, 2)}</span>`
-        }
-                            </div>
-                        </div>
-                    </div>`;
+            <div class="operation-list-container"> ${content.map(table => {
+                return `
+<h3 class="operation-list-title">${table.tableName}</h3>
+<div class="operation-list">
+    <table class="tableDom sheet-table">
+        <thead>
+            <tr>
+                ${table.columns.map(column => `<th>${column}</th>`).join('')}
+            </tr>
+        </thead>
+        <tbody>
+            ${table.content.map(row => `
+            <tr>
+                ${row.map(cell => `<td>${cell}</td>`).join('')}
+            </tr>
+            `).join('')}
+        </tbody>
+    </table>
+</div>
+<hr>
+`;
     }).join('')}
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .operation-list-title {
+        text-align: left;
+        margin-top: 10px;
+    }
+    .operation-list-container {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .operation-list {
+        width: 100%;
+        max-width: 100%;
+        overflow: auto;
+    }
+</style>
 `;
+}
+
+
+
+/**
+ * 初始化表格刷新类型选择器
+ * 根据profile_prompts对象动态生成下拉选择器的选项
+ */
+export function initRefreshTypeSelector() {
+    const $selector = $('#table_refresh_type_selector');
+    if (!$selector.length) return;
+
+    // 清空并重新添加选项
+    $selector.empty();
+
+    // 遍历profile_prompts对象，添加选项
+    Object.entries(profile_prompts).forEach(([key, value]) => {
+        const option = $('<option></option>')
+            .attr('value', key)
+            .text((() => {
+                switch(value.type) {
+                    case 'refresh':
+                        return '**旧** ' + (value.name || key);
+                    case 'third_party':
+                        return '**第三方作者** ' + (value.name || key);
+                    default:
+                        return value.name || key;
+                }
+            })());
+        $selector.append(option);
+    });
+
+    // 如果没有选项，添加默认选项
+    if ($selector.children().length === 0) {
+        $selector.append($('<option></option>').attr('value', 'rebuild_base').text('~~~看到这个选项说明出问题了~~~~'));
+    }
+
+    console.log('表格刷新类型选择器已更新');
+
+    // // 检查现有选项是否与profile_prompts一致
+    // let needsUpdate = false;
+    // const currentOptions = $selector.find('option').map(function() {
+    //     return {
+    //         value: $(this).val(),
+    //         text: $(this).text()
+    //     };
+    // }).get();
+
+    // // 检查选项数量是否一致
+    // if (currentOptions.length !== Object.keys(profile_prompts).length) {
+    //     needsUpdate = true;
+    // } else {
+    //     // 检查每个选项的值和文本是否一致
+    //     Object.entries(profile_prompts).forEach(([key, value]) => {
+    //         const currentOption = currentOptions.find(opt => opt.value === key);
+    //         if (!currentOption ||
+    //             currentOption.text !== ((value.type=='refresh'? '**旧** ':'')+value.name|| key)) {
+    //             needsUpdate = true;
+    //         }
+    //     });
+    // }
+
+    // // 不匹配时清空并重新添加选项
+    // if (needsUpdate) {
+    //     $selector.empty();
+
+    //     // 遍历profile_prompts对象，添加选项
+    //     Object.entries(profile_prompts).forEach(([key, value]) => {
+    //         const option = $('<option></option>')
+    //             .attr('value', key)
+    //             .text((value.type=='refresh'? '**旧** ':'')+value.name|| key);
+    //         $selector.append(option);
+    //     });
+
+    //     // 如果没有选项，添加默认选项
+    //     if ($selector.children().length === 0) {
+    //         $selector.append($('<option></option>').attr('value', 'rebuild_base').text('~~~看到这个选项说明出问题了~~~~'));
+    //     }
+
+    //     console.log('表格刷新类型选择器已更新');
 }
 
 
@@ -144,22 +183,23 @@ function confirmTheOperationPerformed(content) {
 /**
  * 根据选择的刷新类型获取对应的提示模板并调用rebuildTableActions
  * @param {string} templateName 提示模板名称
+ * @param {string} additionalPrompt 附加的提示内容
  * @returns {Promise<void>}
  */
-export async function getPromptAndRebuildTable(templateName = '') {
-    // 获取选择的刷新类型
-    const refreshType = templateName || $('#table_refresh_type_selector').val();
-    // 从profile_prompts中获取对应类型的提示模板
+async function getPromptAndRebuildTable(templateName = '', additionalPrompt) {
     let systemPrompt = '';
     let userPrompt = '';
 
     try {
         // 根据刷新类型获取对应的提示模板
-        const selectedPrompt = profile_prompts[refreshType];
+        const selectedPrompt = profile_prompts[templateName];
         if (!selectedPrompt) {
-            throw new Error('未找到对应的提示模板');
+            // 提供更详细的错误信息
+            const availablePrompts = Object.keys(profile_prompts).join(', ');
+            const errorMsg = `未找到对应的提示模板: ${refreshType}。可用的模板有: ${availablePrompts}`;
+            throw new Error(errorMsg);
         }
-        console.log('选择的提示模板名称:', selectedPrompt.name);
+        console.log('选择的提示模板名称:', selectedPrompt.name, '附加的提示内容:', additionalPrompt);
 
         systemPrompt = selectedPrompt.system_prompt;
         // 构建userPrompt，由四部分组成：user_prompt_begin、history、last_table和core_rules
@@ -176,6 +216,7 @@ export async function getPromptAndRebuildTable(templateName = '') {
         if (selectedPrompt.core_rules) {
             userPrompt += `\n${selectedPrompt.core_rules}`;
         }
+        userPrompt += `\n<用户附加需求>\n${additionalPrompt}\n</用户附加需求>\n`;
 
         // 将获取到的提示模板设置到USER.tableBaseSetting中
         USER.tableBaseSetting.rebuild_system_message_template = systemPrompt;
@@ -184,15 +225,15 @@ export async function getPromptAndRebuildTable(templateName = '') {
         console.log('获取到的提示模板:', systemPrompt, userPrompt);
 
         // 根据提示模板类型选择不同的表格处理函数
-        const force = $('#bool_force_refresh').prop('checked');
+        // const force = $('#bool_force_refresh').prop('checked');
         const silentUpdate = $('#bool_silent_refresh').prop('checked');
         if (selectedPrompt.type === 'rebuild') {
-            await rebuildTableActions(force, silentUpdate);
+            await rebuildTableActions(true, silentUpdate);
         } else if (selectedPrompt.type === 'refresh') {
-            await refreshTableActions(force, silentUpdate);
+            await refreshTableActions(true, silentUpdate);
         } else {
             // 默认使用rebuildTableActions
-            await rebuildTableActions(force, silentUpdate);
+            await rebuildTableActions(true, silentUpdate);
         }
     } catch (error) {
         console.error('获取提示模板失败:', error);
@@ -211,30 +252,24 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
     if (!SYSTEM.lazy('rebuildTableActions', 1000)) return;
 
     // 如果不是强制刷新，先确认是否继续
-    if (!force) {
-        // 显示配置状态
-        const tableRefreshPopup = getRefreshTableConfigStatus(1);
-        const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
-        if (!confirmation) return;
-    }
+    // if (!force) {
+    //     // 显示配置状态
+    //     const tableRefreshPopup = getRefreshTableConfigStatus(1);
+    //     const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    //     if (!confirmation) return;
+    // }
 
     // 开始重新生成完整表格
     console.log('开始重新生成完整表格');
     const isUseMainAPI = $('#use_main_api').prop('checked');
-    const loadingToast = EDITOR.info(isUseMainAPI
-          ? '正在使用【主API】重新生成完整表格...'
-            : '正在使用【自定义API】重新生成完整表格...',
-        '',
-        { timeOut: 0 }
-    );
 
     try {
-        const latestData = findLastestTableData(true);
-        if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
+        const {piece} = BASE.getLastSheetsPiece();
+        if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
-        const { tables: latestTables } = latestData;
-        DERIVED.any.waitingTable = copyTableList(latestTables);
+        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets);
+        DERIVED.any.waitingTable = latestTables;
 
         let originText = tablesToString(latestTables);
         // let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
@@ -269,6 +304,10 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         if (isUseMainAPI) {
             try{
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return
+                }
             }catch (error) {
                 EDITOR.error('主API请求错误: ' + error.message);
             }
@@ -276,6 +315,10 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         else {
             try {
                 rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return
+                }
             } catch (error) {
                 EDITOR.error('自定义API请求错误: ' + error.message);
             }
@@ -294,6 +337,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                     throw new Error("生成的新表格数据不是数组");
                 }
                 //标记改动
+                // TODO
                 compareAndMarkChanges(latestTables, cleanContentTable);
                 // console.log('compareAndMarkChanges后的cleanContent:', cleanContentTable);
 
@@ -327,7 +371,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                 // 刷新 UI
                 const tableContainer = document.querySelector('#tableContainer');
                 if (tableContainer) {
-                    renderTablesDOM(clonedTables, tableContainer, true);
+                    refreshContextView();
                     updateSystemMessageTableStatus();
                     EDITOR.success('生成表格成功！');
                 } else {
@@ -346,36 +390,31 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         console.error('Error in rebuildTableActions:', e);
         return;
     }finally {
-        EDITOR.clear(loadingToast);
+
     }
 }
 
 export async function refreshTableActions(force = false, silentUpdate = false, chatToBeUsed = '') {
     if (!SYSTEM.lazy('refreshTableActions', 1000)) return;
 
-    // 如果不是强制刷新，先确认是否继续
-    if (!force) {
-        // 显示配置状态
-        const tableRefreshPopup = getRefreshTableConfigStatus();
-        const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
-        if (!confirmation) return;
-    }
+    // // 如果不是强制刷新，先确认是否继续
+    // if (!force) {
+    //     // 显示配置状态
+    //     const tableRefreshPopup = getRefreshTableConfigStatus();
+    //     const confirmation = await EDITOR.callGenericPopup(tableRefreshPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+    //     if (!confirmation) return;
+    // }
 
     // 开始执行整理表格
-    const isUseMainAPI = $('#use_main_api').prop('checked');
-    const loadingToast = EDITOR.info(isUseMainAPI
-            ? '正在使用【主API】整理表格...'
-            : '正在使用【自定义API】整理表格...',
-        '',
-        { timeOut: 0 }
-    );
+    const twoStepIsUseMainAPI = $('#step_by_step_use_main_api').prop('checked');
+
     try {
-        const latestData = findLastestTableData(true);
-        if (!latestData || typeof latestData !== 'object' || !('tables' in latestData)) {
+        const {piece} = BASE.getLastSheetsPiece();
+        if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
-        const { tables: latestTables } = latestData;
-        DERIVED.any.waitingTable = copyTableList(latestTables);
+        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets);
+        DERIVED.any.waitingTable = latestTables;
 
         let originText = '<表格内容>\n' + latestTables
             .map(table => table.getTableText(['title', 'node', 'headers', 'rows']))
@@ -399,9 +438,13 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 
         // 生成响应内容
         let rawContent;
-        if (isUseMainAPI) {
+        if (twoStepIsUseMainAPI) {
             try{
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return 'suspended'
+                }
             }catch (error) {
                 EDITOR.error('主API请求错误: ' + error.message);
             }
@@ -409,6 +452,10 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         else {
             try {
                 rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消');
+                    return 'suspended'
+                }
             } catch (error) {
                 EDITOR.error('自定义API请求错误: ' + error.message);
             }
@@ -552,11 +599,14 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
                         console.log(`Deleted: table ${action.tableIndex}, row ${action.rowIndex}`, deletedRow);
                     } else {
                         console.log(`Ignore: table ${action.tableIndex}, row ${action.rowIndex}`);
-                        EDITOR.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
                     }
                     break;
             }
         });
+
+        if (USER.tableBaseSetting.bool_ignore_del) {
+            EDITOR.success('删除保护启用，已忽略了删除操作（可在插件设置中修改）');
+        }
 
         // 更新聊天数据
         chat = USER.getContext().chat[USER.getContext().chat.length - 1];
@@ -564,23 +614,98 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         USER.getContext().saveChat();
         // 刷新 UI
         const tableContainer = document.querySelector('#tableContainer');
-        renderTablesDOM(DERIVED.any.waitingTable, tableContainer, true);
+        refreshContextView();
         updateSystemMessageTableStatus()
         EDITOR.success('表格整理完成');
     } catch (error) {
         console.error('整理过程出错:', error);
         EDITOR.error(`整理失败：${error.message}`);
     } finally {
-        EDITOR.clear(loadingToast);
+
+    }
+}
+
+export async function rebuildSheets() {
+    const container = document.createElement('div');
+    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
+        okButton: "继续",
+        cancelButton: "取消"
+    });
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .rebuild-preview-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .rebuild-preview-text {
+            display: flex;
+            justify-content: left
+        }
+    `;
+    container.appendChild(style);
+
+    $(container).append($('<h3>重建表格数据</h3>'));
+    $(container).append(`<div class="rebuild-preview-item"><span>执行前确认？：</span>${USER.tableBaseSetting.bool_silent_refresh ? '否' : '是'}</div>`);
+    $(container).append(`<div class="rebuild-preview-item"><span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}</div>`);
+    $(container).append(`<hr>`);
+
+    // 创建选择器容器
+    const selectorContainer = $('<div>').appendTo(container);
+
+    // 添加提示模板选择器
+    selectorContainer.append(`
+        <span class="rebuild-preview-text" style="margin-top: 10px">提示模板：</span>
+        <select id="rebuild_template_selector" class="rebuild-preview-text text_pole" style="width: 100%">
+            <option value="">加载中...</option>
+        </select>
+        <span class="rebuild-preview-text" style="margin-top: 10px">模板末尾补充提示词：</span>
+        <textarea id="rebuild_additional_prompt" rows="5" style="width: 100%"></textarea>
+    `);
+
+    // 初始化选择器选项
+    const $selector = $('#rebuild_template_selector', container);
+    const $additionalPrompt = $('#rebuild_additional_prompt', container);
+    $selector.empty(); // 清空加载中状态
+
+    // 添加选项
+    Object.entries(profile_prompts).forEach(([key, prompt]) => {
+        let prefix = '';
+        if (prompt.type === 'refresh') prefix = '**旧** ';
+        if (prompt.type === 'third_party') prefix = '**第三方** ';
+
+        $selector.append(
+            $('<option></option>')
+                .val(key)
+                .text(prefix + (prompt.name || key))
+        );
+    });
+
+    // 设置默认选中项
+    $selector.val('rebuild_base');
+    $additionalPrompt.val('');
+
+    await confirmation.show();
+    if (confirmation.result) {
+        // 获取当前选中的模板
+        const selectedTemplate = $selector.val();
+        const additionalPrompt = $additionalPrompt.val();
+        if (!selectedTemplate) {
+            EDITOR.error('请选择一个有效的提示模板');
+            return;
+        }
+        getPromptAndRebuildTable(selectedTemplate, additionalPrompt);
     }
 }
 
 
 
 
-//=================================================================
-//========================以下是辅助函数============================
-//=================================================================
+
+/**________________________________________以下是辅助函数_________________________________________*/
+/**________________________________________以下是辅助函数_________________________________________*/
+/**________________________________________以下是辅助函数_________________________________________*/
 
 
 
@@ -729,7 +854,7 @@ async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false, to
  * @param {boolean} [options.removeBlockComments=true] - 是否移除块注释
  * @returns {string} 清洗后的标准化内容
  */
-export function cleanApiResponse(rawContent, options = {}) {
+function cleanApiResponse(rawContent, options = {}) {
     const {
         removeCodeBlock = true,       // 移除代码块标记
         extractJson = true,           // 提取JSON部分
@@ -823,12 +948,12 @@ function fixTableFormat(inputText) {
 
         // 关键预处理：修复常见格式错误
         jsonStr = jsonStr
-            .replace(/(\w)\s*"/g, '$1"')       // 键名后空格
-            .replace(/:\s*([^"{\[]+)(\s*[,}])/g, ': "$1"$2')  // 值缺失引号
-            .replace(/"tableIndex":\s*"(\d+)"/g, '"tableIndex": $1')  // 移除tableIndex的引号
+            .replace(/(\w)\s*"/g, '$1"')        // 键名后空格
+            .replace(/:\s*([^"{\[]+)(\s*[,}])/g, ': "$1"$2')    // 值缺失引号
+            .replace(/"tableIndex":\s*"(\d+)"/g, '"tableIndex": $1')    // 移除tableIndex的引号
             .replace(/"\s*\+\s*"/g, '')         // 拼接字符串残留
             .replace(/\\n/g, '')                // 移除换行转义
-            .replace(/({|,)\s*([a-zA-Z_]+)\s*:/g, '$1"$2":') // 键名标准化
+            .replace(/({|,)\s*([a-zA-Z_]+)\s*:/g, '$1"$2":')    // 键名标准化
             .replace(/"(\d+)":/g, '$1:')  // 修复数字键格式
 
         console.log('关键预处理修复常见格式错误后:', jsonStr);

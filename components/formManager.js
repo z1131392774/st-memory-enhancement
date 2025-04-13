@@ -38,6 +38,7 @@ class Form {
 
         // 遍历字段配置生成表单项
         for (const field of config.fields) {
+            field.id = field.id || field.dataKey; // 如果没有指定 id，则使用 dataKey 作为 id
             if (field.type === 'button') {
                 contentHTML += `
                     <div class="form-buttons">
@@ -56,7 +57,7 @@ class Form {
                 if (field.type === 'text') {
                     contentHTML += `<input type="text" id="${field.id}" class="margin0 text_pole" style=" margin-bottom: 20px;"/>`;
                 } else if (field.type === 'textarea') {
-                    contentHTML += `<textarea id="${field.id}" class="wide100p" rows="2"></textarea>`;
+                    contentHTML += `<textarea id="${field.id}" class="wide100p" rows="${field.rows || 2}"></textarea>`;
                 } else if (field.type === 'checkbox') {
                     contentHTML += `
                         <div class="checkbox flex-container" style="margin-bottom: 10px;">
@@ -65,8 +66,13 @@ class Form {
                     `;
                 } else if (field.type === 'select') {
                     contentHTML += `
-                        <select id="${field.id}">
-                            ${field.options.map(option => `<option value="${option}">${option}</option>`).join('')}
+                        <select id="${field.id}">`;
+                    if (Array.isArray(field.options)) {
+                        field.options.forEach(option => {
+                            contentHTML += `<option value="${option.value}">${option.text || option.value || option}</option>`;
+                        });
+                    }
+                    contentHTML += `
                         </select>
                     `;
                 }
@@ -123,7 +129,7 @@ class Form {
      * 获取表单修改后的数据副本
      * @returns {object} - 修改后的数据副本
      */
-    getFormData() {
+    result() {
         return this.formData;
     }
 }

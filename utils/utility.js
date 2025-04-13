@@ -7,6 +7,29 @@ function loadFontAwesome() {
     // document.head.appendChild(fontAwesomeLink);
 }
 
+export function compareDataDiff(target, source) {
+    const diff = {};
+    for (const key of Object.keys(target)) {
+        if (target[key] !== source[key]) {
+            diff[key] = target[key];
+        }
+    }
+    return diff;
+}
+
+export function compareDataSame(target, source) {
+    const same = {};
+    for (const key of Object.keys(target)) {
+        if (target[key] === source[key]) {
+            same[key] = target[key];
+        }
+    }
+}
+
+export function cssColorToRgba(name, opacity = 1) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).replace(')', `, ${opacity})`);
+}
+
 /**
  * 创建一个只读属性
  * @param {object} obj 要在其上定义属性的对象

@@ -77,7 +77,7 @@ function createSidebarContainer() {
         backgroundColor: '#c11',
         maxWidth: '100px',
         padding: '2px',
-        zIndex: '1000',
+        zIndex: '999',
         borderRadius: '5px',
         cursor: 'move',
         whiteSpace: 'pre-wrap',
@@ -87,7 +87,7 @@ function createSidebarContainer() {
         color: '#ccc',
         userSelect: 'none',
         border: '1px solid #555',
-        boxShadow: '2px 2px 5px rgba(0, 0, 0, 0.3)'
+        boxShadow: '2px 2px 5px rgba(0, 0, 0, 0.3)',
     });
     container.classList.add('popup');
     return container;
@@ -106,7 +106,11 @@ function createToolBar() {
 
     const retryButton = createToolButton('<i class="fa-solid fa-repeat"></i>', async (event) => { // 使用 Font Awesome 图标, 并添加隐藏的文字
         event.stopPropagation();
-        await reloadTestContent();
+        if (confirm('将依次执行测试队列中注册的的代码，是否继续？')) {
+            await reloadTestContent();
+        } else {
+
+        }
     });
     toolBar.appendChild(retryButton);
 
@@ -253,11 +257,7 @@ function dragStart(e) {
 
 function dragMove(e) {
     if (!isDragging) return;
-
-    const newX = e.clientX - offsetX;
-    const newY = e.clientY - offsetY;
-
-    adjustSidebarPositionWithinBounds(newX, newY);
+    adjustSidebarPositionWithinBounds(e.clientX - offsetX, e.clientY - offsetY);
 }
 
 function dragEnd() {
@@ -271,16 +271,8 @@ function handleWindowResize() {
 function adjustSidebarPositionWithinBounds(inputX, inputY) {
     let newX = inputX !== undefined ? inputX : testSidebarContainer.offsetLeft;
     let newY = inputY !== undefined ? inputY : testSidebarContainer.offsetTop;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const sidebarWidth = testSidebarContainer.offsetWidth;
-    const sidebarHeight = testSidebarContainer.offsetHeight;
-    const minX = 0;
-    const maxX = viewportWidth - sidebarWidth;
-    const minY = 0;
-    const maxY = viewportHeight - sidebarHeight;
-    let boundedX = Math.max(minX, Math.min(newX, maxX));
-    let boundedY = Math.max(minY, Math.min(newY, maxY));
+    let boundedX = Math.max(0, Math.min(newX, window.innerWidth - testSidebarContainer.offsetWidth));
+    let boundedY = Math.max(0, Math.min(newY, window.innerHeight - testSidebarContainer.offsetHeight));
 
     testSidebarContainer.style.left = boundedX + 'px';
     testSidebarContainer.style.top = boundedY + 'px';

@@ -1,10 +1,10 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
-import {refreshTableActions, rebuildTableActions, getPromptAndRebuildTable} from "./absoluteRefresh.js";
+import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
-import {encryptXor, updateModelList} from "../source/standaloneAPI.js";
-import {filterTableDataPopup} from "../source/pluginSetting.js";
-import {initRefreshTypeSelector} from "./initRefreshTypeSelector.js";
+import {encryptXor, updateModelList} from "../standaloneAPI.js";
+import {filterTableDataPopup} from "../pluginSetting.js";
+import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 
 /**
  * 格式化深度设置
@@ -203,7 +203,7 @@ function InitBinging() {
     $('#dataTable_injection_mode').change(function (event) {
         USER.tableBaseSetting.injection_mode = event.target.value;
     });
-    // 表格结构编辑
+    // 分步总结
     $('#step_by_step').change(function() {
         $('#reply_options').toggle(!this.checked);
         $('#step_by_step_options').toggle(this.checked);
@@ -213,11 +213,15 @@ function InitBinging() {
     $('#sum_multiple_rounds').change(function() {
         USER.tableBaseSetting.sum_multiple_rounds = $(this).prop('checked');
     })
-    //整理表格相关高级设置
-    $('#advanced_settings').change(function() {
-        $('#advanced_options').toggle(this.checked);
-        USER.tableBaseSetting.advanced_settings = this.checked;
-    });
+    // 确认执行
+    $('#confirm_before_execution').change(function() {
+        USER.tableBaseSetting.confirm_before_execution = $(this).prop('checked');
+    })
+    // //整理表格相关高级设置
+    // $('#advanced_settings').change(function() {
+    //     $('#advanced_options').toggle(this.checked);
+    //     USER.tableBaseSetting.advanced_settings = this.checked;
+    // });
     // 忽略删除
     $('#ignore_del').change(function() {
         USER.tableBaseSetting.bool_ignore_del = $(this).prop('checked');
@@ -226,10 +230,10 @@ function InitBinging() {
     $('#ignore_user_sent').change(function() {
         USER.tableBaseSetting.ignore_user_sent = $(this).prop('checked');
     });
-    // 强制刷新
-    $('#bool_force_refresh').change(function() {
-        USER.tableBaseSetting.bool_force_refresh = $(this).prop('checked');
-    });
+    // // 强制刷新
+    // $('#bool_force_refresh').change(function() {
+    //     USER.tableBaseSetting.bool_force_refresh = $(this).prop('checked');
+    // });
     // 静默刷新
     $('#bool_silent_refresh').change(function() {
         USER.tableBaseSetting.bool_silent_refresh = $(this).prop('checked');
@@ -242,8 +246,11 @@ function InitBinging() {
     });
     // 初始化API设置显示状态
     $('#use_main_api').change(function() {
-        $('#custom_api_settings').toggle(!this.checked);
         USER.tableBaseSetting.use_main_api = this.checked;
+    });
+    // 初始化API设置显示状态
+    $('#step_by_step_use_main_api').change(function() {
+        USER.tableBaseSetting.step_by_step_use_main_api = this.checked;
     });
     // 根据下拉列表选择的模型更新自定义模型名称
     $('#model_selector').change(function() {
@@ -321,7 +328,7 @@ function InitBinging() {
 
     // 开始整理表格
     $("#table_clear_up").on('click', () => {
-        getPromptAndRebuildTable();
+        rebuildSheets()
     });
 
     // 完整重建表格（合并到上面的下拉框内）
@@ -343,9 +350,6 @@ function InitBinging() {
 export function renderSetting() {
     // 初始化数值
     $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).attr('selected', true);
-    $('#custom_api_url').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
-    $('#custom_api_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
-    $('#custom_model_name').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
     $('#dataTable_message_template').val(USER.tableBaseSetting.message_template);
     $('#dataTable_deep').val(USER.tableBaseSetting.deep);
     $('#clear_up_stairs').val(USER.tableBaseSetting.clear_up_stairs);
@@ -357,29 +361,37 @@ export function renderSetting() {
     $('#step_by_step_threshold').val(USER.tableBaseSetting.step_by_step_threshold);
     $('#step_by_step_threshold_value').text(USER.tableBaseSetting.step_by_step_threshold);
 
+    // private data
+    $('#custom_api_url').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
+    $('#custom_api_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
+    $('#custom_model_name').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
+
     // 初始化开关状态
     updateSwitch('#table_switch', USER.tableBaseSetting.isExtensionAble);
     updateSwitch('#table_switch_debug_mode', USER.tableBaseSetting.tableDebugModeAble);
     updateSwitch('#table_read_switch', USER.tableBaseSetting.isAiReadTable);
     updateSwitch('#table_edit_switch', USER.tableBaseSetting.isAiWriteTable);
     updateSwitch('#table_to_chat', USER.tableBaseSetting.isTableToChat);
-    updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
+    // updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
     updateSwitch('#step_by_step', USER.tableBaseSetting.step_by_step);
+    updateSwitch('#confirm_before_execution', USER.tableBaseSetting.confirm_before_execution);
     updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
+    updateSwitch('#step_by_step_use_main_api', USER.tableBaseSetting.step_by_step_use_main_api);
     updateSwitch('#ignore_del', USER.tableBaseSetting.bool_ignore_del);
     updateSwitch('#sum_multiple_rounds', USER.tableBaseSetting.sum_multiple_rounds);
-    updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
+    // updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
     updateSwitch('#bool_silent_refresh', USER.tableBaseSetting.bool_silent_refresh);
     updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
     updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);
 
     // 设置元素结构可见性
-    $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
-    $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
+    // $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
+    // $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
 
-    updateTableStructureDOM()
+    // 不再在设置中显示表格结构
+    // updateTableStructureDOM()
     console.log("设置已渲染")
 }
 
@@ -389,11 +401,20 @@ export function renderSetting() {
 export function loadSettings() {
     USER.IMPORTANT_USER_PRIVACY_DATA = USER.IMPORTANT_USER_PRIVACY_DATA || {};
 
-    if (USER.tableBaseSetting.updateIndex != 3) {
+    // 旧版本提示词变更兼容
+    if (USER.tableBaseSetting.updateIndex < 3) {
         USER.getSettings().message_template = USER.tableBaseDefaultSettings.message_template
         USER.tableBaseSetting.to_chat_container = USER.tableBaseDefaultSettings.to_chat_container
-        USER.tableBaseSetting.tableStructure = USER.tableBaseDefaultSettings.tableStructure
+        // USER.tableBaseSetting.tableStructure = USER.tableBaseDefaultSettings.tableStructure
         USER.tableBaseSetting.updateIndex = 3
+    }
+
+    // 2版本表格结构兼容
+    console.log("updateIndex", USER.tableBaseSetting.updateIndex)
+    if (USER.tableBaseSetting.updateIndex < 4) {
+        // tableStructureToTemplate(USER.tableBaseSetting.tableStructure)
+        initTableStructureToTemplate()
+        USER.tableBaseSetting.updateIndex = 4
     }
     if (USER.tableBaseSetting.deep < 0) formatDeep()
 
@@ -401,3 +422,41 @@ export function loadSettings() {
     InitBinging();
     initRefreshTypeSelector(); // 初始化表格刷新类型选择器
 }
+
+export function initTableStructureToTemplate() {
+    const sheetDefaultTemplates = USER.tableBaseDefaultSettings.sheetTemplates
+    USER.getSettings().table_selected_sheets = []
+    for (let defaultTemplate of sheetDefaultTemplates) {
+        const newTemplate = new BASE.SheetTemplate()
+        newTemplate.domain = 'global'
+        newTemplate.createNewTemplate(defaultTemplate.columns.length + 1, 1, false)
+        newTemplate.name = defaultTemplate.name
+        defaultTemplate.columns.forEach((column, index) => {
+            newTemplate.findCellByPosition(0, index + 1).data.value = column
+        })
+        newTemplate.source.data.note = defaultTemplate.note
+        newTemplate.source.data.initNode = defaultTemplate.initNode
+        newTemplate.source.data.deleteNode = defaultTemplate.deleteNode
+        newTemplate.source.data.updateNode = defaultTemplate.updateNode
+        newTemplate.source.data.insertNode = defaultTemplate.insertNode
+        USER.getSettings().table_selected_sheets.push(newTemplate.uid)
+        newTemplate.save()
+    }
+    USER.saveSettings()
+}
+
+// /**
+//  * 表格结构转为表格模板
+//  * @param {object[]} tableStructure 表格结构
+//  * @returns 表格模板
+//  */
+// function tableStructureToTemplate(tableStructure) {
+//     return tableStructure.map((structure) => {
+//         const newTemplate = new BASE.SheetTemplate('').createNewSheet(structure.columns.length + 1, 1);
+//         for (const key in structure.columns) {
+//             const cell = newTemplate.findCellByPosition(0, parseInt(key) + 1)
+//             cell.data.value = structure.columns[key]
+//         }
+//     })
+//
+// }

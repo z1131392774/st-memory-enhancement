@@ -15,7 +15,7 @@ const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</
     <input type="checkbox" id="table_init_refresh_template"><span>表格总结消息模板</span>
 </div>
 <div class="checkbox flex-container">
-    <input type="checkbox" id="table_init_to_chat_container"><span>推至对话的面板样式（不包括自定义表格样式）</span>
+    <input type="checkbox" id="table_init_to_chat_container"><span>推至对话的面板样式（不含表格各自样式）</span>
 </div>
 <div class="checkbox flex-container">
     <input type="checkbox" id="table_init_structure"><span>所有表格结构与提示词</span>
@@ -76,7 +76,7 @@ export async function filterTableDataPopup(originalData) {
     waitingRegister.use_token_limit = '#table_init_refresh_template';
     waitingRegister.rebuild_token_limit_value = '#table_init_refresh_template';
     waitingRegister.bool_silent_refresh = '#table_init_refresh_template';
-    waitingRegister.bool_force_refresh = '#table_init_refresh_template';
+    // waitingRegister.bool_force_refresh = '#table_init_refresh_template';
     // 重新整理表格消息模板
     waitingRegister.refresh_system_message_template = '#table_init_refresh_template';
     waitingRegister.refresh_user_message_template = '#table_init_refresh_template';
@@ -117,8 +117,10 @@ export const defaultSettings = {
     isAiWriteTable: true,
     isTableToChat: false,
     step_by_step: false,
+    confirm_before_execution: true,
     //自动整理表格
     use_main_api: true,
+    step_by_step_use_main_api: true,
     custom_temperature: 1.0,
     custom_max_tokens: 2048,
     custom_top_p: 1,
@@ -132,7 +134,7 @@ export const defaultSettings = {
     sum_multiple_rounds: true,
     unusedChatText: '',
     bool_silent_refresh: false,
-    bool_force_refresh: false,
+    // bool_force_refresh: false,
     table_base: [
 
     ],
@@ -162,7 +164,34 @@ export const defaultSettings = {
             insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
         },
     ],
-    to_chat_container: `<div class="table-preview-bar"><details> <summary>记忆增强表格</summary>
+    sheetTemplates: [
+        {
+            name: "时空表格", columns: ['日期', '时间', '地点（当前描写）', '此地角色'], note: "记录时空信息的表格，应保持在一行",
+            initNode: '本轮需要记录当前时间、地点、人物信息，使用insertRow函数', updateNode: "当描写的场景，时间，人物变更时", deleteNode: "此表大于一行时应删除多余行"
+        },
+        {
+            name: '角色特征表格', columns: ['角色名', '身体特征', '性格', '职业', '爱好', '喜欢的事物（作品、虚拟人物、物品等）', '住所', '其他重要信息'], note: '角色天生或不易改变的特征csv表格，思考本轮有否有其中的角色，他应作出什么反应',
+            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色的身体出现持久性变化时，例如伤痕/当角色有新的爱好，职业，喜欢的事物时/当角色更换住所时/当角色提到重要信息时", deleteNode: ""
+        },
+        {
+            name: '角色与<user>社交表格', columns: ['角色名', '对<user>关系', '对<user>态度', '对<user>好感'], note: '思考如果有角色和<user>互动，应什么态度',
+            initNode: '本轮必须从上文寻找已知的所有角色使用insertRow插入，角色名不能为空', insertNode: '当本轮出现表中没有的新角色时，应插入', updateNode: "当角色和<user>的交互不再符合原有的记录时/当角色和<user>的关系改变时", deleteNode: ""
+        },
+        {
+            name: '任务、命令或者约定表格', columns: ['角色', '任务', '地点', '持续时间'], note: '思考本轮是否应该执行任务/赴约',
+            insertNode: '当特定时间约定一起去做某事时/某角色收到做某事的命令或任务时', updateNode: "", deleteNode: "当大家赴约时/任务或命令完成时/任务，命令或约定被取消时"
+        },
+        {
+            name: '重要事件历史表格', columns: ['角色', '事件简述', '日期', '地点', '情绪'], note: '记录<user>或角色经历的重要事件',
+            initNode: '本轮必须从上文寻找可以插入的事件并使用insertRow插入', insertNode: '当某个角色经历让自己印象深刻的事件时，比如表白、分手等', updateNode: "", deleteNode: ""
+        },
+        {
+            name: '重要物品表格', columns: ['拥有人', '物品描述', '物品名', '重要原因'], note: '对某人很贵重或有特殊纪念意义的物品',
+            insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
+        },
+    ],
+    to_chat_container: `<div class="table-preview-bar"><details>
+<summary style="display: flex; justify-content: space-between"> <button class="f5-reload-window" onclick="window.location.reload()">刷新</button> <span>记忆增强表格</span> </summary>
 $0
 </details></div>
 
@@ -172,6 +201,17 @@ $0
     border-radius: 10px;
     color: #888;
     font-size: 0.8rem;
+}
+.f5-reload-window {
+    bottom: 10px;
+    left: 10px;
+    padding: 0 10px;
+    border-radius: 5px;
+    background: none;
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    z-index: 999;
+    cursor: pointer;
 }
 </style>`,
     message_template: `# dataTable 说明

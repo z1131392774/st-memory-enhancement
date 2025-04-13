@@ -1,5 +1,4 @@
 import { uploadFileAttachment } from "../../../../../scripts/chats.js";
-import { getRequestHeaders } from '../../../../../script.js';
 
 let loaded = {};
 let waiting = {};
