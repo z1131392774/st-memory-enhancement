@@ -254,7 +254,7 @@ class SheetBase {
 export class SheetTemplate extends SheetBase {
     constructor(target = null) {
         super();
-
+        this.domain = this.SheetDomain.global
         this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
         this.element = null;                    // 用于存储渲染后的 table 元素
         this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
@@ -335,6 +335,7 @@ export class SheetTemplate extends SheetBase {
             } else {
                 templates.push(sheetDataToSave);
             }
+            console.log("保存模板数据", templates)
             USER.getSettings().table_database_templates = templates;
             USER.saveSettings();
             return this;

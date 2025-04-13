@@ -51,6 +51,7 @@ export const USER = {
             USER.getSettings().table_database_templates = templates;
             USER.saveSettings();
         }
+        console.log("全局模板", templates)
         return templates;
     },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
@@ -72,7 +73,9 @@ export const BASE = {
      */
     Sheet: Sheet,
     SheetTemplate: SheetTemplate,
-    templates: USER.loadUserAllTemplates(),
+    get templates() {
+        return USER.loadUserAllTemplates()
+    },
     sheetsData: new Proxy({}, {
         get(_, target) {
             switch (target) {

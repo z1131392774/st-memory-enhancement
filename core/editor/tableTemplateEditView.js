@@ -31,7 +31,7 @@ const formConfigs = {
                     // { value: 'option', text: '选项' },
                 ]
             },
-            { label: '列描述', description: '(给AI解释此列的作用)', type: 'textarea', dataKey: 'columnNote' },
+            { label: '列描述', description: '', type: 'textarea', dataKey: 'columnNote' },
         ],
     },
     row_header: {
@@ -54,14 +54,14 @@ const formConfigs = {
         formTitle: "编辑表格属性",
         formDescription: "设置表格的域、类型和名称。",
         fields: [
-            {
+            /* {
                 label: '默认保存位置', type: 'select', dataKey: 'domain',
                 options: [
                     // { value: 'global', text: `<i class="fa-solid fa-earth-asia"></i> Global（该模板储存于用户数据中）` },
                     // { value: 'role', text: `<i class="fa-solid fa-user-tag"></i> Role（该模板储存于当前所选角色）` },
                     { value: 'chat', text: `<i class="fa-solid fa-comment"></i> Chat（该模板储存于当前对话）` },
                 ],
-            },
+            }, */
             {
                 label: '类型', type: 'select', dataKey: 'type',
                 options: [
@@ -93,7 +93,6 @@ const formConfigs = {
 
 async function updateDropdownElement() {
     const templates = BASE.templates;
-    console.log("全局模板", templates)
     // console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
@@ -199,6 +198,7 @@ function bindSheetSetting(sheet) {
         if (popup.result) {
             const diffData = compareDataDiff(formInstance.result(), initialData)
             console.log(diffData)
+            let needRerender = false
             Object.keys(diffData).forEach(key => {
                 console.log(key)
                 switch (key) {
@@ -210,6 +210,7 @@ function bindSheetSetting(sheet) {
                         break;
                     case 'name':
                         sheet.name = diffData[key];
+                        needRerender = true
                         break;
                     case 'description':
                         console.log(diffData[key])
@@ -220,7 +221,7 @@ function bindSheetSetting(sheet) {
                 }
             })
             sheet.save()
-            sheet.renderSheet()
+            if(needRerender)refreshTempView()
         }
     });
 
@@ -442,7 +443,7 @@ async function initTableEdit(mesId) {
     })
 
     $(document).on('click', '#add_table_template_button', async function () {
-        const newTemplate = new BASE.SheetTemplate('').createNewTemplate();
+        const newTemplate = new BASE.SheetTemplate().createNewTemplate();
         const newTemplateUid = newTemplate.uid;
 
         let currentSelectedValues = $(dropdownElement).val();
