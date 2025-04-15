@@ -135,6 +135,10 @@ export const defaultSettings = {
     unusedChatText: '',
     bool_silent_refresh: false,
     // bool_force_refresh: false,
+    show_settings_in_extension_menu: true,
+    show_drawer_in_extension_list: true,
+    table_to_chat_can_edit: false,
+    table_to_chat_mode: 'context_bottom',
     table_base: [
 
     ],

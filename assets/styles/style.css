@@ -11,6 +11,21 @@
 .--SmartThemeUserMesBlurTintColor {}    /* 用户消息模糊背景颜色 */
 .--SmartThemeBotMesBlurTintColor {}     /* 机器人消息模糊背景颜色 */
 
+.unfinished {
+    color: #f44336;
+}
+.unfinished span {
+    color: #f44336;
+}
+.unfinished small {
+    color: #f44336;
+}
+.unfinished input {
+    color: #f44336;
+    background-color: #f44336;
+    border-color: #f44336;
+}
+
 /* .world_entry_thin_controls, */
 #persona_management_left_column,
 #character_popup .flex-container {

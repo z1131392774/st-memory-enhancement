@@ -393,6 +393,40 @@ function handleAction(cell, action){
     refreshContextView(true);
 }
 
+export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
+    for (let sheet of _sheets) {
+        const instance = new BASE.Sheet(sheet)
+        const sheetContainer = document.createElement('div')
+        const sheetTitleText = document.createElement('h3')
+        sheetContainer.style.overflowX = 'none'
+        sheetContainer.style.overflowY = 'auto'
+        sheetTitleText.innerText = sheet.name
+
+        let sheetElement = null
+
+        if (DERIVED.any.batchEditMode === true) {
+            if (DERIVED.any.batchEditModeSheet?.name === instance.name) {
+                sheetElement = await instance.renderSheet(cellClickEditModeEvent)
+            } else {
+                sheetElement = await instance.renderSheet((cell) => {
+                    cell.element.style.cursor = 'default'
+                })
+                sheetElement.style.cursor = 'default'
+                sheetElement.style.opacity = '0.5'
+                sheetTitleText.style.opacity = '0.5'
+            }
+        } else {
+            sheetElement = instance.renderSheet(_cellClickEvent)
+        }
+        cellHighlight(instance)
+        $(sheetContainer).append(sheetElement)
+
+        $(_viewSheetsContainer).append(sheetTitleText)
+        $(_viewSheetsContainer).append(sheetContainer)
+        $(_viewSheetsContainer).append(`<hr>`)
+    }
+}
+
 async function renderSheetsDOM() {
     updateSystemMessageTableStatus();
     const { piece, deep } = BASE.getLastSheetsPiece();
@@ -412,37 +446,7 @@ async function renderSheetsDOM() {
     }
 
     $(viewSheetsContainer).empty()
-    for (let sheet of sheets) {
-        const instance = new BASE.Sheet(sheet)
-        const sheetContainer = document.createElement('div')
-        const sheetTitleText = document.createElement('h3')
-        sheetContainer.style.overflowX = 'none'
-        sheetContainer.style.overflowY = 'auto'
-        sheetTitleText.innerText = sheet.name
-
-        let sheetElement = null
-        
-        if (DERIVED.any.batchEditMode === true) {
-            if (DERIVED.any.batchEditModeSheet?.name === instance.name) {
-                sheetElement = await instance.renderSheet(cellClickEditModeEvent)
-            } else {
-                sheetElement = await instance.renderSheet((cell) => {
-                    cell.element.style.cursor = 'default'
-                })
-                sheetElement.style.cursor = 'default'
-                sheetElement.style.opacity = '0.5'
-                sheetTitleText.style.opacity = '0.5'
-            }
-        } else {
-            sheetElement = instance.renderSheet(cellClickEvent)
-        }
-        cellHighlight(instance)
-        $(sheetContainer).append(sheetElement)
-
-        $(viewSheetsContainer).append(sheetTitleText)
-        $(viewSheetsContainer).append(sheetContainer)
-        $(viewSheetsContainer).append(`<hr>`)
-    }
+    await renderEditableSheetsDOM(sheets, viewSheetsContainer)
 }
 
 export async function refreshContextView(ignoreGlobal = false) {

@@ -212,12 +212,36 @@
                                 <h4 class="standoutHeader">前端表格</h4>
                                 <!--                            <b class="table_setting_category_header">表格推送至对话</b><div style="height: 10px;"></div>-->
                                 <div class="checkbox_label range-block justifyLeft">
-                                    <input type="checkbox" id="table_to_chat"><span>渲染到对话</span>
+                                    <input type="checkbox" id="show_settings_in_extension_menu" checked><span>从扩展菜单进入表格</span>
+                                </div>
+<!--                                <div class="checkbox_label range-block justifyLeft unfinished">-->
+<!--                                    <input type="checkbox" id="show_drawer_in_extension_list" checked><span>在扩展列表显示表格设置</span>-->
+<!--                                </div>-->
+
+                                <div class="checkbox_label range-block justifyLeft">
+                                    <input type="checkbox" id="table_to_chat"><span>表格视图渲染到对话</span>
                                     <small class="toggle-description justifyLeft">(启用后会在对话框中显示自定义表格)</small>
                                 </div>
+                                <!-- 表格推送至对话 -->
+                                <div id="table_to_chat_options" style="padding-left: 20px; width: calc(100% - 20px);">
+                                    <div class="checkbox_label range-block justifyLeft unfinished">
+                                        <input type="checkbox" id="table_to_chat_can_edit"><span>数据可编辑</span>
+                                        <small class="toggle-description justifyLeft">(可用渲染至对话的表格编辑数据)</small>
+                                    </div>
 
-                                <div class="menu_button menu_button_icon" id="dataTable_to_chat_button" style="margin-top: 10px">
-                                    <i class="fa-solid fa-wand-magic-sparkles"></i><a>编辑渲染至对话的样式</a>
+                                    <div class="checkbox_label range-block justifyLeft">
+                                        <label for="table_to_chat_mode">渲染至</label>
+                                        <select id="table_to_chat_mode" class="flex1" style="min-width: 100px">
+                                            <option value="context_bottom">上下文底部</option>
+                                            <option value="last_message">最后一条消息内部</option>
+<!--                                            <option value="macro">自定义位置（宏）</option>-->
+                                        </select>
+                                        <small id="table_to_chat_is_micro_d" class="toggle-description justifyLeft">使用 <code>{{sheetsView}}</code> 自定义显示位置</small>
+                                    </div>
+
+                                    <div class="menu_button menu_button_icon" id="dataTable_to_chat_button" style="margin-top: 10px">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i><a>编辑渲染至对话的样式</a>
+                                    </div>
                                 </div>
 
                                 <!-- 高级设置 -->

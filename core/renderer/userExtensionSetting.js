@@ -27,12 +27,39 @@ function updateSwitch(selector, switchValue) {
 /**
  * 更新设置中的表格结构DOM
  */
-function updateTableStructureDOM() {
-    const container = $('#dataTable_tableEditor_list');
-    container.empty();
-    USER.tableBaseSetting.tableStructure.forEach((tableStructure) => {
-        container.append(tableStructureToSettingDOM(tableStructure));
-    })
+function updateTableView() {
+    const show_drawer_in_extension_list = USER.tableBaseSetting.show_drawer_in_extension_list;
+    const extensionsMenu = document.querySelector('#extensionsMenu');
+    const show_settings_in_extension_menu = USER.tableBaseSetting.show_settings_in_extension_menu;
+    const extensions_settings = document.querySelector('#extensions_settings');
+
+    if (show_drawer_in_extension_list === true) {
+        // 如果不存在则创建
+        if (document.querySelector('#drawer_in_extension_list_button')) return
+        $(extensionsMenu).append(`
+<div id="drawer_in_extension_list_button" class="list-group-item flex-container flexGap5 interactable">
+    <div class="fa-solid fa-table extensionsMenuExtensionButton"></div>
+    <span>增强记忆表格</span>
+</div>
+`);
+        // 设置点击事件
+        $('#drawer_in_extension_list_button').on('click', () => {
+            $('#table_drawer_icon').click()
+        });
+    } else {
+        document.querySelector('#drawer_in_extension_list_button')?.remove();
+    }
+
+//     if (show_drawer_in_extension_list === true) {
+//         // 如果不存在则创建
+//         if (document.querySelector('#drawer_in_extension_list_button')) return
+//         $(extensions_settings).append(`
+// <div id="drawer_in_extension_list_button" class="list-group-item flex-container flexGap5 interactable">
+// </div>
+// `);
+//     } else {
+//
+//     }
 }
 
 /**
@@ -262,6 +289,28 @@ function InitBinging() {
     $('#table_to_chat').change(function () {
         USER.tableBaseSetting.isTableToChat = this.checked;
         EDITOR.success(this.checked ? '表格会被推送至对话中' : '关闭表格推送至对话');
+        $('#table_to_chat_options').toggle(this.checked);
+        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
+    });
+    // 在扩展菜单栏中显示表格设置开关
+    $('#show_settings_in_extension_menu').change(function () {
+        USER.tableBaseSetting.show_settings_in_extension_menu = this.checked;
+        updateTableView();
+    });
+    // 在扩展列表显示表格设置
+    $('#show_drawer_in_extension_list').change(function () {
+        USER.tableBaseSetting.show_drawer_in_extension_list = this.checked;
+        updateTableView();
+    });
+    // 推送至前端的表格数据可被编辑
+    $('#table_to_chat_can_edit').change(function () {
+        USER.tableBaseSetting.table_to_chat_can_edit = this.checked;
+        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
+    });
+    // 根据下拉列表选择表格推送位置
+    $('#table_to_chat_mode').change(function(event) {
+        USER.tableBaseSetting.table_to_chat_mode = event.target.value;
+        $('#table_to_chat_is_micro_d').toggle(event.target.value === 'macro');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
 
@@ -349,7 +398,8 @@ function InitBinging() {
  */
 export function renderSetting() {
     // 初始化数值
-    $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).attr('selected', true);
+    $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).prop('selected', true);
+    $(`#table_to_chat_mode option[value="${USER.tableBaseSetting.table_to_chat_mode}"]`).prop('selected', true);
     $('#dataTable_message_template').val(USER.tableBaseSetting.message_template);
     $('#dataTable_deep').val(USER.tableBaseSetting.deep);
     $('#clear_up_stairs').val(USER.tableBaseSetting.clear_up_stairs);
@@ -383,12 +433,17 @@ export function renderSetting() {
     updateSwitch('#bool_silent_refresh', USER.tableBaseSetting.bool_silent_refresh);
     updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
     updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);
+    updateSwitch('#show_settings_in_extension_menu', USER.tableBaseSetting.show_settings_in_extension_menu);
+    updateSwitch('#show_drawer_in_extension_list', USER.tableBaseSetting.show_drawer_in_extension_list);
+    updateSwitch('#table_to_chat_can_edit', USER.tableBaseSetting.table_to_chat_can_edit);
 
     // 设置元素结构可见性
     // $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
     // $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
+    $('#table_to_chat_options').toggle(USER.tableBaseSetting.isTableToChat);
+    $('#table_to_chat_is_micro_d').toggle(USER.tableBaseSetting.table_to_chat_mode === 'macro');
 
     // 不再在设置中显示表格结构
     // updateTableStructureDOM()
@@ -421,6 +476,7 @@ export function loadSettings() {
     renderSetting();
     InitBinging();
     initRefreshTypeSelector(); // 初始化表格刷新类型选择器
+    updateTableView(); // 更新表格视图
 }
 
 export function initTableStructureToTemplate() {
