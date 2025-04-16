@@ -505,7 +505,7 @@ export class Sheet extends SheetBase {
         console.log('获取表格内容提示词', this)
         const title = `* ${this.name}:${replaceUserTag(this.name)}\n`;
         const node = this.source.data.note && this.source.data.note !== '' ? '【说明】' + this.source.data.note + '\n' : '';
-        const headers = "rowIndex," + this.getCellsByRowIndex(0).map((cell, index) => index + ':' + replaceUserTag(cell.data.value)).join(',') + '\n';
+        const headers = "rowIndex," + this.getCellsByRowIndex(0).slice(1).map((cell, index) => index + ':' + replaceUserTag(cell.data.value)).join(',') + '\n';
         const rows = this.getSheetCSV()
         const editRules = this.#getTableEditRules() + '\n';
 
