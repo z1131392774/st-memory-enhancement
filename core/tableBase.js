@@ -223,11 +223,12 @@ class SheetBase {
      * 获取表格csv格式的内容
      * @returns
      */
-    getSheetCSV(key = 'value') {
+    getSheetCSV( removeHeader = true,key = 'value') {
         if (this.isEmpty())
             if (this.required) return this.source.initNode;
             else return '';
-        const content = this.hashSheet.slice(1).map((row, index) => row.map(cellUid => {
+        console.log("测试获取map", this.cells)
+        const content = this.hashSheet.slice(removeHeader?1:0).map((row, index) => row.map(cellUid => {
             const cell = this.cells.get(cellUid)
             if (!cell) return
             return cell.type === CellType.row_header ? index : cell.data[key]

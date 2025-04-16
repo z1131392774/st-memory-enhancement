@@ -25,6 +25,9 @@
     background-color: #f44336;
     border-color: #f44336;
 }
+.unfinished i {
+    color: #f44336;
+}
 
 /* .world_entry_thin_controls, */
 #persona_management_left_column,

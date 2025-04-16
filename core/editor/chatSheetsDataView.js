@@ -119,18 +119,19 @@ async function importTable(mesId, viewSheetsContainer) {
  * 导出表格
  * @param {Array} tables 所有表格数据
  */
-async function exportTable(tables = []) {
-    if (!tables || tables.length === 0) {
+async function exportTable() {
+    if (!DERIVED.any.renderingSheets || DERIVED.any.renderingSheets.length === 0) {
         EDITOR.warning('当前表格没有数据，无法导出');
         return;
     }
-
-    const jsonTables = JSON.stringify(tables, null, 2); // 使用 2 空格缩进，提高可读性
-    const blob = new Blob([jsonTables], { type: 'application/json' });
+    const sheets = DERIVED.any.renderingSheets
+    const csvTables = sheets.map(sheet => "SHEET-START"+sheet.uid+"\n"+sheet.getSheetCSV(false)+"SHEET-END").join('\n')
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvTables], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
-    downloadLink.download = 'table_data.json'; // 默认文件名
+    downloadLink.download = 'table_data.csv'; // 默认文件名
     document.body.appendChild(downloadLink); // 必须添加到 DOM 才能触发下载
     downloadLink.click();
     document.body.removeChild(downloadLink); // 下载完成后移除
@@ -434,6 +435,7 @@ async function renderSheetsDOM() {
     if (!piece || !piece.hash_sheets) return;
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
     console.log('renderSheetsDOM:', piece, sheets)
+    DERIVED.any.renderingSheets = sheets
 
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
     lastCellsHashSheet = BASE.getLastSheetsPiece(deep - 1, 3, false)?.piece.hash_sheets;
@@ -457,8 +459,6 @@ let initializedTableView = null
 async function initTableView(mesId) {
     initializedTableView = $(await SYSTEM.getTemplate('manager')).get(0);
     viewSheetsContainer = initializedTableView.querySelector('#tableContainer');
-
-    userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
 
     setTableEditTips($(initializedTableView).find('#tableEditTips'));    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
 
@@ -488,7 +488,7 @@ async function initTableView(mesId) {
     })
     // 点击导出表格按钮
     $(document).on('click', '#export_table_button', function () {
-        exportTable(userTableEditInfo.tables);
+        exportTable();
     })
 
     return initializedTableView;
