@@ -189,6 +189,10 @@ async function resetSettings() {
             USER.tableBaseSetting[key] = filterData[key]
         }
         renderSetting()
+        if('tableStructure' in filterData){
+            initTableStructureToTemplate()
+            BASE.refreshTempView(true)
+        }
         EDITOR.success('已重置所选设置');
     } catch (error) {
         EDITOR.error(`重置设置失败: ${error}`);
@@ -480,13 +484,13 @@ export function loadSettings() {
 }
 
 export function initTableStructureToTemplate() {
-    const sheetDefaultTemplates = USER.tableBaseDefaultSettings.sheetTemplates
+    const sheetDefaultTemplates = USER.tableBaseSetting.tableStructure
     USER.getSettings().table_selected_sheets = []
     for (let defaultTemplate of sheetDefaultTemplates) {
         const newTemplate = new BASE.SheetTemplate()
         newTemplate.domain = 'global'
         newTemplate.createNewTemplate(defaultTemplate.columns.length + 1, 1, false)
-        newTemplate.name = defaultTemplate.name
+        newTemplate.name = defaultTemplate.tableName
         defaultTemplate.columns.forEach((column, index) => {
             newTemplate.findCellByPosition(0, index + 1).data.value = column
         })
