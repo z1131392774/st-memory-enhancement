@@ -137,6 +137,9 @@ async function importTableSet() {
                 }
 
                 renderSetting(); // 重新渲染设置界面，应用新的设置
+                // 重新转换模板
+                initTableStructureToTemplate()
+                BASE.refreshTempView(true) // 刷新模板视图
                 EDITOR.success('导入成功并已重置所选设置'); // 提示用户导入成功
 
             } catch (error) {
@@ -160,7 +163,8 @@ async function importTableSet() {
  * 导出插件设置
  */
 async function exportTableSet() {
-    const { filterData, confirmation } = await filterTableDataPopup(EDITOR.allData)
+    templateToTableStructure()
+    const { filterData, confirmation } = await filterTableDataPopup(USER.tableBaseSetting,"请选择需要导出的数据","")
     if (!confirmation) return;
 
     try {
@@ -181,7 +185,7 @@ async function exportTableSet() {
  * 重置设置
  */
 async function resetSettings() {
-    const { filterData, confirmation } = await filterTableDataPopup(USER.tableBaseDefaultSettings)
+    const { filterData, confirmation } = await filterTableDataPopup(USER.tableBaseDefaultSettings, "请选择需要重置的数据","建议重置前先备份数据")
     if (!confirmation) return;
 
     try {
@@ -486,6 +490,7 @@ export function loadSettings() {
 export function initTableStructureToTemplate() {
     const sheetDefaultTemplates = USER.tableBaseSetting.tableStructure
     USER.getSettings().table_selected_sheets = []
+    USER.getSettings().table_database_templates = [];
     for (let defaultTemplate of sheetDefaultTemplates) {
         const newTemplate = new BASE.SheetTemplate()
         newTemplate.domain = 'global'
@@ -494,6 +499,9 @@ export function initTableStructureToTemplate() {
         defaultTemplate.columns.forEach((column, index) => {
             newTemplate.findCellByPosition(0, index + 1).data.value = column
         })
+        newTemplate.enable = defaultTemplate.enable
+        newTemplate.tochat = defaultTemplate.tochat
+        newTemplate.required = defaultTemplate.required
         newTemplate.source.data.note = defaultTemplate.note
         newTemplate.source.data.initNode = defaultTemplate.initNode
         newTemplate.source.data.deleteNode = defaultTemplate.deleteNode
@@ -502,6 +510,27 @@ export function initTableStructureToTemplate() {
         USER.getSettings().table_selected_sheets.push(newTemplate.uid)
         newTemplate.save()
     }
+    USER.saveSettings()
+}
+
+function templateToTableStructure() {
+    const tableTemplates = BASE.templates.map((templateData, index) => {
+        const template = new BASE.SheetTemplate(templateData.uid)
+        return {
+            tableIndex: index,
+            tableName: template.name,
+            columns: template.hashSheet[0].slice(1).map(cellUid => template.cells.get(cellUid).data.value),
+            note: template.data.note,
+            initNode: template.data.initNode,
+            deleteNode: template.data.deleteNode,
+            updateNode: template.data.updateNode,
+            insertNode: template.data.insertNode,
+            required: template.required,
+            tochat: template.tochat,
+            enable: template.enable,
+        }
+    })
+    USER.tableBaseSetting.tableStructure = tableTemplates
     USER.saveSettings()
 }
 

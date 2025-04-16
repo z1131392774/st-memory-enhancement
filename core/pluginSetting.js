@@ -4,7 +4,7 @@ import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 /**
  * 表格重置弹出窗
  */
-const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</span><br><span style="color: rgb(211 39 39)">（建议重置前先备份数据）</span>
+const tableInitPopupDom = `
 <div class="checkbox flex-container">
     <input type="checkbox" id="table_init_base"><span>基础插件设置</span>
 </div>
@@ -38,9 +38,13 @@ const tableInitPopupDom = `<span>将重置以下表格数据，是否继续？</
  *          - filterData: 过滤后的数据对象，只包含用户选择重置的部分，如果用户取消操作，则为null。
  *          - confirmation: 布尔值，表示用户是否点击了“继续”按钮确认操作。
  */
-export async function filterTableDataPopup(originalData) {
-  const tableInitPopup = $(tableInitPopupDom);
-  const confirmation = new EDITOR.Popup(tableInitPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
+export async function filterTableDataPopup(originalData, title, warning) {
+  const $tableInitPopup = $('<div></div>')
+    .append($(`<span>${title}</span>`))
+    .append('<br>')
+    .append($(`<span style="color: rgb(211, 39, 39)">${warning}</span>`))
+    .append($(tableInitPopupDom))
+  const confirmation = new EDITOR.Popup($tableInitPopup, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
   let waitingBoolean = {};
   let waitingRegister = new Proxy({}, {     // 创建一个 Proxy 对象用于监听和处理 waitingBoolean 对象的属性设置
     set(target, prop, value) {
