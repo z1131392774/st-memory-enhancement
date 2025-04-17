@@ -14,32 +14,36 @@ import LLMApiService from "./llmApi.js";
 //     temperature: 0.7,
 //     max_tokens: 2000,
 // };
-/**______________________请注意不要把填写后的API密钥上传了______________________*/
 
-export function functionToBeRegistered() {
-    SYSTEM.f(()=>{
-        // 弹出确认
-        if (confirm("模拟回退上一版本？（将销毁当前对话的所有新表数据，用于模拟回退上一版本，该功能仅用于调试）")) {
-            USER.tableBaseSetting.updateIndex = 3
-            delete USER.getSettings().table_database_templates
-            delete USER.getContext().chatMetadata.sheets
+export async function rollbackVersion() {
+    // 弹出确认
+    if (confirm("初始化2.0表格数据？该操作无法回退！（将销毁当前对话的所有新表数据，清空所有新表格模板，用于模拟回退上一版本，该功能仅用于调试。）")) {
+        USER.tableBaseSetting.updateIndex = 3
+        delete USER.getSettings().table_database_templates
+        delete USER.getContext().chatMetadata.sheets
 
-            const context_chat = USER.getContext().chat
-            if (context_chat) {
-                for (let piece of context_chat) {
-                    delete piece.hash_sheets
-                    delete piece.two_step_links
-                    delete piece.two_step_waiting
-                }
+        const context_chat = USER.getContext().chat
+        if (context_chat) {
+            for (let piece of context_chat) {
+                delete piece.hash_sheets
+                delete piece.two_step_links
+                delete piece.two_step_waiting
             }
-
-            USER.saveSettings()
-            USER.saveChat();
-            console.log("已清除表格数据: ", USER.getSettings(), USER.getContext().chatMetadata, USER.getChatPiece())
-        } else {
-            console.log("用户取消了清除操作")
         }
-    }, "回退上一版本")
+
+        USER.saveSettings()
+        USER.saveChat();
+        console.log("已清除表格数据: ", USER.getSettings(), USER.getContext().chatMetadata, USER.getChatPiece())
+        return true
+    } else {
+        console.log("用户取消了清除操作")
+        return false
+    }
+}
+
+/**______________________请注意不要把填写后的API密钥上传了______________________*/
+export function functionToBeRegistered() {
+    SYSTEM.f(rollbackVersion, "回退上一版本")
     // SYSTEM.f(()=>{
     //     let sourceData = {}
     //     const s = BASE.sheetsData.context

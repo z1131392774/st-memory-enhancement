@@ -4,6 +4,8 @@ import { findNextChatWhitTableData, } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
 import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
+import {openTableStatisticsPopup} from "./tableStatistics.js";
+import {openCellHistoryPopup} from "./cellHistory.js";
 
 let tablePopup = null
 let copyTableData = {}
@@ -119,18 +121,19 @@ async function importTable(mesId, viewSheetsContainer) {
  * 导出表格
  * @param {Array} tables 所有表格数据
  */
-async function exportTable(tables = []) {
-    if (!tables || tables.length === 0) {
+async function exportTable() {
+    if (!DERIVED.any.renderingSheets || DERIVED.any.renderingSheets.length === 0) {
         EDITOR.warning('当前表格没有数据，无法导出');
         return;
     }
-
-    const jsonTables = JSON.stringify(tables, null, 2); // 使用 2 空格缩进，提高可读性
-    const blob = new Blob([jsonTables], { type: 'application/json' });
+    const sheets = DERIVED.any.renderingSheets
+    const csvTables = sheets.map(sheet => "SHEET-START"+sheet.uid+"\n"+sheet.getSheetCSV(false)+"SHEET-END").join('\n')
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvTables], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
-    downloadLink.download = 'table_data.json'; // 默认文件名
+    downloadLink.download = 'table_data.csv'; // 默认文件名
     document.body.appendChild(downloadLink); // 必须添加到 DOM 才能触发下载
     downloadLink.click();
     document.body.removeChild(downloadLink); // 下载完成后移除
@@ -188,10 +191,36 @@ function setTableEditTips(tableEditTips) {
     }
 }
 
-async function templateCellDataEdit(cell) {
+async function cellDataEdit(cell) {
     const result = await EDITOR.callGenericPopup("编辑单元格", EDITOR.POPUP_TYPE.INPUT, cell.data.value, { rows: 3 })
     if (result) {
         cell.editCellData({ value: result })
+        refreshContextView(true);
+    }
+}
+
+
+async function columnDataEdit(cell) {
+    const columnEditor = `
+<div class="column-editor">
+    <div class="column-editor-header">
+        <h3>编辑列数据</h3>
+    </div>
+    <div class="column-editor-body">
+        <div class="column-editor-content">
+            <label for="column-editor-input">列数据:</label>
+            <textarea id="column-editor-input" rows="5"></textarea>
+        </div>
+    </div>
+</div>
+`
+    const columnCellDataPopup = new EDITOR.Popup(columnEditor, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "应用修改", cancelButton: "取消" });
+    const historyContainer = $(columnCellDataPopup.dlg)[0];
+
+    await columnCellDataPopup.show();
+
+    if (columnCellDataPopup.result) {
+        // cell.editCellData({ value: result })
         refreshContextView(true);
     }
 }
@@ -304,6 +333,10 @@ function cellHighlight(sheet) {
     })
 }
 
+async function cellHistoryView(cell) {
+    await openCellHistoryPopup(cell)
+}
+
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
 
@@ -338,50 +371,55 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
-            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow) )
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow), menu.ItemType.warning )
         } else if (rowIndex === 0) {
-            menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await templateCellDataEdit(cell));
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await cellDataEdit(cell));
             menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => handleAction(cell, cell.CellAction.insertLeftColumn));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-trash-alt"></i> 删除列', () => confirmAction(() => { handleAction(cell, cell.CellAction.deleteSelfColumn) }, '确认删除列？'), menu.ItemType.warning);
         } else {
-            menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async () => await templateCellDataEdit(cell));
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async () => await cellDataEdit(cell));
+            menu.add('<i class="fa-solid fa-clock-rotate-left"></i> 单元格历史记录', async () => await cellHistoryView(cell));
         }
 
         // 设置弹出菜单后的一些非功能性派生操作，这里必须使用setTimeout，否则会导致菜单无法正常显示
         setTimeout(() => {
-            // 备份当前cell的style，以便在菜单关闭时恢复
-            const style = cell.element.style.cssText;
 
-            // 获取单元格位置
+        }, 0)
+
+        // 备份当前cell的style，以便在菜单关闭时恢复
+        const style = cell.element.style.cssText;
+
+        // 获取单元格位置
+        const rect = cell.element.getBoundingClientRect();
+        const tableRect = viewSheetsContainer.getBoundingClientRect();
+
+        // 计算菜单位置（相对于表格容器）
+        const menuLeft = rect.left - tableRect.left;
+        const menuTop = rect.bottom - tableRect.top;
+        const menuElement = menu.renderMenu();
+        $(viewSheetsContainer).append(menuElement);
+
+        // 高亮cell
+        cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+        cell.element.style.color = 'var(--SmartThemeQuoteColor)';
+        cell.element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
+        cell.element.style.zIndex = '999';
+
+        menu.show(menuLeft, menuTop).then(() => {
+            cell.element.style.cssText = style;
+        })
+        menu.frameUpdate((menu) => {
+            // 重新定位菜单
             const rect = cell.element.getBoundingClientRect();
             const tableRect = viewSheetsContainer.getBoundingClientRect();
 
             // 计算菜单位置（相对于表格容器）
             const menuLeft = rect.left - tableRect.left;
             const menuTop = rect.bottom - tableRect.top;
-            const menuElement = menu.renderMenu();
-            $(viewSheetsContainer).append(menuElement);
-
-            // 高亮cell
-            //cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
-            cell.element.style.color = 'var(--SmartThemeBodyColor)';
-
-            menu.show(menuLeft, menuTop).then(() => {
-                cell.element.style.cssText = style;
-            })
-            menu.frameUpdate((menu) => {
-                // 重新定位菜单
-                const rect = cell.element.getBoundingClientRect();
-                const tableRect = viewSheetsContainer.getBoundingClientRect();
-
-                // 计算菜单位置（相对于表格容器）
-                const menuLeft = rect.left - tableRect.left;
-                const menuTop = rect.bottom - tableRect.top;
-                menu.popupContainer.style.left = `${menuLeft}px`;
-                menu.popupContainer.style.top = `${menuTop}px`;
-            })
-        }, 0)
+            menu.popupContainer.style.left = `${menuLeft}px`;
+            menu.popupContainer.style.top = `${menuTop + 3}px`;
+        })
     })
     cell.on('', () => {
         console.log('cell发生了改变:', cell)
@@ -393,35 +431,17 @@ function handleAction(cell, action){
     refreshContextView(true);
 }
 
-async function renderSheetsDOM() {
-    updateSystemMessageTableStatus();
-    const { piece, deep } = BASE.getLastSheetsPiece();
-    console.log('现在的表格模板数据:', BASE.sheetsData.context, piece)
-    if (!piece || !piece.hash_sheets) return;
-    const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
-    console.log('renderSheetsDOM:', piece, sheets)
-
-    // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
-    lastCellsHashSheet = BASE.getLastSheetsPiece(deep - 1, 3, false)?.piece.hash_sheets;
-    console.log("找到的diff前项", lastCellsHashSheet)
-    if (lastCellsHashSheet) {
-        lastCellsHashSheet = BASE.copyHashSheets(lastCellsHashSheet)
-        for (const sheetUid in lastCellsHashSheet) {
-            lastCellsHashSheet[sheetUid] = lastCellsHashSheet[sheetUid].flat()
-        }
-    }
-
-    $(viewSheetsContainer).empty()
-    for (let sheet of sheets) {
+export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
+    for (let [index, sheet] of _sheets.entries()) {
         const instance = new BASE.Sheet(sheet)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
         sheetContainer.style.overflowX = 'none'
         sheetContainer.style.overflowY = 'auto'
-        sheetTitleText.innerText = sheet.name
+        sheetTitleText.innerText = `#${index} ${sheet.name}`
 
         let sheetElement = null
-        
+
         if (DERIVED.any.batchEditMode === true) {
             if (DERIVED.any.batchEditModeSheet?.name === instance.name) {
                 sheetElement = await instance.renderSheet(cellClickEditModeEvent)
@@ -434,15 +454,37 @@ async function renderSheetsDOM() {
                 sheetTitleText.style.opacity = '0.5'
             }
         } else {
-            sheetElement = instance.renderSheet(cellClickEvent)
+            sheetElement = instance.renderSheet(_cellClickEvent)
         }
         cellHighlight(instance)
         $(sheetContainer).append(sheetElement)
 
-        $(viewSheetsContainer).append(sheetTitleText)
-        $(viewSheetsContainer).append(sheetContainer)
-        $(viewSheetsContainer).append(`<hr>`)
+        $(_viewSheetsContainer).append(sheetTitleText)
+        $(_viewSheetsContainer).append(sheetContainer)
+        $(_viewSheetsContainer).append(`<hr>`)
     }
+}
+
+async function renderSheetsDOM() {
+    updateSystemMessageTableStatus();
+    const { piece, deep } = BASE.getLastSheetsPiece();
+    if (!piece || !piece.hash_sheets) return;
+    const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
+    console.log('renderSheetsDOM:', piece, sheets)
+    DERIVED.any.renderingSheets = sheets
+
+    // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
+    lastCellsHashSheet = BASE.getLastSheetsPiece(deep - 1, 3, false)?.piece.hash_sheets;
+    console.log("找到的diff前项", lastCellsHashSheet)
+    if (lastCellsHashSheet) {
+        lastCellsHashSheet = BASE.copyHashSheets(lastCellsHashSheet)
+        for (const sheetUid in lastCellsHashSheet) {
+            lastCellsHashSheet[sheetUid] = lastCellsHashSheet[sheetUid].flat()
+        }
+    }
+
+    $(viewSheetsContainer).empty()
+    await renderEditableSheetsDOM(sheets, viewSheetsContainer)
 }
 
 export async function refreshContextView(ignoreGlobal = false) {
@@ -454,11 +496,13 @@ async function initTableView(mesId) {
     initializedTableView = $(await SYSTEM.getTemplate('manager')).get(0);
     viewSheetsContainer = initializedTableView.querySelector('#tableContainer');
 
-    userTableEditInfo.editAble = findNextChatWhitTableData(mesId).index === -1
-
     setTableEditTips($(initializedTableView).find('#tableEditTips'));    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
 
     // 设置编辑提示
+    // 点击打开查看表格数据统计
+    $(document).on('click', '#table_data_statistics_button', function () {
+        openTableStatisticsPopup();
+    })
     // 点击打开查看表格历史按钮
     $(document).on('click', '#dataTable_history_button', function () {
         openTableHistoryPopup();
@@ -484,7 +528,7 @@ async function initTableView(mesId) {
     })
     // 点击导出表格按钮
     $(document).on('click', '#export_table_button', function () {
-        exportTable(userTableEditInfo.tables);
+        exportTable();
     })
 
     return initializedTableView;

@@ -5,6 +5,7 @@ import {generateDeviceId} from "../../utils/utility.js";
 import {encryptXor, updateModelList} from "../standaloneAPI.js";
 import {filterTableDataPopup} from "../pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
+import {rollbackVersion} from "../../services/debugs.js";
 
 /**
  * 格式化深度设置
@@ -27,12 +28,39 @@ function updateSwitch(selector, switchValue) {
 /**
  * 更新设置中的表格结构DOM
  */
-function updateTableStructureDOM() {
-    const container = $('#dataTable_tableEditor_list');
-    container.empty();
-    USER.tableBaseSetting.tableStructure.forEach((tableStructure) => {
-        container.append(tableStructureToSettingDOM(tableStructure));
-    })
+function updateTableView() {
+    const show_drawer_in_extension_list = USER.tableBaseSetting.show_drawer_in_extension_list;
+    const extensionsMenu = document.querySelector('#extensionsMenu');
+    const show_settings_in_extension_menu = USER.tableBaseSetting.show_settings_in_extension_menu;
+    const extensions_settings = document.querySelector('#extensions_settings');
+
+    if (show_drawer_in_extension_list === true) {
+        // 如果不存在则创建
+        if (document.querySelector('#drawer_in_extension_list_button')) return
+        $(extensionsMenu).append(`
+<div id="drawer_in_extension_list_button" class="list-group-item flex-container flexGap5 interactable">
+    <div class="fa-solid fa-table extensionsMenuExtensionButton"></div>
+    <span>增强记忆表格</span>
+</div>
+`);
+        // 设置点击事件
+        $('#drawer_in_extension_list_button').on('click', () => {
+            $('#table_drawer_icon').click()
+        });
+    } else {
+        document.querySelector('#drawer_in_extension_list_button')?.remove();
+    }
+
+//     if (show_drawer_in_extension_list === true) {
+//         // 如果不存在则创建
+//         if (document.querySelector('#drawer_in_extension_list_button')) return
+//         $(extensions_settings).append(`
+// <div id="drawer_in_extension_list_button" class="list-group-item flex-container flexGap5 interactable">
+// </div>
+// `);
+//     } else {
+//
+//     }
 }
 
 /**
@@ -110,6 +138,9 @@ async function importTableSet() {
                 }
 
                 renderSetting(); // 重新渲染设置界面，应用新的设置
+                // 重新转换模板
+                initTableStructureToTemplate()
+                BASE.refreshTempView(true) // 刷新模板视图
                 EDITOR.success('导入成功并已重置所选设置'); // 提示用户导入成功
 
             } catch (error) {
@@ -133,7 +164,8 @@ async function importTableSet() {
  * 导出插件设置
  */
 async function exportTableSet() {
-    const { filterData, confirmation } = await filterTableDataPopup(EDITOR.allData)
+    templateToTableStructure()
+    const { filterData, confirmation } = await filterTableDataPopup(USER.tableBaseSetting,"请选择需要导出的数据","")
     if (!confirmation) return;
 
     try {
@@ -154,7 +186,7 @@ async function exportTableSet() {
  * 重置设置
  */
 async function resetSettings() {
-    const { filterData, confirmation } = await filterTableDataPopup(USER.tableBaseDefaultSettings)
+    const { filterData, confirmation } = await filterTableDataPopup(USER.tableBaseDefaultSettings, "请选择需要重置的数据","建议重置前先备份数据")
     if (!confirmation) return;
 
     try {
@@ -162,6 +194,10 @@ async function resetSettings() {
             USER.tableBaseSetting[key] = filterData[key]
         }
         renderSetting()
+        if('tableStructure' in filterData){
+            initTableStructureToTemplate()
+            BASE.refreshTempView(true)
+        }
         EDITOR.success('已重置所选设置');
     } catch (error) {
         EDITOR.error(`重置设置失败: ${error}`);
@@ -177,6 +213,12 @@ function InitBinging() {
     $("#table-set-export").on('click', () => exportTableSet());
     // 重置设置
     $("#table-reset").on('click', () => resetSettings());
+    // 回退表格2.0到1.0
+    $("#table-init-from-2-to-1").on('click', async () => {
+        if (await rollbackVersion() === true) {
+            window.location.reload()
+        }
+    });
     // 插件总体开关
     $('#table_switch').change(function () {
         USER.tableBaseSetting.isExtensionAble = this.checked;
@@ -262,6 +304,28 @@ function InitBinging() {
     $('#table_to_chat').change(function () {
         USER.tableBaseSetting.isTableToChat = this.checked;
         EDITOR.success(this.checked ? '表格会被推送至对话中' : '关闭表格推送至对话');
+        $('#table_to_chat_options').toggle(this.checked);
+        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
+    });
+    // 在扩展菜单栏中显示表格设置开关
+    $('#show_settings_in_extension_menu').change(function () {
+        USER.tableBaseSetting.show_settings_in_extension_menu = this.checked;
+        updateTableView();
+    });
+    // 在扩展列表显示表格设置
+    $('#show_drawer_in_extension_list').change(function () {
+        USER.tableBaseSetting.show_drawer_in_extension_list = this.checked;
+        updateTableView();
+    });
+    // 推送至前端的表格数据可被编辑
+    $('#table_to_chat_can_edit').change(function () {
+        USER.tableBaseSetting.table_to_chat_can_edit = this.checked;
+        updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
+    });
+    // 根据下拉列表选择表格推送位置
+    $('#table_to_chat_mode').change(function(event) {
+        USER.tableBaseSetting.table_to_chat_mode = event.target.value;
+        $('#table_to_chat_is_micro_d').toggle(event.target.value === 'macro');
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
 
@@ -349,7 +413,8 @@ function InitBinging() {
  */
 export function renderSetting() {
     // 初始化数值
-    $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).attr('selected', true);
+    $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).prop('selected', true);
+    $(`#table_to_chat_mode option[value="${USER.tableBaseSetting.table_to_chat_mode}"]`).prop('selected', true);
     $('#dataTable_message_template').val(USER.tableBaseSetting.message_template);
     $('#dataTable_deep').val(USER.tableBaseSetting.deep);
     $('#clear_up_stairs').val(USER.tableBaseSetting.clear_up_stairs);
@@ -383,12 +448,17 @@ export function renderSetting() {
     updateSwitch('#bool_silent_refresh', USER.tableBaseSetting.bool_silent_refresh);
     updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
     updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);
+    updateSwitch('#show_settings_in_extension_menu', USER.tableBaseSetting.show_settings_in_extension_menu);
+    updateSwitch('#show_drawer_in_extension_list', USER.tableBaseSetting.show_drawer_in_extension_list);
+    updateSwitch('#table_to_chat_can_edit', USER.tableBaseSetting.table_to_chat_can_edit);
 
     // 设置元素结构可见性
     // $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
     // $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
+    $('#table_to_chat_options').toggle(USER.tableBaseSetting.isTableToChat);
+    $('#table_to_chat_is_micro_d').toggle(USER.tableBaseSetting.table_to_chat_mode === 'macro');
 
     // 不再在设置中显示表格结构
     // updateTableStructureDOM()
@@ -421,19 +491,24 @@ export function loadSettings() {
     renderSetting();
     InitBinging();
     initRefreshTypeSelector(); // 初始化表格刷新类型选择器
+    updateTableView(); // 更新表格视图
 }
 
 export function initTableStructureToTemplate() {
-    const sheetDefaultTemplates = USER.tableBaseDefaultSettings.sheetTemplates
+    const sheetDefaultTemplates = USER.tableBaseSetting.tableStructure
     USER.getSettings().table_selected_sheets = []
+    USER.getSettings().table_database_templates = [];
     for (let defaultTemplate of sheetDefaultTemplates) {
         const newTemplate = new BASE.SheetTemplate()
         newTemplate.domain = 'global'
         newTemplate.createNewTemplate(defaultTemplate.columns.length + 1, 1, false)
-        newTemplate.name = defaultTemplate.name
+        newTemplate.name = defaultTemplate.tableName
         defaultTemplate.columns.forEach((column, index) => {
             newTemplate.findCellByPosition(0, index + 1).data.value = column
         })
+        newTemplate.enable = defaultTemplate.enable
+        newTemplate.tochat = defaultTemplate.tochat
+        newTemplate.required = defaultTemplate.required
         newTemplate.source.data.note = defaultTemplate.note
         newTemplate.source.data.initNode = defaultTemplate.initNode
         newTemplate.source.data.deleteNode = defaultTemplate.deleteNode
@@ -442,6 +517,27 @@ export function initTableStructureToTemplate() {
         USER.getSettings().table_selected_sheets.push(newTemplate.uid)
         newTemplate.save()
     }
+    USER.saveSettings()
+}
+
+function templateToTableStructure() {
+    const tableTemplates = BASE.templates.map((templateData, index) => {
+        const template = new BASE.SheetTemplate(templateData.uid)
+        return {
+            tableIndex: index,
+            tableName: template.name,
+            columns: template.hashSheet[0].slice(1).map(cellUid => template.cells.get(cellUid).data.value),
+            note: template.data.note,
+            initNode: template.data.initNode,
+            deleteNode: template.data.deleteNode,
+            updateNode: template.data.updateNode,
+            insertNode: template.data.insertNode,
+            required: template.required,
+            tochat: template.tochat,
+            enable: template.enable,
+        }
+    })
+    USER.tableBaseSetting.tableStructure = tableTemplates
     USER.saveSettings()
 }
 

@@ -1,6 +1,7 @@
 // tablePushToChat.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {findTableStructureByIndex} from "../../index.js";
+import {renderEditableSheetsDOM} from "../editor/chatSheetsDataView.js";
 
 /**
  * 解析html，将其中代表表格单元格的\$\w\d+字符串替换为对应的表格单元格内容
@@ -29,11 +30,18 @@ function parseTableRender(html, table) {
 
 /**
  * 将table数据推送至聊天内容中显示
- * @param tableStatusHTML 表格状态html
+ * @param sheets
  */
-function replaceTableToStatusTag(tableStatusHTML) {
-    const r = USER.tableBaseSetting.to_chat_container.replace(/\$0/g, `<tableStatus>${tableStatusHTML}</tableStatus>`);
-    const chatContainer = window.document.querySelector('#chat');
+function replaceTableToStatusTag(sheets) {
+    let chatContainer
+    if (USER.tableBaseSetting.table_to_chat_mode === 'context_bottom') {
+        chatContainer = window.document.querySelector('#chat');
+    } else if (USER.tableBaseSetting.table_to_chat_mode === 'last_message') {
+        chatContainer = window.document.querySelector('.last_mes')?.querySelector('.mes_text'); // 获取最后一条消息的容器
+    } else if (USER.tableBaseSetting.table_to_chat_mode === 'macro') {
+        // 在document中查找到{{sheetsView}}的位置
+
+    }
 
     // 定义具名的事件监听器函数
     const touchstartHandler = function(event) {
@@ -46,24 +54,36 @@ function replaceTableToStatusTag(tableStatusHTML) {
         event.stopPropagation();
     };
 
-    setTimeout(() => {
+    setTimeout(async () => {
         // 此处注意竞态条件，可能在setTimeout执行前，上一轮tableStatusContainer还未被添加
-        const currentTableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
+        const currentTableStatusContainer = document.querySelector('#tableStatusContainer');
         if (currentTableStatusContainer) {
             // 移除之前的事件监听器，防止重复添加 (虽然在这个场景下不太可能重复添加)
             currentTableStatusContainer.removeEventListener('touchstart', touchstartHandler);
             currentTableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
             currentTableStatusContainer.removeEventListener('touchend', touchendHandler);
-            chatContainer.removeChild(currentTableStatusContainer); // 移除旧的 tableStatusContainer
+            currentTableStatusContainer?.remove(); // 移除旧的 tableStatusContainer
+            // chatContainer.removeChild(currentTableStatusContainer); // 移除旧的 tableStatusContainer
         }
+
+        // 在这里添加新的 tableStatusContainer
+        const r = USER.tableBaseSetting.to_chat_container.replace(/\$0/g, `<tableStatus id="table_push_to_chat_sheets"></tableStatus>`);
         $(chatContainer).append(`<div class="wide100p" id="tableStatusContainer">${r}</div>`); // 添加新的 tableStatusContainer
+        const tableStatusContainer = chatContainer?.querySelector('#table_push_to_chat_sheets');
+        if (USER.tableBaseSetting.table_to_chat_can_edit === true) {
+            await renderEditableSheetsDOM(sheets, tableStatusContainer);
+        } else {
+            renderEditableSheetsDOM(sheets, tableStatusContainer, cell => cell.element.style.cursor = 'default');
+        }
+
+
         // 获取新创建的 tableStatusContainer
         const newTableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
         if (newTableStatusContainer) {
             // 添加事件监听器，使用具名函数
-            newTableStatusContainer.addEventListener('touchstart', touchstartHandler, { passive: false });
-            newTableStatusContainer.addEventListener('touchmove', touchmoveHandler, { passive: false });
-            newTableStatusContainer.addEventListener('touchend', touchendHandler, { passive: false });
+            newTableStatusContainer.addEventListener('touchstart', touchstartHandler, {passive: false});
+            newTableStatusContainer.addEventListener('touchmove', touchmoveHandler, {passive: false});
+            newTableStatusContainer.addEventListener('touchend', touchendHandler, {passive: false});
         }
         console.log('tableStatusContainer:', newTableStatusContainer);
     }, 0);
@@ -82,18 +102,18 @@ export function updateSystemMessageTableStatus(force = false) {
     }
     console.log("更新最后一条 System ")
     const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
-    let tableStatusHTML = '';
-    for (let sheet of sheets) {
-        if (sheet.tochat) {
-            tableStatusHTML += `<h4>${sheet.name}</h4>`;
-            tableStatusHTML += sheet.renderSheet(cell => {
-                cell.element.style.cursor = 'default';
-            }).outerHTML;
-            tableStatusHTML += '<hr>';
-        }
-    }
+    // let tableStatusHTML = '';
+    // for (let sheet of sheets) {
+    //     if (sheet.tochat) {
+    //         tableStatusHTML += `<h4>${sheet.name}</h4>`;
+    //         tableStatusHTML += sheet.renderSheet(cell => {
+    //             cell.element.style.cursor = 'default';
+    //         }).outerHTML;
+    //         tableStatusHTML += '<hr>';
+    //     }
+    // }
 
-    replaceTableToStatusTag(tableStatusHTML);
+    replaceTableToStatusTag(sheets);
 }
 
 /**

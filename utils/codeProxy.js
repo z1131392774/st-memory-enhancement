@@ -8,11 +8,7 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 export const createProxy = (obj) => {
     return new Proxy(obj, {
         get(target, prop) {
-            if (typeof target[prop] === 'object' && target[prop] !== null) {
-                return createProxy(target[prop]); // 递归调用 createProxy
-            } else {
-                return target[prop];
-            }
+            return target[prop];
         },
         set(target, prop, newValue) {
             target[prop] = newValue; // 直接修改原始的 props 对象

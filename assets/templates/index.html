@@ -40,12 +40,11 @@
                                 <div class="checkbox_label flex-container wide100p" style="justify-content: space-between; align-items: center">
                                     <h4>导入导出与重置插件</h4>
                                     <div class="flex-container">
-                                        <div class="menu_button menu_button_icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设">
-                                        </div>
-                                        <input type="file" id="table-set-importFile" accept=".json" hidden>
-                                        <div class="menu_button menu_button_icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设">
-                                        </div>
-                                        <div class="menu_button menu_button_icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
+                                        <div class="menu_button button-square-icon fa-solid fa-file-import" id="table-set-import" title="导入表格预设"></div>
+<!--                                        <input type="file" id="table-set-importFile" accept=".json" hidden>-->
+                                        <div class="menu_button button-square-icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设"></div>
+                                        <div class="menu_button button-square-icon fa-solid fa-undo" id="table-reset" title="重置表格预设"></div>
+                                        <div class="menu_button button-square-icon fa-solid fa-1" id="table-init-from-2-to-1" title="回退上一版本"></div>
                                     </div>
                                 </div>
 
@@ -103,7 +102,7 @@
                                 </div>
 
 <!--                                <h4>自定义策略</h4>-->
-                                <div class="checkbox_label range-block justifyLeft">
+                                <div class="checkbox_label range-block justifyLeft unfinished">
                                     <input type="checkbox" id="step_by_step">启用分步填表
                                     <small class="toggle-description justifyLeft">(每次对话后自动调用api单独总结表格)</small>
                                 </div>
@@ -116,6 +115,7 @@
                                         <div style=" display: flex;">
                                             <label for="dataTable_injection_mode" style="min-width: 50px">注入：</label>
                                             <select id="dataTable_injection_mode">
+                                                <option value="injection_off">关闭注入</option>
                                                 <option value="deep_system">@D ⚙</option>
                                                 <option value="deep_user">@D 👤</option>
                                                 <option value="deep_assistant">@D 🤖</option>
@@ -209,15 +209,39 @@
 
                             <!-- 表格推送至对话 -->
                             <div class="flex1 wide100p">
-                                <h4 class="standoutHeader">前端表格</h4>
+                                <h4 class="standoutHeader">前端表格（状态栏）</h4>
                                 <!--                            <b class="table_setting_category_header">表格推送至对话</b><div style="height: 10px;"></div>-->
                                 <div class="checkbox_label range-block justifyLeft">
-                                    <input type="checkbox" id="table_to_chat"><span>渲染到对话</span>
+                                    <input type="checkbox" id="show_settings_in_extension_menu" checked><span>从扩展菜单进入表格</span>
+                                </div>
+<!--                                <div class="checkbox_label range-block justifyLeft unfinished">-->
+<!--                                    <input type="checkbox" id="show_drawer_in_extension_list" checked><span>在扩展列表显示表格设置</span>-->
+<!--                                </div>-->
+
+                                <div class="checkbox_label range-block justifyLeft">
+                                    <input type="checkbox" id="table_to_chat"><span>表格视图渲染到对话</span>
                                     <small class="toggle-description justifyLeft">(启用后会在对话框中显示自定义表格)</small>
                                 </div>
+                                <!-- 表格推送至对话 -->
+                                <div id="table_to_chat_options" style="padding-left: 20px; width: calc(100% - 20px);">
+                                    <div class="checkbox_label range-block justifyLeft unfinished">
+                                        <input type="checkbox" id="table_to_chat_can_edit"><span>数据可编辑</span>
+                                        <small class="toggle-description justifyLeft">(可用渲染至对话的表格编辑数据)</small>
+                                    </div>
 
-                                <div class="menu_button menu_button_icon" id="dataTable_to_chat_button" style="margin-top: 10px">
-                                    <i class="fa-solid fa-wand-magic-sparkles"></i><a>编辑渲染至对话的样式</a>
+                                    <div class="checkbox_label range-block justifyLeft">
+                                        <label for="table_to_chat_mode">渲染至</label>
+                                        <select id="table_to_chat_mode" class="flex1" style="min-width: 100px">
+                                            <option value="context_bottom">上下文底部</option>
+                                            <option value="last_message">最后一条消息内部</option>
+<!--                                            <option value="macro">自定义位置（宏）</option>-->
+                                        </select>
+                                        <small id="table_to_chat_is_micro_d" class="toggle-description justifyLeft">使用 <code>{{sheetsView}}</code> 自定义显示位置</small>
+                                    </div>
+
+                                    <div class="menu_button menu_button_icon" id="dataTable_to_chat_button" style="margin-top: 10px">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i><a>编辑渲染至对话的样式</a>
+                                    </div>
                                 </div>
 
                                 <!-- 高级设置 -->

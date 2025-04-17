@@ -24,6 +24,7 @@ const formConfigs = {
         formDescription: "设置列的标题和描述信息。",
         fields: [
             { label: '列标题', type: 'text', dataKey: 'value' },
+            { label: '不允许值重复', type: 'checkbox', dataKey: 'valueIsOnly' },
             { label: '数据类型', type: 'select', dataKey: 'columnDataType',
                 options: [
                     { value: 'text', text: '文本' },
@@ -31,7 +32,7 @@ const formConfigs = {
                     // { value: 'option', text: '选项' },
                 ]
             },
-            { label: '列描述', description: '', type: 'textarea', dataKey: 'columnNote' },
+            { label: '列描述', description: '', type: 'textarea', rows: 4, dataKey: 'columnNote' },
         ],
     },
     row_header: {
@@ -39,7 +40,7 @@ const formConfigs = {
         formDescription: "设置行的标题和描述信息。",
         fields: [
             { label: '行标题', type: 'text', dataKey: 'value' },
-            { label: '行描述', description: '(给AI解释此行的作用)', type: 'textarea', dataKey: 'rowNote' },
+            { label: '行描述', description: '(给AI解释此行的作用)', type: 'textarea', rows: 4, dataKey: 'rowNote' },
         ],
     },
     cell: {
@@ -47,7 +48,7 @@ const formConfigs = {
         formDescription: "编辑单元格的具体内容。",
         fields: [
             { label: '单元格内容', type: 'textarea', dataKey: 'value' },
-            { label: '单元格描述', description: '(给AI解释此单元格内容的作用)', type: 'textarea', dataKey: 'cellPrompt' },
+            { label: '单元格描述', description: '(给AI解释此单元格内容的作用)', type: 'textarea', rows: 4, dataKey: 'cellPrompt' },
         ],
     },
     sheetConfig: {
@@ -72,26 +73,13 @@ const formConfigs = {
                 ],
             },
             { label: '表格名', type: 'text', dataKey: 'name' },
-            { label: '表格说明（提示词）', type: 'textarea', rows: 3, dataKey: 'note', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
-            { label: '初始化提示词', type: 'textarea', rows: 2, dataKey: 'initNode', description: '' },
-            { label: '插入提示词', type: 'textarea', rows: 2, dataKey: 'insertNode', description: '' },
-            { label: '删除提示词', type: 'textarea', rows: 2, dataKey: 'deleteNode', description: '' },
-            { label: '更新提示词', type: 'textarea', rows: 2, dataKey: 'updateNode', description: '' },
+            { label: '表格说明（提示词）', type: 'textarea', rows: 6, dataKey: 'note', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
+            { label: '初始化提示词', type: 'textarea', rows: 4, dataKey: 'initNode', description: '' },
+            { label: '插入提示词', type: 'textarea', rows: 4, dataKey: 'insertNode', description: '' },
+            { label: '删除提示词', type: 'textarea', rows: 4, dataKey: 'deleteNode', description: '' },
+            { label: '更新提示词', type: 'textarea', rows: 4, dataKey: 'updateNode', description: '' },
         ],
     },
-    // sheetSetting: {
-    //     formTitle: "编辑表格整体提示词",
-    //     formDescription: "表格的整体提示词，用于向AI解释表格的作用。",
-    //     fields: [
-    //         // { label: '表格名', type: 'text', dataKey: 'tableName' },
-    //         { label: '表格说明', description: '(给AI解释此表格的作用)', type: 'textarea', dataKey: 'tableNote' },
-    //         { label: '是否必填', type: 'checkbox', dataKey: 'tableRequired' },
-    //         { label: '初始化提示词', description: '(当表格为必填表时，但是又为空时，给AI的提示)', type: 'textarea', dataKey: 'tableInitNode' },
-    //         // { label: '插入提示词', description: '(解释什么时候应该插入行)', type: 'textarea', dataKey: 'tableInsertNode' },
-    //         // { label: '更新提示词', description: '(解释什么时候应该更新行)', type: 'textarea', dataKey: 'tableUpdateNode' },
-    //         // { label: '删除提示词', description: '(解释什么时候应该删除行)', type: 'textarea', dataKey: 'tableDeleteNode' },
-    //     ]
-    // },
 };
 
 
@@ -187,7 +175,7 @@ function updateSheetStatusBySelect(){
 let table_editor_container = null
 
 
-function bindSheetSetting(sheet) {
+function bindSheetSetting(sheet, index) {
     const titleBar = document.createElement('div');
     titleBar.className = 'table-title-bar';
     titleBar.style.display = 'flex';
@@ -273,7 +261,7 @@ function bindSheetSetting(sheet) {
             sheet.renderSheet()
         }
     })
-    const nameSpan = $(`<span style="margin-left: 0px;">${sheet.name ? sheet.name : 'Unnamed Table'}</span>`);
+    const nameSpan = $(`<span style="margin-left: 0px;">#${index} ${sheet.name ? sheet.name : 'Unnamed Table'}</span>`);
 
     titleBar.appendChild(settingButton[0]);
     // titleBar.appendChild(originButton[0]);
@@ -350,16 +338,26 @@ function bindCellClickEvent(cell) {
             }
         }
 
+        // 备份当前cell的style，以便在菜单关闭时恢复
+        const style = cell.element.style.cssText;
+
         const rect = cell.element.getBoundingClientRect();
         const dragSpaceRect = drag.dragSpace.getBoundingClientRect();
         let popupX = rect.left - dragSpaceRect.left;
         let popupY = rect.top - dragSpaceRect.top;
         popupX /= drag.scale;
         popupY /= drag.scale;
-        popupY += rect.height / drag.scale;
+        popupY += rect.height / drag.scale + 3;
+
+        cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+        cell.element.style.color = 'var(--SmartThemeQuoteColor)';
+        cell.element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
+        cell.element.style.zIndex = '999';
 
         drag.add('menu', cell.parent.currentPopupMenu.renderMenu());
-        cell.parent.currentPopupMenu.show(popupX, popupY);
+        cell.parent.currentPopupMenu.show(popupX, popupY).then(() => {
+            cell.element.style.cssText = style;
+        });
     });
 }
 
@@ -398,7 +396,7 @@ async function updateDragTables() {
     const uidsToAdd = selectedSheetUids.filter(uid => !renderedTableUids.includes(uid));
     const uidsToUpdate = selectedSheetUids.filter(uid => renderedTableUids.includes(uid));
 
-    for (const uid of uidsToAdd) {
+    for (const [index, uid] of uidsToAdd.entries()) {
         let sheet = new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
@@ -420,7 +418,7 @@ async function updateDragTables() {
 
 
         const captionElement = document.createElement('caption');
-        captionElement.appendChild(bindSheetSetting(sheet));
+        captionElement.appendChild(bindSheetSetting(sheet, index));
         if (tableElement.querySelector('caption')) {
             tableElement.querySelector('caption').replaceWith(captionElement);
         } else {
@@ -428,12 +426,12 @@ async function updateDragTables() {
         }
     }
 
-    for (const uid of uidsToUpdate) {
+    for (const [index, uid] of uidsToUpdate.entries()) {
         const tableElement = renderedTables.get(uid);
         if (tableElement) {
             let sheet = new BASE.SheetTemplate(uid);
             const captionElement = document.createElement('caption');
-            captionElement.appendChild(bindSheetSetting(sheet));
+            captionElement.appendChild(bindSheetSetting(sheet, index));
             const existingCaption = tableElement.querySelector('caption');
             if (existingCaption) {
                 existingCaption.replaceWith(captionElement);

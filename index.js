@@ -293,7 +293,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
                 // 执行删除操作
                 const deleteRow = parseInt(action.rowIndex) + 1
                 const cell = sheet.findCellByPosition(deleteRow, 0)
-                if (!cell) return
+                if (!cell) continue
                 cell.newAction(cell.CellAction.deleteSelfRow, {}, false)
                 break
         }
@@ -324,8 +324,8 @@ function sortActions(actions) {
 /**
  * 格式化参数
  * @description 将参数数组中的字符串转换为数字或对象
- * @param {string[]} paramArray 
- * @returns 
+ * @param {string[]} paramArray
+ * @returns
  */
 function formatParams(paramArray) {
     return paramArray.map(item => {
@@ -433,7 +433,10 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        if (eventData.dryRun === true || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return
+        if (eventData.dryRun === true || 
+            USER.tableBaseSetting.isExtensionAble === false || 
+            USER.tableBaseSetting.isAiReadTable === false || 
+            USER.tableBaseSetting.injection_mode === "injection_off") return
         console.log("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)
@@ -460,6 +463,35 @@ async function onChatCompletionPromptReady(eventData) {
         EDITOR.error(`记忆插件：表格数据注入失败\n位置：第${lineNumber}\n原因：`, '', error);
     }
     console.log("注入表格总体提示词", eventData.chat)
+}
+
+/**
+  * 宏获取提示词
+  */
+function getMacroPrompt() {
+    console.log("获取宏提示词")
+    try {
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return ""
+        const promptContent = initTableData()
+        console.log("注入宏提示词：",promptContent)
+        return promptContent
+    }catch (error) {
+        // 获取堆栈信息
+        const stack = error.stack;
+        let lineNumber = '未知行';
+        if (stack) {
+            // 尝试从堆栈信息中提取行号，这里假设堆栈信息格式是常见的格式，例如 "at functionName (http://localhost:8080/file.js:12:34)"
+            const match = stack.match(/:(\d+):/); // 匹配冒号和数字，例如 ":12:"
+            if (match && match[1]) {
+                lineNumber = match[1] + '行';
+            } else {
+                // 如果无法提取到行号，则显示完整的堆栈信息，方便调试
+                lineNumber = '行号信息提取失败，堆栈信息：' + stack;
+            }
+        }
+        toastr.error(`记忆插件：宏提示词注入失败\n原因：${error.message}\n位置：第${lineNumber}`);
+        return ""
+    }
 }
 
 /**
@@ -612,6 +644,9 @@ jQuery(async () => {
     // 应用程序启动时加载设置
     loadSettings();
 
+    // 注册宏
+    USER.getContext().registerMacro("tableData", () =>getMacroPrompt())
+
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
         openAppHeaderTableDrawer();
@@ -651,5 +686,6 @@ jQuery(async () => {
     APP.eventSource.on(APP.event_types.CHAT_CHANGED, onChatChanged);
     APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
     APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
+    APP.eventSource.on(APP.event_types.MESSAGE_DELETED, ()=>updateSheetsView());
     console.log("______________________记忆插件：加载完成______________________")
 });
