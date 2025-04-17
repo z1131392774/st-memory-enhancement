@@ -71,6 +71,15 @@
 
 }
 
+.list-group-item i {
+    flex-direction: row;
+    justify-content: center;
+    align-content: center;
+    align-items: center;
+    text-align: center;
+    width: 1.2rem;
+}
+
 .tableDom {
     border-collapse: collapse;
     white-space: nowrap;

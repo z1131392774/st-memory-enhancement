@@ -51,7 +51,7 @@ export class PopupMenu {
         this.menuItems.forEach((item, index, type) => {
             const menuItem = document.createElement('div');
             menuItem.innerHTML = item.html;
-            menuItem.style.padding = '5px 10px';
+            menuItem.style.padding = '5px';
             menuItem.style.cursor = 'pointer';
             menuItem.style.userSelect = 'none';
             menuItem.style.justifyContent = 'flex-start';
