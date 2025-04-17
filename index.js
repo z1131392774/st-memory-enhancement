@@ -293,7 +293,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
                 // 执行删除操作
                 const deleteRow = parseInt(action.rowIndex) + 1
                 const cell = sheet.findCellByPosition(deleteRow, 0)
-                if (!cell) return
+                if (!cell) continue
                 cell.newAction(cell.CellAction.deleteSelfRow, {}, false)
                 break
         }
