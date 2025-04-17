@@ -131,7 +131,7 @@ export const BASE = {
             return { deep: -1, piece: BASE.initHashSheet() }
         }
         const startIndex = startAtLastest ? chat.length - deep - 1 : deep;
-        for (let i = startIndex; i >= 0 && i >= chat.length - cutoff; i--) {
+        for (let i = startIndex; i >= 0 && i >= startIndex - cutoff; i--) {
             if (chat[i].is_user === true) continue; // 跳过用户消息
             if (chat[i].hash_sheets) {
                 console.log("向上查询表格数据，找到表格数据", chat[i])
