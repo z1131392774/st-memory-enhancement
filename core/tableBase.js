@@ -218,7 +218,7 @@ class SheetBase {
             return null;
         }
         return this.hashSheet[rowIndex].map(uid => this.cells.get(uid));
-    }                                                                                                   
+    }
     /**
      * 获取表格csv格式的内容
      * @returns
@@ -859,7 +859,7 @@ class Cell {
 }
 
 // Helper function to convert column index to letter (A, B, C...)
-function getColumnLetter(colIndex) {
+export function getColumnLetter(colIndex) {
     let letter = '';
     let num = colIndex;
     while (num >= 0) {
