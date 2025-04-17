@@ -751,7 +751,7 @@ class Cell {
             }
         }
         this.uid = targetCell.uid || `cell_${this.parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(16)}`;
-        this.coordUid = targetCell.coordUid || `coo_${SYSTEM.generateRandomString(18)}`;
+        this.coordUid = targetCell.coordUid || `coo_${SYSTEM.generateRandomString(15)}`;
         this.type = targetCell.type || CellType.cell;
         this.status = targetCell.status || '';
         this.element = targetCell.element || null;

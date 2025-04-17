@@ -191,10 +191,36 @@ function setTableEditTips(tableEditTips) {
     }
 }
 
-async function templateCellDataEdit(cell) {
+async function cellDataEdit(cell) {
     const result = await EDITOR.callGenericPopup("编辑单元格", EDITOR.POPUP_TYPE.INPUT, cell.data.value, { rows: 3 })
     if (result) {
         cell.editCellData({ value: result })
+        refreshContextView(true);
+    }
+}
+
+
+async function columnDataEdit(cell) {
+    const columnEditor = `
+<div class="column-editor">
+    <div class="column-editor-header">
+        <h3>编辑列数据</h3>
+    </div>
+    <div class="column-editor-body">
+        <div class="column-editor-content">
+            <label for="column-editor-input">列数据:</label>
+            <textarea id="column-editor-input" rows="5"></textarea>
+        </div>
+    </div>
+</div>
+`
+    const columnCellDataPopup = new EDITOR.Popup(columnEditor, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "应用修改", cancelButton: "取消" });
+    const historyContainer = $(columnCellDataPopup.dlg)[0];
+
+    await columnCellDataPopup.show();
+
+    if (columnCellDataPopup.result) {
+        // cell.editCellData({ value: result })
         refreshContextView(true);
     }
 }
@@ -347,49 +373,53 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
             menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow), menu.ItemType.warning )
         } else if (rowIndex === 0) {
-            menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await templateCellDataEdit(cell));
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await cellDataEdit(cell));
             menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => handleAction(cell, cell.CellAction.insertLeftColumn));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-trash-alt"></i> 删除列', () => confirmAction(() => { handleAction(cell, cell.CellAction.deleteSelfColumn) }, '确认删除列？'), menu.ItemType.warning);
         } else {
-            menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async () => await templateCellDataEdit(cell));
+            menu.add('<i class="fa fa-i-cursor"></i> 编辑该单元格', async () => await cellDataEdit(cell));
             menu.add('<i class="fa-solid fa-clock-rotate-left"></i> 单元格历史记录', async () => await cellHistoryView(cell));
         }
 
         // 设置弹出菜单后的一些非功能性派生操作，这里必须使用setTimeout，否则会导致菜单无法正常显示
         setTimeout(() => {
-            // 备份当前cell的style，以便在菜单关闭时恢复
-            const style = cell.element.style.cssText;
 
-            // 获取单元格位置
+        }, 0)
+
+        // 备份当前cell的style，以便在菜单关闭时恢复
+        const style = cell.element.style.cssText;
+
+        // 获取单元格位置
+        const rect = cell.element.getBoundingClientRect();
+        const tableRect = viewSheetsContainer.getBoundingClientRect();
+
+        // 计算菜单位置（相对于表格容器）
+        const menuLeft = rect.left - tableRect.left;
+        const menuTop = rect.bottom - tableRect.top;
+        const menuElement = menu.renderMenu();
+        $(viewSheetsContainer).append(menuElement);
+
+        // 高亮cell
+        cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+        cell.element.style.color = 'var(--SmartThemeQuoteColor)';
+        cell.element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
+        cell.element.style.zIndex = '999';
+
+        menu.show(menuLeft, menuTop).then(() => {
+            cell.element.style.cssText = style;
+        })
+        menu.frameUpdate((menu) => {
+            // 重新定位菜单
             const rect = cell.element.getBoundingClientRect();
             const tableRect = viewSheetsContainer.getBoundingClientRect();
 
             // 计算菜单位置（相对于表格容器）
             const menuLeft = rect.left - tableRect.left;
             const menuTop = rect.bottom - tableRect.top;
-            const menuElement = menu.renderMenu();
-            $(viewSheetsContainer).append(menuElement);
-
-            // 高亮cell
-            //cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
-            cell.element.style.color = 'var(--SmartThemeBodyColor)';
-
-            menu.show(menuLeft, menuTop).then(() => {
-                cell.element.style.cssText = style;
-            })
-            menu.frameUpdate((menu) => {
-                // 重新定位菜单
-                const rect = cell.element.getBoundingClientRect();
-                const tableRect = viewSheetsContainer.getBoundingClientRect();
-
-                // 计算菜单位置（相对于表格容器）
-                const menuLeft = rect.left - tableRect.left;
-                const menuTop = rect.bottom - tableRect.top;
-                menu.popupContainer.style.left = `${menuLeft}px`;
-                menu.popupContainer.style.top = `${menuTop}px`;
-            })
-        }, 0)
+            menu.popupContainer.style.left = `${menuLeft}px`;
+            menu.popupContainer.style.top = `${menuTop + 3}px`;
+        })
     })
     cell.on('', () => {
         console.log('cell发生了改变:', cell)
@@ -402,13 +432,13 @@ function handleAction(cell, action){
 }
 
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
-    for (let sheet of _sheets) {
+    for (let [index, sheet] of _sheets.entries()) {
         const instance = new BASE.Sheet(sheet)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
         sheetContainer.style.overflowX = 'none'
         sheetContainer.style.overflowY = 'auto'
-        sheetTitleText.innerText = sheet.name
+        sheetTitleText.innerText = `#${index} ${sheet.name}`
 
         let sheetElement = null
 
