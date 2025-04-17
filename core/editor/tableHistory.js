@@ -19,27 +19,32 @@ const histories = `
     display: flex;
     flex: 1;
     flex-direction: column;
-    padding: 10px;
     overflow-y: auto;
 }
 .history-tabs {
     display: flex;
     overflow-x: auto;
-    margin-bottom: 15px;
-    padding-bottom: 5px;
     z-index: 999;
 }
+
+/* 使.history-tabs的滚动条显示在上方 */
+.history-tabs::-webkit-scrollbar {
+
+}
+
 .history-tab {
     margin-right: 15px;
     cursor: pointer;
     border-radius: 5px 5px 0 0;
-    background-color: rgba(0, 0, 0, 0.3);
+    padding: 0 5px;
+    color: var(--SmartThemeBodyColor);
     white-space: nowrap;
     transition: background-color 0.3s;
 }
 .history-tab.active {
+    color: var(--SmartThemeQuoteColor);
     background-color: rgba(100, 100, 255, 0.3);
-    font-weight: 500;
+    font-weight: bold;
 }
 .history-sheets-content {
     display: flex;
@@ -60,6 +65,9 @@ const histories = `
 .history-cell-list {
     overflow-y: auto;
     width: 100%;
+    /* 防止内容跳动 */
+    will-change: transform;
+    transform: translateZ(0);
 }
 .history-cell-item {
     display: flex;
@@ -110,6 +118,12 @@ const histories = `
 </div>
 `
 
+function scrollToBottom(container) {
+    // 在弹窗显示后滚动到底部
+    const contentContainer = $(container).find('.table-history-content');
+    contentContainer.scrollTop(contentContainer[0].scrollHeight);
+}
+
 function updateTableHistoryData(container) {
     const { piece, deep } = BASE.getLastSheetsPiece();
     const sheetsData = BASE.sheetsData.context;
@@ -152,53 +166,38 @@ function updateTableHistoryData(container) {
         const sheetContainer = $(`<div id="${sheetId}" class="history-sheet-container ${validSheetCount === 1 ? 'active' : ''}"></div>`);
         const cellListContainer = $('<div class="history-cell-list"></div>');
 
-        // 创建表格的单元格历史记录
-        const cellHistory = [...sheetData.cellHistory];
-
-        // 按照创建时间排序，最新的在前面
-        cellHistory.sort((a, b) => {
-            return b.uid.localeCompare(a.uid);  // uid通常包含时间戳，所以可以用来排序
-        });
-
         // 计数有效的历史记录数量
         let validHistoryCount = 0;
+        const sheetInstance = new BASE.Sheet(sheetData);
 
-        cellHistory.forEach(cell => {
-            // 确保位置缓存存在
-            const positionCache = {};
-            if (sheetData.hashSheet) {
-                sheetData.hashSheet.forEach((row, rowIndex) => {
-                    row.forEach((cellUid, colIndex) => {
-                        positionCache[cellUid] = [rowIndex, colIndex];
-                    });
-                });
-            }
-
-            // 获取单元格位置信息
-            const position = positionCache[cell.uid] || [-1, -1];
-            const [rowIndex, colIndex] = position;
+        sheetInstance.cellHistory.forEach(cell => {
+            const cellInstance = sheetInstance.cells.get(cell.uid);
+            const [rowIndex, colIndex] = cellInstance.position;
+            console.log(rowIndex, colIndex, cellInstance);
 
             // 只显示有值的单元格
             if (!cell.data || !cell.data.value) return;
 
-            // 跳过第一行第一列（表格原始单元格）
-            if (rowIndex === 0 && colIndex === 0) return;
+            // // 跳过第一行第一列（表格原始单元格）
+            // if (rowIndex === 0 && colIndex === 0) return;
 
             // 创建位置显示
-            let positionDisplay = '未知';
-            if (rowIndex >= 0 && colIndex >= 0) {
-                if (rowIndex === 0) {
-                    positionDisplay = `列头${colIndex}`; // 列表头
+            const positionDisplay = () => {
+                if (rowIndex === 0 && colIndex === 0) {
+                    return `<span style="color: var(--SmartThemeEmColor);">表格源</span>`;
+                } else if (rowIndex === 0) {
+                    return `列 <span style="color: var(--SmartThemeQuoteColor);">${colIndex}</span>`;
                 } else if (colIndex === 0) {
-                    positionDisplay = `行头${rowIndex}`; // 行表头
-                } else {
-                    positionDisplay = `${getColumnLetter(colIndex-1)}${rowIndex}`; // 普通单元格，如A1, B2
+                    return `行 <span style="color: var(--SmartThemeQuoteColor);">${rowIndex}</span>`;
+                } else if (rowIndex > 0 && colIndex > 0) {
+                    return `<span style="color: #4C8BF5;">${getColumnLetter(colIndex-1)}</span><span style="color: #34A853;">${rowIndex}</span>`;
                 }
+                return '<span style="color: #EA4335;">旧数据</span>';
             }
 
             // 创建历史条目
             const historyItem = $('<div class="history-cell-item"></div>');
-            const positionElement = $(`<div class="history-cell-position">${positionDisplay}</div>`);
+            const positionElement = $(`<div class="history-cell-position">${positionDisplay()}</div>`);
             const valueElement = $(`<div class="history-cell-value">${cell.data.value}</div>`);
             const timestampElement = $(`<div class="history-cell-timestamp">${cell.uid.slice(-4)}</div>`);
 
@@ -234,6 +233,9 @@ function updateTableHistoryData(container) {
         $(this).addClass('active');
         const targetId = $(this).data('target');
         $(`#${targetId}`).addClass('active');
+
+        // 滚动内容区域到底部
+        scrollToBottom(container);
     });
 }
 
@@ -248,4 +250,6 @@ export async function openTableHistoryPopup(){
     updateTableHistoryData(historyContainer);
 
     await tableHistoryPopup.show();
+
+    scrollToBottom(historyContainer);
 }

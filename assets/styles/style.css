@@ -7,7 +7,6 @@
 .--SmartThemeChatTintColor {}           /* 聊天背景颜色 */
 .--SmartThemeBlurTintColor {}           /* 模糊背景颜色 */
 .--SmartThemeBorderColor {}             /* 主题边框颜色 */
-.--SmartThemeBodyColor {}               /* 主题正文颜色 */
 .--SmartThemeUserMesBlurTintColor {}    /* 用户消息模糊背景颜色 */
 .--SmartThemeBotMesBlurTintColor {}     /* 机器人消息模糊背景颜色 */
 
