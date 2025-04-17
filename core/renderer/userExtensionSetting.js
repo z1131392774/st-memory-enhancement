@@ -5,6 +5,7 @@ import {generateDeviceId} from "../../utils/utility.js";
 import {encryptXor, updateModelList} from "../standaloneAPI.js";
 import {filterTableDataPopup} from "../pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
+import {rollbackVersion} from "../../services/debugs.js";
 
 /**
  * 格式化深度设置
@@ -212,6 +213,12 @@ function InitBinging() {
     $("#table-set-export").on('click', () => exportTableSet());
     // 重置设置
     $("#table-reset").on('click', () => resetSettings());
+    // 回退表格2.0到1.0
+    $("#table-init-from-2-to-1").on('click', async () => {
+        if (await rollbackVersion() === true) {
+            window.location.reload()
+        }
+    });
     // 插件总体开关
     $('#table_switch').change(function () {
         USER.tableBaseSetting.isExtensionAble = this.checked;

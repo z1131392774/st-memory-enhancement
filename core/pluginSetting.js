@@ -23,6 +23,9 @@ const tableInitPopupDom = `
 <div class="checkbox flex-container">
     <input type="checkbox" id="table_init_structure"><span>表格结构</span>
 </div>
+<!--<div class="checkbox flex-container">-->
+<!--    <input type="checkbox" id="table_init_data2"><span>2.0表格数据（用于调试）</span>-->
+<!--</div>-->
 `;
 
 
@@ -158,12 +161,12 @@ export const defaultSettings = {
       - 表名: [tableIndex:表名] (示例: [2:角色特征表格])
       - 列名: [colIndex:列名] (示例: [2:示例列])
       - 行名: [rowIndex]
-  
+
   {{tableData}}
-  
+
   # 增删改dataTable操作方法：
   -当你生成正文后，需要根据【增删改触发条件】对每个表格是否需要增删改进行检视。如需修改，请在<tableEdit>标签中使用 JavaScript 函数的写法调用函数，并使用下面的 OperateRule 进行。
-  
+
   ## 操作规则 (必须严格遵守)
   <OperateRule>
   -在某个表格中插入新行时，使用insertRow函数：
@@ -176,7 +179,7 @@ export const defaultSettings = {
   updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
   例如：updateRow(0, 0, {3: "惠惠"})
   </OperateRule>
-  
+
   # 重要操作原则 (必须遵守)
   -当<user>要求修改表格时，<user>的要求优先级最高。
   -每次回复都必须根据剧情在正确的位置进行增、删、改操作，禁止捏造信息和填入未知。
@@ -185,7 +188,7 @@ export const defaultSettings = {
   -string中，禁止出现双引号。
   -社交表格(tableIndex: 2)中禁止出现对<user>的态度。反例 (禁止)：insertRow(2, {"0":"<user>","1":"未知","2":"无","3":"低"})
   -<tableEdit>标签内必须使用<!-- -->标记进行注释
-  
+
   # 输出示例：
   <tableEdit>
   <!--
@@ -216,7 +219,7 @@ export const defaultSettings = {
   // 表格推送模式
   table_to_chat_mode: 'context_bottom',
   to_chat_container: `<div class="table-preview-bar"><details>
-    <summary style="display: flex; justify-content: space-between"> <button class="f5-reload-window" onclick="window.location.reload()">刷新</button> <span>记忆增强表格</span> </summary>
+    <summary style="display: flex; justify-content: space-between"> <span>记忆增强表格</span> </summary>
     $0
     </details></div>
 

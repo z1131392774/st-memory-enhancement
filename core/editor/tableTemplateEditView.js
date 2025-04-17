@@ -426,7 +426,7 @@ async function updateDragTables() {
         }
     }
 
-    for (const uid of uidsToUpdate) {
+    for (const [index, uid] of uidsToUpdate.entries()) {
         const tableElement = renderedTables.get(uid);
         if (tableElement) {
             let sheet = new BASE.SheetTemplate(uid);

@@ -80,6 +80,14 @@
     width: 1.2rem;
 }
 
+.button-square-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 .tableDom {
     border-collapse: collapse;
     white-space: nowrap;
