@@ -79,6 +79,7 @@ class SheetBase {
                         });
                     });
                     this._cellPositionCacheDirty = false;   // 更新完成，标记为干净
+                    console.log('重新计算 positionCache: ', map);
                 }
                 return map.get(uid);
             },
@@ -586,8 +587,10 @@ class Cell {
     CellAction = CellAction;
 
     constructor(parent, target = null) {
-        this.uid = '';
+        this.uid = undefined;
         this.parent = parent;
+        this.positionUid = undefined;
+
         this.type = '';
         this.status = '';
         this.targetUid = '';
@@ -609,6 +612,18 @@ class Cell {
     get position() {
         return this.#positionInParentCellSheet();
     }
+    get headerRowCell() {
+        const p = this.#positionInParentCellSheet();
+        return this.parent.findCellByPosition(p[0], 0);
+    }
+    get headerColumnCell() {
+        const p = this.#positionInParentCellSheet();
+        return this.parent.findCellByPosition(0, p[1]);
+    }
+    get header() {
+
+    }
+
     newAction(actionName, props, isSave = true) {
         this.#event(actionName, props, isSave);
     }
