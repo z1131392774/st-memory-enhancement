@@ -589,11 +589,11 @@ class Cell {
     constructor(parent, target = null) {
         this.uid = undefined;
         this.parent = parent;
-        this.positionUid = undefined;
 
         this.type = '';
         this.status = '';
-        this.targetUid = '';
+        this.coordUid = undefined; // 用于存储单元格的坐标 uid
+        // this.targetUid = undefined;
         this.element = null;
         this.data = new Proxy({}, {
             get: (target, prop) => {
@@ -606,22 +606,21 @@ class Cell {
         });
 
         this.customEventListeners = {}; // 存储自定义事件监听器，key 为事件名 (CellAction 或 '')，value 为回调函数
-        this.init(target);
+        this.#init(target);
     }
 
     get position() {
         return this.#positionInParentCellSheet();
     }
-    get headerRowCell() {
+    get headerX() {
         const p = this.#positionInParentCellSheet();
-        return this.parent.findCellByPosition(p[0], 0);
+        const targetUid = this.parent.hashSheet[p[0]][0];   // 获取当前单元格所在行的第一个单元格的 uid
+        return this.parent.cells.get(targetUid);
     }
-    get headerColumnCell() {
+    get headerY() {
         const p = this.#positionInParentCellSheet();
-        return this.parent.findCellByPosition(0, p[1]);
-    }
-    get header() {
-
+        const targetUid = this.parent.hashSheet[0][p[1]];   // 获取当前单元格所在列的第一个单元格的 uid
+        return this.parent.cells.get(targetUid);
     }
 
     newAction(actionName, props, isSave = true) {
@@ -737,7 +736,7 @@ class Cell {
     bridge = {
 
     }
-    init(target) {
+    #init(target) {
         let targetUid = target?.uid || target;
         let targetCell = {};
         if (targetUid) {
@@ -752,6 +751,7 @@ class Cell {
             }
         }
         this.uid = targetCell.uid || `cell_${this.parent.uid.split('_')[1]}_${SYSTEM.generateRandomString(16)}`;
+        this.coordUid = targetCell.coordUid || `coo_${SYSTEM.generateRandomString(18)}`;
         this.type = targetCell.type || CellType.cell;
         this.status = targetCell.status || '';
         this.element = targetCell.element || null;
@@ -821,6 +821,7 @@ class Cell {
             return;
         }
         let cell = new Cell(this.parent);
+        cell.coordUid = this.coordUid;
         cell.data = { ...this.data, ...props };
         const [rowIndex, colIndex] = this.#positionInParentCellSheet()
         this.parent.cells.set(cell.uid, cell);
@@ -894,7 +895,13 @@ function filterSavingData(sheet) {
         required: sheet.required,
         tochat: sheet.tochat,
         hashSheet: sheet.hashSheet, // 保存 hashSheet (只包含 cell uid)
-        cellHistory: sheet.cellHistory.map(({ parent, element, customEventListeners, ...filter }) => {
+        cellHistory: sheet.cellHistory.map((
+            {
+                parent,
+                element,
+                customEventListeners,
+                ...filter
+            }) => {
             return filter;
         }), // 保存 cellHistory (不包含 parent)
     };

@@ -243,8 +243,7 @@ function updateTableHistoryData(container) {
  * 打开表格编辑历史记录弹窗
  * */
 export async function openTableHistoryPopup(){
-    const manager = histories;
-    const tableHistoryPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: false });
+    const tableHistoryPopup = new EDITOR.Popup(histories, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: false });
     const historyContainer = $(tableHistoryPopup.dlg)[0];
 
     updateTableHistoryData(historyContainer);

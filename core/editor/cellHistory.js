@@ -72,19 +72,65 @@ function scrollToBottom(container) {
     contentContainer.scrollTop(contentContainer[0].scrollHeight);
 }
 
-function updateCellHistoryData(container) {
+function updateCellHistoryData(container, cell) {
+    const { piece, deep } = BASE.getLastSheetsPiece();
+    const sheetsData = BASE.sheetsData.context;
+    if (!piece || !piece.hash_sheets) return;
 
+    // 获取内容容器
+    const contentContainer = $(container).find('.cell-history-content');
+
+    const cellHistory = cell.parent.cellHistory
+    const selfHistory = cellHistory.filter(c => {
+        if (c.coordUid === cell.coordUid) {
+            return c
+        } else {
+            return false
+        }
+    });
+
+    // 清空现有内容
+    const sheetsContainer = $(contentContainer).find('.history-sheets-content');
+    sheetsContainer.empty();
+
+    // 如果没有历史数据，显示提示
+    if (!selfHistory || selfHistory.length === 0) {
+        sheetsContainer.append('<div class="history-empty">此单元格没有历史数据</div>');
+        return;
+    }
+
+    // 创建单元格历史内容区域
+    const historyContainer = $('<div class="history-sheet-container active"></div>');
+    const cellListContainer = $('<div class="history-cell-list"></div>');
+
+    // 遍历历史记录
+    selfHistory.forEach(historyCell => {
+        // 只显示有值的历史记录
+        if (!historyCell.data || !historyCell.data.value) return;
+
+        // 创建历史条目
+        const historyItem = $('<div class="history-cell-item"></div>');
+        const valueElement = $(`<div class="history-cell-value">${historyCell.data.value}</div>`);
+        const timestampElement = $(`<div class="history-cell-timestamp">${historyCell.uid.slice(-4)}</div>`);
+
+        historyItem.append(valueElement);
+        historyItem.append(timestampElement);
+
+        cellListContainer.append(historyItem);
+    });
+
+    historyContainer.append(cellListContainer);
+    sheetsContainer.append(historyContainer);
 }
 
 /**
  * 打开表格编辑历史记录弹窗
  * */
-export async function openCellHistoryPopup(){
-    const manager = histories;
-    const cellHistoryPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: false });
+export async function openCellHistoryPopup(cell){
+    const cellHistoryPopup = new EDITOR.Popup(histories, EDITOR.POPUP_TYPE.TEXT, '', { large: true, wide: true, allowVerticalScrolling: false });
     const historyContainer = $(cellHistoryPopup.dlg)[0];
 
-    updateCellHistoryData(historyContainer);
+    updateCellHistoryData(historyContainer, cell);
 
     await cellHistoryPopup.show();
 

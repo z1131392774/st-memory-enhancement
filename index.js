@@ -324,8 +324,8 @@ function sortActions(actions) {
 /**
  * 格式化参数
  * @description 将参数数组中的字符串转换为数字或对象
- * @param {string[]} paramArray 
- * @returns 
+ * @param {string[]} paramArray
+ * @returns
  */
 function formatParams(paramArray) {
     return paramArray.map(item => {
