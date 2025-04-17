@@ -98,7 +98,7 @@ export function parseLooseDict(str) {
             i++;
         }
 
-        result[key] = value.trim();
+        result[key] = value.trim().replace(/,/g, '/'); // 替换逗号
 
         // 跳过分隔符和空格
         while (i < len && (content[i] === ',' || content[i] === ' ')) {
