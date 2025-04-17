@@ -4,6 +4,7 @@ import { findNextChatWhitTableData, } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
 import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
+import {openTableStatisticsPopup} from "./tableStatistics.js";
 
 let tablePopup = null
 let copyTableData = {}
@@ -463,6 +464,10 @@ async function initTableView(mesId) {
     setTableEditTips($(initializedTableView).find('#tableEditTips'));    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
 
     // 设置编辑提示
+    // 点击打开查看表格数据统计
+    $(document).on('click', '#table_data_statistics_button', function () {
+        openTableStatisticsPopup();
+    })
     // 点击打开查看表格历史按钮
     $(document).on('click', '#dataTable_history_button', function () {
         openTableHistoryPopup();
