@@ -470,12 +470,12 @@ async function renderSheetsDOM() {
     const { piece, deep } = BASE.getLastSheetsPiece();
     if (!piece || !piece.hash_sheets) return;
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
-    console.log('renderSheetsDOM:', piece, sheets)
+    // console.log('renderSheetsDOM:', piece, sheets)
     DERIVED.any.renderingSheets = sheets
 
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
     lastCellsHashSheet = BASE.getLastSheetsPiece(deep - 1, 3, false)?.piece.hash_sheets;
-    console.log("找到的diff前项", lastCellsHashSheet)
+    // console.log("找到的diff前项", lastCellsHashSheet)
     if (lastCellsHashSheet) {
         lastCellsHashSheet = BASE.copyHashSheets(lastCellsHashSheet)
         for (const sheetUid in lastCellsHashSheet) {

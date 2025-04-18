@@ -442,6 +442,20 @@ async function updateDragTables() {
     }
 }
 
+export function updateTableContainerPosition() {
+    const windowHeight = window.innerHeight;
+    const contentContainer = table_editor_container.querySelector('#contentContainer');
+    console.log("contentContainer", contentContainer)
+    const sendFormHeight = document.querySelector('#send_form')?.getBoundingClientRect().height || 0;
+    const rect = contentContainer.getBoundingClientRect();
+    console.log("contentContainer 位置变化", rect, windowHeight, sendFormHeight)
+    contentContainer.style.position = 'flex';
+    contentContainer.style.bottom = '0';
+    contentContainer.style.left = '0';
+    contentContainer.style.width = '100%';
+    contentContainer.style.height = `calc(${windowHeight}px - ${rect.top}px - ${sendFormHeight}px)`;
+}
+
 export async function refreshTempView(ignoreGlobal = false) {
     if(ignoreGlobal && scope === 'global') return
     console.log("刷新表格模板视图")
@@ -451,7 +465,7 @@ export async function refreshTempView(ignoreGlobal = false) {
 }
 
 async function initTableEdit(mesId) {
-    const table_editor_container = $(await SYSTEM.getTemplate('editor')).get(0);
+    table_editor_container = $(await SYSTEM.getTemplate('editor')).get(0);
     const tableEditTips = table_editor_container.querySelector('#tableEditTips');
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');
@@ -463,8 +477,13 @@ async function initTableEdit(mesId) {
 
     $(contentContainer).empty()
     drag = new EDITOR.Drag();
-    contentContainer.append(drag.render);
+    const draggable = drag.render
+    contentContainer.append(draggable);
     drag.add('tableContainer', tableContainer);
+
+    // 添加事件监听器
+    contentContainer.addEventListener('mouseenter', updateTableContainerPosition);
+    contentContainer.addEventListener('focus', updateTableContainerPosition);
 
     $(scopeSelect).val(scope).on('change', async function () {
         scope = $(this).val();

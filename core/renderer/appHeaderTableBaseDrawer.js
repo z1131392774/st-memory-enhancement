@@ -1,6 +1,6 @@
 import {DERIVED, EDITOR, SYSTEM, USER} from "../../manager.js";
 import {getChatSheetsView} from "../editor/chatSheetsDataView.js";
-import {getEditView} from "../editor/tableTemplateEditView.js";
+import {getEditView, updateTableContainerPosition} from "../editor/tableTemplateEditView.js";
 import {updateSheetsView} from "../../index.js";
 
 // 全局变量定义 (保持不变)
@@ -114,6 +114,7 @@ export async function initAppHeaderTableDrawer() {
     editorButton.on('click', function() {
         if (updateButtonStates(editorButton)) {
             switchContent(editorContentDiv); // 传入缓存的 jQuery 对象
+            // updateTableContainerPosition();
         }
     });
 

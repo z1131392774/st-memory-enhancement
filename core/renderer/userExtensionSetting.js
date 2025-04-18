@@ -64,6 +64,37 @@ function updateTableView() {
 //     }
 }
 
+function getSheetsCellStyle() {
+    const style = document.createElement('style');  // 为 sheetContainer 的内容添加一个 style
+    // 获取 sheetContainer 元素
+    const cellWidth = USER.tableBaseSetting.table_cell_width_mode
+    let sheet_cell_style_container = document.querySelector('#sheet_cell_style_container');
+    if (sheet_cell_style_container) {
+        // 清空现有的样式
+        sheet_cell_style_container.innerHTML = '';
+    } else {
+        // 创建一个新的 sheet_cell_style_container 元素
+        sheet_cell_style_container = document.createElement('div');
+        sheet_cell_style_container.id = 'sheet_cell_style_container';
+        document.body.appendChild(sheet_cell_style_container);
+    }
+    switch (cellWidth) {
+        case 'single_line':
+            style.innerHTML = ``;
+            break;
+        case 'wide1_cell':
+            style.innerHTML = ` tr .sheet-cell { max-width: 800px !important; white-space: normal !important; } `;
+            break;
+        case 'wide1_2_cell':
+            style.innerHTML = ` tr .sheet-cell { max-width: 400px !important; white-space: normal !important; } `;
+            break;
+        case 'wide1_4_cell':
+            style.innerHTML = ` tr .sheet-cell { max-width: 200px !important; white-space: normal !important; } `;
+            break;
+    }
+    sheet_cell_style_container.appendChild(style);
+}
+
 /**
  * 将表格结构转为设置DOM
  * @param {object} tableStructure 表格结构
@@ -330,6 +361,12 @@ function InitBinging() {
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
 
+    // 根据下拉列表选择表格推送位置
+    $('#table_cell_width_mode').change(function(event) {
+        USER.tableBaseSetting.table_cell_width_mode = event.target.value;
+        getSheetsCellStyle()
+    });
+
 
     // API URL
     $('#custom_api_url').on('input', function() {
@@ -417,6 +454,7 @@ export function renderSetting() {
     // 初始化数值
     $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).prop('selected', true);
     $(`#table_to_chat_mode option[value="${USER.tableBaseSetting.table_to_chat_mode}"]`).prop('selected', true);
+    $(`#table_cell_width_mode option[value="${USER.tableBaseSetting.table_cell_width_mode}"]`).prop('selected', true);
     $('#dataTable_message_template').val(USER.tableBaseSetting.message_template);
     $('#dataTable_deep').val(USER.tableBaseSetting.deep);
     $('#clear_up_stairs').val(USER.tableBaseSetting.clear_up_stairs);
@@ -494,6 +532,7 @@ export function loadSettings() {
     InitBinging();
     initRefreshTypeSelector(); // 初始化表格刷新类型选择器
     updateTableView(); // 更新表格视图
+    getSheetsCellStyle()
 }
 
 export function initTableStructureToTemplate() {

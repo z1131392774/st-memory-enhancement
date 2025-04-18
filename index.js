@@ -8,7 +8,7 @@ import { TableTwoStepSummary } from "./core/runtime/separateTableUpdate.js";
 import { initTest } from "./components/_fotTest.js";
 import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./core/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './core/runtime/absoluteRefresh.js';
-import { refreshTempView } from "./core/editor/tableTemplateEditView.js";
+import {refreshTempView, updateTableContainerPosition} from "./core/editor/tableTemplateEditView.js";
 import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
 import { parseLooseDict } from "./utils/stringUtil.js"
@@ -610,8 +610,6 @@ export async function updateSheetsView() {
     updateSystemMessageTableStatus();
 }
 
-
-
 jQuery(async () => {
     // 版本检查
     fetch("http://api.muyoo.com.cn/check-version", {
@@ -651,6 +649,7 @@ jQuery(async () => {
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
         openAppHeaderTableDrawer();
+        // updateTableContainerPosition();
     })
     // // 设置表格编辑按钮
     // $(document).on('click', '.tableEditor_editButton', function () {

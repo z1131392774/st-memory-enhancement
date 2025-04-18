@@ -40,11 +40,11 @@ function updataTableStatisticsData(container) {
     const cellHistories = sheetsData.map(sheet => sheet.cellHistory);
     const sheetDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
     const sheetsValueCount = estimateTokenCount(sheetDataPrompt);
-    const lastChangeFloor = `${deep - 1}/${USER.getContext().chat.length - 1}`;
+    const lastChangeFloor = `${deep}/${USER.getContext().chat.length - 1}`;
 
     // 定义要显示的统计数据
     const statsData = [
-        { label: '已开启表格数量', value: piece.hash_sheets.length },
+        { label: '已开启表格数量', value: sheets.length },
         { label: '历史总单元格数量', value: cellHistories.reduce((acc, cellHistory) => acc + cellHistory.length, 0) },
         { label: '历史数据总大小', value: `${(JSON.stringify(sheetsData).length / 1024).toFixed(2)} KB` },
         { label: '当前表格模糊计算的Token数', value: Math.round(sheetsValueCount * 0.6) },

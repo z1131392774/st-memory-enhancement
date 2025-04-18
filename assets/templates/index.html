@@ -253,6 +253,16 @@
                                     <div class="inline-drawer-content" style="display: none; padding-left: 20px; width: calc(100% - 20px)">
                                         <!-- 高级设置选项 -->
                                         <div class="checkbox_label range-block justifyLeft">
+                                            <label for="table_cell_width_mode" data-i18n="Render to">单元格显示</label>
+                                            <select id="table_cell_width_mode" class="flex1" style="min-width: 100px">
+                                                <option value="single_line">不换行</option>
+                                                <option value="wide1_cell">宽</option>
+                                                <option value="wide1_2_cell">半宽</option>
+                                                <option value="wide1_4_cell">1/4宽</option>
+                                            </select>
+                                            <small id="table_to_chat_is_micro_d" class="toggle-description justifyLeft">所有位置表格的单元格显示方式</small>
+                                        </div>
+                                        <div class="checkbox_label range-block justifyLeft">
                                             <input type="checkbox" id="high_performance_sheets_render"><span data-i18n="Disable dynamic effects in table plugin">禁用表格插件内的动态效果</span>
                                             <small class="toggle-description justifyLeft" data-i18n="Disable dynamic effects description">(如果插件启用后出现运行时卡顿，可以尝试开启)</small>
                                         </div>
