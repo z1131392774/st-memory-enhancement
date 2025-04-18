@@ -484,6 +484,7 @@ async function renderSheetsDOM() {
     }
 
     $(viewSheetsContainer).empty()
+    viewSheetsContainer.style.paddingBottom = '150px'
     await renderEditableSheetsDOM(sheets, viewSheetsContainer)
 }
 

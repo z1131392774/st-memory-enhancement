@@ -32,7 +32,7 @@ const CellType = {
 }
 const cellStyle = `
     .sheet-table { border-collapse: collapse; width: max-content; }
-    .sheet-cell { border: 1px solid var(--SmartThemeBodyColor); padding: 1px; text-align: center; vertical-align: middle; cursor: cell; }
+    .sheet-cell { border: 1px solid var(--SmartThemeBodyColor); padding: 1px; min-width: 28px; text-align: center; vertical-align: middle; cursor: cell; }
     .sheet-cell-origin { min-width: 20px; min-height: 20px }
     .sheet-header-cell-top { font-weight: bold }
     .sheet-header-cell-left { font-weight: bold }
