@@ -6,6 +6,7 @@ import {encryptXor, updateModelList} from "../standaloneAPI.js";
 import {filterTableDataPopup} from "../../data/pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 import {rollbackVersion} from "../../services/debugs.js";
+import {customSheetsStylePopup} from "../editor/customSheetsStyle.js";
 
 /**
  * 格式化深度设置
@@ -400,11 +401,12 @@ function InitBinging() {
 
     // 表格推送至对话
     $("#dataTable_to_chat_button").on("click", async function () {
-        const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, USER.tableBaseSetting.to_chat_container, { rows: 10 })
-        if (result) {
-            USER.tableBaseSetting.to_chat_container = result;
-            updateSystemMessageTableStatus()
-        }
+        customSheetsStylePopup()
+        // const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, USER.tableBaseSetting.to_chat_container, { rows: 10, large: true });
+        // if (result) {
+        //     USER.tableBaseSetting.to_chat_container = result;
+        //     updateSystemMessageTableStatus()
+        // }
     })
 }
 

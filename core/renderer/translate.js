@@ -96,16 +96,16 @@ function translateElementsBySelector(translations, selector, key) {
  */
 export async function executeTranslation() {
     const lang = APP.getCurrentLocale();
-    console.log("Current language", lang);
+    console.log("当前语言", lang);
 
-    // Fetch translations for the current locale
+    // 获取翻译的 JSON 文件
     const translations = await fetchTranslations(lang);
     if (Object.keys(translations).length === 0) {
         console.warn("No translations found for locale:", lang);
         return;
     }
 
-    // Apply translations to the DOM
+    // 应用翻译
     applyTranslations(translations);
 
     console.log("Translation completed for locale:", lang);

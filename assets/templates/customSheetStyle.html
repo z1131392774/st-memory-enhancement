@@ -19,6 +19,13 @@
 </small>
 <hr>
 <div class="flex-container" style="display: flex; flex-direction: column; gap: 10px; margin: 10px 0; ">
+    <div class="checkbox flex-container" style="align-content: flex-start; margin-top: 10px;">
+        <span data-i18n="presetLabel">预设</span>
+        <select id="preset_style">
+            <option value="default" selected data-i18n="presetDefault">默认</option>
+            <!--            <option value="florescence_jl" title="来源：discord_玖琉_@autic3365">荧光</option>-->
+        </select>
+    </div>
     <div style=" display: flex; flex-direction: row; gap: 10px;">
         <input checked type="checkbox" id="table_style_button">
         <label data-i18n="enableCustomStyleLabel">启用该表的自定义样式</label>
