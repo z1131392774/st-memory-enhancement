@@ -3,7 +3,7 @@ import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
 import {encryptXor, updateModelList} from "../standaloneAPI.js";
-import {filterTableDataPopup} from "../pluginSetting.js";
+import {filterTableDataPopup} from "../../data/pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 import {rollbackVersion} from "../../services/debugs.js";
 

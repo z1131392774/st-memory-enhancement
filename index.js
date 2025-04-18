@@ -12,6 +12,7 @@ import { refreshTempView } from "./core/editor/tableTemplateEditView.js";
 import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
 import { parseLooseDict } from "./utils/stringUtil.js"
+import {executeTranslation} from "./core/renderer/translate.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -433,9 +434,9 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        if (eventData.dryRun === true || 
-            USER.tableBaseSetting.isExtensionAble === false || 
-            USER.tableBaseSetting.isAiReadTable === false || 
+        if (eventData.dryRun === true ||
+            USER.tableBaseSetting.isExtensionAble === false ||
+            USER.tableBaseSetting.isAiReadTable === false ||
             USER.tableBaseSetting.injection_mode === "injection_off") return
         console.log("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData()
@@ -679,6 +680,8 @@ jQuery(async () => {
 
     initAppHeaderTableDrawer().then(updateSheetsView);  // 初始化表格编辑器
     functionToBeRegistered()    // 注册用于调试的各种函数
+
+    executeTranslation(); // 执行翻译函数
 
     // 监听主程序事件
     APP.eventSource.on(APP.event_types.MESSAGE_RECEIVED, onMessageReceived);

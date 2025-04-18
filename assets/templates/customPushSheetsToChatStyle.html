@@ -11,8 +11,8 @@
     </style>
 </head>
 <body>
-<h2 class="marginBot5"><span>自定义表格样式</span></h2>
-<small>
+<h2 class="marginBot5"><span data-i18n="customTableStyleTitle">自定义表格样式</span></h2>
+<small data-i18n="customTableStyleDesc">
     自定义表格的显示样式，当样式内容为空时默认显示原始表格。
     <br>支持HTML、CSS定义结构样式，并使用<code>\$\w\s+</code>的方式定位单元格。
     <br>例如<code>$A0</code>代表第1列第1行(表头)，<code>$A1</code>代表第1列第2行(表内容第一行)。
@@ -20,28 +20,28 @@
 <hr>
 <div class="flex-container" style="display: flex; flex-direction: column; gap: 10px; margin: 10px 0; ">
     <div class="checkbox flex-container" style="align-content: flex-start; margin-top: 10px;">
-        <span>预设</span>
+        <span data-i18n="presetLabel">预设</span>
         <select id="preset_style">
-            <option value="default" selected>默认</option>
-<!--            <option value="florescence_jl" title="来源：discord_玖琉_@autic3365">荧光</option>-->
+            <option value="default" selected data-i18n="presetDefault">默认</option>
+            <!--            <option value="florescence_jl" title="来源：discord_玖琉_@autic3365">荧光</option>-->
         </select>
     </div>
     <div class="checkbox flex-container" style="align-content: flex-start; margin-top: 10px;">
         <input type="checkbox" id="insert_last_piece">
-        <span>插入到最后一条对话</span>
-        <small>(插入到最后一条对话块底部而不是上下文底部)</small>
+        <span data-i18n="insertLastMessageLabel">插入到最后一条对话</span>
+        <small data-i18n="insertLastMessageDesc">(插入到最后一条对话块底部而不是上下文底部)</small>
     </div>
     <div style=" display: flex; flex-direction: column; text-align: left">
-        <label>使用正则替换对话中的内容：</label>
+        <label data-i18n="regexReplaceLabel">使用正则替换对话中的内容：</label>
         <input type="text" class="text_pole" id="table_to_chat_replace">
     </div>
     <div style=" display: flex; flex-direction: column; text-align: left">
-        <label>替换样式：</label>
+        <label data-i18n="replacementStyleLabel">替换样式：</label>
         <textarea id="pushToChatStyleContent" rows="5"></textarea>
     </div>
 </div>
 <hr>
-<h3 class="marginBot5"><span>样式预览:</span></h3>
+<h3 class="marginBot5"><span data-i18n="stylePreviewLabel">样式预览:</span></h3>
 <div id="pushToChatSheetsRendererDisplay"></div>
 
 <script>
