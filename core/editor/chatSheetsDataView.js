@@ -306,6 +306,7 @@ async function confirmAction(event, text = '是否继续该操作？') {
 
     await confirmation.show();
     if (!confirmation.result) return { filterData: null, confirmation: false };
+    event()
 }
 
 /**
