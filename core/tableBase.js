@@ -39,9 +39,16 @@ const cellStyle = `
     .sheet-cell-other { min-width: 50px; border: 1px dashed var(--SmartThemeEmColor); }
 `
 
+const customStyleConfig = {
+    mode: 'regex',
+    basedOn: 'html',
+    regex: '/(^[\\s\\S]*$)/g',
+    replace: `$1`,
+}
+
 class SheetBase {
-    SheetDomain = SheetDomain;
-    SheetType = SheetType;
+    static SheetDomain = SheetDomain;
+    static SheetType = SheetType;
 
     constructor() {
         // 以下为基本属性
@@ -56,6 +63,15 @@ class SheetBase {
         // 以下为持久化数据
         this.cellHistory = [];                  // cellHistory 持久保持，只增不减
         this.hashSheet = [];                    // 每回合的 hashSheet 结构，用于渲染出表格
+
+        this.config = {
+            // 以下为其他的属性
+            toChat: true,                     // 用于标记是否发送到聊天
+            useCustomStyle: false,            // 用于标记是否使用自定义样式
+            selectedCustomStyleKey: '',       // 用于存储选中的自定义样式，当selectedCustomStyleUid没有值时，使用默认样式
+            customStyles: {'自定义样式': {...customStyleConfig}},                 // 用于存储自定义样式
+        }
+
 
         // 以下为派生数据
         this.cells = new Map();                 // cells 在每次 Sheet 初始化时从 cellHistory 加载
@@ -256,7 +272,7 @@ class SheetBase {
 export class SheetTemplate extends SheetBase {
     constructor(target = null) {
         super();
-        this.domain = this.SheetDomain.global
+        this.domain = SheetBase.SheetDomain.global
         this.currentPopupMenu = null;           // 用于跟踪当前弹出的菜单 - 移动到 Sheet (如果需要PopupMenu仍然在Sheet中管理)
         this.element = null;                    // 用于存储渲染后的 table 元素
         this.lastCellEventHandler = null;       // 保存最后一次使用的 cellEventHandler
@@ -583,8 +599,8 @@ export class Sheet extends SheetBase {
  * @description 单元格类是 Sheet 类的子类，用于管理 Sheet 中的单元格数据
  */
 class Cell {
-    CellType = CellType;
-    CellAction = CellAction;
+    static CellType = CellType;
+    static CellAction = CellAction;
 
     constructor(parent, target = null) {
         this.uid = undefined;
@@ -904,5 +920,6 @@ function filterSavingData(sheet) {
             }) => {
             return filter;
         }), // 保存 cellHistory (不包含 parent)
+        config: sheet.config,
     };
 }

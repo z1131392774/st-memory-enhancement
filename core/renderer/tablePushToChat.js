@@ -8,23 +8,6 @@ import {renderEditableSheetsDOM} from "../editor/chatSheetsDataView.js";
  * 对于任意\$\w\d+字符串，其中\w为表格的列数，\d+为表格的行数，例如$B3表示表格第二列第三行的内容，行数从header行开始计数，header行为0
  * */
 function parseTableRender(html, table) {
-    // if (!html) {
-    //     return table.render(); // 如果html为空，则直接返回
-    // }
-    // if (!table || !table.content || !table.columns) return html;
-    // html = html.replace(/\$(\w)(\d+)/g, function (match, colLetter, rowNumber) {
-    //     const colIndex = colLetter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0); // 将列字母转换为列索引 (A=0, B=1, ...)
-    //     const rowIndex = parseInt(rowNumber);
-    //     const r = `<span style="color: red">无单元格</span>`;
-    //     try {
-    //         return rowIndex === 0
-    //             ? table.columns[colIndex]                   // 行数从header行开始计数，header行为0
-    //             : table.content[rowIndex - 1][colIndex];    // content的行数从1开始
-    //     } catch (error) {
-    //         console.error(`Error parsing cell ${match}:`, error);
-    //         return r;
-    //     }
-    // });
     return html;
 }
 
@@ -63,7 +46,6 @@ function replaceTableToStatusTag(sheets) {
             currentTableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
             currentTableStatusContainer.removeEventListener('touchend', touchendHandler);
             currentTableStatusContainer?.remove(); // 移除旧的 tableStatusContainer
-            // chatContainer.removeChild(currentTableStatusContainer); // 移除旧的 tableStatusContainer
         }
 
         // 在这里添加新的 tableStatusContainer
@@ -102,16 +84,6 @@ export function updateSystemMessageTableStatus(force = false) {
     }
     console.log("更新最后一条 System ")
     const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
-    // let tableStatusHTML = '';
-    // for (let sheet of sheets) {
-    //     if (sheet.tochat) {
-    //         tableStatusHTML += `<h4>${sheet.name}</h4>`;
-    //         tableStatusHTML += sheet.renderSheet(cell => {
-    //             cell.element.style.cursor = 'default';
-    //         }).outerHTML;
-    //         tableStatusHTML += '<hr>';
-    //     }
-    // }
 
     replaceTableToStatusTag(sheets);
 }

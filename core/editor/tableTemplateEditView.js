@@ -445,10 +445,10 @@ async function updateDragTables() {
 export function updateTableContainerPosition() {
     const windowHeight = window.innerHeight;
     const contentContainer = table_editor_container.querySelector('#contentContainer');
-    console.log("contentContainer", contentContainer)
+    // console.log("contentContainer", contentContainer)
     const sendFormHeight = document.querySelector('#send_form')?.getBoundingClientRect().height || 0;
     const rect = contentContainer.getBoundingClientRect();
-    console.log("contentContainer 位置变化", rect, windowHeight, sendFormHeight)
+    // console.log("contentContainer 位置变化", rect, windowHeight, sendFormHeight)
     contentContainer.style.position = 'flex';
     contentContainer.style.bottom = '0';
     contentContainer.style.left = '0';
