@@ -168,25 +168,26 @@ export async function handleApiTestRequest(apiUrl, encryptedApiKeys, modelName) 
         return []; // 如果找不到有效的密钥则返回空数组
     }
 
-    const testAll = await EDITOR.confirm(`检测到 ${apiKeys.length} 个 API Key。 \n\n注意：测试方式和酒馆自带的相同，将会发送一次消息（token数量很少），但如果使用的是按次计费的API请注意消费情况。`, '只测试一个key', '测试所有key');
+    const testAll = await EDITOR.confirm(`检测到 ${apiKeys.length} 个 API Key。 \n\n注意：测试方式和酒馆自带的相同，将会发送一次消息（token数量很少），但如果使用的是按次计费的API请注意消费情况。`, '取消', '测试第一个key');
+
 
     let keysToTest = [];
     if (testAll === null) return []; // 用户取消弹窗，返回空数组
 
     if (testAll) {
-        keysToTest = apiKeys;
-        EDITOR.info(`开始测试所有 ${apiKeys.length} 个 API Key...`);
-    } else {
         keysToTest = [apiKeys[0]];
-        EDITOR.info(`开始测试第一个 API Key...`);
+        EDITOR.info(`开始测试第 ${keysToTest.length} 个 API Key...`);
+    } else {
+        return []; // 用户点击取消，返回空数组
     }
-
+    //！！~~~保留测试多个key的功能，暂时只测试第一个key~~~！！
     try {
         // 调用测试函数
         const results = await testApiConnection(apiUrl, keysToTest, modelName);
 
         // 处理结果并显示提示消息
         if (results && results.length > 0) {
+            EDITOR.clear(); // 清除之前显示的'开始测试第x个API Key...'提示
             let successCount = 0;
             let failureCount = 0;
             results.forEach(result => {
