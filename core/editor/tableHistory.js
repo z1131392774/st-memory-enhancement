@@ -173,7 +173,7 @@ function updateTableHistoryData(container) {
         sheetInstance.cellHistory.forEach(cell => {
             const cellInstance = sheetInstance.cells.get(cell.uid);
             const [rowIndex, colIndex] = cellInstance.position;
-            console.log(rowIndex, colIndex, cellInstance);
+            // console.log(rowIndex, colIndex, cellInstance);
 
             // 只显示有值的单元格
             if (!cell.data || !cell.data.value) return;

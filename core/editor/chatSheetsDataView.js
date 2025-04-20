@@ -6,6 +6,7 @@ import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
 import {openTableStatisticsPopup} from "./tableStatistics.js";
 import {openCellHistoryPopup} from "./cellHistory.js";
+import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";
 
 let tablePopup = null
 let copyTableData = {}
@@ -237,7 +238,7 @@ function batchEditMode(cell) {
 }
 
 // 新的事件处理函数
-function cellClickEditModeEvent(cell) {
+export function cellClickEditModeEvent(cell) {
     cell.element.style.cursor = 'pointer'
     if (cell.type === cell.CellType.row_header) {
         cell.element.textContent = ''
@@ -312,7 +313,7 @@ async function confirmAction(event, text = '是否继续该操作？') {
 /**
  * 单元格高亮
  */
-function cellHighlight(sheet) {
+export function cellHighlight(sheet) {
     const lastHashSheet = lastCellsHashSheet[sheet.uid] || []
     const changeSheet = sheet.hashSheet.map((row) => {
         const isNewRow = lastHashSheet.includes(row[0])
@@ -368,6 +369,7 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
+            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', () => openSheetStyleRendererPopup(cell.parent) );
         } else if (colIndex === 0) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));

@@ -1,31 +1,44 @@
 // tablePushToChat.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {findTableStructureByIndex} from "../../index.js";
-import {renderEditableSheetsDOM} from "../editor/chatSheetsDataView.js";
+import {parseSheetRender} from "./sheetCustomRenderer.js";
+import {cellClickEditModeEvent, cellHighlight} from "../editor/chatSheetsDataView.js";
 
 /**
  * 解析html，将其中代表表格单元格的\$\w\d+字符串替换为对应的表格单元格内容
  * 对于任意\$\w\d+字符串，其中\w为表格的列数，\d+为表格的行数，例如$B3表示表格第二列第三行的内容，行数从header行开始计数，header行为0
  * */
 function parseTableRender(html, table) {
-    // if (!html) {
-    //     return table.render(); // 如果html为空，则直接返回
-    // }
-    // if (!table || !table.content || !table.columns) return html;
-    // html = html.replace(/\$(\w)(\d+)/g, function (match, colLetter, rowNumber) {
-    //     const colIndex = colLetter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0); // 将列字母转换为列索引 (A=0, B=1, ...)
-    //     const rowIndex = parseInt(rowNumber);
-    //     const r = `<span style="color: red">无单元格</span>`;
-    //     try {
-    //         return rowIndex === 0
-    //             ? table.columns[colIndex]                   // 行数从header行开始计数，header行为0
-    //             : table.content[rowIndex - 1][colIndex];    // content的行数从1开始
-    //     } catch (error) {
-    //         console.error(`Error parsing cell ${match}:`, error);
-    //         return r;
-    //     }
-    // });
     return html;
+}
+
+async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
+    for (let [index, sheet] of _sheets.entries()) {
+        if (sheet.config.useCustomStyle === true) {
+            // 使用自定义样式
+            const customStyle = parseSheetRender(sheet)
+            const sheetContainer = document.createElement('div')
+            sheetContainer.innerHTML = customStyle
+            $(_viewSheetsContainer).append(sheetContainer)
+
+        } else {
+            // 使用默认样式
+            const instance = new BASE.Sheet(sheet)
+            const sheetContainer = document.createElement('div')
+            const sheetTitleText = document.createElement('h3')
+            sheetContainer.style.overflowX = 'none'
+            sheetContainer.style.overflowY = 'auto'
+            sheetTitleText.innerText = `#${index} ${sheet.name}`
+
+            let sheetElement = null
+            sheetElement = instance.renderSheet(cell => cell.element.style.cursor = 'default')
+            cellHighlight(instance)
+            $(sheetContainer).append(sheetElement)
+
+            $(_viewSheetsContainer).append(sheetTitleText)
+            $(_viewSheetsContainer).append(sheetContainer)
+            $(_viewSheetsContainer).append(`<hr>`)
+        }
+    }
 }
 
 /**
@@ -63,19 +76,13 @@ function replaceTableToStatusTag(sheets) {
             currentTableStatusContainer.removeEventListener('touchmove', touchmoveHandler);
             currentTableStatusContainer.removeEventListener('touchend', touchendHandler);
             currentTableStatusContainer?.remove(); // 移除旧的 tableStatusContainer
-            // chatContainer.removeChild(currentTableStatusContainer); // 移除旧的 tableStatusContainer
         }
 
         // 在这里添加新的 tableStatusContainer
         const r = USER.tableBaseSetting.to_chat_container.replace(/\$0/g, `<tableStatus id="table_push_to_chat_sheets"></tableStatus>`);
         $(chatContainer).append(`<div class="wide100p" id="tableStatusContainer">${r}</div>`); // 添加新的 tableStatusContainer
         const tableStatusContainer = chatContainer?.querySelector('#table_push_to_chat_sheets');
-        if (USER.tableBaseSetting.table_to_chat_can_edit === true) {
-            await renderEditableSheetsDOM(sheets, tableStatusContainer);
-        } else {
-            renderEditableSheetsDOM(sheets, tableStatusContainer, cell => cell.element.style.cursor = 'default');
-        }
-
+        renderEditableSheetsDOM(sheets, tableStatusContainer);
 
         // 获取新创建的 tableStatusContainer
         const newTableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');
@@ -85,7 +92,7 @@ function replaceTableToStatusTag(sheets) {
             newTableStatusContainer.addEventListener('touchmove', touchmoveHandler, {passive: false});
             newTableStatusContainer.addEventListener('touchend', touchendHandler, {passive: false});
         }
-        console.log('tableStatusContainer:', newTableStatusContainer);
+        // console.log('tableStatusContainer:', newTableStatusContainer);
     }, 0);
 }
 
@@ -100,18 +107,8 @@ export function updateSystemMessageTableStatus(force = false) {
             return;
         }
     }
-    console.log("更新最后一条 System ")
+    // console.log("更新最后一条 System ")
     const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
-    // let tableStatusHTML = '';
-    // for (let sheet of sheets) {
-    //     if (sheet.tochat) {
-    //         tableStatusHTML += `<h4>${sheet.name}</h4>`;
-    //         tableStatusHTML += sheet.renderSheet(cell => {
-    //             cell.element.style.cursor = 'default';
-    //         }).outerHTML;
-    //         tableStatusHTML += '<hr>';
-    //     }
-    // }
 
     replaceTableToStatusTag(sheets);
 }

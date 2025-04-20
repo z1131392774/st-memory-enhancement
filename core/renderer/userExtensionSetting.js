@@ -327,10 +327,9 @@ function InitBinging() {
         USER.tableBaseSetting.step_by_step_use_main_api = this.checked;
     });
     // 根据下拉列表选择的模型更新自定义模型名称
-    $('#model_selector').change(function() {
-        const selectedModel = $(this).val();
-        $('#custom_model_name').val(selectedModel);
-        USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = selectedModel;
+    $('#model_selector').change(function(event) {
+        $('#custom_model_name').val(event.target.value);
+        USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = event.target.value;
     });
     // 表格推送至对话开关
     $('#table_to_chat').change(function () {
@@ -439,11 +438,6 @@ function InitBinging() {
     // 表格推送至对话
     $("#dataTable_to_chat_button").on("click", async function () {
         customSheetsStylePopup()
-        // const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, USER.tableBaseSetting.to_chat_container, { rows: 10, large: true });
-        // if (result) {
-        //     USER.tableBaseSetting.to_chat_container = result;
-        //     updateSystemMessageTableStatus()
-        // }
     })
 }
 
