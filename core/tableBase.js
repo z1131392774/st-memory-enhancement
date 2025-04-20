@@ -567,6 +567,7 @@ export class Sheet extends SheetBase {
         let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === targetUid);
         if (targetSheetData?.uid) {
             Object.assign(this, filterSavingData(targetSheetData));
+            if(target.hashSheet) this.hashSheet =target.hashSheet.map(row => row.map(hash => hash));
             this.loadCells();
             this.markPositionCacheDirty();
             return this;

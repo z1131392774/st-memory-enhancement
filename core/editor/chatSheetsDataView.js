@@ -159,9 +159,6 @@ async function clearTable(mesId, viewSheetsContainer) {
             }
             if(piece.dataTable) delete piece.dataTable
         }))
-        const hash_sheets = BASE.initHashSheet().hash_sheets
-        const sheets = BASE.hashSheetsToSheets(hash_sheets)
-        sheets.forEach(sheet=>sheet.save())
         setTimeout(() => {
             USER.saveSettings()
             USER.saveChat();
