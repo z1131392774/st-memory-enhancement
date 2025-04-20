@@ -42,8 +42,11 @@ function refreshEditor() {
 
 function renderHTML() {
     const currentConfig = collectConfigThenUpdateTemplate();
-    const renderedHTML = parseSheetRender(templateInstance, currentConfig);
-    elements.rendererDisplay.html(renderedHTML);
+    if (currentConfig.useCustomStyle === true) {
+        elements.rendererDisplay.html(parseSheetRender(templateInstance, currentConfig));
+    } else {
+        elements.rendererDisplay.html(templateInstance.element);
+    }
     elements.rendererDisplay.css('white-space', 'pre-wrap');
 }
 
@@ -407,7 +410,7 @@ export async function openSheetStyleRendererPopup(originInstance) {
     const manager = await SYSTEM.getTemplate('customSheetStyle');
     const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.CONFIRM, '', {large: true, wide: true, allowVerticalScrolling: true, okButton: "保存修改", cancelButton: "取消"});
     const $dlg = $(tableRendererPopup.dlg);
-    templateInstance = new BASE.SheetTemplate(originInstance);
+    templateInstance = originInstance;
 
     // 初始化
     elements = await getUIElements($dlg);

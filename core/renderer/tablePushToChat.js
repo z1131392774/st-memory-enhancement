@@ -2,8 +2,6 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {parseSheetRender} from "./sheetCustomRenderer.js";
 import {cellClickEditModeEvent, cellHighlight} from "../editor/chatSheetsDataView.js";
-// import {findTableStructureByIndex} from "../../index.js";
-// import {renderEditableSheetsDOM} from "../editor/chatSheetsDataView.js";
 
 /**
  * 解析html，将其中代表表格单元格的\$\w\d+字符串替换为对应的表格单元格内容
@@ -14,15 +12,16 @@ function parseTableRender(html, table) {
 }
 
 async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
-
     for (let [index, sheet] of _sheets.entries()) {
         if (sheet.config.useCustomStyle === true) {
-            console.log("使用自定义样式", sheet)
+            // 使用自定义样式
             const customStyle = parseSheetRender(sheet)
             const sheetContainer = document.createElement('div')
-            sheetContainer.innerText = customStyle
+            sheetContainer.innerHTML = customStyle
             $(_viewSheetsContainer).append(sheetContainer)
+
         } else {
+            // 使用默认样式
             const instance = new BASE.Sheet(sheet)
             const sheetContainer = document.createElement('div')
             const sheetTitleText = document.createElement('h3')
@@ -31,21 +30,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             sheetTitleText.innerText = `#${index} ${sheet.name}`
 
             let sheetElement = null
-
-            if (DERIVED.any.batchEditMode === true) {
-                if (DERIVED.any.batchEditModeSheet?.name === instance.name) {
-                    sheetElement = await instance.renderSheet(cellClickEditModeEvent)
-                } else {
-                    sheetElement = await instance.renderSheet((cell) => {
-                        cell.element.style.cursor = 'default'
-                    })
-                    sheetElement.style.cursor = 'default'
-                    sheetElement.style.opacity = '0.5'
-                    sheetTitleText.style.opacity = '0.5'
-                }
-            } else {
-                sheetElement = instance.renderSheet(cell => cell.element.style.cursor = 'default')
-            }
+            sheetElement = instance.renderSheet(cell => cell.element.style.cursor = 'default')
             cellHighlight(instance)
             $(sheetContainer).append(sheetElement)
 
@@ -98,12 +83,6 @@ function replaceTableToStatusTag(sheets) {
         $(chatContainer).append(`<div class="wide100p" id="tableStatusContainer">${r}</div>`); // 添加新的 tableStatusContainer
         const tableStatusContainer = chatContainer?.querySelector('#table_push_to_chat_sheets');
         renderEditableSheetsDOM(sheets, tableStatusContainer);
-        // if (USER.tableBaseSetting.table_to_chat_can_edit === true) {
-        //     await renderEditableSheetsDOM(sheets, tableStatusContainer);
-        // } else {
-        //     renderEditableSheetsDOM(sheets, tableStatusContainer, cell => cell.element.style.cursor = 'default');
-        // }
-
 
         // 获取新创建的 tableStatusContainer
         const newTableStatusContainer = chatContainer?.querySelector('#tableStatusContainer');

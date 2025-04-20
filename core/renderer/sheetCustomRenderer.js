@@ -159,14 +159,11 @@ function regexPipeline(target, selectedStyle = selectedCustomStyle) {
 }
 
 function executeRendering(target) {
-    let resultHtml = target?.element;
-    if (!resultHtml) {
-        return '<div>表格数据未加载</div>';
-    }
+    let resultHtml = target?.element || '<div>表格数据未加载</div>';
     if (config.useCustomStyle === false) {
-        return resultHtml;
+        // resultHtml = target?.element || '<div>表格数据未加载</div>';
+        throw new Error('未启用自定义样式，你需要在 parseSheetRender 外部排除 config.useCustomStyle === false 的情况');
     }
-
     if (selectedCustomStyle.mode === 'regex') {
         resultHtml = regexPipeline(target);
     } else if (selectedCustomStyle.mode === 'static') {
