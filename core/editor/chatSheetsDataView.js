@@ -174,7 +174,7 @@ async function clearTable(mesId, viewSheetsContainer) {
  * @param {Element} tableEditTips 表格编辑提示DOM
  */
 function setTableEditTips(tableEditTips) {
-    if (!tableEditTips || tableEditTips.length === 0) {
+    /* if (!tableEditTips || tableEditTips.length === 0) {
         console.error('tableEditTips is null or empty jQuery object');
         return;
     }
@@ -189,7 +189,7 @@ function setTableEditTips(tableEditTips) {
     } else {
         tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑');
         tips.css("color", "lightyellow");
-    }
+    } */
 }
 
 async function cellDataEdit(cell) {
