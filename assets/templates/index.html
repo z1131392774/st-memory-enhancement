@@ -68,14 +68,17 @@
                                     <div class="inline-drawer-content" style="display: none; padding-left: 20px; width: calc(100% - 20px)">
                                         <!-- 自定义API设置 -->
                                         <input type="text" id="custom_api_url" class="text_pole" placeholder="API URL（请以/v1结尾）">
-                                        <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key">
-                                        <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name">
+                                        <input type="password" id="custom_api_key" class="text_pole" placeholder="API Key(多个key用逗号隔开)">
+                                        <input type="text" id="custom_model_name" class="text_pole" placeholder="Model Name（模型名称，可手动输入或自动获取）">
                                         <div class="range-block justifyLeft" >
                                             <select id="model_selector" class="text_pole">
                                                 <option value="">请先获取模型列表</option>
                                             </select>
                                             <div class="menu_button menu_button_icon" id="fetch_models_button">
-                                                <a>连接</a>
+                                                <a>获取模型列表</a>
+                                            </div>
+                                            <div class="menu_button menu_button_icon" id="test_api_button" style="margin-left: 5px;">
+                                                <a>测试</a>
                                             </div>
                                         </div>
                                         <div class="flex-container slider-container" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
