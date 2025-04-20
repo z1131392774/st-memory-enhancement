@@ -1,7 +1,9 @@
 // tablePushToChat.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {findTableStructureByIndex} from "../../index.js";
-import {renderEditableSheetsDOM} from "../editor/chatSheetsDataView.js";
+import {parseSheetRender} from "./sheetCustomRenderer.js";
+import {cellClickEditModeEvent, cellHighlight} from "../editor/chatSheetsDataView.js";
+// import {findTableStructureByIndex} from "../../index.js";
+// import {renderEditableSheetsDOM} from "../editor/chatSheetsDataView.js";
 
 /**
  * 解析html，将其中代表表格单元格的\$\w\d+字符串替换为对应的表格单元格内容
@@ -9,6 +11,49 @@ import {renderEditableSheetsDOM} from "../editor/chatSheetsDataView.js";
  * */
 function parseTableRender(html, table) {
     return html;
+}
+
+async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
+
+    for (let [index, sheet] of _sheets.entries()) {
+        if (sheet.config.useCustomStyle === true) {
+            console.log("使用自定义样式", sheet)
+            const customStyle = parseSheetRender(sheet)
+            const sheetContainer = document.createElement('div')
+            sheetContainer.innerText = customStyle
+            $(_viewSheetsContainer).append(sheetContainer)
+        } else {
+            const instance = new BASE.Sheet(sheet)
+            const sheetContainer = document.createElement('div')
+            const sheetTitleText = document.createElement('h3')
+            sheetContainer.style.overflowX = 'none'
+            sheetContainer.style.overflowY = 'auto'
+            sheetTitleText.innerText = `#${index} ${sheet.name}`
+
+            let sheetElement = null
+
+            if (DERIVED.any.batchEditMode === true) {
+                if (DERIVED.any.batchEditModeSheet?.name === instance.name) {
+                    sheetElement = await instance.renderSheet(cellClickEditModeEvent)
+                } else {
+                    sheetElement = await instance.renderSheet((cell) => {
+                        cell.element.style.cursor = 'default'
+                    })
+                    sheetElement.style.cursor = 'default'
+                    sheetElement.style.opacity = '0.5'
+                    sheetTitleText.style.opacity = '0.5'
+                }
+            } else {
+                sheetElement = instance.renderSheet(cell => cell.element.style.cursor = 'default')
+            }
+            cellHighlight(instance)
+            $(sheetContainer).append(sheetElement)
+
+            $(_viewSheetsContainer).append(sheetTitleText)
+            $(_viewSheetsContainer).append(sheetContainer)
+            $(_viewSheetsContainer).append(`<hr>`)
+        }
+    }
 }
 
 /**
@@ -52,11 +97,12 @@ function replaceTableToStatusTag(sheets) {
         const r = USER.tableBaseSetting.to_chat_container.replace(/\$0/g, `<tableStatus id="table_push_to_chat_sheets"></tableStatus>`);
         $(chatContainer).append(`<div class="wide100p" id="tableStatusContainer">${r}</div>`); // 添加新的 tableStatusContainer
         const tableStatusContainer = chatContainer?.querySelector('#table_push_to_chat_sheets');
-        if (USER.tableBaseSetting.table_to_chat_can_edit === true) {
-            await renderEditableSheetsDOM(sheets, tableStatusContainer);
-        } else {
-            renderEditableSheetsDOM(sheets, tableStatusContainer, cell => cell.element.style.cursor = 'default');
-        }
+        renderEditableSheetsDOM(sheets, tableStatusContainer);
+        // if (USER.tableBaseSetting.table_to_chat_can_edit === true) {
+        //     await renderEditableSheetsDOM(sheets, tableStatusContainer);
+        // } else {
+        //     renderEditableSheetsDOM(sheets, tableStatusContainer, cell => cell.element.style.cursor = 'default');
+        // }
 
 
         // 获取新创建的 tableStatusContainer
@@ -67,7 +113,7 @@ function replaceTableToStatusTag(sheets) {
             newTableStatusContainer.addEventListener('touchmove', touchmoveHandler, {passive: false});
             newTableStatusContainer.addEventListener('touchend', touchendHandler, {passive: false});
         }
-        console.log('tableStatusContainer:', newTableStatusContainer);
+        // console.log('tableStatusContainer:', newTableStatusContainer);
     }, 0);
 }
 
@@ -82,7 +128,7 @@ export function updateSystemMessageTableStatus(force = false) {
             return;
         }
     }
-    console.log("更新最后一条 System ")
+    // console.log("更新最后一条 System ")
     const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
 
     replaceTableToStatusTag(sheets);

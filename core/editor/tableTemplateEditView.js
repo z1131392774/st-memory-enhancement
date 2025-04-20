@@ -247,19 +247,7 @@ function bindSheetSetting(sheet, index) {
     // 表格自定义样式按钮
     const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-wand-magic-sparkles" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
     styleButton.on('click', async () => {
-        const initialData = {
-            toChat: sheet.data.toChat,
-            customStyle: sheet.data.customStyle,
-        }
-        const newSheet = await openSheetStyleRendererPopup(sheet);
-        if (newSheet.data) {
-            const diffData = compareDataDiff(newSheet.data, initialData);
-            Object.keys(diffData).forEach(key => {
-                sheet.data[key] = diffData[key];
-            })
-            sheet.save()
-            sheet.renderSheet()
-        }
+        await openSheetStyleRendererPopup(sheet);
     })
     const nameSpan = $(`<span style="margin-left: 0px;">#${index} ${sheet.name ? sheet.name : 'Unnamed Table'}</span>`);
 

@@ -47,8 +47,8 @@ const customStyleConfig = {
 }
 
 class SheetBase {
-    static SheetDomain = SheetDomain;
-    static SheetType = SheetType;
+    SheetDomain = SheetDomain;
+    SheetType = SheetType;
 
     constructor() {
         // 以下为基本属性
@@ -599,8 +599,8 @@ export class Sheet extends SheetBase {
  * @description 单元格类是 Sheet 类的子类，用于管理 Sheet 中的单元格数据
  */
 class Cell {
-    static CellType = CellType;
-    static CellAction = CellAction;
+    CellType = CellType;
+    CellAction = CellAction;
 
     constructor(parent, target = null) {
         this.uid = undefined;
@@ -902,7 +902,7 @@ export function getColumnLetter(colIndex) {
 }
 
 function filterSavingData(sheet) {
-    return {
+    const r = {
         uid: sheet.uid,
         name: sheet.name,
         domain: sheet.domain,
@@ -922,4 +922,6 @@ function filterSavingData(sheet) {
         }), // 保存 cellHistory (不包含 parent)
         config: sheet.config,
     };
+    const rr = JSON.parse(JSON.stringify(r));
+    return rr;
 }

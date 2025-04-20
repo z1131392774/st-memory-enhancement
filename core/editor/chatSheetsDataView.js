@@ -237,7 +237,7 @@ function batchEditMode(cell) {
 }
 
 // 新的事件处理函数
-function cellClickEditModeEvent(cell) {
+export function cellClickEditModeEvent(cell) {
     cell.element.style.cursor = 'pointer'
     if (cell.type === cell.CellType.row_header) {
         cell.element.textContent = ''
@@ -311,7 +311,7 @@ async function confirmAction(event, text = '是否继续该操作？') {
 /**
  * 单元格高亮
  */
-function cellHighlight(sheet) {
+export function cellHighlight(sheet) {
     const lastHashSheet = lastCellsHashSheet[sheet.uid] || []
     const changeSheet = sheet.hashSheet.map((row) => {
         const isNewRow = lastHashSheet.includes(row[0])

@@ -291,6 +291,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         systemPrompt = systemPrompt.replace(/\$0/g, originText);
         systemPrompt = systemPrompt.replace(/\$1/g, lastChats);
         // 搜索userPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
+
         userPrompt = userPrompt.replace(/\$0/g, originText);
         userPrompt = userPrompt.replace(/\$1/g, lastChats);
 
@@ -646,27 +647,43 @@ export async function rebuildSheets() {
     `;
     container.appendChild(style);
 
-    $(container).append($('<h3>重建表格数据</h3>'));
-    $(container).append(`<div class="rebuild-preview-item"><span>执行前确认？：</span>${USER.tableBaseSetting.bool_silent_refresh ? '否' : '是'}</div>`);
-    $(container).append(`<div class="rebuild-preview-item"><span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}</div>`);
-    $(container).append(`<hr>`);
+    // Replace jQuery append with standard DOM methods
+    const h3Element = document.createElement('h3');
+    h3Element.textContent = '重建表格数据';
+    container.appendChild(h3Element);
+    
+    const previewDiv1 = document.createElement('div');
+    previewDiv1.className = 'rebuild-preview-item';
+    previewDiv1.innerHTML = `<span>执行前确认？：</span>${USER.tableBaseSetting.bool_silent_refresh ? '否' : '是'}`;
+    container.appendChild(previewDiv1);
+    
+    const previewDiv2 = document.createElement('div');
+    previewDiv2.className = 'rebuild-preview-item';
+    previewDiv2.innerHTML = `<span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}`;
+    container.appendChild(previewDiv2);
+    
+    const hr = document.createElement('hr');
+    container.appendChild(hr);
 
     // 创建选择器容器
-    const selectorContainer = $('<div>').appendTo(container);
+    const selectorContainer = document.createElement('div');
+    container.appendChild(selectorContainer);
 
     // 添加提示模板选择器
-    selectorContainer.append(`
+    const selectorContent = document.createElement('div');
+    selectorContent.innerHTML = `
         <span class="rebuild-preview-text" style="margin-top: 10px">提示模板：</span>
         <select id="rebuild_template_selector" class="rebuild-preview-text text_pole" style="width: 100%">
             <option value="">加载中...</option>
         </select>
         <span class="rebuild-preview-text" style="margin-top: 10px">模板末尾补充提示词：</span>
-        <textarea id="rebuild_additional_prompt" rows="5" style="width: 100%"></textarea>
-    `);
+        <textarea id="rebuild_additional_prompt" class="rebuild-preview-text text_pole" style="width: 100%; height: 80px;"></textarea>
+    `;
+    selectorContainer.appendChild(selectorContent);
 
     // 初始化选择器选项
-    const $selector = $('#rebuild_template_selector', container);
-    const $additionalPrompt = $('#rebuild_additional_prompt', container);
+    const $selector = document.getElementById('rebuild_template_selector');
+    const $additionalPrompt = document.getElementById('rebuild_additional_prompt');
     $selector.empty(); // 清空加载中状态
 
     // 添加选项
@@ -689,8 +706,8 @@ export async function rebuildSheets() {
     await confirmation.show();
     if (confirmation.result) {
         // 获取当前选中的模板
-        const selectedTemplate = $selector.val();
-        const additionalPrompt = $additionalPrompt.val();
+        const selectedTemplate = $selector.value;
+        const additionalPrompt = $additionalPrompt.value;
         if (!selectedTemplate) {
             EDITOR.error('请选择一个有效的提示模板');
             return;
