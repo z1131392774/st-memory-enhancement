@@ -115,6 +115,7 @@ function addOldTablePrompt(sheet) {
     console.log("添加旧表格提示词", tableStructure, USER.tableBaseSetting.tableStructure, sheet.name)
     if (!tableStructure) return false
     const source = sheet.source
+    source.required = tableStructure.Required
     source.data.initNode = tableStructure.initNode
     source.data.insertNode = tableStructure.insertNode
     source.data.updateNode = tableStructure.updateNode

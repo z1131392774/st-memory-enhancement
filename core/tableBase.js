@@ -557,6 +557,7 @@ export class Sheet extends SheetBase {
             this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
             this.name = target.name.replace('模板', '表格');
             this.hashSheet = [target.hashSheet[0].map(uid => uid)];
+            this.required = target.required;
             this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
             this.loadCells();
             this.markPositionCacheDirty();

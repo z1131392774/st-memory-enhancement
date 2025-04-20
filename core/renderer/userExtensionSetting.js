@@ -553,7 +553,7 @@ export function initTableStructureToTemplate() {
         })
         newTemplate.enable = defaultTemplate.enable
         newTemplate.tochat = defaultTemplate.tochat
-        newTemplate.required = defaultTemplate.required
+        newTemplate.required = defaultTemplate.Required
         newTemplate.source.data.note = defaultTemplate.note
         newTemplate.source.data.initNode = defaultTemplate.initNode
         newTemplate.source.data.deleteNode = defaultTemplate.deleteNode
