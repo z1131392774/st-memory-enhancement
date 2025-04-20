@@ -6,6 +6,7 @@ import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
 import {openTableStatisticsPopup} from "./tableStatistics.js";
 import {openCellHistoryPopup} from "./cellHistory.js";
+import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";
 
 let tablePopup = null
 let copyTableData = {}
@@ -152,16 +153,16 @@ async function clearTable(mesId, viewSheetsContainer) {
     if (mesId === -1) return
     const confirmation = await EDITOR.callGenericPopup('清空当前对话的所有表格数据，并重置历史记录，该操作无法回退，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
-        delete USER.getSettings().table_database_templates
-        delete BASE.sheetsData.context
         await USER.getContext().chat.forEach((piece => {
             if (piece.hash_sheets) {
                 delete piece.hash_sheets
             }
+            if(piece.dataTable) delete piece.dataTable
         }))
         setTimeout(() => {
             USER.saveSettings()
             USER.saveChat();
+            BASE.refreshContextView()
             EDITOR.success("表格数据清除成功")
             console.log("已清除表格数据")
         }, 100)
@@ -173,7 +174,7 @@ async function clearTable(mesId, viewSheetsContainer) {
  * @param {Element} tableEditTips 表格编辑提示DOM
  */
 function setTableEditTips(tableEditTips) {
-    if (!tableEditTips || tableEditTips.length === 0) {
+    /* if (!tableEditTips || tableEditTips.length === 0) {
         console.error('tableEditTips is null or empty jQuery object');
         return;
     }
@@ -188,7 +189,7 @@ function setTableEditTips(tableEditTips) {
     } else {
         tips.append('此表格为中间表格，为避免混乱，不可被编辑和粘贴。你可以打开最新消息的表格进行编辑');
         tips.css("color", "lightyellow");
-    }
+    } */
 }
 
 async function cellDataEdit(cell) {
@@ -237,7 +238,7 @@ function batchEditMode(cell) {
 }
 
 // 新的事件处理函数
-function cellClickEditModeEvent(cell) {
+export function cellClickEditModeEvent(cell) {
     cell.element.style.cursor = 'pointer'
     if (cell.type === cell.CellType.row_header) {
         cell.element.textContent = ''
@@ -306,12 +307,13 @@ async function confirmAction(event, text = '是否继续该操作？') {
 
     await confirmation.show();
     if (!confirmation.result) return { filterData: null, confirmation: false };
+    event()
 }
 
 /**
  * 单元格高亮
  */
-function cellHighlight(sheet) {
+export function cellHighlight(sheet) {
     const lastHashSheet = lastCellsHashSheet[sheet.uid] || []
     const changeSheet = sheet.hashSheet.map((row) => {
         const isNewRow = lastHashSheet.includes(row[0])
@@ -367,6 +369,7 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
+            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', () => openSheetStyleRendererPopup(cell.parent) );
         } else if (colIndex === 0) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));
@@ -434,6 +437,7 @@ function handleAction(cell, action){
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
     for (let [index, sheet] of _sheets.entries()) {
         const instance = new BASE.Sheet(sheet)
+        console.log("渲染：",instance)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
         sheetContainer.style.overflowX = 'none'
@@ -475,7 +479,7 @@ async function renderSheetsDOM() {
 
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
     lastCellsHashSheet = BASE.getLastSheetsPiece(deep - 1, 3, false)?.piece.hash_sheets;
-    console.log("找到的diff前项", lastCellsHashSheet)
+    // console.log("找到的diff前项", lastCellsHashSheet)
     if (lastCellsHashSheet) {
         lastCellsHashSheet = BASE.copyHashSheets(lastCellsHashSheet)
         for (const sheetUid in lastCellsHashSheet) {
@@ -484,6 +488,7 @@ async function renderSheetsDOM() {
     }
 
     $(viewSheetsContainer).empty()
+    viewSheetsContainer.style.paddingBottom = '150px'
     await renderEditableSheetsDOM(sheets, viewSheetsContainer)
 }
 

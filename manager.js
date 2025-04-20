@@ -2,7 +2,7 @@ import applicationFunctionManager from "./services/appFuncManager.js";
 // 移除旧表格系统引用
 import { consoleMessageToEditor } from "./core/runtime/devConsole.js";
 import { calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly, } from "./utils/utility.js";
-import { defaultSettings } from "./core/pluginSetting.js";
+import { defaultSettings } from "./data/pluginSetting.js";
 import { Drag } from "./components/dragManager.js";
 import { PopupMenu } from "./components/popupMenu.js";
 import { buildSheetsByTemplates, convertOldTablesToNewSheets } from "./index.js";

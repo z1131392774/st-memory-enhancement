@@ -8,10 +8,11 @@ import { TableTwoStepSummary } from "./core/runtime/separateTableUpdate.js";
 import { initTest } from "./components/_fotTest.js";
 import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./core/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './core/runtime/absoluteRefresh.js';
-import { refreshTempView } from "./core/editor/tableTemplateEditView.js";
+import {refreshTempView, updateTableContainerPosition} from "./core/editor/tableTemplateEditView.js";
 import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
 import { parseLooseDict } from "./utils/stringUtil.js"
+import {executeTranslation} from "./core/renderer/translate.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -114,6 +115,7 @@ function addOldTablePrompt(sheet) {
     console.log("添加旧表格提示词", tableStructure, USER.tableBaseSetting.tableStructure, sheet.name)
     if (!tableStructure) return false
     const source = sheet.source
+    source.required = tableStructure.Required
     source.data.initNode = tableStructure.initNode
     source.data.insertNode = tableStructure.insertNode
     source.data.updateNode = tableStructure.updateNode
@@ -433,9 +435,9 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
-        if (eventData.dryRun === true || 
-            USER.tableBaseSetting.isExtensionAble === false || 
-            USER.tableBaseSetting.isAiReadTable === false || 
+        if (eventData.dryRun === true ||
+            USER.tableBaseSetting.isExtensionAble === false ||
+            USER.tableBaseSetting.isAiReadTable === false ||
             USER.tableBaseSetting.injection_mode === "injection_off") return
         console.log("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData()
@@ -609,8 +611,6 @@ export async function updateSheetsView() {
     updateSystemMessageTableStatus();
 }
 
-
-
 jQuery(async () => {
     // 版本检查
     fetch("http://api.muyoo.com.cn/check-version", {
@@ -650,6 +650,7 @@ jQuery(async () => {
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
         openAppHeaderTableDrawer();
+        // updateTableContainerPosition();
     })
     // // 设置表格编辑按钮
     // $(document).on('click', '.tableEditor_editButton', function () {
@@ -680,12 +681,13 @@ jQuery(async () => {
     initAppHeaderTableDrawer().then(updateSheetsView);  // 初始化表格编辑器
     functionToBeRegistered()    // 注册用于调试的各种函数
 
+    executeTranslation(); // 执行翻译函数
+
     // 监听主程序事件
     APP.eventSource.on(APP.event_types.MESSAGE_RECEIVED, onMessageReceived);
     APP.eventSource.on(APP.event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     APP.eventSource.on(APP.event_types.CHAT_CHANGED, onChatChanged);
     APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
     APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
-    APP.eventSource.on(APP.event_types.MESSAGE_DELETED, ()=>updateSheetsView());
     console.log("______________________记忆插件：加载完成______________________")
 });

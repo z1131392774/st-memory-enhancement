@@ -32,12 +32,19 @@ const CellType = {
 }
 const cellStyle = `
     .sheet-table { border-collapse: collapse; width: max-content; }
-    .sheet-cell { border: 1px solid var(--SmartThemeBodyColor); padding: 1px; text-align: center; vertical-align: middle; cursor: cell; }
+    .sheet-cell { border: 1px solid var(--SmartThemeBodyColor); padding: 1px; min-width: 28px; text-align: center; vertical-align: middle; cursor: cell; }
     .sheet-cell-origin { min-width: 20px; min-height: 20px }
     .sheet-header-cell-top { font-weight: bold }
     .sheet-header-cell-left { font-weight: bold }
     .sheet-cell-other { min-width: 50px; border: 1px dashed var(--SmartThemeEmColor); }
 `
+
+const customStyleConfig = {
+    mode: 'regex',
+    basedOn: 'html',
+    regex: '/(^[\\s\\S]*$)/g',
+    replace: `$1`,
+}
 
 class SheetBase {
     SheetDomain = SheetDomain;
@@ -56,6 +63,15 @@ class SheetBase {
         // 以下为持久化数据
         this.cellHistory = [];                  // cellHistory 持久保持，只增不减
         this.hashSheet = [];                    // 每回合的 hashSheet 结构，用于渲染出表格
+
+        this.config = {
+            // 以下为其他的属性
+            toChat: true,                     // 用于标记是否发送到聊天
+            useCustomStyle: false,            // 用于标记是否使用自定义样式
+            selectedCustomStyleKey: '',       // 用于存储选中的自定义样式，当selectedCustomStyleUid没有值时，使用默认样式
+            customStyles: {'自定义样式': {...customStyleConfig}},                 // 用于存储自定义样式
+        }
+
 
         // 以下为派生数据
         this.cells = new Map();                 // cells 在每次 Sheet 初始化时从 cellHistory 加载
@@ -541,6 +557,7 @@ export class Sheet extends SheetBase {
             this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
             this.name = target.name.replace('模板', '表格');
             this.hashSheet = [target.hashSheet[0].map(uid => uid)];
+            this.required = target.required;
             this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
             this.loadCells();
             this.markPositionCacheDirty();
@@ -551,6 +568,7 @@ export class Sheet extends SheetBase {
         let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === targetUid);
         if (targetSheetData?.uid) {
             Object.assign(this, filterSavingData(targetSheetData));
+            if(target.hashSheet) this.hashSheet =target.hashSheet.map(row => row.map(hash => hash));
             this.loadCells();
             this.markPositionCacheDirty();
             return this;
@@ -886,7 +904,7 @@ export function getColumnLetter(colIndex) {
 }
 
 function filterSavingData(sheet) {
-    return {
+    const r = {
         uid: sheet.uid,
         name: sheet.name,
         domain: sheet.domain,
@@ -904,5 +922,8 @@ function filterSavingData(sheet) {
             }) => {
             return filter;
         }), // 保存 cellHistory (不包含 parent)
+        config: sheet.config,
     };
+    const rr = JSON.parse(JSON.stringify(r));
+    return rr;
 }

@@ -2,10 +2,11 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
-import {encryptXor, updateModelList} from "../standaloneAPI.js";
-import {filterTableDataPopup} from "../pluginSetting.js";
+import {updateModelList, handleApiTestRequest ,processApiKey} from "../standaloneAPI.js";
+import {filterTableDataPopup} from "../../data/pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 import {rollbackVersion} from "../../services/debugs.js";
+import {customSheetsStylePopup} from "../editor/customSheetsStyle.js";
 
 /**
  * 格式化深度设置
@@ -61,6 +62,37 @@ function updateTableView() {
 //     } else {
 //
 //     }
+}
+
+function getSheetsCellStyle() {
+    const style = document.createElement('style');  // 为 sheetContainer 的内容添加一个 style
+    // 获取 sheetContainer 元素
+    const cellWidth = USER.tableBaseSetting.table_cell_width_mode
+    let sheet_cell_style_container = document.querySelector('#sheet_cell_style_container');
+    if (sheet_cell_style_container) {
+        // 清空现有的样式
+        sheet_cell_style_container.innerHTML = '';
+    } else {
+        // 创建一个新的 sheet_cell_style_container 元素
+        sheet_cell_style_container = document.createElement('div');
+        sheet_cell_style_container.id = 'sheet_cell_style_container';
+        document.body.appendChild(sheet_cell_style_container);
+    }
+    switch (cellWidth) {
+        case 'single_line':
+            style.innerHTML = ``;
+            break;
+        case 'wide1_cell':
+            style.innerHTML = ` tr .sheet-cell { max-width: 800px !important; white-space: normal !important; } `;
+            break;
+        case 'wide1_2_cell':
+            style.innerHTML = ` tr .sheet-cell { max-width: 400px !important; white-space: normal !important; } `;
+            break;
+        case 'wide1_4_cell':
+            style.innerHTML = ` tr .sheet-cell { max-width: 200px !important; white-space: normal !important; } `;
+            break;
+    }
+    sheet_cell_style_container.appendChild(style);
 }
 
 /**
@@ -295,10 +327,9 @@ function InitBinging() {
         USER.tableBaseSetting.step_by_step_use_main_api = this.checked;
     });
     // 根据下拉列表选择的模型更新自定义模型名称
-    $('#model_selector').change(function() {
-        const selectedModel = $(this).val();
-        $('#custom_model_name').val(selectedModel);
-        USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = selectedModel;
+    $('#model_selector').change(function(event) {
+        $('#custom_model_name').val(event.target.value);
+        USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = event.target.value;
     });
     // 表格推送至对话开关
     $('#table_to_chat').change(function () {
@@ -329,22 +360,32 @@ function InitBinging() {
         updateSystemMessageTableStatus();   // 将表格数据状态更新到系统消息中
     });
 
+    // 根据下拉列表选择表格推送位置
+    $('#table_cell_width_mode').change(function(event) {
+        USER.tableBaseSetting.table_cell_width_mode = event.target.value;
+        getSheetsCellStyle()
+    });
+
 
     // API URL
     $('#custom_api_url').on('input', function() {
         USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = $(this).val();
     });
     // API KEY
-    $('#custom_api_key').on('input', async function() {
-        try {
-            const rawKey = $(this).val();
-            // 加密
-            USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = encryptXor(rawKey, generateDeviceId());
-            // console.log('加密后的API密钥:', USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key);
-        } catch (error) {
-            console.error('API Key 处理失败:', error);
-            EDITOR.error('未能获取到API KEY，请重新输入~');
-        }
+    let apiKeyDebounceTimer;
+    $('#custom_api_key').on('input', function () {
+        clearTimeout(apiKeyDebounceTimer);
+        apiKeyDebounceTimer = setTimeout(async () => {
+            try {
+                const rawKey = $(this).val();
+                const result = processApiKey(rawKey, generateDeviceId());
+                USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = result.encryptedResult.encrypted || result.encryptedResult;
+                EDITOR.success(result.message);
+            } catch (error) {
+                console.error('API Key 处理失败:', error);
+                EDITOR.error('未能获取到API KEY，请重新输入~');
+            }
+        }, 500); // 500ms防抖延迟
     })
     // 模型名称
     $('#custom_model_name').on('input', function() {
@@ -385,10 +426,16 @@ function InitBinging() {
         USER.tableBaseSetting.custom_temperature = Number(value);
     });
 
-
-
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
+
+    // 测试API
+    $(document).on('click', '#test_api_button',async () => {
+        const apiUrl = $('#custom_api_url').val();
+        const modelName = $('#custom_model_name').val();
+        const encryptedApiKeys = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
+        const results = await handleApiTestRequest(apiUrl, encryptedApiKeys, modelName);
+    });
 
     // 开始整理表格
     $("#table_clear_up").on('click', () => {
@@ -400,11 +447,7 @@ function InitBinging() {
 
     // 表格推送至对话
     $("#dataTable_to_chat_button").on("click", async function () {
-        const result = await EDITOR.callGenericPopup("自定义推送至对话的表格的包裹样式，支持HTML与CSS，使用$0表示表格整体的插入位置", EDITOR.POPUP_TYPE.INPUT, USER.tableBaseSetting.to_chat_container, { rows: 10 })
-        if (result) {
-            USER.tableBaseSetting.to_chat_container = result;
-            updateSystemMessageTableStatus()
-        }
+        customSheetsStylePopup()
     })
 }
 
@@ -415,6 +458,7 @@ export function renderSetting() {
     // 初始化数值
     $(`#dataTable_injection_mode option[value="${USER.tableBaseSetting.injection_mode}"]`).prop('selected', true);
     $(`#table_to_chat_mode option[value="${USER.tableBaseSetting.table_to_chat_mode}"]`).prop('selected', true);
+    $(`#table_cell_width_mode option[value="${USER.tableBaseSetting.table_cell_width_mode}"]`).prop('selected', true);
     $('#dataTable_message_template').val(USER.tableBaseSetting.message_template);
     $('#dataTable_deep').val(USER.tableBaseSetting.deep);
     $('#clear_up_stairs').val(USER.tableBaseSetting.clear_up_stairs);
@@ -492,6 +536,7 @@ export function loadSettings() {
     InitBinging();
     initRefreshTypeSelector(); // 初始化表格刷新类型选择器
     updateTableView(); // 更新表格视图
+    getSheetsCellStyle()
 }
 
 export function initTableStructureToTemplate() {
@@ -508,7 +553,7 @@ export function initTableStructureToTemplate() {
         })
         newTemplate.enable = defaultTemplate.enable
         newTemplate.tochat = defaultTemplate.tochat
-        newTemplate.required = defaultTemplate.required
+        newTemplate.required = defaultTemplate.Required
         newTemplate.source.data.note = defaultTemplate.note
         newTemplate.source.data.initNode = defaultTemplate.initNode
         newTemplate.source.data.deleteNode = defaultTemplate.deleteNode

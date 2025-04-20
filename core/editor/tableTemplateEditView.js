@@ -247,19 +247,7 @@ function bindSheetSetting(sheet, index) {
     // 表格自定义样式按钮
     const styleButton = $(`<i class="menu_button menu_button_icon fa-solid fa-wand-magic-sparkles" style="cursor: pointer; height: 28px; width: 28px;" title="编辑表格显示样式"></i>`);
     styleButton.on('click', async () => {
-        const initialData = {
-            toChat: sheet.data.toChat,
-            customStyle: sheet.data.customStyle,
-        }
-        const newSheet = await openSheetStyleRendererPopup(sheet);
-        if (newSheet.data) {
-            const diffData = compareDataDiff(newSheet.data, initialData);
-            Object.keys(diffData).forEach(key => {
-                sheet.data[key] = diffData[key];
-            })
-            sheet.save()
-            sheet.renderSheet()
-        }
+        await openSheetStyleRendererPopup(sheet);
     })
     const nameSpan = $(`<span style="margin-left: 0px;">#${index} ${sheet.name ? sheet.name : 'Unnamed Table'}</span>`);
 
@@ -293,8 +281,17 @@ async function templateCellDataEdit(cell) {
         cell.parent.save()
         cell.renderCell()
         // cell.parent.updateRender()
+        refreshTempView(true);
     }
 }
+
+function handleAction(cell, action){
+    console.log("开始执行操作")
+    cell.newAction(action)
+    console.log("执行操作然后刷新")
+    refreshTempView(true);
+}
+
 
 function bindCellClickEvent(cell) {
     cell.on('click', async (event) => {
@@ -309,15 +306,15 @@ function bindCellClickEvent(cell) {
         const sheetType = cell.parent.type;
 
         if (rowIndex === 0 && colIndex === 0) {
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { handleAction(cell,cell.CellAction.insertRightColumn) });
             if (sheetType === cell.parent.SheetType.free || sheetType === cell.parent.SheetType.static) {
-                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { handleAction(cell,cell.CellAction.insertDownRow) });
             }
         } else if (rowIndex === 0) {
             cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { cell.newAction(cell.CellAction.insertLeftColumn) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { cell.newAction(cell.CellAction.insertRightColumn) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { cell.newAction(cell.CellAction.deleteSelfColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { handleAction(cell,cell.CellAction.insertLeftColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { handleAction(cell,cell.CellAction.insertRightColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { handleAction(cell,cell.CellAction.deleteSelfColumn) });
         } else if (colIndex === 0) {
             // if (sheetType === cell.parent.SheetType.dynamic) {
             //     cell.element.delete();
@@ -326,9 +323,9 @@ function bindCellClickEvent(cell) {
 
             cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该行', async (e) => { await templateCellDataEdit(cell) });
             if (sheetType === cell.parent.SheetType.free || sheetType === cell.parent.SheetType.static) {
-                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { cell.newAction(cell.CellAction.insertUpRow) });
-                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { cell.newAction(cell.CellAction.insertDownRow) });
-                cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { cell.newAction(cell.CellAction.deleteSelfRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { handleAction(cell,cell.CellAction.insertUpRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { handleAction(cell,cell.CellAction.insertDownRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { handleAction(cell,cell.CellAction.deleteSelfRow) });
             }
         } else {
             if (sheetType === cell.parent.SheetType.static) {
@@ -378,44 +375,26 @@ async function updateDragTables() {
         currentPopupMenu = null;
     }
 
-    const renderedTableUids = Array.from(renderedTables.keys());
-    const uidsToRemove = renderedTableUids.filter(uid => !selectedSheetUids.includes(uid));
-    uidsToRemove.forEach(uid => {
-        const tableElement = renderedTables.get(uid);
-        if (tableElement) {
-            if (drag.dragSpace.contains(tableElement)) {
-                drag.dragSpace.removeChild(tableElement);
-            }
-            renderedTables.delete(uid);
-            if (container.has(tableElement)) {
-                container.empty();
-            }
-        }
-    });
+    container.empty();
+    console.log("dragSpace是什么",drag.dragSpace)
 
-    const uidsToAdd = selectedSheetUids.filter(uid => !renderedTableUids.includes(uid));
-    const uidsToUpdate = selectedSheetUids.filter(uid => renderedTableUids.includes(uid));
-
-    for (const [index, uid] of uidsToAdd.entries()) {
+    selectedSheetUids.forEach((uid,index) => {
         let sheet = new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
         if (!sheet || !sheet.hashSheet) {
             console.warn(`无法加载模板或模板数据为空，UID: ${uid}`);
-            continue;
+            return
         }
-
 
         const tableElement = sheet.renderSheet(bindCellClickEvent);
         tableElement.style.marginLeft = '5px'
         renderedTables.set(uid, tableElement);
         container.append(tableElement);
-        drag.dragSpace.appendChild(tableElement);
 
         // 在添加表格后，添加 hr 元素
         const hr = document.createElement('hr');
         tableElement.appendChild(hr);
-
 
         const captionElement = document.createElement('caption');
         captionElement.appendChild(bindSheetSetting(sheet, index));
@@ -424,22 +403,22 @@ async function updateDragTables() {
         } else {
             tableElement.insertBefore(captionElement, tableElement.firstChild);
         }
-    }
+    })
 
-    for (const [index, uid] of uidsToUpdate.entries()) {
-        const tableElement = renderedTables.get(uid);
-        if (tableElement) {
-            let sheet = new BASE.SheetTemplate(uid);
-            const captionElement = document.createElement('caption');
-            captionElement.appendChild(bindSheetSetting(sheet, index));
-            const existingCaption = tableElement.querySelector('caption');
-            if (existingCaption) {
-                existingCaption.replaceWith(captionElement);
-            } else {
-                tableElement.insertBefore(captionElement, tableElement.firstChild);
-            }
-        }
-    }
+}
+
+export function updateTableContainerPosition() {
+    const windowHeight = window.innerHeight;
+    const contentContainer = table_editor_container.querySelector('#contentContainer');
+    // console.log("contentContainer", contentContainer)
+    const sendFormHeight = document.querySelector('#send_form')?.getBoundingClientRect().height || 0;
+    const rect = contentContainer.getBoundingClientRect();
+    // console.log("contentContainer 位置变化", rect, windowHeight, sendFormHeight)
+    contentContainer.style.position = 'flex';
+    contentContainer.style.bottom = '0';
+    contentContainer.style.left = '0';
+    contentContainer.style.width = '100%';
+    contentContainer.style.height = `calc(${windowHeight}px - ${rect.top}px - ${sendFormHeight}px)`;
 }
 
 export async function refreshTempView(ignoreGlobal = false) {
@@ -451,7 +430,7 @@ export async function refreshTempView(ignoreGlobal = false) {
 }
 
 async function initTableEdit(mesId) {
-    const table_editor_container = $(await SYSTEM.getTemplate('editor')).get(0);
+    table_editor_container = $(await SYSTEM.getTemplate('editor')).get(0);
     const tableEditTips = table_editor_container.querySelector('#tableEditTips');
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');
@@ -463,8 +442,13 @@ async function initTableEdit(mesId) {
 
     $(contentContainer).empty()
     drag = new EDITOR.Drag();
-    contentContainer.append(drag.render);
+    const draggable = drag.render
+    contentContainer.append(draggable);
     drag.add('tableContainer', tableContainer);
+
+    // 添加事件监听器
+    contentContainer.addEventListener('mouseenter', updateTableContainerPosition);
+    contentContainer.addEventListener('focus', updateTableContainerPosition);
 
     $(scopeSelect).val(scope).on('change', async function () {
         scope = $(this).val();
