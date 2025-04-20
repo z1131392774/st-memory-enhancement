@@ -153,16 +153,19 @@ async function clearTable(mesId, viewSheetsContainer) {
     if (mesId === -1) return
     const confirmation = await EDITOR.callGenericPopup('清空当前对话的所有表格数据，并重置历史记录，该操作无法回退，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
-        delete USER.getSettings().table_database_templates
-        delete BASE.sheetsData.context
         await USER.getContext().chat.forEach((piece => {
             if (piece.hash_sheets) {
                 delete piece.hash_sheets
             }
+            if(piece.dataTable) delete piece.dataTable
         }))
+        const hash_sheets = BASE.initHashSheet().hash_sheets
+        const sheets = BASE.hashSheetsToSheets(hash_sheets)
+        sheets.forEach(sheet=>sheet.save())
         setTimeout(() => {
             USER.saveSettings()
             USER.saveChat();
+            BASE.refreshContextView()
             EDITOR.success("表格数据清除成功")
             console.log("已清除表格数据")
         }, 100)
@@ -307,6 +310,7 @@ async function confirmAction(event, text = '是否继续该操作？') {
 
     await confirmation.show();
     if (!confirmation.result) return { filterData: null, confirmation: false };
+    event()
 }
 
 /**
@@ -436,6 +440,7 @@ function handleAction(cell, action){
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
     for (let [index, sheet] of _sheets.entries()) {
         const instance = new BASE.Sheet(sheet)
+        console.log("渲染：",instance)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
         sheetContainer.style.overflowX = 'none'
@@ -472,7 +477,7 @@ async function renderSheetsDOM() {
     const { piece, deep } = BASE.getLastSheetsPiece();
     if (!piece || !piece.hash_sheets) return;
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
-    // console.log('renderSheetsDOM:', piece, sheets)
+    console.log('renderSheetsDOM:', piece, sheets)
     DERIVED.any.renderingSheets = sheets
 
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
