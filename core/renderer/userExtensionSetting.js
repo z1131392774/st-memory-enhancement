@@ -2,7 +2,7 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
 import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
 import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
-import {encryptXor, updateModelList} from "../standaloneAPI.js";
+import {updateModelList, handleApiTestRequest ,processApiKey} from "../standaloneAPI.js";
 import {filterTableDataPopup} from "../../data/pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 import {rollbackVersion} from "../../services/debugs.js";
@@ -372,16 +372,20 @@ function InitBinging() {
         USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = $(this).val();
     });
     // API KEY
-    $('#custom_api_key').on('input', async function() {
-        try {
-            const rawKey = $(this).val();
-            // 加密
-            USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = encryptXor(rawKey, generateDeviceId());
-            // console.log('加密后的API密钥:', USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key);
-        } catch (error) {
-            console.error('API Key 处理失败:', error);
-            EDITOR.error('未能获取到API KEY，请重新输入~');
-        }
+    let apiKeyDebounceTimer;
+    $('#custom_api_key').on('input', function () {
+        clearTimeout(apiKeyDebounceTimer);
+        apiKeyDebounceTimer = setTimeout(async () => {
+            try {
+                const rawKey = $(this).val();
+                const result = processApiKey(rawKey, generateDeviceId());
+                USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = result.encryptedResult.encrypted || result.encryptedResult;
+                EDITOR.success(result.message);
+            } catch (error) {
+                console.error('API Key 处理失败:', error);
+                EDITOR.error('未能获取到API KEY，请重新输入~');
+            }
+        }, 500); // 500ms防抖延迟
     })
     // 模型名称
     $('#custom_model_name').on('input', function() {
@@ -422,10 +426,16 @@ function InitBinging() {
         USER.tableBaseSetting.custom_temperature = Number(value);
     });
 
-
-
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
+
+    // 测试API
+    $(document).on('click', '#test_api_button',async () => {
+        const apiUrl = $('#custom_api_url').val();
+        const modelName = $('#custom_model_name').val();
+        const encryptedApiKeys = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
+        const results = await handleApiTestRequest(apiUrl, encryptedApiKeys, modelName);
+    });
 
     // 开始整理表格
     $("#table_clear_up").on('click', () => {
