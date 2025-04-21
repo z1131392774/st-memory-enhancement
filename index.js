@@ -12,7 +12,7 @@ import {refreshTempView, updateTableContainerPosition} from "./core/editor/table
 import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
 import { parseLooseDict } from "./utils/stringUtil.js"
-import {executeTranslation} from "./core/renderer/translate.js";
+import {executeTranslation} from "./services/translate.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
