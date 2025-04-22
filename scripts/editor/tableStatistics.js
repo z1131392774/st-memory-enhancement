@@ -1,6 +1,6 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {estimateTokenCount} from "../standaloneAPI.js";
-// import { deleteRow, insertRow, updateRow } from "../tableActions.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
+import {estimateTokenCount} from "../settings/standaloneAPI.js";
+// import { deleteRow, insertRow, updateRow } from "../oldTableActions.js";
 // import JSON5 from '../../utils/json5.min.mjs'
 
 const statistics = `

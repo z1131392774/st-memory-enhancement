@@ -1,20 +1,19 @@
-import applicationFunctionManager from "./services/appFuncManager.js";
+import { TTable } from "./tTableCore.js";
+import applicationFunctionManager from "../services/appFuncManager.js";
 // 移除旧表格系统引用
-import { consoleMessageToEditor } from "./core/runtime/devConsole.js";
-import { calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly, } from "./utils/utility.js";
-import { defaultSettings } from "./data/pluginSetting.js";
-import { Drag } from "./components/dragManager.js";
-import { PopupMenu } from "./components/popupMenu.js";
-import { buildSheetsByTemplates, convertOldTablesToNewSheets } from "./index.js";
-import { getRelativePositionOfCurrentCode } from "./utils/codePathProcessing.js";
-import { fileManager } from "./services/router.js";
-import { pushCodeToQueue } from "./components/_fotTest.js";
-import { createProxy, createProxyWithUserSetting } from "./utils/codeProxy.js";
-import { Sheet, SheetTemplate } from "./core/tableBase.js";
-import { refreshTempView } from './core/editor/tableTemplateEditView.js';
-import { newPopupConfirm, PopupConfirm } from "./components/popupConfirm.js";
-import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
-import { updateSystemMessageTableStatus } from "./core/renderer/tablePushToChat.js";
+import { consoleMessageToEditor } from "../scripts/settings/devConsole.js";
+import { calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly, } from "../utils/utility.js";
+import { defaultSettings } from "../data/pluginSetting.js";
+import { Drag } from "../components/dragManager.js";
+import { PopupMenu } from "../components/popupMenu.js";
+import { buildSheetsByTemplates, convertOldTablesToNewSheets } from "../index.js";
+import { getRelativePositionOfCurrentCode } from "../utils/codePathProcessing.js";
+import { pushCodeToQueue } from "../components/_fotTest.js";
+import { createProxy, createProxyWithUserSetting } from "../utils/codeProxy.js";
+import { refreshTempView } from '../scripts/editor/tableTemplateEditView.js';
+import { newPopupConfirm, PopupConfirm } from "../components/popupConfirm.js";
+import { refreshContextView } from "../scripts/editor/chatSheetsDataView.js";
+import { updateSystemMessageTableStatus } from "../scripts/renderer/tablePushToChat.js";
 
 let derivedData = {}
 
@@ -71,8 +70,8 @@ export const BASE = {
      * @description 该实例用于对数据库的数据进行访问、修改、查询等操作
      * @description 请注意，对数据库的任何操作都应该通过该实例进行，而不应该直接访问数据库
      */
-    Sheet: Sheet,
-    SheetTemplate: SheetTemplate,
+    Sheet: TTable.Sheet,
+    SheetTemplate: TTable.Template,
     refreshContextView: refreshContextView,
     refreshTempView: refreshTempView,
     get templates() {
@@ -154,7 +153,7 @@ export const BASE = {
         }
         return BASE.sheetsData.context.map(sheet => {
             if (hashSheets[sheet.uid]) {
-                const newSheet = new Sheet(sheet.uid)
+                const newSheet = new BASE.Sheet(sheet.uid)
                 newSheet.hashSheet = hashSheets[sheet.uid].map(row => row.map(hash => hash));
                 return newSheet
             } else return

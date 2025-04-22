@@ -1,5 +1,5 @@
 // sheetStyleEditor.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {initializeText, parseSheetRender} from "../renderer/sheetCustomRenderer.js";
 
 let elements = null;
