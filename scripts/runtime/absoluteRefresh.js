@@ -1,10 +1,10 @@
 // absoluteRefresh.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {findTableStructureByIndex } from "../../index.js";
-import {insertRow, updateRow, deleteRow} from "../tableActions.js";
+import {insertRow, updateRow, deleteRow} from "../../core/table/oldTableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
-import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../standaloneAPI.js";
+import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../settings/standaloneAPI.js";
 import {profile_prompts} from "../../data/profile_prompts.js";
 import {refreshContextView} from "../editor/chatSheetsDataView.js";
 import {PopupConfirm} from "../../components/popupConfirm.js";
@@ -651,17 +651,17 @@ export async function rebuildSheets() {
     const h3Element = document.createElement('h3');
     h3Element.textContent = '重建表格数据';
     container.appendChild(h3Element);
-    
+
     const previewDiv1 = document.createElement('div');
     previewDiv1.className = 'rebuild-preview-item';
     previewDiv1.innerHTML = `<span>执行前确认？：</span>${USER.tableBaseSetting.bool_silent_refresh ? '否' : '是'}`;
     container.appendChild(previewDiv1);
-    
+
     const previewDiv2 = document.createElement('div');
     previewDiv2.className = 'rebuild-preview-item';
     previewDiv2.innerHTML = `<span>API：</span>${USER.tableBaseSetting.use_main_api ? '使用主API' : '使用备用API'}`;
     container.appendChild(previewDiv2);
-    
+
     const hr = document.createElement('hr');
     container.appendChild(hr);
 

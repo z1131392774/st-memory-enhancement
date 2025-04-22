@@ -1,5 +1,5 @@
 // tablePushToChat.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {parseSheetRender} from "./sheetCustomRenderer.js";
 import {cellClickEditModeEvent, cellHighlight} from "../editor/chatSheetsDataView.js";
 

@@ -1,4 +1,4 @@
-import {BASE, EDITOR, USER} from "../../manager.js";
+import {BASE, EDITOR, USER} from "../../core/manager.js";
 import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
 
 export async function customSheetsStylePopup() {

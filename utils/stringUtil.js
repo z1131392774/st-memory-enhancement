@@ -1,4 +1,4 @@
-import { USER } from "../manager.js";
+import { USER } from "../core/manager.js";
 
 /**
  * 替换字符串中的user标签
@@ -41,7 +41,7 @@ export function truncateAfterLastParenthesis(str) {
 
 /**
  * 解析字符串字典为对象
- * @param {*} str 
+ * @param {*} str
  * @returns object
  */
 export function parseLooseDict(str) {

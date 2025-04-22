@@ -1,6 +1,6 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {getColumnLetter} from "../tableBase.js";
-// import { deleteRow, insertRow, updateRow } from "../tableActions.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
+import {getColumnLetter} from "../../core/table/utils.js";
+// import { deleteRow, insertRow, updateRow } from "../oldTableActions.js";
 // import JSON5 from '../../utils/json5.min.mjs'
 
 const histories = `

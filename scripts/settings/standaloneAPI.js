@@ -1,7 +1,7 @@
 // standaloneAPI.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import LLMApiService from "../services/llmApi.js";
-import {PopupConfirm} from "../components/popupConfirm.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
+import LLMApiService from "../../services/llmApi.js";
+import {PopupConfirm} from "../../components/popupConfirm.js";
 
 let loadingToast = null;
 let currentApiKeyIndex = 0;// 用于记录当前使用的API Key的索引

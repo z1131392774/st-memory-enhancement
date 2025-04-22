@@ -56,8 +56,8 @@
 *   **`manager.js` (核心管理器):**
 *   **`core/` (核心逻辑模块):**  插件的核心功能实现代码，进一步细分为以下子目录：
     *   `table.js（即将弃用）`:  `Table` 类定义。 负责表格数据的结构化存储、各种操作 (增删改查、格式化)、以及数据输出。
-    *   `tableActions.js（即将弃用）`
-    *   `tableBase.js`
+    *   `oldTableActions.js（即将弃用）`
+    *   `base.js`
     *   `pluginSetting.js`:  插件默认设置和用户设置相关的定义和管理。
 
     *   **`editor/` (编辑器模块):**  编辑器 UI 交互和表格的各种编辑相关的状态管理模块。

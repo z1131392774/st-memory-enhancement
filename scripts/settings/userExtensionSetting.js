@@ -1,8 +1,8 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
-import {updateSystemMessageTableStatus} from "./tablePushToChat.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
+import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
 import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
-import {updateModelList, handleApiTestRequest ,processApiKey} from "../standaloneAPI.js";
+import {updateModelList, handleApiTestRequest ,processApiKey} from "./standaloneAPI.js";
 import {filterTableDataPopup} from "../../data/pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 import {rollbackVersion} from "../../services/debugs.js";
