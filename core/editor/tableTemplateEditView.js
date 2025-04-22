@@ -74,7 +74,8 @@ const formConfigs = {
             },
             { label: '表格名', type: 'text', dataKey: 'name' },
             { label: '表格说明（提示词）', type: 'textarea', rows: 6, dataKey: 'note', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
-            { label: '初始化提示词', type: 'textarea', rows: 4, dataKey: 'initNode', description: '' },
+            { label: '是否必填', type: 'checkbox', dataKey: 'required'},
+            { label: '初始化提示词', type: 'textarea', rows: 4, dataKey: 'initNode', description: '（当该表格为必填，且表格为空时，会发送此提示词催促AI填表）' },
             { label: '插入提示词', type: 'textarea', rows: 4, dataKey: 'insertNode', description: '' },
             { label: '删除提示词', type: 'textarea', rows: 4, dataKey: 'deleteNode', description: '' },
             { label: '更新提示词', type: 'textarea', rows: 4, dataKey: 'updateNode', description: '' },
@@ -197,7 +198,8 @@ function bindSheetSetting(sheet, index) {
             initNode: sheet.data.initNode,
             insertNode: sheet.data.insertNode,
             deleteNode: sheet.data.deleteNode,
-            updateNode: sheet.data.updateNode
+            updateNode: sheet.data.updateNode,
+            required: sheet.required
         };
         const formInstance = new Form(formConfigs.sheetConfig, initialData);
         const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "保存", allowVerticalScrolling: true, cancelButton: "取消" });
@@ -234,6 +236,9 @@ function bindSheetSetting(sheet, index) {
                         break;
                     case 'updateNode':
                         sheet.data.updateNode = diffData[key];
+                        break;
+                    case 'required':
+                        sheet.required = diffData[key];
                         break;
                     default:
                         break;
