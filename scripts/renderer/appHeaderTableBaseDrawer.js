@@ -1,4 +1,4 @@
-import {DERIVED, EDITOR, SYSTEM, USER} from "../../manager.js";
+import {DERIVED, EDITOR, SYSTEM, USER} from "../../core/manager.js";
 import {getChatSheetsView} from "../editor/chatSheetsDataView.js";
 import {getEditView, updateTableContainerPosition} from "../editor/tableTemplateEditView.js";
 import {updateSheetsView} from "../../index.js";

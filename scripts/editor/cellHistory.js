@@ -1,4 +1,4 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 
 const histories = `
 <style>

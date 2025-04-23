@@ -1,4 +1,4 @@
-import {SYSTEM, USER} from "../manager.js";
+import {SYSTEM, USER} from "../core/manager.js";
 
 const bgc = '#3736bb'
 const bgcg = '#de81f1'

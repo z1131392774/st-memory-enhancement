@@ -1,5 +1,5 @@
 // sheetStyleEditor.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {initializeText, parseSheetRender} from "../renderer/sheetCustomRenderer.js";
 
 let elements = null;
@@ -423,8 +423,8 @@ export async function openSheetStyleRendererPopup(originInstance) {
     if (tableRendererPopup.result) {
         const finalConfig = collectConfigThenUpdateTemplate();
         Object.assign(originInstance.config, finalConfig);
-
         originInstance.save();
+        BASE.updateSystemMessageTableStatus()
         EDITOR.success('表格样式已更新');
     }
 }

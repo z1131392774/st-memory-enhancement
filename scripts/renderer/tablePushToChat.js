@@ -1,5 +1,5 @@
 // tablePushToChat.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {parseSheetRender} from "./sheetCustomRenderer.js";
 import {cellClickEditModeEvent, cellHighlight} from "../editor/chatSheetsDataView.js";
 
@@ -13,6 +13,7 @@ function parseTableRender(html, table) {
 
 async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
     for (let [index, sheet] of _sheets.entries()) {
+        if(sheet.config.toChat === false) continue; // 如果不需要推送到聊天，则跳过
         if (sheet.config.useCustomStyle === true) {
             // 使用自定义样式
             const customStyle = parseSheetRender(sheet)

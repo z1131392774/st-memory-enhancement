@@ -1,5 +1,5 @@
 // tableTemplateEditView.js
-import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../manager.js';
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
 import { PopupMenu } from '../../components/popupMenu.js';
 import { Form } from '../../components/formManager.js';
 import { openSheetStyleRendererPopup } from "./sheetStyleEditor.js";
@@ -74,7 +74,8 @@ const formConfigs = {
             },
             { label: '表格名', type: 'text', dataKey: 'name' },
             { label: '表格说明（提示词）', type: 'textarea', rows: 6, dataKey: 'note', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
-            { label: '初始化提示词', type: 'textarea', rows: 4, dataKey: 'initNode', description: '' },
+            { label: '是否必填', type: 'checkbox', dataKey: 'required'},
+            { label: '初始化提示词', type: 'textarea', rows: 4, dataKey: 'initNode', description: '（当该表格为必填，且表格为空时，会发送此提示词催促AI填表）' },
             { label: '插入提示词', type: 'textarea', rows: 4, dataKey: 'insertNode', description: '' },
             { label: '删除提示词', type: 'textarea', rows: 4, dataKey: 'deleteNode', description: '' },
             { label: '更新提示词', type: 'textarea', rows: 4, dataKey: 'updateNode', description: '' },
@@ -84,7 +85,7 @@ const formConfigs = {
 
 
 async function updateDropdownElement() {
-    const templates = BASE.templates;
+    const templates = getSheets();
     // console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
@@ -108,12 +109,17 @@ function getAllDropdownOptions() {
 }
 
 function updateSelect2Dropdown() {
-    // let selectedSheets = scope ==='global'? USER.getContext().chatMetadata.selected_sheets: getAllDropdownOptions()
-    let selectedSheets = USER.getSettings().table_selected_sheets
+    let selectedSheets = getSelectedSheetUids()
     if (selectedSheets === undefined) {
         selectedSheets = [];
     }
     $(dropdownElement).val(selectedSheets).trigger("change",[true])
+}
+
+function initChatScopeSelectedSheets() {
+    const newSelectedSheets = BASE.sheetsData.context.map(sheet=>sheet.enable?sheet.uid:null).filter(Boolean)
+    USER.getContext().chatMetadata.selected_sheets = newSelectedSheets
+    return newSelectedSheets
 }
 
 function initializeSelect2Dropdown(dropdownElement) {
@@ -142,7 +148,7 @@ function initializeSelect2Dropdown(dropdownElement) {
     $(dropdownElement).on('change', function (e, silent) {
         //if(silent || scope === 'chat') return
         if(silent) return
-        USER.getSettings().table_selected_sheets = $(this).val();
+        setSelectedSheetUids($(this).val())
         updateSheetStatusBySelect()
         console.log("更改选中的模板", $(this).val())
         USER.saveSettings();
@@ -164,13 +170,13 @@ function initializeSelect2Dropdown(dropdownElement) {
 }
 
 function updateSheetStatusBySelect(){
-    const selectedSheetsUid = USER.getSettings().table_selected_sheets
-    BASE.templates.forEach(temp=>{
+    const selectedSheetsUid = getSelectedSheetUids()
+    const templates = getSheets()
+    templates.forEach(temp=>{
         if(selectedSheetsUid.includes(temp.uid)) temp.enable = true
         else temp.enable = false
     })
 }
-
 
 let table_editor_container = null
 
@@ -197,7 +203,8 @@ function bindSheetSetting(sheet, index) {
             initNode: sheet.data.initNode,
             insertNode: sheet.data.insertNode,
             deleteNode: sheet.data.deleteNode,
-            updateNode: sheet.data.updateNode
+            updateNode: sheet.data.updateNode,
+            required: sheet.required
         };
         const formInstance = new Form(formConfigs.sheetConfig, initialData);
         const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "保存", allowVerticalScrolling: true, cancelButton: "取消" });
@@ -234,6 +241,9 @@ function bindSheetSetting(sheet, index) {
                         break;
                     case 'updateNode':
                         sheet.data.updateNode = diffData[key];
+                        break;
+                    case 'required':
+                        sheet.required = diffData[key];
                         break;
                     default:
                         break;
@@ -282,6 +292,7 @@ async function templateCellDataEdit(cell) {
         cell.renderCell()
         // cell.parent.updateRender()
         refreshTempView(true);
+        if(scope === 'chat') BASE.refreshContextView()
     }
 }
 
@@ -290,6 +301,8 @@ function handleAction(cell, action){
     cell.newAction(action)
     console.log("执行操作然后刷新")
     refreshTempView(true);
+    // 如果是chat域，则刷新表格
+    if(scope === 'chat') BASE.refreshContextView()
 }
 
 
@@ -359,8 +372,19 @@ function bindCellClickEvent(cell) {
 }
 
 function getSelectedSheetUids() {
-    //return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getContext().chatMetadata.selected_sheets ?? []
-    return USER.getSettings().table_selected_sheets ?? []
+    return scope === 'chat' ? USER.getContext().chatMetadata.selected_sheets ?? initChatScopeSelectedSheets() : USER.getSettings().table_selected_sheets ?? []
+}
+
+function setSelectedSheetUids(selectedSheets) {
+    if (scope === 'chat') {
+        USER.getContext().chatMetadata.selected_sheets = selectedSheets;
+    } else {
+        USER.getSettings().table_selected_sheets = selectedSheets;
+    }
+}
+
+function getSheets(){
+    return scope === 'chat' ? BASE.sheetsData.context : BASE.templates
 }
 
 
@@ -379,7 +403,7 @@ async function updateDragTables() {
     console.log("dragSpace是什么",drag.dragSpace)
 
     selectedSheetUids.forEach((uid,index) => {
-        let sheet = new BASE.SheetTemplate(uid);
+        let sheet = scope==='chat'?new BASE.Sheet(uid): new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
         if (!sheet || !sheet.hashSheet) {
@@ -469,7 +493,7 @@ async function initTableEdit(mesId) {
         }
 
         currentSelectedValues.push(newTemplateUid);
-        USER.getSettings().table_selected_sheets = currentSelectedValues;
+        setSelectedSheetUids(currentSelectedValues)
         USER.saveSettings();
         await updateDropdownElement();
         updateDragTables();

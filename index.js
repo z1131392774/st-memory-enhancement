@@ -1,18 +1,18 @@
-import { APP, BASE, DERIVED, EDITOR, SYSTEM, USER } from './manager.js';
-import { openTableRendererPopup, updateSystemMessageTableStatus } from "./core/renderer/tablePushToChat.js";
-import { loadSettings } from "./core/renderer/userExtensionSetting.js";
+import { APP, BASE, DERIVED, EDITOR, SYSTEM, USER } from './core/manager.js';
+import { openTableRendererPopup, updateSystemMessageTableStatus } from "./scripts/renderer/tablePushToChat.js";
+import { loadSettings } from "./scripts/settings/userExtensionSetting.js";
 // 移除旧表格系统引用
-// import {initAllTable, TableEditAction} from "./core/tableActions.js";
-import { openTableDebugLogPopup } from "./core/runtime/devConsole.js";
-import { TableTwoStepSummary } from "./core/runtime/separateTableUpdate.js";
+// import {initAllTable, TableEditAction} from "./scripts/oldTableActions.js";
+import { openTableDebugLogPopup } from "./scripts/settings/devConsole.js";
+import { TableTwoStepSummary } from "./scripts/runtime/separateTableUpdate.js";
 import { initTest } from "./components/_fotTest.js";
-import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./core/renderer/appHeaderTableBaseDrawer.js";
-import { initRefreshTypeSelector } from './core/runtime/absoluteRefresh.js';
-import {refreshTempView, updateTableContainerPosition} from "./core/editor/tableTemplateEditView.js";
-import { refreshContextView } from "./core/editor/chatSheetsDataView.js";
+import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./scripts/renderer/appHeaderTableBaseDrawer.js";
+import { initRefreshTypeSelector } from './scripts/runtime/absoluteRefresh.js';
+import {refreshTempView, updateTableContainerPosition} from "./scripts/editor/tableTemplateEditView.js";
+import { refreshContextView } from "./scripts/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
 import { parseLooseDict } from "./utils/stringUtil.js"
-import {executeTranslation} from "./core/renderer/translate.js";
+import {executeTranslation} from "./services/translate.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -605,7 +605,7 @@ export async function updateSheetsView() {
     console.log("========================================\n更新表格视图")
     refreshTempView(true);
     console.log("========================================\n更新表格内容视图")
-    refreshContextView(true);
+    refreshContextView();
 
     // 更新系统消息中的表格状态
     updateSystemMessageTableStatus();

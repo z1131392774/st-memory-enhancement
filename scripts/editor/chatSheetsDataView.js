@@ -1,4 +1,4 @@
-import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../manager.js';
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
 import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
 import { findNextChatWhitTableData, } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
@@ -492,7 +492,7 @@ async function renderSheetsDOM() {
     await renderEditableSheetsDOM(sheets, viewSheetsContainer)
 }
 
-export async function refreshContextView(ignoreGlobal = false) {
+export async function refreshContextView() {
     renderSheetsDOM();
 }
 

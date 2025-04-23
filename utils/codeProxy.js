@@ -1,4 +1,4 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../core/manager.js';
 
 /**
  * @description 辅助函数，递归创建 Proxy

@@ -4,7 +4,7 @@ import { extension_settings, getContext, renderExtensionTemplateAsync } from '..
 import { POPUP_TYPE, Popup, callGenericPopup } from '../../../../../../../scripts/popup.js';
 import { power_user, applyPowerUserSettings, getContextSettings, loadPowerUserSettings } from "../../../../../../../scripts/power-user.js";
 import { LoadLocal, SaveLocal, LoadLocalBool } from '../../../../../../../scripts/f-localStorage.js';
-import { getCurrentLocale, addLocaleData, t, translate } from '../../../../../../../scripts/i18n.js';
+import { getCurrentLocale } from '../../../../../../../scripts/i18n.js';
 
 /**
  * appManager 对象，用于集中管理和暴露常用的应用程序功能和库。
@@ -49,9 +49,6 @@ const applicationFunctionManager = {
 
     // scripts/i18n.js 模块
     getCurrentLocale,
-    addLocaleData,
-    t,
-    translate,
 };
 
 export default applicationFunctionManager;

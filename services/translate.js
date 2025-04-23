@@ -1,4 +1,4 @@
-import {APP} from "../../manager.js";
+import {APP} from "../core/manager.js";
 
 /**
  * 异步获取翻译文件

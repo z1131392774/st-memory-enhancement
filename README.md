@@ -14,15 +14,13 @@
 *   **`release` 分支 (发布版本):**  此分支是插件的发布版本，包含最新的稳定发布代码。
 *   **`dev` 分支 (开发中分支):**  此分支是该插件的主要开发分支，包含最新的功能开发、实验性特性以及可能正在进行中的代码重构。**本开发者文档即针对此分支。**
 
-## 下一步 3.0 版本计划
+## 下一步计划
 
 2.0 版本的推进已进入尾声，该分支接下来将专注于维护 2.0 版本的稳定性和修复 bug，2.0 版本的维护与更新计划将会在 `main` 公布。
 
-3.0 版本的开发将会在 `rebuild` 分支上进行，欢迎大家参与！`rebuild` 分支的工作计划如下：
+即将开展的工作计划如下：
 
-*   **解耦内核:**  插件的内核正在进行解耦重构，计划将核心逻辑与 UI 组件分离，以提高代码的可维护性和可扩展性。
-*   **使用TS重构:**  插件的内核代码将进行 TypeScript 重构，以提高代码的可读性和可维护性。
-*   **MCP Client:**  计划将其与 MCP 客户端进行集成，以提升分步流程的性能和稳定性。
+*   **使用TS重构内核:**  插件的内核代码将进行 TypeScript 重构，以提高代码的可读性和可维护性。
 *   **功能增强:**  插件的功能正在不断增强，正制定计划增加更多的内置功能，以满足大家的需求。
 
 ## 本分支开发准备与流程
@@ -52,60 +50,150 @@
 
 插件代码按照模块化原则组织，主要目录和文件结构如下：
 
-*   **`index.js` (插件主入口):**
-*   **`manager.js` (核心管理器):**
-*   **`core/` (核心逻辑模块):**  插件的核心功能实现代码，进一步细分为以下子目录：
-    *   `table.js（即将弃用）`:  `Table` 类定义。 负责表格数据的结构化存储、各种操作 (增删改查、格式化)、以及数据输出。
-    *   `tableActions.js（即将弃用）`
-    *   `tableBase.js`
-    *   `pluginSetting.js`:  插件默认设置和用户设置相关的定义和管理。
-
-    *   **`editor/` (编辑器模块):**  编辑器 UI 交互和表格的各种编辑相关的状态管理模块。
-    *   **`renderer/` (渲染器模块):**  渲染器模块，用于将数据渲染为 UI 组件。
-    *   **`runtime/` (运行时模块):**  运行时数据管理模块，用于存储和管理插件运行时的各种动态数据。
-
-*   **`utils/` (通用工具库):**  通用的、与插件业务逻辑无关的工具函数和第三方库。
-*   **`services/` (服务层):**  更高层次的服务抽象，例如路由管理、数据持久化等。
-*   **`assets/` (静态资源):**  插件使用的静态资源文件。
-    *   `templates/` (HTML 模板):  HTML 模板文件，用于动态生成 UI 组件，实现前后端分离。
-    *   `css/` (样式表):  CSS 样式文件，定义插件的 UI 样式。
-    *   `images/` (图片资源):  图片资源文件，例如插件图标、UI 组件用到的图片等。
+*   **`index.js` (插件主入口):** 插件的入口文件，负责初始化和协调各个模块的工作
+*   **`manifest.json`:** 插件的元数据文件，包含插件名称、版本、作者等信息
+*   **`components/` (组件库):** 可重用的前端界面组件
+    *   `dragManager.js`: 拖拽管理器，负责处理拖拽相关的功能
+    *   `formManager.js`: 表单管理器，处理表单的创建、验证和提交
+    *   `popupConfirm.js`: 确认弹窗组件
+    *   `popupMenu.js`: 弹出菜单组件
+*   **`core/` (核心逻辑模块):** 插件的核心功能实现代码
+    *   `manager.js`: 核心管理器，负责协调各个模块的工作
+    *   `tTableCore.js`: 表格核心库
+    *   **`table/` (表格功能模块):** 表格相关的核心功能
+        *   `actions.js`: 表格操作定义
+        *   `base.js`: 表格基础类
+        *   `cell.js`: 单元格相关功能
+        *   `oldTableActions.js`: 旧版表格操作（即将弃用）
+        *   `sheet.js`: 表格数据结构
+        *   `template.js`: 表格模板系统
+        *   `utils.js`: 表格工具函数
+*   **`data/` (数据定义):** 包含插件的默认设置和预设数据
+    *   `pluginSetting.js`: 插件默认设置
+    *   `pluginSetting_en.js`: 插件英文设置
+    *   `profile_prompts.js`: 个人资料提示词
+    *   `profile_prompts_en.js`: 英文个人资料提示词
+*   **`scripts/` (功能脚本):** 按功能分类的脚本文件
+    *   **`editor/` (编辑器模块):** 编辑器相关的功能
+        *   `cellHistory.js`: 单元格历史记录
+        *   `chatSheetsDataView.js`: 聊天表格数据视图
+        *   `customSheetsStyle.js`: 自定义表格样式
+        *   `initRefreshTypeSelector.js`: 刷新类型选择器初始化
+        *   `sheetStyleEditor.js`: 表格样式编辑器
+        *   `tableHistory.js`: 表格历史记录
+        *   `tableStatistics.js`: 表格统计功能
+        *   `tableTemplateEditView.js`: 表格模板编辑视图
+    *   **`renderer/` (渲染器模块):** 负责将数据渲染为UI组件
+        *   `appHeaderTableBaseDrawer.js`: 应用头部表格绘制器
+        *   `sheetCustomRenderer.js`: 自定义表格渲染器
+        *   `tablePushToChat.js`: 表格推送到聊天功能
+    *   **`runtime/` (运行时模块):** 运行时数据管理和处理
+        *   `absoluteRefresh.js`: 绝对刷新功能
+        *   `separateTableUpdate.js`: 独立表格更新机制
+    *   **`settings/` (设置模块):** 处理插件配置和设置
+        *   `devConsole.js`: 开发者控制台
+        *   `standaloneAPI.js`: 独立API接口
+        *   `userExtensionSetting.js`: 用户扩展设置
+*   **`assets/` (静态资源):** 插件使用的静态资源文件
+    *   **`locales/` (本地化):** 多语言支持文件
+        *   `en.json`: 英文本地化文件
+        *   `zh-cn.json`: 中文本地化文件
+    *   **`styles/` (样式表):** CSS样式文件
+        *   `style.css`: 主样式表文件
+    *   **`templates/` (HTML模板):** HTML模板文件
+        *   各种UI组件的HTML模板（如`index.html`、`editor.html`、`setting.html`等）
+*   **`services/` (服务层):** 提供各种服务功能
+    *   `appFuncManager.js`: 应用功能管理器
+    *   `debugs.js`: 调试服务
+    *   `llmApi.js`: 大语言模型API接口
+    *   `translate.js`: 翻译服务
+*   **`utils/` (通用工具库):** 通用的工具函数和第三方库
+    *   `codePathProcessing.js`: 代码路径处理
+    *   `codeProxy.js`: 代码代理工具
+    *   `json5.min.mjs`: JSON5库（最小化版本）
+    *   `stringUtil.js`: 字符串处理工具
+    *   `utility.js`: 通用工具函数
 
 ## 核心模块说明 (重要)
 
 > \[!NOTE]
 > **请注意：**  由于 `dev` 分支正处于活跃开发阶段，代码变动较为频繁。  以下模块说明可能与最新的代码存在差异。  **最准确的变量和函数信息，请务必查阅源代码注释和 IDE 的代码提示。**
 
-*   **`USER` 模块 (`manager.js`):**  用户数据管理模块。
-    *   **用户设置访问:**  提供对用户个性化设置 (`power_user` 等) 的访问接口。
-    *   **SillyTavern 上下文:**  封装了对 SillyTavern 上下文 (`getContext()`) 等数据的访问，方便获取当前聊天环境信息。
-    *   **设置持久化:**  封装了用户设置的读取 (`getSettings()`) 和保存 (`saveSettings()`) 操作，实现用户设置的持久化存储。
-    *   **聊天消息快捷访问:**  提供便捷的方法 (`getChatPiece()`) 获取当前聊天消息片段。
-    *   **用户设置代理:**  使用 `createProxyWithUserSetting` 创建用户设置的代理对象，实现更方便、更安全的配置访问和修改。
+*   **`core/manager.js`:**  插件的核心管理器，负责协调各个模块的工作和管理插件的整体生命周期
+    *   **命名空间/模块:**
+        *   **`APP`:** 应用功能管理器的引用，提供对SillyTavern主程序功能的访问
+        *   **`USER`:** 用户数据管理器，负责管理用户的设置、上下文和聊天记录等数据
+            * `getSettings()`: 获取用户设置
+            * `getExtensionSettings()`: 获取扩展设置
+            * `saveSettings()`: 保存用户设置
+            * `saveChat()`: 保存聊天记录
+            * `getContext()`: 获取当前聊天上下文
+            * `getChatPiece(deep)`: 获取指定深度的聊天片段
+            * `loadUserAllTemplates()`: 加载用户所有表格模板
+            * `tableBaseSetting`: 表格基础设置代理对象
+            * `tableBaseDefaultSettings`: 表格默认设置对象
+        *   **`BASE`:** 数据库基础数据管理器，提供对库的用户数据、模板数据的访问
+            * `Sheet`: 表格数据表单类引用
+            * `SheetTemplate`: 表格模板类引用
+            * `refreshContextView`: 刷新上下文视图函数
+            * `refreshTempView`: 刷新模板视图函数
+            * `templates`: 获取所有用户模板
+            * `sheetsData`: 表格数据访问代理对象
+            * `copyHashSheets(hashSheets)`: 复制哈希表格数据
+            * `getLastSheetsPiece(deep, cutoff, startAtLastest)`: 获取最近的表格数据片段
+            * `hashSheetsToSheets(hashSheets)`: 将哈希表格数据转换为表格实例
+            * `initHashSheet()`: 初始化哈希表格
+        *   **`EDITOR`:** 编辑器控制器，管理编辑器的状态、事件和设置
+            * 组件引用: `Drag`, `PopupMenu`, `Popup`, `POPUP_TYPE`
+            * 功能方法: `callGenericPopup`, `generateRaw`, `getSlideToggleOptions`, `slideToggle`, `confirm`
+            * 消息通知: `info`, `success`, `warning`, `error`, `clear`
+            * `logAll()`: 记录所有相关数据到控制台
+        *   **`DERIVED`:** 项目派生数据管理器，管理运行时的派生数据
+            * `any`: 获取派生数据代理对象
+        *   **`SYSTEM`:** 系统控制器，管理系统级别的数据、事件和设置
+            * `getTemplate(name)`: 获取HTML模板
+            * `codePathLog(context, deep)`: 记录代码路径
+            * 工具函数: `lazy`, `generateRandomString`, `generateRandomNumber`, `calculateStringHash`
+            * `f(f, name)`: 将函数推入执行队列
+    *   **初始化与配置:** 负责插件的初始化、加载用户配置以及设置运行环境
+    *   **模块协调:** 协调各功能模块间的交互，确保功能模块能够正常工作
+    *   **生命周期管理:** 管理插件的启动、运行、暂停和卸载等生命周期事件
 
-*   **`BASE` 模块 (`manager.js`):**  基础数据管理模块 (核心数据中心)。
-    *   **`Sheet` 类:**  核心数据结构 `Sheet` 类 (`Sheet: Sheet`)，用于操作表格数据。  可以将其理解为插件的“数据表”，负责数据的组织和管理。
-    *   **模板与上下文数据管理:**  封装了模板数据和上下文数据的加载 (`loadUserAllTemplates()`, `loadContextAllSheets()`) 和销毁 (`destroyAllTemplates()`, `destroyAllContextSheets()`) 方法，管理插件的数据生命周期。
-    *   **最近表格数据访问:**  提供 `getLastSheetsPiece()` 方法，用于获取最近使用的表格数据，可能用于缓存或快速访问。
+*   **`core/tTableCore.js`:** 表格核心模块，定义了表格的基本行为和数据结构
+    *   **表格数据管理:** 实现表格数据的存储、检索和处理
+    *   **核心API:** 提供表格操作的核心API，作为表格功能的基础
 
-*   **`EDITOR` 模块 (`manager.js`):**  编辑器控制器 (UI 交互和状态管理)。
-    *   **UI 状态管理:**  集中管理 UI 编辑器相关的状态和功能模块，例如：
-        *   `Drag`:  拖拽功能 (`Drag`)
-        *   `PopupMenu`:  弹出菜单 (`PopupMenu`)
-        *   `Popup`:  弹窗 (`Popup`, `callGenericPopup`, `POPUP_TYPE`)
-    *   **消息提示:**  封装了各种类型的消息提示功能 (`info()`, `success()`, `warning()`, `error()`, `clear()`)，方便在 UI 上展示操作反馈或错误信息。
-    *   **日志输出:**  提供统一的日志输出接口 (`logAll()`)，方便开发者进行调试和问题排查。
+*   **`core/table/`:** 表格功能的具体实现
+    *   **`base.js`:** 定义表格的基础类和接口，包括表格的创建、销毁等基本操作
+    *   **`sheet.js`:** 实现表格数据结构，负责管理行、列及单元格数据
+    *   **`cell.js`:** 定义单元格的结构和行为，处理单元格数据的读写和格式化
+    *   **`actions.js`:** 定义表格的各种操作，如添加行列、合并单元格、排序等
+    *   **`template.js`:** 管理表格模板，实现模板的创建、加载和应用
+    *   **`utils.js`:** 提供表格相关的工具函数，辅助表格操作
 
-*   **`DERIVED` 模块 (`manager.js`):**  派生数据管理模块 (运行时数据)。
-    *   **运行时数据代理:**  使用 `createProxy` 创建派生数据的代理对象 (`any`)，用于存储和访问插件运行时的各种动态数据，例如中间计算结果、UI 状态等。
-    *   **核心类暴露:**  对外暴露 `Table` 类 (`Table: Table`) 和 `TableEditAction` 类 (`TableEditAction: TableEditAction`)，方便其他模块使用。
+*   **`services/`:** 服务层，提供各种功能服务
+    *   **`appFuncManager.js`:** 应用功能管理器，整合和协调各种应用功能
+    *   **`debugs.js`:** 提供调试工具和日志功能，帮助开发者跟踪和解决问题
+    *   **`llmApi.js`:** 大语言模型API接口，用于与AI模型进行交互
+    *   **`translate.js`:** 翻译服务，处理插件的多语言支持
 
-*   **`SYSTEM` 模块 (`manager.js`):**  系统级功能模块 (底层工具集)。
-    *   **组件加载:**  提供 `getTemplate()` 和 `htmlToDom()` 方法，用于动态加载 HTML 模板和将其转换为 DOM 元素。
-    *   **代码路径日志:**  `codePathLog()` 方法，用于记录代码执行路径，方便调试和跟踪代码流程。
-    *   **通用工具函数:**  包含各种通用的工具函数，例如：`lazy()` (懒加载)、`generateRandomString()` (随机字符串生成)、`generateRandomNumber()` (随机数生成)、`calculateStringHash()` (字符串哈希计算) 等。
-    *   **文件读写:**  封装了文件读取 (`readFile()`) 和写入 (`writeFile()`) 操作，方便插件进行本地数据存储或配置管理。
-    *   **任务队列:**  `f()` 方法可能用于实现任务队列，用于异步执行任务或控制任务执行顺序。
+*   **`utils/`:** 通用工具库，提供各种辅助功能
+    *   **`codeProxy.js`:** 实现代码代理功能，可能用于数据绑定或属性监听
+    *   **`codePathProcessing.js`:** 处理代码路径，用于追踪代码执行流程
+    *   **`stringUtil.js`:** 提供字符串处理工具，如格式化、解析等功能
+    *   **`utility.js`:** 包含各种通用工具函数，如数据转换、格式校验等
+
+*   **`components/`:** 组件库，实现UI交互组件
+    *   **`dragManager.js`:** 拖拽管理器，处理元素的拖拽功能
+    *   **`formManager.js`:** 表单管理器，处理表单的创建、验证和提交
+    *   **`popupConfirm.js`:** 确认弹窗组件，用于用户确认操作
+    *   **`popupMenu.js`:** 弹出菜单组件，实现上下文菜单功能
+
+*   **`scripts/`:** 按功能分类的脚本文件
+    *   **`editor/`:** 编辑器模块，实现表格编辑功能
+    *   **`renderer/`:** 渲染器模块，将数据渲染为UI组件
+    *   **`runtime/`:** 运行时模块，管理插件运行时的状态和数据
+    *   **`settings/`:** 设置模块，处理插件的配置和用户设置
 
 ## 👥 贡献者名单
 

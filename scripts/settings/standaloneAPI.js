@@ -1,7 +1,7 @@
 // standaloneAPI.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
-import LLMApiService from "../services/llmApi.js";
-import {PopupConfirm} from "../components/popupConfirm.js";
+import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
+import LLMApiService from "../../services/llmApi.js";
+import {PopupConfirm} from "../../components/popupConfirm.js";
 
 let loadingToast = null;
 let currentApiKeyIndex = 0;// 用于记录当前使用的API Key的索引
@@ -167,10 +167,7 @@ export async function handleApiTestRequest(apiUrl, encryptedApiKeys, modelName) 
         EDITOR.error('未找到有效的 API Key。');
         return []; // 如果找不到有效的密钥则返回空数组
     }
-
-    const testAll = await EDITOR.confirm(`检测到 ${apiKeys.length} 个 API Key。 \n\n注意：测试方式和酒馆自带的相同，将会发送一次消息（token数量很少），但如果使用的是按次计费的API请注意消费情况。`, '取消', '测试第一个key');
-
-
+    const testAll = await EDITOR.callGenericPopup(`检测到 ${apiKeys.length} 个 API Key。\n注意：测试方式和酒馆自带的相同，将会发送一次消息（token数量很少），但如果使用的是按次计费的API请注意消费情况。`, EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "测试第一个key", cancelButton: "取消" });
     let keysToTest = [];
     if (testAll === null) return []; // 用户取消弹窗，返回空数组
 
