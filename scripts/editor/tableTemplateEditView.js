@@ -85,7 +85,7 @@ const formConfigs = {
 
 
 async function updateDropdownElement() {
-    const templates = BASE.templates;
+    const templates = getSheets();
     // console.log("下滑模板", templates)
     if (dropdownElement === null) {
         dropdownElement = document.createElement('select');
@@ -109,12 +109,17 @@ function getAllDropdownOptions() {
 }
 
 function updateSelect2Dropdown() {
-    // let selectedSheets = scope ==='global'? USER.getContext().chatMetadata.selected_sheets: getAllDropdownOptions()
-    let selectedSheets = USER.getSettings().table_selected_sheets
+    let selectedSheets = getSelectedSheetUids()
     if (selectedSheets === undefined) {
         selectedSheets = [];
     }
     $(dropdownElement).val(selectedSheets).trigger("change",[true])
+}
+
+function initChatScopeSelectedSheets() {
+    const newSelectedSheets = BASE.sheetsData.context.map(sheet=>sheet.enable?sheet.uid:null).filter(Boolean)
+    USER.getContext().chatMetadata.selected_sheets = newSelectedSheets
+    return newSelectedSheets
 }
 
 function initializeSelect2Dropdown(dropdownElement) {
@@ -143,7 +148,7 @@ function initializeSelect2Dropdown(dropdownElement) {
     $(dropdownElement).on('change', function (e, silent) {
         //if(silent || scope === 'chat') return
         if(silent) return
-        USER.getSettings().table_selected_sheets = $(this).val();
+        setSelectedSheetUids($(this).val())
         updateSheetStatusBySelect()
         console.log("更改选中的模板", $(this).val())
         USER.saveSettings();
@@ -165,13 +170,13 @@ function initializeSelect2Dropdown(dropdownElement) {
 }
 
 function updateSheetStatusBySelect(){
-    const selectedSheetsUid = USER.getSettings().table_selected_sheets
-    BASE.templates.forEach(temp=>{
+    const selectedSheetsUid = getSelectedSheetUids()
+    const templates = getSheets()
+    templates.forEach(temp=>{
         if(selectedSheetsUid.includes(temp.uid)) temp.enable = true
         else temp.enable = false
     })
 }
-
 
 let table_editor_container = null
 
@@ -364,8 +369,19 @@ function bindCellClickEvent(cell) {
 }
 
 function getSelectedSheetUids() {
-    //return scope === 'chat' ? getAllDropdownOptions() ?? [] : USER.getContext().chatMetadata.selected_sheets ?? []
-    return USER.getSettings().table_selected_sheets ?? []
+    return scope === 'chat' ? USER.getContext().chatMetadata.selected_sheets ?? initChatScopeSelectedSheets() : USER.getSettings().table_selected_sheets ?? []
+}
+
+function setSelectedSheetUids(selectedSheets) {
+    if (scope === 'chat') {
+        USER.getContext().chatMetadata.selected_sheets = selectedSheets;
+    } else {
+        USER.getSettings().table_selected_sheets = selectedSheets;
+    }
+}
+
+function getSheets(){
+    return scope === 'chat' ? BASE.sheetsData.context : BASE.templates
 }
 
 
@@ -384,7 +400,7 @@ async function updateDragTables() {
     console.log("dragSpace是什么",drag.dragSpace)
 
     selectedSheetUids.forEach((uid,index) => {
-        let sheet = new BASE.SheetTemplate(uid);
+        let sheet = scope==='chat'?new BASE.Sheet(uid): new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
         if (!sheet || !sheet.hashSheet) {
@@ -474,7 +490,7 @@ async function initTableEdit(mesId) {
         }
 
         currentSelectedValues.push(newTemplateUid);
-        USER.getSettings().table_selected_sheets = currentSelectedValues;
+        setSelectedSheetUids(currentSelectedValues)
         USER.saveSettings();
         await updateDropdownElement();
         updateDragTables();
