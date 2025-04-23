@@ -492,7 +492,7 @@ async function renderSheetsDOM() {
     await renderEditableSheetsDOM(sheets, viewSheetsContainer)
 }
 
-export async function refreshContextView(ignoreGlobal = false) {
+export async function refreshContextView() {
     renderSheetsDOM();
 }
 

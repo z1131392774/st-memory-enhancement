@@ -605,7 +605,7 @@ export async function updateSheetsView() {
     console.log("========================================\n更新表格视图")
     refreshTempView(true);
     console.log("========================================\n更新表格内容视图")
-    refreshContextView(true);
+    refreshContextView();
 
     // 更新系统消息中的表格状态
     updateSystemMessageTableStatus();

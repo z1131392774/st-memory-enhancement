@@ -292,6 +292,7 @@ async function templateCellDataEdit(cell) {
         cell.renderCell()
         // cell.parent.updateRender()
         refreshTempView(true);
+        if(scope === 'chat') BASE.refreshContextView()
     }
 }
 
@@ -300,6 +301,8 @@ function handleAction(cell, action){
     cell.newAction(action)
     console.log("执行操作然后刷新")
     refreshTempView(true);
+    // 如果是chat域，则刷新表格
+    if(scope === 'chat') BASE.refreshContextView()
 }
 
 
