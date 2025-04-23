@@ -74,6 +74,7 @@ export const BASE = {
     SheetTemplate: TTable.Template,
     refreshContextView: refreshContextView,
     refreshTempView: refreshTempView,
+    updateSystemMessageTableStatus: updateSystemMessageTableStatus,
     get templates() {
         return USER.loadUserAllTemplates()
     },

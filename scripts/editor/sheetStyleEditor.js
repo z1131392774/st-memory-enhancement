@@ -423,8 +423,8 @@ export async function openSheetStyleRendererPopup(originInstance) {
     if (tableRendererPopup.result) {
         const finalConfig = collectConfigThenUpdateTemplate();
         Object.assign(originInstance.config, finalConfig);
-
         originInstance.save();
+        BASE.updateSystemMessageTableStatus()
         EDITOR.success('表格样式已更新');
     }
 }
