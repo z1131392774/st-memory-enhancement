@@ -628,10 +628,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 export async function rebuildSheets() {
     const container = document.createElement('div');
     console.log('测试开始');
-    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
-        okButton: "继续",
-        cancelButton: "取消"
-    });
+    
 
     const style = document.createElement('style');
     style.innerHTML = `
@@ -682,8 +679,8 @@ export async function rebuildSheets() {
     selectorContainer.appendChild(selectorContent);
 
     // 初始化选择器选项
-    const $selector = document.getElementById('rebuild_template_selector');
-    const $additionalPrompt = document.getElementById('rebuild_additional_prompt');
+    const $selector = $(selectorContent.querySelector('#rebuild_template_selector'))
+    const $additionalPrompt = $(selectorContent.querySelector('#rebuild_additional_prompt'))
     $selector.empty(); // 清空加载中状态
 
     // 添加选项
@@ -702,11 +699,16 @@ export async function rebuildSheets() {
     // 设置默认选中项
     $selector.val('rebuild_base');
     $additionalPrompt.val('');
+    
+    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
+        okButton: "继续",
+        cancelButton: "取消"
+    });
 
     await confirmation.show();
     if (confirmation.result) {
         // 获取当前选中的模板
-        const selectedTemplate = $selector.value;
+        const selectedTemplate = $selector.val();
         const additionalPrompt = $additionalPrompt.value;
         if (!selectedTemplate) {
             EDITOR.error('请选择一个有效的提示模板');
