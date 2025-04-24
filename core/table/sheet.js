@@ -150,7 +150,7 @@ export class Sheet extends SheetBase {
      * @returns {string[][]} - 返回表格的content数据
      */
     getContent(withHead = false) {
-        if (this.isEmpty()) return this.source.initNode;
+        if (!withHead&&this.isEmpty()) return [];
         const content = this.hashSheet.map((row) => 
             row.map((cellUid) => {
                 const cell = this.cells.get(cellUid);
