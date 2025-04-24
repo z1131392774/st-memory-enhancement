@@ -377,15 +377,30 @@ async function updateDragTables() {
     console.log("dragSpace是什么",drag.dragSpace)
 
     selectedSheetUids.forEach((uid,index) => {
+
+        let sheetDataExists;
+        if (scope === 'chat') {
+            // 检查 uid 是否存在于 BASE.sheetsData.context
+            sheetDataExists = BASE.sheetsData.context?.some(sheetData => sheetData.uid === uid);
+        } else {
+            // 检查 uid 是否存在于 BASE.templates
+            sheetDataExists = BASE.templates?.some(templateData => templateData.uid === uid);
+        }
+        // 如果数据不存在，则记录警告并跳过此 uid
+        if (!sheetDataExists) {
+            console.warn(`在 updateDragTables 中未找到 UID 为 ${uid} 的表格数据 (scope: ${scope})。跳过此表格。`);
+            return;
+        }
+
         let sheet = scope === 'chat'
             ? new BASE.Sheet(uid)
             : new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
-        if (!sheet || !sheet.hashSheet) {
-            console.warn(`无法加载模板或模板数据为空，UID: ${uid}`);
-            return
-        }
+        // if (!sheet || !sheet.hashSheet) {
+        //     console.warn(`无法加载模板或模板数据为空，UID: ${uid}`);
+        //     return
+        // }
 
         const tableElement = sheet.renderSheet(bindCellClickEvent, sheet.hashSheet.slice(0, 1) );
         tableElement.style.marginLeft = '5px'
