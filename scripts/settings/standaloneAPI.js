@@ -271,7 +271,8 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
     const USER_API_URL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
     const decryptedApiKeysString = await getDecryptedApiKey(); // 获取逗号分隔的密钥字符串
     const USER_API_MODEL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-    const MAX_RETRIES = USER.tableBaseSetting.custom_api_retries ?? 0; // 从设置中获取重试次数，默认为 0
+    // const MAX_RETRIES = USER.tableBaseSetting.custom_api_retries ?? 0; // 从设置中获取重试次数，默认为 0
+    const MAX_RETRIES = 0; // 从设置中获取重试次数，默认为 0
 
     if (!USER_API_URL || !USER_API_MODEL) {
         EDITOR.error('请填写完整的自定义API配置 (URL 和模型)');
