@@ -1,6 +1,6 @@
 import {switchLanguage} from "../services/translate.js";
 
-export const profile_prompts = switchLanguage('__profile_prompts__', {
+export const profile_prompts = await switchLanguage('__profile_prompts__', {
     "rebuild_base": {
         "type": "rebuild",
         "name":"更新+自动修复（推荐）",
