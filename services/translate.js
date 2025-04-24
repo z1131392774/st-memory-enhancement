@@ -104,34 +104,11 @@ async function getTranslationsConfig() {
 }
 
 /**
- * 应用翻译和本地化的主函数
+ * 对指定范围的对象进行翻译
+ * @param targetScope
+ * @param source
+ * @returns {Promise<*|Object|Array|string>}
  */
-export async function executeTranslation() {
-    const { translations, lang } = await getTranslationsConfig();
-    console.log("当前语言", lang);
-
-    // 获取翻译的 JSON 文件
-    if (Object.keys(translations).length === 0) {
-        console.warn("No translations found for locale:", lang);
-        return;
-    }
-
-    // 应用翻译
-    applyTranslations(translations);
-
-    console.log("Translation completed for locale:", lang);
-}
-
-export async function switchLanguage(targetScope, source) {
-    const { translations, lang } = await getTranslationsConfig();
-    if (lang === 'zh-cn') return source;
-
-    const target = translations[targetScope];
-
-
-    return {...source, ...target};
-}
-
 export async function translating(targetScope, source) {
     let { translations, lang } = await getTranslationsConfig();
     translations = translations[targetScope];
@@ -178,4 +155,37 @@ export async function translating(targetScope, source) {
     }
 
     return source;
+}
+
+/**
+ * 对变量切换语言
+ * @param targetScope
+ * @param source
+ */
+export function switchLanguage(targetScope, source) {
+    getTranslationsConfig().then(({ translations, lang }) => {
+        if (lang === 'zh-cn') {
+            return source;
+        }
+        return {...source, ...translations[targetScope] || {}};
+    });
+}
+
+/**
+ * 对初始化加载的html应用翻译和本地化的主函数
+ */
+export async function executeTranslation() {
+    const { translations, lang } = await getTranslationsConfig();
+    console.log("当前语言", lang);
+
+    // 获取翻译的 JSON 文件
+    if (Object.keys(translations).length === 0) {
+        console.warn("No translations found for locale:", lang);
+        return;
+    }
+
+    // 应用翻译
+    applyTranslations(translations);
+
+    console.log("Translation completed for locale:", lang);
 }
