@@ -144,6 +144,21 @@ export class Sheet extends SheetBase {
 
         return result;
     }
+
+    /**
+     * 获取表格的content数据（与旧版兼容）
+     * @returns {string[][]} - 返回表格的content数据
+     */
+    getContent(withHead= false) {
+        if (this.isEmpty()) return this.source.initNode;
+        const content = this.hashSheet.map((row, index) => row.map(cellUid => {
+            const cell = this.cells.get(cellUid)
+            if (!cell) return ""
+            return cell.data.value
+        }));
+        if(!withHead) return content.shift().map(row => row.shift())
+        return content;
+    }
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
     #load(target) {
