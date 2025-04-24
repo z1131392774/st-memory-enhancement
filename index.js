@@ -50,8 +50,18 @@ export function buildSheetsByTemplates(targetPiece) {
     const templates = BASE.templates
     templates.forEach(template => {
         if(template.enable === false) return
-        const newSheet = new BASE.Sheet(template);
-        newSheet.save(targetPiece)
+
+        // 检查 template 结构
+        if (!template || !template.hashSheet || !Array.isArray(template.hashSheet) || template.hashSheet.length === 0 || !Array.isArray(template.hashSheet[0]) || !template.cellHistory || !Array.isArray(template.cellHistory)) {
+            console.error(`[Memory Enhancement] 在 buildSheetsByTemplates 中遇到无效的模板结构 (缺少 hashSheet 或 cellHistory)。跳过模板:`, template);
+            return; // 跳过处理此模板
+        }
+        try {
+            const newSheet = new BASE.Sheet(template);
+            newSheet.save(targetPiece);
+        } catch (error) {
+            console.error(`[Memory Enhancement] 从模板创建或保存 sheet 时出错:`, template, error);
+        }
     })
     USER.saveChat()
 }
