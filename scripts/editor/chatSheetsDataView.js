@@ -470,13 +470,17 @@ export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _ce
 }
 
 async function renderSheetsDOM() {
+    const task = new SYSTEM.taskTiming('renderSheetsDOM_task')
+
     updateSystemMessageTableStatus();
+    task.log()
     const { piece, deep } = BASE.getLastSheetsPiece();
     if (!piece || !piece.hash_sheets) return;
+
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
     console.log('renderSheetsDOM:', piece, sheets)
     DERIVED.any.renderingSheets = sheets
-
+    task.log()
     // 用于记录上一次的hash_sheets，渲染时根据上一次的hash_sheets进行高亮
     lastCellsHashSheet = BASE.getLastSheetsPiece(deep - 1, 3, false)?.piece.hash_sheets;
     // console.log("找到的diff前项", lastCellsHashSheet)
@@ -486,14 +490,11 @@ async function renderSheetsDOM() {
             lastCellsHashSheet[sheetUid] = lastCellsHashSheet[sheetUid].flat()
         }
     }
-
+    task.log()
     $(viewSheetsContainer).empty()
     viewSheetsContainer.style.paddingBottom = '150px'
-    await renderEditableSheetsDOM(sheets, viewSheetsContainer)
-}
-
-export async function refreshContextView() {
-    renderSheetsDOM();
+    renderEditableSheetsDOM(sheets, viewSheetsContainer)
+    task.log()
 }
 
 let initializedTableView = null
@@ -501,7 +502,7 @@ async function initTableView(mesId) {
     initializedTableView = $(await SYSTEM.getTemplate('manager')).get(0);
     viewSheetsContainer = initializedTableView.querySelector('#tableContainer');
 
-    setTableEditTips($(initializedTableView).find('#tableEditTips'));    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
+    // setTableEditTips($(initializedTableView).find('#tableEditTips'));    // 确保在 table_manager_container 存在的情况下查找 tableEditTips
 
     // 设置编辑提示
     // 点击打开查看表格数据统计
@@ -537,6 +538,11 @@ async function initTableView(mesId) {
     })
 
     return initializedTableView;
+}
+
+export async function refreshContextView() {
+    renderSheetsDOM();
+    console.log("刷新表格视图")
 }
 
 export async function getChatSheetsView(mesId = -1) {

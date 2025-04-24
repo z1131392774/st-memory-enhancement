@@ -25,8 +25,9 @@ export class Sheet extends SheetBase {
      * @description 可以通过 `cell.parent` 获取 Sheet 对象，因此不再需要传递 Sheet 对象
      * @description 如果不传递 cellEventHandler 参数，则使用上一次的 cellEventHandler
      * @param {Function} cellEventHandler
+     * @param targetHashSheet
      * */
-    renderSheet(cellEventHandler = this.lastCellEventHandler) {
+    renderSheet(cellEventHandler = this.lastCellEventHandler, targetHashSheet = this.hashSheet) {
         this.lastCellEventHandler = cellEventHandler;
 
         if (!this.element) {
@@ -53,7 +54,7 @@ export class Sheet extends SheetBase {
         tbody.innerHTML = '';
 
         // 遍历 hashSheet，渲染每一个单元格
-        this.hashSheet.forEach((rowUids, rowIndex) => {
+        targetHashSheet.forEach((rowUids, rowIndex) => {
             const rowElement = document.createElement('tr');
             rowUids.forEach((cellUid, colIndex) => {
                 const cell = this.cells.get(cellUid)

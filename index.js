@@ -446,7 +446,7 @@ async function onChatCompletionPromptReady(eventData) {
         else
             eventData.chat.splice(-USER.tableBaseSetting.deep, 0, { role: getMesRole(), content: promptContent })
 
-        await updateSheetsView()
+        updateSheetsView()
     } catch (error) {
         // 获取堆栈信息
         const stack = error.stack;
@@ -545,7 +545,7 @@ async function onMessageEdited(this_edit_mes_id) {
         }
     }
 
-    await updateSheetsView()
+    updateSheetsView()
 }
 
 /**
@@ -567,14 +567,14 @@ async function onMessageReceived(chat_id) {
         }
     }
 
-    await updateSheetsView()
+    updateSheetsView()
 }
 
 /**
  * 聊天变化时触发
  */
 async function onChatChanged() {
-    await updateSheetsView()
+    updateSheetsView()
 }
 
 
@@ -592,7 +592,7 @@ async function onMessageSwiped(chat_id) {
         EDITOR.error("记忆插件：swipe切换失败\n原因：", error.message, error)
     }
 
-    await updateSheetsView()
+    updateSheetsView()
 }
 
 /**
@@ -600,12 +600,13 @@ async function onMessageSwiped(chat_id) {
  * @description 更新表格视图，使用新的Sheet系统
  * @returns {Promise<*[]>}
  */
-export async function updateSheetsView() {
+async function updateSheetsView() {
+    const task = new SYSTEM.taskTiming('openAppHeaderTableDrawer_task')
     // 刷新表格视图
     console.log("========================================\n更新表格视图")
-    refreshTempView(true);
+    refreshTempView(true).then(() => task.log());
     console.log("========================================\n更新表格内容视图")
-    refreshContextView();
+    refreshContextView().then(() => task.log());
 
     // 更新系统消息中的表格状态
     updateSystemMessageTableStatus();
@@ -678,7 +679,7 @@ jQuery(async () => {
         tableStructure.enable = $(this).prop('checked');
     })
 
-    initAppHeaderTableDrawer().then(updateSheetsView);  // 初始化表格编辑器
+    initAppHeaderTableDrawer().then();  // 初始化表格编辑器
     functionToBeRegistered()    // 注册用于调试的各种函数
 
     executeTranslation(); // 执行翻译函数
