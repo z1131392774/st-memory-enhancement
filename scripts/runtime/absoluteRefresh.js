@@ -346,6 +346,11 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                 const clonedTables = tableDataToTables(cleanContentTable);
                 console.log('深拷贝后的cleanContent:', clonedTables);
 
+                // 防止修改标题
+                clonedTables.forEach((table, index) => {
+                    table.tableName = oldTable[index].tableName
+                });
+
                 // 如果不是静默更新，显示操作确认
                 if (!silentUpdate) {
                     // 将uniqueActions内容推送给用户确认是否继续
