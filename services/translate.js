@@ -1,7 +1,7 @@
 import applicationFunctionManager from "./appFuncManager.js";
 
-let _lang = '';
-let _translations = {};
+let _lang = undefined;
+let _translations = undefined;
 
 /**
  * 异步获取翻译文件
@@ -24,6 +24,20 @@ async function fetchTranslations(locale) {
         console.error('Error loading translations:', error);
         return {};
     }
+}
+
+async function getTranslationsConfig() {
+    if (_lang === undefined) {
+        _lang = applicationFunctionManager.getCurrentLocale();
+    }
+    if (_lang === undefined) {
+        _lang = 'zh-cn';
+        return { translations: {}, lang: _lang };
+    }
+    if (_translations === undefined) {
+        _translations = await fetchTranslations(_lang)
+    }
+    return { translations: _translations, lang: _lang };
 }
 
 /**
@@ -66,16 +80,6 @@ function translateElementsBySelector(translations, selector, key) {
     }
 }
 
-async function getTranslationsConfig() {
-    if (_lang === '') {
-        _lang = applicationFunctionManager.getCurrentLocale();
-    }
-    if (!_translations || Object.keys(_translations).length === 0) {
-        _translations = await fetchTranslations(_lang)
-    }
-    return { translations: _translations, lang: _lang };
-}
-
 /**
  * 对指定范围的对象进行翻译
  * @param targetScope
@@ -84,6 +88,10 @@ async function getTranslationsConfig() {
  */
 export async function translating(targetScope, source) {
     let { translations, lang } = await getTranslationsConfig();
+    if (lang === 'zh-cn') {
+        return source;
+    }
+
     translations = translations[targetScope];
     /**
      * 递归翻译对象中的所有字符串
@@ -140,6 +148,7 @@ export async function switchLanguage(targetScope, source) {
     if (lang === 'zh-cn') {
         return source;
     }
+
     return {...source, ...translations[targetScope] || {}};
 }
 
@@ -148,8 +157,11 @@ export async function switchLanguage(targetScope, source) {
  */
 export async function executeTranslation() {
     const { translations, lang } = await getTranslationsConfig();
-    console.log("当前语言", lang);
+    if (lang === 'zh-cn') {
+        return;
+    }
 
+    console.log("Current Locale: ", lang);
     // 获取翻译的 JSON 文件
     if (Object.keys(translations).length === 0) {
         console.warn("No translations found for locale:", lang);
