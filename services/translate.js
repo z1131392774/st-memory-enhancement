@@ -46,33 +46,6 @@ function applyTranslations(translations) {
         }
     });
 
-    // // 对文本需要翻译但没有 data-i18n 属性的元素进行翻译
-    // // 使用特定的 CSS 选择器或 ID 来定位这些元素
-    // if (translations["Memory Enhancement (Tables)"]) {
-    //     const headerElement = document.querySelector('#inline_drawer_header_content b');
-    //     if (headerElement) headerElement.textContent = translations["Memory Enhancement (Tables)"];
-    // }
-    //
-    // if (translations["Click to update"]) {
-    //     const updateElement = document.querySelector('#tableUpdateTag');
-    //     if (updateElement) updateElement.textContent = translations["Click to update"];
-    // }
-    //
-    // if (translations["Project link"]) {
-    //     const projectLinkElement = document.querySelector('.fa-github.fa-lg').nextElementSibling;
-    //     if (projectLinkElement) projectLinkElement.textContent = translations["Project link"];
-    // }
-    //
-    // if (translations["Read tutorial"]) {
-    //     const tutorialLinkElement = document.querySelector('.fa-book').nextElementSibling;
-    //     if (tutorialLinkElement) tutorialLinkElement.textContent = translations["Read tutorial"];
-    // }
-    //
-    // if (translations["Logs"]) {
-    //     const logsElement = document.querySelector('#table_debug_log_button a');
-    //     if (logsElement) logsElement.textContent = translations["Logs"];
-    // }
-
     // 通过 CSS 选择器翻译其他元素
     translateElementsBySelector(translations, '#table_clear_up a', "Reorganize tables now");
     translateElementsBySelector(translations, '#dataTable_to_chat_button a', "Edit style of tables rendered in conversation");
@@ -162,13 +135,12 @@ export async function translating(targetScope, source) {
  * @param targetScope
  * @param source
  */
-export function switchLanguage(targetScope, source) {
-    getTranslationsConfig().then(({ translations, lang }) => {
-        if (lang === 'zh-cn') {
-            return source;
-        }
-        return {...source, ...translations[targetScope] || {}};
-    });
+export async function switchLanguage(targetScope, source) {
+    const { translations, lang } = await getTranslationsConfig()
+    if (lang === 'zh-cn') {
+        return source;
+    }
+    return {...source, ...translations[targetScope] || {}};
 }
 
 /**
