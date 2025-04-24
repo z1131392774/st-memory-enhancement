@@ -273,7 +273,7 @@ function handleAction(cell, action){
     console.log("开始执行操作")
     cell.newAction(action)
     console.log("执行操作然后刷新")
-    refreshTempView(true);
+    refreshTempView();
     // 如果是chat域，则刷新表格
     if(scope === 'chat') BASE.refreshContextView()
 }
