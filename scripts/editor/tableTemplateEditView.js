@@ -214,43 +214,16 @@ function bindSheetSetting(sheet, index) {
             const diffData = compareDataDiff(formInstance.result(), initialData)
             console.log(diffData)
             let needRerender = false
+            // 将比较数据差异的结果更新至表格
             Object.keys(diffData).forEach(key => {
                 console.log(key)
-                switch (key) {
-                    case 'domain':
-                        sheet.domain = diffData[key];
-                        break;
-                    case 'type':
-                        sheet.type = diffData[key];
-                        break;
-                    case 'name':
-                        sheet.name = diffData[key];
-                        needRerender = true
-                        break;
-                    case 'note':
-                        sheet.data.note = diffData[key];
-                        break;
-                    case 'initNode':
-                        sheet.data.initNode = diffData[key];
-                        break;
-                    case 'insertNode':
-                        sheet.data.insertNode = diffData[key];
-                        break;
-                    case 'deleteNode':
-                        sheet.data.deleteNode = diffData[key];
-                        break;
-                    case 'updateNode':
-                        sheet.data.updateNode = diffData[key];
-                        break;
-                    case 'required':
-                        sheet.required = diffData[key];
-                        break;
-                    default:
-                        break;
+                if (['domain', 'type', 'name', 'note', 'initNode', 'insertNode', 'deleteNode', 'updateNode'].includes(key) && diffData[key]) {
+                    sheet[key] = diffData[key];
+                    if (key === 'name') needRerender = true
                 }
             })
             sheet.save()
-            if(needRerender)refreshTempView()
+            if (needRerender) refreshTempView()
         }
     });
 
@@ -393,6 +366,7 @@ async function updateDragTables() {
 
     const selectedSheetUids = getSelectedSheetUids()
     const container = $(drag.render).find('#tableContainer');
+    table_editor_container.querySelector('#contentContainer').style.outlineColor = scope === 'chat' ? '#cf6e64' : '#41b681';
 
     if (currentPopupMenu) {
         currentPopupMenu.destroy();
@@ -403,15 +377,32 @@ async function updateDragTables() {
     console.log("dragSpace是什么",drag.dragSpace)
 
     selectedSheetUids.forEach((uid,index) => {
-        let sheet = scope==='chat'?new BASE.Sheet(uid): new BASE.SheetTemplate(uid);
-        sheet.currentPopupMenu = currentPopupMenu;
 
-        if (!sheet || !sheet.hashSheet) {
-            console.warn(`无法加载模板或模板数据为空，UID: ${uid}`);
-            return
+        let sheetDataExists;
+        if (scope === 'chat') {
+            // 检查 uid 是否存在于 BASE.sheetsData.context
+            sheetDataExists = BASE.sheetsData.context?.some(sheetData => sheetData.uid === uid);
+        } else {
+            // 检查 uid 是否存在于 BASE.templates
+            sheetDataExists = BASE.templates?.some(templateData => templateData.uid === uid);
+        }
+        // 如果数据不存在，则记录警告并跳过此 uid
+        if (!sheetDataExists) {
+            console.warn(`在 updateDragTables 中未找到 UID 为 ${uid} 的表格数据 (scope: ${scope})。跳过此表格。`);
+            return;
         }
 
-        const tableElement = sheet.renderSheet(bindCellClickEvent);
+        let sheet = scope === 'chat'
+            ? new BASE.Sheet(uid)
+            : new BASE.SheetTemplate(uid);
+        sheet.currentPopupMenu = currentPopupMenu;
+
+        // if (!sheet || !sheet.hashSheet) {
+        //     console.warn(`无法加载模板或模板数据为空，UID: ${uid}`);
+        //     return
+        // }
+
+        const tableElement = sheet.renderSheet(bindCellClickEvent, sheet.hashSheet.slice(0, 1) );
         tableElement.style.marginLeft = '5px'
         renderedTables.set(uid, tableElement);
         container.append(tableElement);
@@ -454,7 +445,7 @@ export async function refreshTempView(ignoreGlobal = false) {
 }
 
 async function initTableEdit(mesId) {
-    table_editor_container = $(await SYSTEM.getTemplate('editor')).get(0);
+    table_editor_container = $(await SYSTEM.getTemplate('sheetTemplateEditor')).get(0);
     const tableEditTips = table_editor_container.querySelector('#tableEditTips');
     const tableContainer = table_editor_container.querySelector('#tableContainer');
     const contentContainer = table_editor_container.querySelector('#contentContainer');

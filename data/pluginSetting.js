@@ -1,4 +1,5 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../core/manager.js';
+import {switchLanguage} from "../services/translate.js";
 
 
 /**
@@ -128,7 +129,7 @@ export async function filterTableDataPopup(originalData, title, warning) {
 /**
  * 默认插件设置
  */
-export const defaultSettings = {
+export const defaultSettings = await switchLanguage('__defaultSettings__', {
     /**
      * ===========================
      * 基础设置
@@ -630,4 +631,4 @@ export const defaultSettings = {
             insertNode: '当某人获得了贵重或有特殊意义的物品时/当某个已有物品有了特殊意义时', updateNode: "", deleteNode: ""
         },
     ],
-};
+});

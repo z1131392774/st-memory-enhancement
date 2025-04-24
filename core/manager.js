@@ -1,4 +1,4 @@
-import { TTable } from "./tTableCore.js";
+import { TTable } from "./tTableManager.js";
 import applicationFunctionManager from "../services/appFuncManager.js";
 // 移除旧表格系统引用
 import { consoleMessageToEditor } from "../scripts/settings/devConsole.js";
@@ -14,6 +14,7 @@ import { refreshTempView } from '../scripts/editor/tableTemplateEditView.js';
 import { newPopupConfirm, PopupConfirm } from "../components/popupConfirm.js";
 import { refreshContextView } from "../scripts/editor/chatSheetsDataView.js";
 import { updateSystemMessageTableStatus } from "../scripts/renderer/tablePushToChat.js";
+import {taskTiming} from "../utils/system.js";
 
 let derivedData = {}
 
@@ -251,6 +252,6 @@ export const SYSTEM = {
     // readFile: fileManager.readFile,
     // writeFile: fileManager.writeFile,
 
-    // taskTiming: ,
+    taskTiming: taskTiming,
     f: (f, name) => pushCodeToQueue(f, name),
 };

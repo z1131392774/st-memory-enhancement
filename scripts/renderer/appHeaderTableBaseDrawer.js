@@ -1,7 +1,6 @@
 import {DERIVED, EDITOR, SYSTEM, USER} from "../../core/manager.js";
 import {getChatSheetsView} from "../editor/chatSheetsDataView.js";
 import {getEditView, updateTableContainerPosition} from "../editor/tableTemplateEditView.js";
-import {updateSheetsView} from "../../index.js";
 
 // 全局变量定义 (保持不变)
 let tableDrawer = null;
@@ -140,8 +139,6 @@ export async function openAppHeaderTableDrawer() {
 
     // ... (这部分逻辑保持不变)
     if (tableDrawerIcon.hasClass('closedIcon')) {
-        // 只在打开抽屉时更新表格视图，避免重复创建
-        updateSheetsView();
         // 关闭其他抽屉
         $('.openDrawer').not('#table_drawer_content').not('.pinnedOpen').addClass('resizing').each((_, el) => {
             EDITOR.slideToggle(el, {

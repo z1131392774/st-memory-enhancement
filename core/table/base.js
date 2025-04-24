@@ -241,4 +241,16 @@ export class SheetBase {
     getRowCount() {
         return this.hashSheet.length;
     }
+
+    /**
+     * 获取表头数组（兼容旧数据）
+     * @returns {string[]} 表头数组
+     */
+    getHeader() {
+        const header = this.hashSheet[0].slice(1).map(cellUid => {
+            const cell = this.cells.get(cellUid);
+            return cell ? cell.data.value : '';
+        });
+        return header;
+    }
 }

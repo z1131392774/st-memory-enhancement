@@ -1,13 +1,13 @@
 // absoluteRefresh.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import {findTableStructureByIndex } from "../../index.js";
-import {insertRow, updateRow, deleteRow} from "../../core/table/oldTableActions.js";
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
+import { findTableStructureByIndex, convertOldTablesToNewSheets } from "../../index.js";
+import { insertRow, updateRow, deleteRow } from "../../core/table/oldTableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
-import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
-import {estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest} from "../settings/standaloneAPI.js";
-import {profile_prompts} from "../../data/profile_prompts.js";
-import {refreshContextView} from "../editor/chatSheetsDataView.js";
-import {PopupConfirm} from "../../components/popupConfirm.js";
+import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
+import { estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest } from "../settings/standaloneAPI.js";
+import { profile_prompts } from "../../data/profile_prompts.js";
+import { refreshContextView } from "../editor/chatSheetsDataView.js";
+import { PopupConfirm } from "../../components/popupConfirm.js";
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -54,7 +54,7 @@ function confirmTheOperationPerformed(content) {
     <div id="tableRefresh" class="refresh-scroll-content">
         <div>
             <div class="operation-list-container"> ${content.map(table => {
-                return `
+        return `
 <h3 class="operation-list-title">${table.tableName}</h3>
 <div class="operation-list">
     <table class="tableDom sheet-table">
@@ -116,7 +116,7 @@ export function initRefreshTypeSelector() {
         const option = $('<option></option>')
             .attr('value', key)
             .text((() => {
-                switch(value.type) {
+                switch (value.type) {
                     case 'refresh':
                         return '**旧** ' + (value.name || key);
                     case 'third_party':
@@ -264,28 +264,28 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
     const isUseMainAPI = $('#use_main_api').prop('checked');
 
     try {
-        const {piece} = BASE.getLastSheetsPiece();
+        const { piece } = BASE.getLastSheetsPiece();
         if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
         const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets);
         DERIVED.any.waitingTable = latestTables;
 
-        let originText = tablesToString(latestTables);
-        // let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
+        const oldTable = sheetsToTables(latestTables)
+        let originText = JSON.stringify(tablesToString(latestTables))
 
-        // console.log('最新的表格数据:', originText);
+        console.log('重整理 - 最新的表格数据:', originText);
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = USER.getContext().chat;
         const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat,
             USER.tableBaseSetting.clear_up_stairs,
             USER.tableBaseSetting.ignore_user_sent,
-            USER.tableBaseSetting.use_token_limit ? USER.tableBaseSetting.rebuild_token_limit_value:0
+            USER.tableBaseSetting.use_token_limit ? USER.tableBaseSetting.rebuild_token_limit_value : 0
         ) : chatToBeUsed;
 
         // 构建AI提示
-        let systemPrompt = USER.tableBaseSetting.rebuild_system_message_template||USER.tableBaseSetting.rebuild_system_message;
+        let systemPrompt = USER.tableBaseSetting.rebuild_system_message_template || USER.tableBaseSetting.rebuild_system_message;
         let userPrompt = USER.tableBaseSetting.rebuild_user_message_template;
         // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
         systemPrompt = systemPrompt.replace(/\$0/g, originText);
@@ -298,18 +298,18 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         // console.log('systemPrompt:', systemPrompt);
         // console.log('userPrompt:', userPrompt);
 
-        console.log('预估token数量为：'+estimateTokenCount(systemPrompt+userPrompt));
+        console.log('预估token数量为：' + estimateTokenCount(systemPrompt + userPrompt));
 
         // 生成响应内容
         let rawContent;
         if (isUseMainAPI) {
-            try{
+            try {
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消');
                     return
                 }
-            }catch (error) {
+            } catch (error) {
                 EDITOR.error('主API请求错误: ' + error.message);
             }
         }
@@ -339,15 +339,20 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                 }
                 //标记改动
                 // TODO
-                compareAndMarkChanges(latestTables, cleanContentTable);
+                compareAndMarkChanges(oldTable, cleanContentTable);
                 // console.log('compareAndMarkChanges后的cleanContent:', cleanContentTable);
 
                 // 深拷贝避免引用问题
                 const clonedTables = tableDataToTables(cleanContentTable);
                 console.log('深拷贝后的cleanContent:', clonedTables);
 
+                // 防止修改标题
+                clonedTables.forEach((table, index) => {
+                    table.tableName = oldTable[index].tableName
+                });
+
                 // 如果不是静默更新，显示操作确认
-                if (!silentUpdate){
+                if (!silentUpdate) {
                     // 将uniqueActions内容推送给用户确认是否继续
                     const confirmContent = confirmTheOperationPerformed(clonedTables);
                     const tableRefreshPopup = new EDITOR.Popup(confirmContent, EDITOR.POPUP_TYPE.TEXT, '', { okButton: "继续", cancelButton: "取消" });
@@ -363,7 +368,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                 const chat = USER.getContext().chat;
                 const lastIndex = chat.length - 1;
                 if (lastIndex >= 0) {
-                    chat[lastIndex].dataTable = clonedTables;
+                    convertOldTablesToNewSheets(clonedTables, chat[lastIndex])
                     await USER.getContext().saveChat(); // 等待保存完成
                 } else {
                     throw new Error("聊天记录为空");
@@ -387,10 +392,10 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
             EDITOR.error("生成表格保存失败：内容为空");
         }
 
-    }catch (e) {
+    } catch (e) {
         console.error('Error in rebuildTableActions:', e);
         return;
-    }finally {
+    } finally {
 
     }
 }
@@ -410,7 +415,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
     const twoStepIsUseMainAPI = $('#step_by_step_use_main_api').prop('checked');
 
     try {
-        const {piece} = BASE.getLastSheetsPiece();
+        const { piece } = BASE.getLastSheetsPiece();
         if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
@@ -440,13 +445,13 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         // 生成响应内容
         let rawContent;
         if (twoStepIsUseMainAPI) {
-            try{
+            try {
                 rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消');
                     return 'suspended'
                 }
-            }catch (error) {
+            } catch (error) {
                 EDITOR.error('主API请求错误: ' + error.message);
             }
         }
@@ -544,10 +549,10 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         // 去重删除操作并按 rowIndex 降序排序
         const uniqueDeleteActions = deleteActions
             .filter((action, index, self) =>
-                    index === self.findIndex(a => (
-                        a.tableIndex === action.tableIndex &&
-                        a.rowIndex === action.rowIndex
-                    ))
+                index === self.findIndex(a => (
+                    a.tableIndex === action.tableIndex &&
+                    a.rowIndex === action.rowIndex
+                ))
             )
             .sort((a, b) => b.rowIndex - a.rowIndex); // 降序排序，确保大 rowIndex 先执行
 
@@ -555,7 +560,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         uniqueActions = [...uniqueNonDeleteActions, ...uniqueDeleteActions];
 
         // 如果不是静默更新，显示操作确认
-        if (!silentUpdate){
+        if (!silentUpdate) {
             // 将uniqueActions内容推送给用户确认是否继续
             const confirmContent = confirmTheOperationPerformed(uniqueActions);
             const tableRefreshPopup = new EDITOR.Popup(confirmContent, EDITOR.POPUP_TYPE.TEXT, '', { okButton: "继续", cancelButton: "取消" });
@@ -628,10 +633,8 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 
 export async function rebuildSheets() {
     const container = document.createElement('div');
-    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
-        okButton: "继续",
-        cancelButton: "取消"
-    });
+    console.log('测试开始');
+
 
     const style = document.createElement('style');
     style.innerHTML = `
@@ -682,8 +685,8 @@ export async function rebuildSheets() {
     selectorContainer.appendChild(selectorContent);
 
     // 初始化选择器选项
-    const $selector = document.getElementById('rebuild_template_selector');
-    const $additionalPrompt = document.getElementById('rebuild_additional_prompt');
+    const $selector = $(selectorContent.querySelector('#rebuild_template_selector'))
+    const $additionalPrompt = $(selectorContent.querySelector('#rebuild_additional_prompt'))
     $selector.empty(); // 清空加载中状态
 
     // 添加选项
@@ -703,10 +706,15 @@ export async function rebuildSheets() {
     $selector.val('rebuild_base');
     $additionalPrompt.val('');
 
+    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
+        okButton: "继续",
+        cancelButton: "取消"
+    });
+
     await confirmation.show();
     if (confirmation.result) {
         // 获取当前选中的模板
-        const selectedTemplate = $selector.value;
+        const selectedTemplate = $selector.val();
         const additionalPrompt = $additionalPrompt.value;
         if (!selectedTemplate) {
             EDITOR.error('请选择一个有效的提示模板');
@@ -727,14 +735,19 @@ export async function rebuildSheets() {
 
 
 // 将Table数组序列化为字符串
-function tablesToString(tables) {
-    return JSON.stringify(tables.map(table => ({
-      tableName: table.tableName,
-      tableIndex: table.tableIndex,
-      columns: table.columns,
-      content: table.content
-    })));
-  }
+function tablesToString(sheets) {
+    return JSON.stringify(sheetsToTables(sheets));
+}
+
+// 将sheets转化为tables
+function sheetsToTables(sheets) {
+    return sheets.map((sheet, index) => ({
+        tableName: sheet.name,
+        tableIndex: index,
+        columns: sheet.getHeader(),
+        content: sheet.getContent()
+    }))
+}
 
 // 将tablesData解析回Table数组
 function tableDataToTables(tablesData) {
@@ -743,15 +756,13 @@ function tableDataToTables(tablesData) {
         const columns = Array.isArray(item.columns)
             ? item.columns.map(col => String(col)) // 强制转换为字符串
             : inferColumnsFromContent(item.content); // 从 content 推断
-
-        return new DERIVED.Table(
-            item.tableName || '未命名表格', // tableName
-            item.tableIndex || 0,          // tableIndex
-            columns,                       // columns
-            item.content || [],            // content
-            item.insertedRows || [],       // insertedRows
-            item.updatedRows ||[]          // updatedRows
-        );
+        return {
+            tableName: item.tableName || '未命名表格',
+            columns,
+            content: item.content || [],
+            insertedRows: item.insertedRows || [],
+            updatedRows: item.updatedRows || []
+        }
     });
 }
 
@@ -761,6 +772,7 @@ function tableDataToTables(tablesData) {
  * @param {*} newTables  *
  */
 function compareAndMarkChanges(oldTables, newTables) {
+    console.log("标记变动：", oldTables, newTables);
     newTables.forEach((newTable, tableIndex) => {
         const oldTable = oldTables[tableIndex];
         newTable.insertedRows = [];
@@ -823,13 +835,13 @@ async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false, to
     for (let i = filteredChat.length - 1; i >= 0; i--) {
         // 格式化消息并清理标签
         const currentStr = `${filteredChat[i].name}: ${filteredChat[i].mes}`
-           .replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
+            .replace(/<tableEdit>[\s\S]*?<\/tableEdit>/g, '');
 
         // 计算Token
         const tokens = await estimateTokenCount(currentStr);
 
         // 如果是第一条消息且token数超过限制，直接添加该消息
-        if (i === filteredChat.length - 1 && tokenLimit!== 0 && tokens > tokenLimit) {
+        if (i === filteredChat.length - 1 && tokenLimit !== 0 && tokens > tokenLimit) {
             totalTokens = tokens;
             EDITOR.success(`最近的聊天记录Token数为${tokens}，超过设置的${tokenLimit}限制，将直接使用该聊天记录`);
             console.log(`最近的聊天记录Token数为${tokens}，超过设置的${tokenLimit}限制，将直接使用该聊天记录`);
@@ -838,7 +850,7 @@ async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false, to
         }
 
         // Token限制检查
-        if (tokenLimit!== 0 && (totalTokens + tokens) > tokenLimit) {
+        if (tokenLimit !== 0 && (totalTokens + tokens) > tokenLimit) {
             EDITOR.success(`本次发送的聊天记录Token数约为${totalTokens}，共计${collected.length}条`);
             console.log(`本次发送的聊天记录Token数约为${totalTokens}，共计${collected.length}条`);
             break;
@@ -1000,7 +1012,7 @@ function fixTableFormat(inputText) {
         // 暴力提取所有可能表格
         const rawTables = inputText.match(/{[^}]*?"tableIndex":\s*\d+[^}]*}/g) || [];
         console.log('暴力提取所有可能表格:', rawTables);
-        const sixTables = rawTables.slice(0,6).map(t => JSON.parse(t.replace(/'/g, '"')));
+        const sixTables = rawTables.slice(0, 6).map(t => JSON.parse(t.replace(/'/g, '"')));
         console.log('前6个表格为:', sixTables);
         return sixTables
     }

@@ -25,8 +25,9 @@ export class Sheet extends SheetBase {
      * @description 可以通过 `cell.parent` 获取 Sheet 对象，因此不再需要传递 Sheet 对象
      * @description 如果不传递 cellEventHandler 参数，则使用上一次的 cellEventHandler
      * @param {Function} cellEventHandler
+     * @param targetHashSheet
      * */
-    renderSheet(cellEventHandler = this.lastCellEventHandler) {
+    renderSheet(cellEventHandler = this.lastCellEventHandler, targetHashSheet = this.hashSheet) {
         this.lastCellEventHandler = cellEventHandler;
 
         if (!this.element) {
@@ -53,7 +54,7 @@ export class Sheet extends SheetBase {
         tbody.innerHTML = '';
 
         // 遍历 hashSheet，渲染每一个单元格
-        this.hashSheet.forEach((rowUids, rowIndex) => {
+        targetHashSheet.forEach((rowUids, rowIndex) => {
             const rowElement = document.createElement('tr');
             rowUids.forEach((cellUid, colIndex) => {
                 const cell = this.cells.get(cellUid)
@@ -142,6 +143,26 @@ export class Sheet extends SheetBase {
         }
 
         return result;
+    }
+
+    /**
+     * 获取表格的content数据（与旧版兼容）
+     * @returns {string[][]} - 返回表格的content数据
+     */
+    getContent(withHead = false) {
+        if (!withHead&&this.isEmpty()) return [];
+        const content = this.hashSheet.map((row) => 
+            row.map((cellUid) => {
+                const cell = this.cells.get(cellUid);
+                if (!cell) return "";
+                return cell.data.value;
+            })
+        );
+
+        // 去掉每一行的第一个元素
+        const trimmedContent = content.map(row => row.slice(1));
+        if (!withHead) return trimmedContent.slice(1);
+        return content;
     }
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
