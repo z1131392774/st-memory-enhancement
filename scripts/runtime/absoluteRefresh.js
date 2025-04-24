@@ -1,6 +1,6 @@
 // absoluteRefresh.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import {findTableStructureByIndex } from "../../index.js";
+import {findTableStructureByIndex ,convertOldTablesToNewSheets} from "../../index.js";
 import {insertRow, updateRow, deleteRow} from "../../core/table/oldTableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
@@ -272,9 +272,8 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         DERIVED.any.waitingTable = latestTables;
 
         let originText = tablesToString(latestTables);
-        // let originText = '\n<表格内容>\n' + tablesToString(latestTables) + '\n</表格内容>';
 
-        // console.log('最新的表格数据:', originText);
+        console.log('重整理 - 最新的表格数据:', originText);
 
         // 获取最近clear_up_stairs条聊天记录
         const chat = USER.getContext().chat;
@@ -363,7 +362,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                 const chat = USER.getContext().chat;
                 const lastIndex = chat.length - 1;
                 if (lastIndex >= 0) {
-                    chat[lastIndex].dataTable = clonedTables;
+                    convertOldTablesToNewSheets(clonedTables, chat[lastIndex])
                     await USER.getContext().saveChat(); // 等待保存完成
                 } else {
                     throw new Error("聊天记录为空");
@@ -628,10 +627,8 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
 
 export async function rebuildSheets() {
     const container = document.createElement('div');
-    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
-        okButton: "继续",
-        cancelButton: "取消"
-    });
+    console.log('测试开始');
+    
 
     const style = document.createElement('style');
     style.innerHTML = `
@@ -682,8 +679,8 @@ export async function rebuildSheets() {
     selectorContainer.appendChild(selectorContent);
 
     // 初始化选择器选项
-    const $selector = document.getElementById('rebuild_template_selector');
-    const $additionalPrompt = document.getElementById('rebuild_additional_prompt');
+    const $selector = $(selectorContent.querySelector('#rebuild_template_selector'))
+    const $additionalPrompt = $(selectorContent.querySelector('#rebuild_additional_prompt'))
     $selector.empty(); // 清空加载中状态
 
     // 添加选项
@@ -702,11 +699,16 @@ export async function rebuildSheets() {
     // 设置默认选中项
     $selector.val('rebuild_base');
     $additionalPrompt.val('');
+    
+    const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
+        okButton: "继续",
+        cancelButton: "取消"
+    });
 
     await confirmation.show();
     if (confirmation.result) {
         // 获取当前选中的模板
-        const selectedTemplate = $selector.value;
+        const selectedTemplate = $selector.val();
         const additionalPrompt = $additionalPrompt.value;
         if (!selectedTemplate) {
             EDITOR.error('请选择一个有效的提示模板');
@@ -727,12 +729,12 @@ export async function rebuildSheets() {
 
 
 // 将Table数组序列化为字符串
-function tablesToString(tables) {
-    return JSON.stringify(tables.map(table => ({
-      tableName: table.tableName,
-      tableIndex: table.tableIndex,
-      columns: table.columns,
-      content: table.content
+function tablesToString(sheets) {
+    return JSON.stringify(sheets.map((sheet, index) => ({
+      tableName: sheet.name,
+      tableIndex: index,
+      columns: sheet.getHeader(),
+      content: sheet.getContent()
     })));
   }
 

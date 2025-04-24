@@ -129,7 +129,7 @@ export async function filterTableDataPopup(originalData, title, warning) {
 /**
  * 默认插件设置
  */
-export const defaultSettings = switchLanguage('__defaultSettings__', {
+export const defaultSettings = await switchLanguage('__defaultSettings__', {
     /**
      * ===========================
      * 基础设置
