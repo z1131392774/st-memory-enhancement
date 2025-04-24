@@ -1,4 +1,7 @@
-import {APP} from "../core/manager.js";
+import applicationFunctionManager from "./appFuncManager.js";
+
+let _lang = '';
+let _translations = {};
 
 /**
  * 异步获取翻译文件
@@ -14,7 +17,6 @@ async function fetchTranslations(locale) {
             if (locale !== 'en') {
                 return await fetchTranslations('en');
             }
-            // If English also fails, return empty object
             return {};
         }
         return await response.json();
@@ -44,32 +46,32 @@ function applyTranslations(translations) {
         }
     });
 
-    // 对文本需要翻译但没有 data-i18n 属性的元素进行翻译
-    // 使用特定的 CSS 选择器或 ID 来定位这些元素
-    if (translations["Memory Enhancement (Tables)"]) {
-        const headerElement = document.querySelector('#inline_drawer_header_content b');
-        if (headerElement) headerElement.textContent = translations["Memory Enhancement (Tables)"];
-    }
-
-    if (translations["Click to update"]) {
-        const updateElement = document.querySelector('#tableUpdateTag');
-        if (updateElement) updateElement.textContent = translations["Click to update"];
-    }
-
-    if (translations["Project link"]) {
-        const projectLinkElement = document.querySelector('.fa-github.fa-lg').nextElementSibling;
-        if (projectLinkElement) projectLinkElement.textContent = translations["Project link"];
-    }
-
-    if (translations["Read tutorial"]) {
-        const tutorialLinkElement = document.querySelector('.fa-book').nextElementSibling;
-        if (tutorialLinkElement) tutorialLinkElement.textContent = translations["Read tutorial"];
-    }
-
-    if (translations["Logs"]) {
-        const logsElement = document.querySelector('#table_debug_log_button a');
-        if (logsElement) logsElement.textContent = translations["Logs"];
-    }
+    // // 对文本需要翻译但没有 data-i18n 属性的元素进行翻译
+    // // 使用特定的 CSS 选择器或 ID 来定位这些元素
+    // if (translations["Memory Enhancement (Tables)"]) {
+    //     const headerElement = document.querySelector('#inline_drawer_header_content b');
+    //     if (headerElement) headerElement.textContent = translations["Memory Enhancement (Tables)"];
+    // }
+    //
+    // if (translations["Click to update"]) {
+    //     const updateElement = document.querySelector('#tableUpdateTag');
+    //     if (updateElement) updateElement.textContent = translations["Click to update"];
+    // }
+    //
+    // if (translations["Project link"]) {
+    //     const projectLinkElement = document.querySelector('.fa-github.fa-lg').nextElementSibling;
+    //     if (projectLinkElement) projectLinkElement.textContent = translations["Project link"];
+    // }
+    //
+    // if (translations["Read tutorial"]) {
+    //     const tutorialLinkElement = document.querySelector('.fa-book').nextElementSibling;
+    //     if (tutorialLinkElement) tutorialLinkElement.textContent = translations["Read tutorial"];
+    // }
+    //
+    // if (translations["Logs"]) {
+    //     const logsElement = document.querySelector('#table_debug_log_button a');
+    //     if (logsElement) logsElement.textContent = translations["Logs"];
+    // }
 
     // 通过 CSS 选择器翻译其他元素
     translateElementsBySelector(translations, '#table_clear_up a', "Reorganize tables now");
@@ -91,15 +93,24 @@ function translateElementsBySelector(translations, selector, key) {
     }
 }
 
+async function getTranslationsConfig() {
+    if (_lang === '') {
+        _lang = applicationFunctionManager.getCurrentLocale();
+    }
+    if (!_translations || Object.keys(_translations).length === 0) {
+        _translations = await fetchTranslations(_lang)
+    }
+    return { translations: _translations, lang: _lang };
+}
+
 /**
  * 应用翻译和本地化的主函数
  */
 export async function executeTranslation() {
-    const lang = APP.getCurrentLocale();
+    const { translations, lang } = await getTranslationsConfig();
     console.log("当前语言", lang);
 
     // 获取翻译的 JSON 文件
-    const translations = await fetchTranslations(lang);
     if (Object.keys(translations).length === 0) {
         console.warn("No translations found for locale:", lang);
         return;
@@ -109,4 +120,62 @@ export async function executeTranslation() {
     applyTranslations(translations);
 
     console.log("Translation completed for locale:", lang);
+}
+
+export async function switchLanguage(targetScope, source) {
+    const { translations, lang } = await getTranslationsConfig();
+    if (lang === 'zh-cn') return source;
+
+    const target = translations[targetScope];
+
+
+    return {...source, ...target};
+}
+
+export async function translating(targetScope, source) {
+    let { translations, lang } = await getTranslationsConfig();
+    translations = translations[targetScope];
+    /**
+     * 递归翻译对象中的所有字符串
+     * @param {Object|Array|string} obj - 需要翻译的对象或值
+     * @returns {Object|Array|string} - 翻译后的对象或值
+     */
+    function translateRecursively(obj) {
+        // 如果是字符串，尝试翻译
+        if (typeof obj === 'string') {
+            return translations[obj] || obj;
+        }
+
+        // 如果是数组，遍历数组元素并递归翻译
+        if (Array.isArray(obj)) {
+            return obj.map(item => translateRecursively(item));
+        }
+
+        // 如果是对象，遍历对象属性并递归翻译
+        if (obj !== null && typeof obj === 'object') {
+            const result = {};
+            for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    result[key] = translateRecursively(obj[key]);
+                }
+            }
+            return result;
+        }
+
+        // 其他类型的值保持不变
+        return obj;
+    }
+
+    // 如果翻译字典为空，直接返回原对象
+    if (!translations || Object.keys(translations).length === 0) {
+        console.warn("No translations available for locale:", lang);
+        return source;
+    }
+
+    // 对目标对象进行递归翻译
+    if (source !== null && typeof source === 'object') {
+        return translateRecursively(source);
+    }
+
+    return source;
 }
