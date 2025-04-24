@@ -1,7 +1,7 @@
 import applicationFunctionManager from "./appFuncManager.js";
 
-let _lang = '';
-let _translations = {};
+let _lang = undefined;
+let _translations = undefined;
 
 /**
  * 异步获取翻译文件
@@ -26,6 +26,20 @@ async function fetchTranslations(locale) {
     }
 }
 
+async function getTranslationsConfig() {
+    if (_lang === undefined) {
+        _lang = applicationFunctionManager.getCurrentLocale();
+    }
+    if (_lang === undefined) {
+        _lang = 'zh-cn';
+        return { translations: {}, lang: _lang };
+    }
+    if (_translations === undefined) {
+        _translations = await fetchTranslations(_lang)
+    }
+    return { translations: _translations, lang: _lang };
+}
+
 /**
  * 将翻译应用到 DOM 元素
  * @param {Object} translations - 翻译对象
@@ -45,33 +59,6 @@ function applyTranslations(translations) {
             }
         }
     });
-
-    // // 对文本需要翻译但没有 data-i18n 属性的元素进行翻译
-    // // 使用特定的 CSS 选择器或 ID 来定位这些元素
-    // if (translations["Memory Enhancement (Tables)"]) {
-    //     const headerElement = document.querySelector('#inline_drawer_header_content b');
-    //     if (headerElement) headerElement.textContent = translations["Memory Enhancement (Tables)"];
-    // }
-    //
-    // if (translations["Click to update"]) {
-    //     const updateElement = document.querySelector('#tableUpdateTag');
-    //     if (updateElement) updateElement.textContent = translations["Click to update"];
-    // }
-    //
-    // if (translations["Project link"]) {
-    //     const projectLinkElement = document.querySelector('.fa-github.fa-lg').nextElementSibling;
-    //     if (projectLinkElement) projectLinkElement.textContent = translations["Project link"];
-    // }
-    //
-    // if (translations["Read tutorial"]) {
-    //     const tutorialLinkElement = document.querySelector('.fa-book').nextElementSibling;
-    //     if (tutorialLinkElement) tutorialLinkElement.textContent = translations["Read tutorial"];
-    // }
-    //
-    // if (translations["Logs"]) {
-    //     const logsElement = document.querySelector('#table_debug_log_button a');
-    //     if (logsElement) logsElement.textContent = translations["Logs"];
-    // }
 
     // 通过 CSS 选择器翻译其他元素
     translateElementsBySelector(translations, '#table_clear_up a', "Reorganize tables now");
@@ -93,47 +80,18 @@ function translateElementsBySelector(translations, selector, key) {
     }
 }
 
-async function getTranslationsConfig() {
-    if (_lang === '') {
-        _lang = applicationFunctionManager.getCurrentLocale();
-    }
-    if (!_translations || Object.keys(_translations).length === 0) {
-        _translations = await fetchTranslations(_lang)
-    }
-    return { translations: _translations, lang: _lang };
-}
-
 /**
- * 应用翻译和本地化的主函数
+ * 对指定范围的对象进行翻译
+ * @param targetScope
+ * @param source
+ * @returns {Promise<*|Object|Array|string>}
  */
-export async function executeTranslation() {
-    const { translations, lang } = await getTranslationsConfig();
-    console.log("当前语言", lang);
-
-    // 获取翻译的 JSON 文件
-    if (Object.keys(translations).length === 0) {
-        console.warn("No translations found for locale:", lang);
-        return;
-    }
-
-    // 应用翻译
-    applyTranslations(translations);
-
-    console.log("Translation completed for locale:", lang);
-}
-
-export async function switchLanguage(targetScope, source) {
-    const { translations, lang } = await getTranslationsConfig();
-    if (lang === 'zh-cn') return source;
-
-    const target = translations[targetScope];
-
-
-    return {...source, ...target};
-}
-
 export async function translating(targetScope, source) {
     let { translations, lang } = await getTranslationsConfig();
+    if (lang === 'zh-cn') {
+        return source;
+    }
+
     translations = translations[targetScope];
     /**
      * 递归翻译对象中的所有字符串
@@ -178,4 +136,40 @@ export async function translating(targetScope, source) {
     }
 
     return source;
+}
+
+/**
+ * 对变量切换语言
+ * @param targetScope
+ * @param source
+ */
+export async function switchLanguage(targetScope, source) {
+    const { translations, lang } = await getTranslationsConfig()
+    if (lang === 'zh-cn') {
+        return source;
+    }
+
+    return {...source, ...translations[targetScope] || {}};
+}
+
+/**
+ * 对初始化加载的html应用翻译和本地化的主函数
+ */
+export async function executeTranslation() {
+    const { translations, lang } = await getTranslationsConfig();
+    if (lang === 'zh-cn') {
+        return;
+    }
+
+    console.log("Current Locale: ", lang);
+    // 获取翻译的 JSON 文件
+    if (Object.keys(translations).length === 0) {
+        console.warn("No translations found for locale:", lang);
+        return;
+    }
+
+    // 应用翻译
+    applyTranslations(translations);
+
+    console.log("Translation completed for locale:", lang);
 }
