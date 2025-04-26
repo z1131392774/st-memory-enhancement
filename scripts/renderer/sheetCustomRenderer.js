@@ -42,8 +42,8 @@ function toHtml(valueSheet) {
 }
 
 function toCSV(valueSheet) {
-    // 将 valueSheet 转换为 CSV 格式
-    return valueSheet.map(row => row.join(',')).join('\n');
+    // 将 valueSheet 转换为 CSV 格式，并跳过首行表头
+    return valueSheet.slice(1).map(row => row.join(',')).join('\n');
 }
 
 function toMarkdown(valueSheet) {
@@ -110,7 +110,7 @@ function regexReplacePipeline(text) {
         let result = text.replace(regex, processedReplaceString);
 
         // Now convert newlines to HTML <br> tags to ensure they display properly in HTML
-        if (selectedCustomStyle.basedOn !== 'html') {
+        if (selectedCustomStyle.basedOn !== 'html' && selectedCustomStyle.basedOn !== 'csv') {  //增加条件不是CSV格式的文本，目前测试出CSV使用该代码会出现渲染错误
             result = result.replace(/\n/g, '<br>');
         }
 
