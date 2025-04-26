@@ -172,7 +172,7 @@ function getAllPrompt() {
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
     console.log("构建提示词", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
     return USER.tableBaseSetting.message_template.replace('{{tableData}}', sheetDataPrompt)
 }
 

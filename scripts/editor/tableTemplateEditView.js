@@ -151,7 +151,11 @@ function initializeSelect2Dropdown(dropdownElement) {
         setSelectedSheetUids($(this).val())
         updateSheetStatusBySelect()
         console.log("更改选中的模板", $(this).val())
-        USER.saveSettings();
+        if(scope === 'chat') {
+            USER.saveChat()
+            BASE.refreshContextView()
+        }
+        else USER.saveSettings();
         updateDragTables();
     });
 

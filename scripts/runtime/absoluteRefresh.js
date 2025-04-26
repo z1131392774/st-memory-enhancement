@@ -423,7 +423,7 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         DERIVED.any.waitingTable = latestTables;
 
         let originText = '<表格内容>\n' + latestTables
-            .map(table => table.getTableText(['title', 'node', 'headers', 'rows']))
+            .map((table, index) => table.getTableText(index, ['title', 'node', 'headers', 'rows']))
             .join("\n");
 
         // 获取最近clear_up_stairs条聊天记录

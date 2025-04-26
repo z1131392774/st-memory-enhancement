@@ -38,7 +38,7 @@ function updataTableStatisticsData(container) {
     if (!piece || !piece.hash_sheets) return;
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
     const cellHistories = sheetsData.map(sheet => sheet.cellHistory);
-    const sheetDataPrompt = sheets.map(sheet => sheet.getTableText()).join('\n')
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
     const sheetsValueCount = estimateTokenCount(sheetDataPrompt);
     const lastChangeFloor = `${deep}/${USER.getContext().chat.length - 1}`;
 

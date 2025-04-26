@@ -436,6 +436,7 @@ function handleAction(cell, action){
 
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
     for (let [index, sheet] of _sheets.entries()) {
+        if(!sheet.enable) return
         const instance = new BASE.Sheet(sheet)
         console.log("渲染：",instance)
         const sheetContainer = document.createElement('div')

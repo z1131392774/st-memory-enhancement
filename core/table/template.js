@@ -76,7 +76,7 @@ export class SheetTemplate extends SheetBase {
      * 保存表格数据
      * @returns {SheetTemplate}
      */
-    save() {
+    save(manualSave = false) {
         let templates = BASE.templates;
         if (!templates) templates = [];
         try {
@@ -88,7 +88,7 @@ export class SheetTemplate extends SheetBase {
             }
             console.log("保存模板数据", templates)
             USER.getSettings().table_database_templates = templates;
-            USER.saveSettings();
+            if(!manualSave) USER.saveSettings();
             return this;
         } catch (e) {
             EDITOR.error(`保存模板失败：${e}`);
