@@ -430,7 +430,7 @@ function InitBinging() {
     $('#fetch_models_button').on('click', updateModelList);
 
     // 测试API
-    $(document).on('click', '#test_api_button',async () => {
+    $(document).on('click', '#table_test_api_button',async () => {
         const apiUrl = $('#custom_api_url').val();
         const modelName = $('#custom_model_name').val();
         const encryptedApiKeys = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key;
