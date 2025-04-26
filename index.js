@@ -274,42 +274,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     const {piece:prePiece} = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
     for (const EditAction of sortActions(tableEditActions)) {
-        const action = EditAction.action
-        const sheet = sheets[action.tableIndex]
-        if (!sheet) {
-            console.error("表格不存在，无法执行编辑操作", EditAction)
-            continue
-        }
-        switch (EditAction.type) {
-            case 'update':
-                // 执行更新操作
-                Object.entries(action.data).forEach(([key, value]) => {
-                    const cell = sheet.findCellByPosition(parseInt(action.rowIndex) + 1, parseInt(key) + 1)
-                    if (!cell) return
-                    cell.newAction(cell.CellAction.editCell, { value }, false)
-                })
-                break
-            case 'insert': {
-                // 执行插入操作
-                const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0)
-                cell.newAction(cell.CellAction.insertDownRow, {}, false)
-                const lastestRow = sheet.getRowCount() - 1
-                const cells = sheet.getCellsByRowIndex(lastestRow)
-                cells.forEach((cell, index) => {
-                    if (index === 0) return
-                    cell.data.value = action.data[index - 1]
-                })
-            }
-                break
-            case 'delete':
-                // 执行删除操作
-                const deleteRow = parseInt(action.rowIndex) + 1
-                const cell = sheet.findCellByPosition(deleteRow, 0)
-                if (!cell) continue
-                cell.newAction(cell.CellAction.deleteSelfRow, {}, false)
-                break
-        }
-        console.log("执行表格编辑操作", EditAction)
+        executeAction(EditAction, sheets)
     }
     sheets.forEach(sheet => sheet.save(piece, true))
     console.log("聊天模板：", BASE.sheetsData.context)
@@ -317,6 +282,52 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     console.log("测试总chat", USER.getContext().chat)
     return true
 }
+
+/**
+ * 执行单个action指令
+ */
+function executeAction(EditAction, sheets) {
+    const action = EditAction.action
+    const sheet = sheets[action.tableIndex]
+    if (!sheet) {
+        console.error("表格不存在，无法执行编辑操作", EditAction)
+        return -1
+    }
+    switch (EditAction.type) {
+        case 'update':
+            // 执行更新操作
+            const rowIndex = parseInt(action.rowIndex)
+            if(rowIndex >= sheet.getRowCount()-1) return executeAction({...EditAction, type:'insert'}, sheets)
+            Object.entries(action.data).forEach(([key, value]) => {
+                const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1)
+                if (!cell) return
+                cell.newAction(cell.CellAction.editCell, { value }, false)
+            })
+            break
+        case 'insert': {
+            // 执行插入操作
+            const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0)
+            cell.newAction(cell.CellAction.insertDownRow, {}, false)
+            const lastestRow = sheet.getRowCount() - 1
+            const cells = sheet.getCellsByRowIndex(lastestRow)
+            cells.forEach((cell, index) => {
+                if (index === 0) return
+                cell.data.value = action.data[index - 1]
+            })
+        }
+            break
+        case 'delete':
+            // 执行删除操作
+            const deleteRow = parseInt(action.rowIndex) + 1
+            const cell = sheet.findCellByPosition(deleteRow, 0)
+            if (!cell) return -1
+            cell.newAction(cell.CellAction.deleteSelfRow, {}, false)
+            break
+    }
+    console.log("执行表格编辑操作", EditAction)
+    return 1
+}
+
 
 /**
  * 为actions排序
