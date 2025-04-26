@@ -221,7 +221,7 @@ export class SheetBase {
         console.log("测试获取map", this.cells)
         const content = this.hashSheet.slice(removeHeader?1:0).map((row, index) => row.map(cellUid => {
             const cell = this.cells.get(cellUid)
-            if (!cell) return
+            if (!cell) return ""
             return cell.type === cell.CellType.row_header ? index : cell.data[key]
         }).join(',')).join('\n');
         return content + "\n";
