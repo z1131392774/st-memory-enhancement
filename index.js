@@ -206,7 +206,8 @@ function handleTableEditTag(matches) {
             if (lastParenIndex !== -1) {
                 const sliced = fullCall.slice(0, lastParenIndex); // 去掉最后一个 )
                 const argsPart = sliced.slice(sliced.indexOf("(") + 1);
-                const args = argsPart.match(/("[^"]*"|\{.*\}|[0-9]+)/g).map(s => s.trim());
+                const args = argsPart.match(/("[^"]*"|\{.*\}|[0-9]+)/g)?.map(s => s.trim());
+                if(!args) continue
                 A.push({
                     type: positions[i].name,
                     param: args,
