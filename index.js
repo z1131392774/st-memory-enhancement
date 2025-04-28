@@ -11,7 +11,7 @@ import { initRefreshTypeSelector } from './scripts/runtime/absoluteRefresh.js';
 import {refreshTempView, updateTableContainerPosition} from "./scripts/editor/tableTemplateEditView.js";
 import { refreshContextView } from "./scripts/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
-import { parseLooseDict, replaceUserTag } from "./utils/stringUtil.js"
+import { parseLooseDict, replaceUserTag } from "./utils/stringUtil.js";
 import {executeTranslation} from "./services/translate.js";
 
 
