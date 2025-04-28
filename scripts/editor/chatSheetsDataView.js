@@ -197,6 +197,7 @@ async function cellDataEdit(cell) {
     if (result) {
         cell.editCellData({ value: result })
         refreshContextView(true);
+        if(cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
     }
 }
 
@@ -432,6 +433,7 @@ function cellClickEvent(cell) {
 function handleAction(cell, action){
     cell.newAction(action)
     refreshContextView(true);
+    if(cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
 }
 
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
