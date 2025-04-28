@@ -11,7 +11,7 @@ import { initRefreshTypeSelector } from './scripts/runtime/absoluteRefresh.js';
 import {refreshTempView, updateTableContainerPosition} from "./scripts/editor/tableTemplateEditView.js";
 import { refreshContextView } from "./scripts/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
-import { parseLooseDict } from "./utils/stringUtil.js"
+import { parseLooseDict, replaceUserTag } from "./utils/stringUtil.js"
 import {executeTranslation} from "./services/translate.js";
 
 
@@ -157,7 +157,7 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  */
 export function initTableData() {
     if (USER.tableBaseSetting.step_by_step === true) return '';
-    const promptContent = getAllPrompt()
+    const promptContent = replaceUserTag(getAllPrompt())  //替换所有的<user>标签
     console.log("完整提示", promptContent)
     return promptContent
 }
