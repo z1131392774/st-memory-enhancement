@@ -340,6 +340,15 @@ async function cellHistoryView(cell) {
     await openCellHistoryPopup(cell)
 }
 
+/**
+ * 自定义表格样式事件
+ * @param {*} cell 
+ */
+async function customSheetStyle(cell) {
+    await openSheetStyleRendererPopup(cell.parent)
+    await refreshContextView(true);
+}
+
 function cellClickEvent(cell) {
     cell.element.style.cursor = 'pointer'
 
@@ -370,7 +379,7 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
-            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', () => openSheetStyleRendererPopup(cell.parent) );
+            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', async() => customSheetStyle(cell) );
         } else if (colIndex === 0) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));
