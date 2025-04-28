@@ -136,6 +136,7 @@ function setupSheetPreview() {
     }
 
     // 初始化样式预览表格
+    templateInstance.element = null
     templateInstance.element = `<div class="justifyLeft scrollable">${templateInstance.renderSheet((cell) => {
         cell.element.style.cursor = 'default';
     }).outerHTML}</div>`;

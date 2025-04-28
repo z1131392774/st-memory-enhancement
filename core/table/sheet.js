@@ -43,6 +43,7 @@ export class Sheet extends SheetBase {
             styleElement.textContent = cellStyle;
             this.element.appendChild(styleElement);
         }
+        console.log("测试", this.element)
 
         // 确保 element 中有 tbody，没有则创建
         let tbody = this.element.querySelector('tbody');
