@@ -554,6 +554,7 @@ export function initTableStructureToTemplate() {
         newTemplate.enable = defaultTemplate.enable
         newTemplate.tochat = defaultTemplate.tochat
         newTemplate.required = defaultTemplate.Required
+        newTemplate.config = JSON.parse(JSON.stringify(defaultTemplate.config))
         newTemplate.source.data.note = defaultTemplate.note
         newTemplate.source.data.initNode = defaultTemplate.initNode
         newTemplate.source.data.deleteNode = defaultTemplate.deleteNode
@@ -577,6 +578,7 @@ function templateToTableStructure() {
             deleteNode: template.data.deleteNode,
             updateNode: template.data.updateNode,
             insertNode: template.data.insertNode,
+            config: JSON.parse(JSON.stringify(template.config)),
             required: template.required,
             tochat: template.tochat,
             enable: template.enable,
