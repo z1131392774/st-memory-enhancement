@@ -224,10 +224,10 @@ function bindSheetSetting(sheet, index) {
             // 将比较数据差异的结果更新至表格
             Object.keys(diffData).forEach(key => {
                 console.log(key)
-                if (['domain', 'type', 'name',  'required'].includes(key) && diffData[key]) {
+                if (['domain', 'type', 'name',  'required'].includes(key) && diffData[key]!=null) {
                     sheet[key] = diffData[key];
                     if (key === 'name') needRerender = true
-                }else if(['note', 'initNode', 'insertNode', 'deleteNode', 'updateNode'].includes(key) && diffData[key]) {
+                }else if(['note', 'initNode', 'insertNode', 'deleteNode', 'updateNode'].includes(key) && diffData[key]!=null) {
                     sheet.data[key] = diffData[key];
                 }
             })

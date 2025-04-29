@@ -579,7 +579,7 @@ function templateToTableStructure() {
             updateNode: template.data.updateNode,
             insertNode: template.data.insertNode,
             config: JSON.parse(JSON.stringify(template.config)),
-            required: template.required,
+            Required: template.required,
             tochat: template.tochat,
             enable: template.enable,
         }
