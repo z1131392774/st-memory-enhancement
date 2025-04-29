@@ -819,8 +819,7 @@ async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false, to
 
     // 处理忽略用户发送消息的情况
     if (ignoreUserSent && chat.length > 0) {
-        const senderName = chat[chat.length - 1].name;
-        filteredChat = chat.filter(c => c.name === senderName);
+        filteredChat = chat.filter(c => c.is_user === false);
     }
 
     // 有效记录提示
