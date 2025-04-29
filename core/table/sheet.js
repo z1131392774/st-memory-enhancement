@@ -43,7 +43,6 @@ export class Sheet extends SheetBase {
             styleElement.textContent = cellStyle;
             this.element.appendChild(styleElement);
         }
-        console.log("测试", this.element)
 
         // 确保 element 中有 tbody，没有则创建
         let tbody = this.element.querySelector('tbody');
@@ -105,7 +104,7 @@ export class Sheet extends SheetBase {
      * 创建新的 Sheet 实例
      * @returns {Sheet} - 返回新的 Sheet 实例
      */
-    async createNewSheet(column = 2, row = 2, isSave = true) {
+    createNewSheet(column = 2, row = 2, isSave = true) {
         this.init(column, row);     // 初始化基本数据结构
         this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
         this.name = `新表格_${this.uid.slice(-4)}`;

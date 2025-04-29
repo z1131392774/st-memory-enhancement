@@ -122,6 +122,16 @@ function initChatScopeSelectedSheets() {
     return newSelectedSheets
 }
 
+function updateSelectedSheetUids(){
+    updateSheetStatusBySelect()
+    if(scope === 'chat') {
+        USER.saveChat()
+        BASE.refreshContextView()
+    }
+    else USER.saveSettings();
+    updateDragTables();
+}
+
 function initializeSelect2Dropdown(dropdownElement) {
     $(dropdownElement).select2({
         closeOnSelect: false,
@@ -149,14 +159,7 @@ function initializeSelect2Dropdown(dropdownElement) {
         //if(silent || scope === 'chat') return
         if(silent) return
         setSelectedSheetUids($(this).val())
-        updateSheetStatusBySelect()
-        console.log("更改选中的模板", $(this).val())
-        if(scope === 'chat') {
-            USER.saveChat()
-            BASE.refreshContextView()
-        }
-        else USER.saveSettings();
-        updateDragTables();
+        updateSelectedSheetUids()
     });
 
     // 创建父级复选框与下拉框的关联
@@ -478,23 +481,26 @@ async function initTableEdit(mesId) {
     })
 
     $(document).on('click', '#add_table_template_button', async function () {
-        const newTemplate = new BASE.SheetTemplate().createNewTemplate();
-        const newTemplateUid = newTemplate.uid;
-
-        let currentSelectedValues = $(dropdownElement).val();
-        if (!currentSelectedValues) {
-            currentSelectedValues = [];
+        console.log("触发")
+        let newTemplateUid = null
+        let newTemplate = null
+        if(scope === 'chat'){
+            newTemplate = new BASE.Sheet().createNewSheet()
+            newTemplateUid = newTemplate.uid
+        }else{
+            newTemplate = new BASE.SheetTemplate().createNewTemplate();
+            newTemplateUid = newTemplate.uid
         }
-        if (!Array.isArray(currentSelectedValues)) {
-            currentSelectedValues = [currentSelectedValues];
-        }
-
-        currentSelectedValues.push(newTemplateUid);
-        setSelectedSheetUids(currentSelectedValues)
-        USER.saveSettings();
+        
+        let currentSelectedValues = getSelectedSheetUids()
+        setSelectedSheetUids([...currentSelectedValues, newTemplateUid])
+        if(scope === 'chat') USER.saveChat()
+        else USER.saveSettings();
         await updateDropdownElement();
-        updateDragTables();
-        $(dropdownElement).val(currentSelectedValues).trigger('change');
+        //updateDragTables();
+        console.log("测试", [...currentSelectedValues, newTemplateUid])
+        $(dropdownElement).val([...currentSelectedValues, newTemplateUid]).trigger("change",[true]);
+        updateSelectedSheetUids()
     });
     $(document).on('click', '#import_table_template_button', function () {
 
