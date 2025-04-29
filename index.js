@@ -167,13 +167,21 @@ export function initTableData() {
  * @returns 完整提示词
  */
 function getAllPrompt() {
+    return USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt())
+}
+
+/**
+ * 获取表格相关提示词
+ * @returns {string} 表格相关提示词
+ */
+export function getTablePrompt() {
     const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === false ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
     console.log("构建提示词", hash_sheets, sheets)
     const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
-    return USER.tableBaseSetting.message_template.replace('{{tableData}}', sheetDataPrompt)
+    return sheetDataPrompt
 }
 
 
@@ -493,11 +501,36 @@ async function onChatCompletionPromptReady(eventData) {
   * 宏获取提示词
   */
 function getMacroPrompt() {
-    console.log("获取宏提示词")
     try {
         if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return ""
         const promptContent = initTableData()
-        console.log("注入宏提示词：",promptContent)
+        return promptContent
+    }catch (error) {
+        // 获取堆栈信息
+        const stack = error.stack;
+        let lineNumber = '未知行';
+        if (stack) {
+            // 尝试从堆栈信息中提取行号，这里假设堆栈信息格式是常见的格式，例如 "at functionName (http://localhost:8080/file.js:12:34)"
+            const match = stack.match(/:(\d+):/); // 匹配冒号和数字，例如 ":12:"
+            if (match && match[1]) {
+                lineNumber = match[1] + '行';
+            } else {
+                // 如果无法提取到行号，则显示完整的堆栈信息，方便调试
+                lineNumber = '行号信息提取失败，堆栈信息：' + stack;
+            }
+        }
+        toastr.error(`记忆插件：宏提示词注入失败\n原因：${error.message}\n位置：第${lineNumber}`);
+        return ""
+    }
+}
+
+/**
+  * 宏获取表格提示词
+  */
+function getMacroTablePrompt() {
+    try {
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return ""
+        const promptContent = replaceUserTag(getTablePrompt())
         return promptContent
     }catch (error) {
         // 获取堆栈信息
@@ -668,7 +701,8 @@ jQuery(async () => {
     loadSettings();
 
     // 注册宏
-    USER.getContext().registerMacro("tableData", () =>getMacroPrompt())
+    USER.getContext().registerMacro("tablePrompt", () =>getMacroPrompt())
+    USER.getContext().registerMacro("tableData", () =>getMacroTablePrompt())
 
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
