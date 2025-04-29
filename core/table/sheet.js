@@ -118,9 +118,9 @@ export class Sheet extends SheetBase {
      */
     getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules']) {
         console.log('获取表格内容提示词', this)
-        const title = `* ${index}:${replaceUserTag(this.name)}\n`;
+        const title = `* ${index}:${this.name}\n`;
         const node = this.source.data.note && this.source.data.note !== '' ? '【说明】' + this.source.data.note + '\n' : '';
-        const headers = "rowIndex," + this.getCellsByRowIndex(0).slice(1).map((cell, index) => index + ':' + replaceUserTag(cell.data.value)).join(',') + '\n';
+        const headers = "rowIndex," + this.getCellsByRowIndex(0).slice(1).map((cell, index) => index + ':' + cell.data.value).join(',') + '\n';
         const rows = this.getSheetCSV()
         const editRules = this.#getTableEditRules() + '\n';
 
@@ -141,7 +141,6 @@ export class Sheet extends SheetBase {
         if (customParts.includes('editRules')) {
             result += editRules;
         }
-
         return result;
     }
 
@@ -151,7 +150,7 @@ export class Sheet extends SheetBase {
      */
     getContent(withHead = false) {
         if (!withHead&&this.isEmpty()) return [];
-        const content = this.hashSheet.map((row) => 
+        const content = this.hashSheet.map((row) =>
             row.map((cellUid) => {
                 const cell = this.cells.get(cellUid);
                 if (!cell) return "";
@@ -199,12 +198,12 @@ export class Sheet extends SheetBase {
      */
     #getTableEditRules() {
         const source = this.source;
-        if (this.required && this.isEmpty()) return '【增删改触发条件】\n插入：' + replaceUserTag(source.data.initNode) + '\n'
+        if (this.required && this.isEmpty()) return '【增删改触发条件】\n插入：' + source.data.initNode + '\n'
         else {
             let editRules = '【增删改触发条件】\n'
-            if (source.data.insertNode) editRules += ('插入：' + replaceUserTag(source.data.insertNode) + '\n')
-            if (source.data.updateNode) editRules += ('更新：' + replaceUserTag(source.data.updateNode) + '\n')
-            if (source.data.deleteNode) editRules += ('删除：' + replaceUserTag(source.data.deleteNode) + '\n')
+            if (source.data.insertNode) editRules += ('插入：' + source.data.insertNode + '\n')
+            if (source.data.updateNode) editRules += ('更新：' + source.data.updateNode + '\n')
+            if (source.data.deleteNode) editRules += ('删除：' + source.data.deleteNode + '\n')
             return editRules
         }
     }
