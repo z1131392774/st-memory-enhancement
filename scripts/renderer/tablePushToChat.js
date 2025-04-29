@@ -2,6 +2,7 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {parseSheetRender} from "./sheetCustomRenderer.js";
 import {cellClickEditModeEvent, cellHighlight} from "../editor/chatSheetsDataView.js";
+import {replaceUserTag } from "../../utils/stringUtil.js";
 
 /**
  * 解析html，将其中代表表格单元格的\$\w\d+字符串替换为对应的表格单元格内容
@@ -18,7 +19,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             // 使用自定义样式
             const customStyle = parseSheetRender(sheet)
             const sheetContainer = document.createElement('div')
-            sheetContainer.innerHTML = customStyle
+            sheetContainer.innerHTML = replaceUserTag(customStyle) //替换掉自定义样式中的<user>标签
             $(_viewSheetsContainer).append(sheetContainer)
 
         } else {
