@@ -1,6 +1,5 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 import {SheetBase} from "./base.js";
-import { replaceUserTag } from '../../utils/stringUtil.js';
 import {cellStyle, filterSavingData} from "./utils.js";
 
 /**
