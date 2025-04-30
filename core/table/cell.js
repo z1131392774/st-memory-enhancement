@@ -279,7 +279,11 @@ export class Cell {
     #insertRow(targetRowIndex) {
         // 使用Array.from()方法在 hashSheet 中 targetRowIndex + 1 的位置插入新行
         const newRow = Array.from({ length: this.parent.hashSheet[0].length }, (_, j) => {
-            let cell = new Cell(this.parent); // [BUG修复点1] 使用 this.parent
+            let cell = new Cell(this.parent); // 创建新单元格
+            if (j === 0) {
+                // 如果是新行的第一个单元格（行头），设置 type 为 row_header
+                cell.type = CellType.row_header;
+            }
             this.parent.cells.set(cell.uid, cell);
             this.parent.cellHistory.push(cell);
             return cell.uid;
