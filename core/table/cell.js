@@ -301,7 +301,7 @@ export class Cell {
     #deleteRow(rowIndex) {
         console.log("删除行", rowIndex, this.parent.hashSheet.length)
         if (rowIndex === 0) return;
-        if (this.parent.hashSheet.length <= 2) return;
+        if (this.parent.hashSheet.length < 2) return;
         this.parent.hashSheet.splice(rowIndex, 1);
         this.parent.markPositionCacheDirty();
     }
