@@ -215,7 +215,7 @@ export class SheetBase {
      * @returns
      */
     getSheetCSV( removeHeader = true,key = 'value') {
-        if (this.isEmpty()) return ''; //根治表格为空时出现undefined的问题
+        if (this.isEmpty()) return '（此表格当前为空）\n'
         console.log("测试获取map", this.cells)
         const content = this.hashSheet.slice(removeHeader?1:0).map((row, index) => row.map(cellUid => {
             const cell = this.cells.get(cellUid)

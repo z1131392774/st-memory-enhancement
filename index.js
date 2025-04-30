@@ -175,12 +175,12 @@ function getAllPrompt() {
  * @returns {string} 表格相关提示词
  */
 export function getTablePrompt() {
-    const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === false ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
+    const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === true ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
     console.log("构建提示词", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
+    const sheetDataPrompt = sheets.filter(sheet=>sheet.enable).map((sheet, index) => sheet.getTableText(index)).join('\n')
     return sheetDataPrompt
 }
 
