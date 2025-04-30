@@ -17,7 +17,7 @@ import {executeTranslation} from "./services/translate.js";
 
 console.log("______________________记忆插件：开始加载______________________")
 
-const VERSION = '2.0.0_dev'
+const VERSION = '2.0.0'
 
 const editErrorInfo = {
     forgotCommentTag: false,
@@ -156,7 +156,6 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  * @returns 生成的完整提示词
  */
 export function initTableData() {
-    if (USER.tableBaseSetting.step_by_step === true) return '';
     const promptContent = replaceUserTag(getAllPrompt())  //替换所有的<user>标签
     console.log("完整提示", promptContent)
     return promptContent
@@ -178,9 +177,9 @@ export function getTablePrompt() {
     const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === true ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
-    const sheets = BASE.hashSheetsToSheets(hash_sheets)
-    console.log("构建提示词", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.filter(sheet=>sheet.enable).map((sheet, index) => sheet.getTableText(index)).join('\n')
+    const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
+    console.log("构建提示词时的信息", hash_sheets, sheets)
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
     return sheetDataPrompt
 }
 
@@ -281,7 +280,8 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
 
     // 获取上一个表格数据
     const {piece:prePiece} = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
-    const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
+    const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets).filter(sheet => sheet.enable)
+    console.log("执行指令时的信息", sheets)
     for (const EditAction of sortActions(tableEditActions)) {
         executeAction(EditAction, sheets)
     }
@@ -468,7 +468,8 @@ async function onChatCompletionPromptReady(eventData) {
         if (eventData.dryRun === true ||
             USER.tableBaseSetting.isExtensionAble === false ||
             USER.tableBaseSetting.isAiReadTable === false ||
-            USER.tableBaseSetting.injection_mode === "injection_off") return
+            USER.tableBaseSetting.injection_mode === "injection_off" ||
+            USER.tableBaseSetting.step_by_step === true) return
         console.log("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData()
         if (USER.tableBaseSetting.deep === 0)
@@ -502,7 +503,7 @@ async function onChatCompletionPromptReady(eventData) {
   */
 function getMacroPrompt() {
     try {
-        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return ""
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false || USER.tableBaseSetting.step_by_step === true) return ""
         const promptContent = initTableData()
         return promptContent
     }catch (error) {
@@ -529,7 +530,7 @@ function getMacroPrompt() {
   */
 function getMacroTablePrompt() {
     try {
-        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return ""
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false || USER.tableBaseSetting.step_by_step === true) return ""
         const promptContent = replaceUserTag(getTablePrompt())
         return promptContent
     }catch (error) {
@@ -587,19 +588,14 @@ function getTableEditTag(mes) {
  * @param this_edit_mes_id 此消息的ID
  */
 async function onMessageEdited(this_edit_mes_id) {
-    if (USER.tableBaseSetting.isExtensionAble === false) return
-    if (USER.tableBaseSetting.step_by_step === true) {
-
-    } else {
-        const chat = USER.getContext().chat[this_edit_mes_id]
-        if (chat.is_user === true || USER.tableBaseSetting.isAiWriteTable === false) return
-        try {
-            handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
-        } catch (error) {
-            EDITOR.error("记忆插件：表格编辑失败\n原因：", error.message, error)
-        }
+    if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === true) return
+    const chat = USER.getContext().chat[this_edit_mes_id]
+    if (chat.is_user === true || USER.tableBaseSetting.isAiWriteTable === false) return
+    try {
+        handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
+    } catch (error) {
+        EDITOR.error("记忆插件：表格编辑失败\n原因：", error.message, error)
     }
-
     updateSheetsView()
 }
 
