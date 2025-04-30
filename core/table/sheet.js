@@ -208,4 +208,12 @@ export class Sheet extends SheetBase {
             return editRules
         }
     }
+
+    /**
+     * 初始化hashSheet，只保留表头
+     */
+    initHashSheet() {
+        this.hashSheet = [this.hashSheet[0].map(uid => uid)];
+        this.markPositionCacheDirty();
+    }
 }

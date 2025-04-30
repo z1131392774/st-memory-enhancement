@@ -158,8 +158,12 @@ export const BASE = {
                 const newSheet = new BASE.Sheet(sheet.uid)
                 newSheet.hashSheet = hashSheets[sheet.uid].map(row => row.map(hash => hash));
                 return newSheet
-            } else return
-        }).filter(Boolean)
+            } else {
+                const newSheet = new BASE.Sheet(sheet.uid)
+                newSheet.initHashSheet()
+                return newSheet
+            }
+        })
     },
     initHashSheet() {
         if (BASE.sheetsData.context.length === 0) {

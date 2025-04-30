@@ -178,9 +178,9 @@ export function getTablePrompt() {
     const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === true ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
-    const sheets = BASE.hashSheetsToSheets(hash_sheets)
-    console.log("构建提示词", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.filter(sheet=>sheet.enable).map((sheet, index) => sheet.getTableText(index)).join('\n')
+    const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
+    console.log("构建提示词时的信息", hash_sheets, sheets)
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
     return sheetDataPrompt
 }
 
@@ -281,7 +281,8 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
 
     // 获取上一个表格数据
     const {piece:prePiece} = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
-    const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets)
+    const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets).filter(sheet => sheet.enable)
+    console.log("执行指令时的信息", sheets)
     for (const EditAction of sortActions(tableEditActions)) {
         executeAction(EditAction, sheets)
     }
