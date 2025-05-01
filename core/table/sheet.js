@@ -112,7 +112,7 @@ export class Sheet extends SheetBase {
     }
 
     /**
-     * 取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
+     * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
      * @returns 表格内容提示词
      */
     getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules'], eventData) {
