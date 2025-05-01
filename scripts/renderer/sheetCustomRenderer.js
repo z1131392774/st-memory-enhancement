@@ -143,7 +143,7 @@ function triggerValueSheet(valueSheet = []) {
         return Promise.reject(new Error("valueSheet必须为array类型!"));
     }
     const lastchat = getLastPlot();
-    console.log("触发器是：" + lastchat);
+    // console.log("触发器是：" + lastchat);
     let triggerArray = [valueSheet[0]];
     for (let i = 1; i < valueSheet.length; i++) {
         if (lastchat.includes(valueSheet[i][1])) {
@@ -159,11 +159,11 @@ export function initializeText(target, selectedStyle) {
     if (!result || result === '') return target?.element || '<div>表格数据未加载</div>';
     // console.log("瞅瞅target是："+target.config.triggerSendToChat); //调试用，正常不开启
     let valueSheet = loadValueSheetBySheetHashSheet(target);
-    // 判断是否需要触发sendToChat
+    // 新增，判断是否需要触发sendToChat
     if (target.config.triggerSendToChat) {
-        console.log(target.name + "开启触发推送" + valueSheet);
+        // console.log(target.name + "开启触发推送" + valueSheet);
         valueSheet = triggerValueSheet(valueSheet);
-        console.log(target.name + "检索后valueSheet是否为数组：" + Array.isArray(valueSheet) + "\n检索后valueSheet最后是什么：" + valueSheet);
+        // console.log(target.name + "检索后valueSheet是否为数组：" + Array.isArray(valueSheet) + "\n检索后valueSheet最后是什么：" + valueSheet);
     }
     const method = selectedStyle.basedOn || 'array';
     switch (method) {
