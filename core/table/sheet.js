@@ -1,6 +1,6 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
-import {SheetBase} from "./base.js";
-import {cellStyle, filterSavingData} from "./utils.js";
+import { SheetBase } from "./base.js";
+import { cellStyle, filterSavingData } from "./utils.js";
 
 /**
  * 表格类，用于管理表格数据
@@ -84,7 +84,7 @@ export class Sheet extends SheetBase {
                 sheets.push(sheetDataToSave);
             }
             BASE.sheetsData.context = sheets;
-            if( !targetPiece ){
+            if (!targetPiece) {
                 console.log("没用消息能承载hash_sheets数据，不予保存")
                 return this
             }
@@ -112,16 +112,31 @@ export class Sheet extends SheetBase {
     }
 
     /**
-     * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
+     * 取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
      * @returns 表格内容提示词
      */
-    getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules']) {
+    getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules'], eventData) {
         console.log('获取表格内容提示词', this)
         const title = `* ${index}:${this.name}\n`;
         const node = this.source.data.note && this.source.data.note !== '' ? '【说明】' + this.source.data.note + '\n' : '';
         const headers = "rowIndex," + this.getCellsByRowIndex(0).slice(1).map((cell, index) => index + ':' + cell.data.value).join(',') + '\n';
-        const rows = this.getSheetCSV()
+        let rows = this.getSheetCSV()
         const editRules = this.#getTableEditRules() + '\n';
+        // 新增触发式表格内容发送，检索聊天内容的角色名
+        if (eventData && eventData.chat && rows && this.triggerSend) {
+            // 提取所有聊天内容中的 content 值
+            const chatContents = eventData.chat.map(chat => chat.content).join('\n');
+            // console.log("获取事件数据-聊天内容", chatContents);  //调试用，正常情况不打开
+            const rowsArray = rows.split('\n').filter(line => {
+                line = line.trim();
+                if (!line) return false;
+                const parts = line.split(',');
+                if (parts.length < 2) return false;
+                const str1 = parts[1]; // 字符串1对应索引1
+                return chatContents.includes(str1);
+            });
+            rows = rowsArray.join('\n');
+        }
 
         let result = '';
 
@@ -143,12 +158,13 @@ export class Sheet extends SheetBase {
         return result;
     }
 
+
     /**
      * 获取表格的content数据（与旧版兼容）
      * @returns {string[][]} - 返回表格的content数据
      */
     getContent(withHead = false) {
-        if (!withHead&&this.isEmpty()) return [];
+        if (!withHead && this.isEmpty()) return [];
         const content = this.hashSheet.map((row) =>
             row.map((cellUid) => {
                 const cell = this.cells.get(cellUid);
@@ -175,7 +191,7 @@ export class Sheet extends SheetBase {
             this.hashSheet = [target.hashSheet[0].map(uid => uid)];
             this.required = target.required;
             this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
-            this.config = {...target.config};
+            this.config = { ...target.config };
             this.loadCells();
             this.markPositionCacheDirty();
             this.template = target;
@@ -185,7 +201,7 @@ export class Sheet extends SheetBase {
         let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === targetUid);
         if (targetSheetData?.uid) {
             Object.assign(this, filterSavingData(targetSheetData));
-            if(target.hashSheet) this.hashSheet =target.hashSheet.map(row => row.map(hash => hash));
+            if (target.hashSheet) this.hashSheet = target.hashSheet.map(row => row.map(hash => hash));
             this.loadCells();
             this.markPositionCacheDirty();
             return this;

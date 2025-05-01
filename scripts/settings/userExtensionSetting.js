@@ -554,6 +554,7 @@ export function initTableStructureToTemplate() {
         newTemplate.enable = defaultTemplate.enable
         newTemplate.tochat = defaultTemplate.tochat
         newTemplate.required = defaultTemplate.Required
+        newTemplate.triggerSend = defaultTemplate.triggerSend
         if(defaultTemplate.config)
             newTemplate.config = JSON.parse(JSON.stringify(defaultTemplate.config))
         newTemplate.source.data.note = defaultTemplate.note
@@ -583,6 +584,7 @@ function templateToTableStructure() {
             Required: template.required,
             tochat: template.tochat,
             enable: template.enable,
+            triggerSend: template.triggerSend,
         }
     })
     USER.tableBaseSetting.tableStructure = tableTemplates

@@ -33,6 +33,7 @@ export class SheetBase {
         this.enable = true;                     // 用于标记是否启用
         this.required = false;                  // 用于标记是否必填
         this.tochat = true;                     // 用于标记是否发送到聊天
+        this.triggerSend = false;               // 用于标记是否触发发送给AI
 
         // 以下为持久化数据
         this.cellHistory = [];                  // cellHistory 持久保持，只增不减
