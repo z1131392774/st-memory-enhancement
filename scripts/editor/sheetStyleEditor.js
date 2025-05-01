@@ -64,6 +64,7 @@ async function getUIElements($dlg) {
         replace: $dlg.find('#table_to_chat_replace'),
         tableToChatButton: $dlg.find('#table_to_chat_button'),
         tableStyleButton: $dlg.find('#table_style_button'),
+        triggerSendToChatButton: $dlg.find('#table_triggerSendToChat_button'),
         tablePreviewButton: $dlg.find('#table_style_preview_button'),
         presetStyle: $dlg.find('#preset_style'),
         matchMethod: $dlg.find('#match_method'),
@@ -162,6 +163,7 @@ function collectConfigThenUpdateTemplate() {
     const config = {
         toChat: dom.isChecked(elements.tableToChatButton),
         useCustomStyle: dom.isChecked(elements.tableStyleButton),
+        triggerSendToChat: dom.isChecked(elements.triggerSendToChatButton),
         selectedCustomStyleKey: styleName,
         customStyles: customStyles
     };
@@ -195,6 +197,7 @@ function initUIValues() {
     // 初始化复选框
     dom.setChecked(elements.tableToChatButton, templateInstance.config.toChat !== false);
     dom.setChecked(elements.tableStyleButton, templateInstance.config.useCustomStyle !== false);
+    dom.setChecked(elements.triggerSendToChatButton, templateInstance.config.triggerSendToChat !== false);
     dom.setChecked(elements.tablePreviewButton, false);
 
     initPresetStyleDropdown();
