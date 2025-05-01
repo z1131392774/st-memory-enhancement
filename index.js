@@ -97,6 +97,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required
         newSheet.tochat = true
+        newSheet.triggerSend = false
 
         addOldTablePrompt(newSheet)
         newSheet.data.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
@@ -155,8 +156,8 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  * 搜寻最后一个含有表格数据的消息，并生成提示词
  * @returns 生成的完整提示词
  */
-export function initTableData() {
-    const promptContent = replaceUserTag(getAllPrompt())  //替换所有的<user>标签
+export function initTableData(eventData) {
+    const promptContent = replaceUserTag(getAllPrompt(eventData))  //替换所有的<user>标签
     console.log("完整提示", promptContent)
     return promptContent
 }
@@ -165,21 +166,21 @@ export function initTableData() {
  * 获取所有的完整提示词
  * @returns 完整提示词
  */
-function getAllPrompt() {
-    return USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt())
+function getAllPrompt(eventData) {
+    return USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt(eventData))
 }
 
 /**
  * 获取表格相关提示词
  * @returns {string} 表格相关提示词
  */
-export function getTablePrompt() {
+export function getTablePrompt(eventData) {
     const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === true ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
     console.log("构建提示词时的信息", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index,undefined,eventData)).join('\n')
     return sheetDataPrompt
 }
 
@@ -471,7 +472,7 @@ async function onChatCompletionPromptReady(eventData) {
             USER.tableBaseSetting.injection_mode === "injection_off" ||
             USER.tableBaseSetting.step_by_step === true) return
         console.log("生成提示词前", USER.getContext().chat)
-        const promptContent = initTableData()
+        const promptContent = initTableData(eventData)
         if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
         else

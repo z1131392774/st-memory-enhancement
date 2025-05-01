@@ -1,3 +1,5 @@
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
+
 let sheet = null;
 let config = {};
 let selectedCustomStyle = null;
@@ -120,13 +122,49 @@ function regexReplacePipeline(text) {
         return text; // Return original text on error
     }
 }
+/**
+ * 获取最近的剧情内容
+ * @returns {string} - 获取最近的剧情内容，正则掉思维连和表格函数
+ */
+function getLastPlot() {
+    const chat = USER.getContext().chat;
+    for (let i = chat.length - 1; i >= 0; i--) {
+        if (chat[i].mes != "" && chat[i].is_user == false) {
+            const regex1 = "<thinking>[\\s\\S]*?<\/thinking>";
+            const regex2 = "<tableEdit>[\\s\\S]*?<\/tableEdit>";
+            const regex = new RegExp(`${regex1}|${regex2}`, "g")
+            return chat[i].mes.replace(regex, '');
+        }
+
+    }
+}
+function triggerValueSheet(valueSheet = []) {
+    if (!Array.isArray(valueSheet)) {
+        return Promise.reject(new Error("valueSheet必须为array类型!"));
+    }
+    const lastchat = getLastPlot();
+    // console.log("触发器是：" + lastchat);
+    let triggerArray = [valueSheet[0]];
+    for (let i = 1; i < valueSheet.length; i++) {
+        if (lastchat.includes(valueSheet[i][1])) {
+            triggerArray.push(valueSheet[i]);
+        }
+    }
+    return triggerArray;
+};
 
 export function initializeText(target, selectedStyle) {
     let initialize = '';
     let result = selectedStyle.replace || '';
     if (!result || result === '') return target?.element || '<div>表格数据未加载</div>';
-
-    const valueSheet = loadValueSheetBySheetHashSheet(target);
+    // console.log("瞅瞅target是："+target.config.triggerSendToChat); //调试用，正常不开启
+    let valueSheet = loadValueSheetBySheetHashSheet(target);
+    // 新增，判断是否需要触发sendToChat
+    if (target.config.triggerSendToChat) {
+        // console.log(target.name + "开启触发推送" + valueSheet);
+        valueSheet = triggerValueSheet(valueSheet);
+        // console.log(target.name + "检索后valueSheet是否为数组：" + Array.isArray(valueSheet) + "\n检索后valueSheet最后是什么：" + valueSheet);
+    }
     const method = selectedStyle.basedOn || 'array';
     switch (method) {
         case 'array':

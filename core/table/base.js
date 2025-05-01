@@ -33,6 +33,7 @@ export class SheetBase {
         this.enable = true;                     // 用于标记是否启用
         this.required = false;                  // 用于标记是否必填
         this.tochat = true;                     // 用于标记是否发送到聊天
+        this.triggerSend = false;               // 用于标记是否触发发送给AI
 
         // 以下为持久化数据
         this.cellHistory = [];                  // cellHistory 持久保持，只增不减
@@ -42,6 +43,7 @@ export class SheetBase {
             // 以下为其他的属性
             toChat: true,                     // 用于标记是否发送到聊天
             useCustomStyle: false,            // 用于标记是否使用自定义样式
+            triggerSendToChat: false,            // 用于标记是否触发发送到聊天
             selectedCustomStyleKey: '',       // 用于存储选中的自定义样式，当selectedCustomStyleUid没有值时，使用默认样式
             customStyles: {'自定义样式': {...customStyleConfig}},                 // 用于存储自定义样式
         }
