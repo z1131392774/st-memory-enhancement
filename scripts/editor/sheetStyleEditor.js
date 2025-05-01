@@ -42,6 +42,7 @@ function refreshEditor() {
 
 function renderHTML() {
     const currentConfig = collectConfigThenUpdateTemplate();
+    console.log("测试", currentConfig,templateInstance)
     if (currentConfig.useCustomStyle === true) {
         elements.rendererDisplay.html(parseSheetRender(templateInstance, currentConfig));
     } else {

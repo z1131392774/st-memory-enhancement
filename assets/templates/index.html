@@ -105,9 +105,9 @@
                                 </div>
 
                                 <!--                                <h4>自定义策略</h4>-->
-                                <div class="checkbox_label range-block justifyLeft unfinished">
+                                <div class="checkbox_label range-block justifyLeft">
                                     <input type="checkbox" id="step_by_step"><span data-i18n="Enable step-by-step table filling">启用分步填表</span>
-                                    <small class="toggle-description justifyLeft" data-i18n="Step-by-step table filling description">(每次对话后自动调用api单独总结表格)</small>
+                                    <small class="toggle-description justifyLeft" data-i18n="Step-by-step table filling description">(每次对话后如达到阈值则自动调用api总结表格)</small>
                                 </div>
 
                                 <!-- 默认不分步填表 -->
@@ -228,10 +228,10 @@
 
                                 <!-- 表格推送至对话 -->
                                 <div id="table_to_chat_options" style="padding-left: 20px; width: calc(100% - 20px);">
-                                    <div class="checkbox_label range-block justifyLeft unfinished">
+                                    <!-- TODO 这里需要实现<div class="checkbox_label range-block justifyLeft unfinished">
                                         <input type="checkbox" id="table_to_chat_can_edit"><span data-i18n="Data editable">数据可编辑</span>
                                         <small class="toggle-description justifyLeft" data-i18n="Data editable description">(可用渲染至对话的表格编辑数据)</small>
-                                    </div>
+                                    </div> -->
 
                                     <div class="checkbox_label range-block justifyLeft">
                                         <label for="table_to_chat_mode" data-i18n="Render to">渲染至</label>

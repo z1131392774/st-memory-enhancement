@@ -33,6 +33,7 @@ export class SheetBase {
         this.enable = true;                     // 用于标记是否启用
         this.required = false;                  // 用于标记是否必填
         this.tochat = true;                     // 用于标记是否发送到聊天
+        this.triggerSend = false;               // 用于标记是否触发发送给AI
 
         // 以下为持久化数据
         this.cellHistory = [];                  // cellHistory 持久保持，只增不减
@@ -215,7 +216,7 @@ export class SheetBase {
      * @returns
      */
     getSheetCSV( removeHeader = true,key = 'value') {
-        if (this.isEmpty()) return ''; //根治表格为空时出现undefined的问题
+        if (this.isEmpty()) return '（此表格当前为空）\n'
         console.log("测试获取map", this.cells)
         const content = this.hashSheet.slice(removeHeader?1:0).map((row, index) => row.map(cellUid => {
             const cell = this.cells.get(cellUid)
