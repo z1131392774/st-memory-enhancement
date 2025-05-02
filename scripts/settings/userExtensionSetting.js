@@ -426,6 +426,15 @@ function InitBinging() {
         USER.tableBaseSetting.custom_temperature = Number(value);
     });
 
+    // 代理地址
+    $('#table_proxy_address').on('input', function() {
+        USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address = $(this).val();
+    });
+    // 代理密钥
+    $('#table_proxy_key').on('input', function() {
+        USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key = $(this).val();
+    });
+
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
 
@@ -474,6 +483,7 @@ export function renderSetting() {
     $('#custom_api_url').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
     $('#custom_api_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
     $('#custom_model_name').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
+    $('#table_proxy_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key || '');
 
     // 初始化开关状态
     updateSwitch('#table_switch', USER.tableBaseSetting.isExtensionAble);
