@@ -29,8 +29,8 @@ export function loadValueSheetBySheetHashSheet(instance) {
     }));
 }
 
-function toArray(valueSheet,skipTop) {
-    return skipTop ? valueSheet.slice(1):  valueSheet; //新增判定是否跳过表头
+function toArray(valueSheet, skipTop) {
+    return skipTop ? valueSheet.slice(1) : valueSheet; //新增判定是否跳过表头
 }
 
 // 提高兼容性，可以处理非二位数组的情况
@@ -212,13 +212,13 @@ export function initializeText(target, selectedStyle) {
     const method = selectedStyle.basedOn || 'array';
     switch (method) {
         case 'array':
-            initialize = toArray(valueSheet,target.config.skipTop);
+            initialize = toArray(valueSheet, target.config.skipTop);
             break;
         case 'html':
-            initialize = toHtml(valueSheet,target.config.skipTop);
+            initialize = toHtml(valueSheet, target.config.skipTop);
             break;
         case 'csv':
-            initialize = toCSV(valueSheet,target.config.skipTop);
+            initialize = toCSV(valueSheet, target.config.skipTop);
             break;
         case 'markdown':
             initialize = toMarkdown(valueSheet);

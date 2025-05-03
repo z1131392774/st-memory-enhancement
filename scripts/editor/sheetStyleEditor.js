@@ -34,24 +34,44 @@ const dom = {
  * 统一的编辑器刷新方法
  */
 function refreshEditor() {
+    // console.log("refreshEditor-elements.rendererDisplay 是否存在:", !!elements.rendererDisplay);
+    // console.log("jQuery 对象长度:", elements.rendererDisplay?.length || 0);
     renderHTML();
     updateGuideContent(elements, dom.getValue(elements.matchMethod) === 'regex');
     dom.toggleVisibility(elements.table_renderer_display_container, dom.isChecked(elements.tablePreviewButton));
     dom.toggleVisibility(elements.styleEnabledView, dom.isChecked(elements.tableStyleButton));
 }
 
+// function renderHTML() {
+//     const currentConfig = collectConfigThenUpdateTemplate();
+//     console.log("测试", currentConfig, templateInstance)
+//     if (currentConfig.useCustomStyle === true) {
+//         templateInstance.tableSheet = loadValueSheetBySheetHashSheet(templateInstance);  //修改后的渲染逻辑为渲染tableSheet
+//         elements.rendererDisplay.html(parseSheetRender(templateInstance, currentConfig));
+//     } else {
+//         elements.rendererDisplay.html(templateInstance.element);
+//     }
+//     elements.rendererDisplay.css('white-space', 'pre-wrap');
+// }
+
+/**
+ * 渲染HTML,修复在HTML包含<script>标签时jQuery内部处理异常
+ */
 function renderHTML() {
     const currentConfig = collectConfigThenUpdateTemplate();
-    console.log("测试", currentConfig, templateInstance)
-    if (currentConfig.useCustomStyle === true) {
-        templateInstance.tableSheet = loadValueSheetBySheetHashSheet(templateInstance);  //修改后的渲染逻辑为渲染tableSheet
-        elements.rendererDisplay.html(parseSheetRender(templateInstance, currentConfig));
-    } else {
-        elements.rendererDisplay.html(templateInstance.element);
-    }
+    if (!elements?.rendererDisplay?.length) return;
+    templateInstance.tableSheet = loadValueSheetBySheetHashSheet(templateInstance);
+    let renderedHTML = currentConfig.useCustomStyle
+        ? parseSheetRender(templateInstance, currentConfig)
+        : templateInstance.element;
+
+    // 移除所有<script>标签
+    renderedHTML = renderedHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+
+    // 改用原生方法插入
+    elements.rendererDisplay[0].innerHTML = renderedHTML;
     elements.rendererDisplay.css('white-space', 'pre-wrap');
 }
-
 /**
  * 获取UI元素绑定对象
  * @param {Object} $dlg jQuery对象
@@ -146,7 +166,8 @@ function setupSheetPreview() {
     templateInstance.element = `<div class="justifyLeft scrollable">${templateInstance.renderSheet((cell) => {
         cell.element.style.cursor = 'default';
     }).outerHTML}</div>`;
-
+    console.log("setupSheetPreview-elements.rendererDisplay 是否存在:", !!elements.rendererDisplay);
+    console.log("jQuery 对象长度:", elements.rendererDisplay?.length || 0);
     renderHTML();
     dom.toggleVisibility(elements.table_renderer_display_container, false);
 }

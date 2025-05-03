@@ -62,7 +62,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
     let sumAlternateLevel = 0;          // 计数器，统计需要穿插的表格数量
     let levelIndexAlternate = [];       // 统计需要穿插的层级索引
     let indexOriginary = [];      // 记录使用普通自定义定样式的表格索引
-    console.log("穿插模式是否开启："+USER.tableBaseSetting.alternate_switch)
+    console.log("穿插模式是否开启：" + USER.tableBaseSetting.alternate_switch)
     if (USER.tableBaseSetting.alternate_switch) {    //首先判断是否开启了穿插模式，再看是否有必要进入穿插模型
         for (let [index, sheet] of _sheets.entries()) {
             if (sheet.config.toChat === true && sheet.config.alternateLevel > 0 && sheet.config.alternateTable === true) {
@@ -262,6 +262,8 @@ export async function openTableRendererPopup() {
     const $tableRendererDisplay = $dlg.find('#tableRendererDisplay');
 
     // 修改中实时渲染
+    console.log("openTableRendererPopup-elements.rendererDisplay 是否存在:", !!elements.rendererDisplay);
+    console.log("jQuery 对象长度:", elements.rendererDisplay?.length || 0);
     const renderHTML = () => {
         $tableRendererDisplay.html(sheetElements);
     };
