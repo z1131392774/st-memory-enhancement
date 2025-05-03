@@ -4,9 +4,9 @@ import { findNextChatWhitTableData, } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
 import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
-import {openTableStatisticsPopup} from "./tableStatistics.js";
-import {openCellHistoryPopup} from "./cellHistory.js";
-import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";
+import { openTableStatisticsPopup } from "./tableStatistics.js";
+import { openCellHistoryPopup } from "./cellHistory.js";
+import { openSheetStyleRendererPopup } from "./sheetStyleEditor.js";
 
 let tablePopup = null
 let copyTableData = {}
@@ -128,7 +128,7 @@ async function exportTable() {
         return;
     }
     const sheets = DERIVED.any.renderingSheets
-    const csvTables = sheets.map(sheet => "SHEET-START"+sheet.uid+"\n"+sheet.getSheetCSV(false)+"SHEET-END").join('\n')
+    const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
     const bom = '\uFEFF';
     const blob = new Blob([bom + csvTables], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -157,7 +157,7 @@ async function clearTable(mesId, viewSheetsContainer) {
             if (piece.hash_sheets) {
                 delete piece.hash_sheets
             }
-            if(piece.dataTable) delete piece.dataTable
+            if (piece.dataTable) delete piece.dataTable
         }))
         setTimeout(() => {
             USER.saveSettings()
@@ -197,7 +197,7 @@ async function cellDataEdit(cell) {
     if (result) {
         cell.editCellData({ value: result })
         refreshContextView(true);
-        if(cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
+        if (cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
     }
 }
 
@@ -315,6 +315,7 @@ async function confirmAction(event, text = '是否继续该操作？') {
  * 单元格高亮
  */
 export function cellHighlight(sheet) {
+    if (sheet.hashSheet.length < 2) return;    //表格内容为空的时候不执行后续函数,提高健壮性
     const lastHashSheet = lastCellsHashSheet[sheet.uid] || []
     const changeSheet = sheet.hashSheet.map((row) => {
         const isNewRow = lastHashSheet.includes(row[0])
@@ -342,7 +343,7 @@ async function cellHistoryView(cell) {
 
 /**
  * 自定义表格样式事件
- * @param {*} cell 
+ * @param {*} cell
  */
 async function customSheetStyle(cell) {
     await openSheetStyleRendererPopup(cell.parent)
@@ -379,12 +380,12 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
-            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', async() => customSheetStyle(cell) );
+            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', async () => customSheetStyle(cell));
         } else if (colIndex === 0) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
-            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow), menu.ItemType.warning )
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow), menu.ItemType.warning)
         } else if (rowIndex === 0) {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await cellDataEdit(cell));
             menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => handleAction(cell, cell.CellAction.insertLeftColumn));
@@ -439,17 +440,17 @@ function cellClickEvent(cell) {
     })
 }
 
-function handleAction(cell, action){
+function handleAction(cell, action) {
     cell.newAction(action)
     refreshContextView(true);
-    if(cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
+    if (cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
 }
 
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
     for (let [index, sheet] of _sheets.entries()) {
-        if(!sheet.enable) continue
+        if (!sheet.enable) continue
         const instance = new BASE.Sheet(sheet)
-        console.log("渲染：",instance)
+        console.log("渲染：", instance)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
         sheetContainer.style.overflowX = 'none'

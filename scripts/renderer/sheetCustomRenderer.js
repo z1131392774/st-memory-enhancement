@@ -16,8 +16,12 @@ function staticPipeline() {
             `<span style="color: red">无单元格</span>`;
     });
 }
-
-function loadValueSheetBySheetHashSheet(instance) {
+/** 从表格实例中提取数据值
+ *
+ * @param {*} instance - 表格实例对象
+ * @returns  -二维数组表格数据
+ */
+export function loadValueSheetBySheetHashSheet(instance) {
     if (!instance) return;
     return instance.hashSheet.map(row => row.map(hash => {
         const cell = instance.cells.get(hash);
@@ -25,27 +29,56 @@ function loadValueSheetBySheetHashSheet(instance) {
     }));
 }
 
-function toArray(valueSheet) {
-    return valueSheet
+function toArray(valueSheet,skipTop) {
+    return skipTop ? valueSheet.slice(1):  valueSheet; //新增判定是否跳过表头
 }
 
-function toHtml(valueSheet) {
-    // 将 valueSheet 转换为 HTML 表格
+// 提高兼容性，可以处理非二位数组的情况
+/**
+ *
+ * @param {*table} valueSheet 数据型数据表
+ * @param {*boolean} skipTop 是否跳过表头
+ * @returns html格式文本
+ */
+function toHtml(valueSheet, skipTop = false) {
+    if (!Array.isArray(valueSheet)) {
+        return "<table></table>"; // 返回空表格
+    }
+
     let html = '<table>';
+    let isFirstRow = true;
+
     for (const row of valueSheet) {
+        if (!Array.isArray(row)) {
+            continue; // 跳过非数组行
+        }
+
+        // 如果skipTop为true且是第一行，则跳过
+        if (skipTop && isFirstRow) {
+            isFirstRow = false;
+            continue;
+        }
+
         html += '<tr>';
         for (const cell of row) {
-            html += `<td>${cell}</td>`;
+            html += `<td>${cell ?? ""}</td>`; // 处理可能的 undefined/null
         }
         html += '</tr>';
+
+        isFirstRow = false;
     }
     html += '</table>';
     return html;
 }
+/**
+ *
+ * @param {*table} valueSheet 数据型数据表
+ * @param {*boolean} skipTop 是否跳过表头
+ * @returns cvs 格式文本
+ */
+function toCSV(valueSheet, skipTop = false) {
 
-function toCSV(valueSheet) {
-    // 将 valueSheet 转换为 CSV 格式，并跳过首行表头
-    return valueSheet.slice(1).map(row => row.join(',')).join('\n');
+    return skipTop ? valueSheet.slice(1).map(row => row.join(',')).join('\n') : valueSheet.map(row => row.join(',')).join('\n');
 }
 
 function toMarkdown(valueSheet) {
@@ -71,7 +104,12 @@ function toJSON(valueSheet) {
     });
     return JSON.stringify(json, null, 2);
 }
-
+/**
+ * 使用正则解析表格渲染样式
+ * @param {Object} instance 表格对象
+ * @param {Object} rendererConfig 渲染配置
+ * @returns {string} 渲染后的HTML
+ */
 function regexReplacePipeline(text) {
     if (!text || text === '') return text;
     if (!selectedCustomStyle) return text;
@@ -152,13 +190,19 @@ function triggerValueSheet(valueSheet = []) {
     }
     return triggerArray;
 };
-
+/** 用于初始化文本数据的函数，根据不同的格式要求将表格数据转换为指定格式的文本。
+ *
+ * @param {*table} target - 单个表格对象
+ * @param {*string} selectedStyle  - 格式配置的对象
+ * @returns {*string}  -表格处理后的文本
+ */
 export function initializeText(target, selectedStyle) {
     let initialize = '';
-    let result = selectedStyle.replace || '';
-    if (!result || result === '') return target?.element || '<div>表格数据未加载</div>';
+    // let result = selectedStyle.replace || '';
+    // if (!result || result === '') return target?.element || '<div>表格数据未加载</div>';
     // console.log("瞅瞅target是："+target.config.triggerSendToChat); //调试用，正常不开启
-    let valueSheet = loadValueSheetBySheetHashSheet(target);
+    let valueSheet = target.tableSheet;  // 获取表格数据，二维数组
+    // console.log("初始化文本：" + valueSheet);
     // 新增，判断是否需要触发sendToChat
     if (target.config.triggerSendToChat) {
         // console.log(target.name + "开启触发推送" + valueSheet);
@@ -168,13 +212,13 @@ export function initializeText(target, selectedStyle) {
     const method = selectedStyle.basedOn || 'array';
     switch (method) {
         case 'array':
-            initialize = toArray(valueSheet);
+            initialize = toArray(valueSheet,target.config.skipTop);
             break;
         case 'html':
-            initialize = toHtml(valueSheet);
+            initialize = toHtml(valueSheet,target.config.skipTop);
             break;
         case 'csv':
-            initialize = toCSV(valueSheet);
+            initialize = toCSV(valueSheet,target.config.skipTop);
             break;
         case 'markdown':
             initialize = toMarkdown(valueSheet);
@@ -189,13 +233,23 @@ export function initializeText(target, selectedStyle) {
     return initialize;
 }
 
+/**用于处理正则表达式替换流程的管道函数
+ *
+ * @param {Object} target - 单个表格对象
+ * @param {Object} rendererConfig 渲染配置
+ * @returns {string} 渲染后的HTML
+ */
 function regexPipeline(target, selectedStyle = selectedCustomStyle) {
-    const initText = initializeText(target, selectedStyle);
-    const r = regexReplacePipeline(initText);   // 使用正则表达式替换
-
+    const initText = initializeText(target, selectedStyle);  //初始化文本
+    let result = selectedStyle.replace || '';
+    const r = result ? regexReplacePipeline(initText) : initText;  //没有替换内容则显示初始化内容，有则进行正则替换
     return r
 }
-
+/** 根据不同的自定义样式模式来渲染目标元素的函数
+ *
+ * @param {*table} target - 单个表格，要渲染的目标对象，包含需要渲染的元素
+ * @returns {*Html} 处理后的HTML字符串
+ */
 function executeRendering(target) {
     let resultHtml = target?.element || '<div>表格数据未加载</div>';
     if (config.useCustomStyle === false) {

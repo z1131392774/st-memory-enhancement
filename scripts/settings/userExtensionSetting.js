@@ -1,5 +1,5 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import {updateSystemMessageTableStatus} from "../renderer/tablePushToChat.js";
+import {updateSystemMessageTableStatus, updateAlternateTable} from "../renderer/tablePushToChat.js";
 import {rebuildSheets} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
 import {updateModelList, handleApiTestRequest ,processApiKey} from "./standaloneAPI.js";
@@ -33,6 +33,7 @@ function updateTableView() {
     const show_drawer_in_extension_list = USER.tableBaseSetting.show_drawer_in_extension_list;
     const extensionsMenu = document.querySelector('#extensionsMenu');
     const show_settings_in_extension_menu = USER.tableBaseSetting.show_settings_in_extension_menu;
+    const alternate_switch = USER.tableBaseSetting.alternate_switch;
     const extensions_settings = document.querySelector('#extensions_settings');
 
     if (show_drawer_in_extension_list === true) {
@@ -343,6 +344,13 @@ function InitBinging() {
         USER.tableBaseSetting.show_settings_in_extension_menu = this.checked;
         updateTableView();
     });
+    // 在扩展菜单栏中显示穿插模型设置开关
+    $('#alternate_switch').change(function () {
+        USER.tableBaseSetting.alternate_switch = this.checked;
+        EDITOR.success(this.checked ? '开启表格渲染穿插模式' : '关闭表格渲染穿插模式');
+        updateTableView();
+        updateAlternateTable();
+    });
     // 在扩展列表显示表格设置
     $('#show_drawer_in_extension_list').change(function () {
         USER.tableBaseSetting.show_drawer_in_extension_list = this.checked;
@@ -493,6 +501,7 @@ export function renderSetting() {
     updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
     updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);
     updateSwitch('#show_settings_in_extension_menu', USER.tableBaseSetting.show_settings_in_extension_menu);
+    updateSwitch('#alternate_switch', USER.tableBaseSetting.alternate_switch);
     updateSwitch('#show_drawer_in_extension_list', USER.tableBaseSetting.show_drawer_in_extension_list);
     updateSwitch('#table_to_chat_can_edit', USER.tableBaseSetting.table_to_chat_can_edit);
 

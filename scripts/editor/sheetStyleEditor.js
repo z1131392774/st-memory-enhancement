@@ -1,12 +1,12 @@
 // sheetStyleEditor.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import {initializeText, parseSheetRender} from "../renderer/sheetCustomRenderer.js";
+import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
+import { initializeText, parseSheetRender, loadValueSheetBySheetHashSheet } from "../renderer/sheetCustomRenderer.js";
 
 let elements = null;
 let templateInstance = null;
 
 // 默认样式配置
-const DEFAULT_STYLE = {mode: 'regex', basedOn: 'html', regex: '.*', replace: ''};
+const DEFAULT_STYLE = { mode: 'regex', basedOn: 'html', regex: '.*', replace: '' };
 
 /**
  * DOM 元素工具函数
@@ -42,8 +42,9 @@ function refreshEditor() {
 
 function renderHTML() {
     const currentConfig = collectConfigThenUpdateTemplate();
-    console.log("测试", currentConfig,templateInstance)
+    console.log("测试", currentConfig, templateInstance)
     if (currentConfig.useCustomStyle === true) {
+        templateInstance.tableSheet = loadValueSheetBySheetHashSheet(templateInstance);  //修改后的渲染逻辑为渲染tableSheet
         elements.rendererDisplay.html(parseSheetRender(templateInstance, currentConfig));
     } else {
         elements.rendererDisplay.html(templateInstance.element);
@@ -65,6 +66,8 @@ async function getUIElements($dlg) {
         tableToChatButton: $dlg.find('#table_to_chat_button'),
         tableStyleButton: $dlg.find('#table_style_button'),
         triggerSendToChatButton: $dlg.find('#table_triggerSendToChat_button'),
+        alternateTableButton: $dlg.find('#table_alternateTable_button'),
+        skipTopButton: $dlg.find('#table_skipTop_button'),
         tablePreviewButton: $dlg.find('#table_style_preview_button'),
         presetStyle: $dlg.find('#preset_style'),
         matchMethod: $dlg.find('#match_method'),
@@ -79,6 +82,7 @@ async function getUIElements($dlg) {
         table_renderer_display_container: $dlg.find('#table_renderer_display_container'),
         match_method_regex_container: $dlg.find('#match_method_regex_container'),
         push_to_chat_style_edit_guide_content: $dlg.find('#push_to_chat_style_edit_guide_content'),
+        alternateLevel: $dlg.find('#table_to_alternate'),
     };
 }
 
@@ -121,7 +125,7 @@ function getFormData() {
  * 设置表单数据
  */
 function setFormData(style = {}) {
-    const data = {...DEFAULT_STYLE, ...style};
+    const data = { ...DEFAULT_STYLE, ...style };
     dom.setValue(elements.matchMethod, data.mode);
     dom.setValue(elements.benchmark, data.basedOn);
     dom.setValue(elements.regex, data.regex);
@@ -153,7 +157,7 @@ function setupSheetPreview() {
 function collectConfigThenUpdateTemplate() {
     const selectedKey = dom.getValue(elements.presetStyle);
     const styleName = elements.presetStyle.find('option:selected').text();
-    const customStyles = {...(templateInstance.config.customStyles || {})};
+    const customStyles = { ...(templateInstance.config.customStyles || {}) };
     const currentStyle = getFormData();
 
     if (selectedKey !== 'default') {
@@ -164,10 +168,12 @@ function collectConfigThenUpdateTemplate() {
         toChat: dom.isChecked(elements.tableToChatButton),
         useCustomStyle: dom.isChecked(elements.tableStyleButton),
         triggerSendToChat: dom.isChecked(elements.triggerSendToChatButton),
+        alternateTable: dom.isChecked(elements.alternateTableButton),
+        skipTop: dom.isChecked(elements.skipTopButton),
+        alternateLevel: dom.getValue(elements.alternateLevel),
         selectedCustomStyleKey: styleName,
         customStyles: customStyles
     };
-
     templateInstance.config = config;
     return config;
 }
@@ -198,8 +204,10 @@ function initUIValues() {
     dom.setChecked(elements.tableToChatButton, templateInstance.config.toChat !== false);
     dom.setChecked(elements.tableStyleButton, templateInstance.config.useCustomStyle !== false);
     dom.setChecked(elements.triggerSendToChatButton, templateInstance.config.triggerSendToChat !== false);
+    dom.setChecked(elements.alternateTableButton, templateInstance.config.alternateTable == true);
+    dom.setChecked(elements.skipTopButton, templateInstance.config.skipTop == true);
     dom.setChecked(elements.tablePreviewButton, false);
-
+    dom.setValue(elements.alternateLevel, templateInstance.config.alternateLevel || 0);
     initPresetStyleDropdown();
     setFormData(getCurrentSelectedStyle());
 }
@@ -237,12 +245,12 @@ function bindEvents() {
     // 绑定基本输入元素事件
     ['input', 'input', 'change', 'change', 'change', 'change'].forEach((eventType, i) => {
         [elements.regex, elements.replace, elements.tablePreviewButton,
-         elements.matchMethod, elements.benchmark, elements.tableStyleButton][i]
+        elements.matchMethod, elements.benchmark, elements.tableStyleButton][i]
             .get(0).addEventListener(eventType, refreshEditor);
     });
 
     // 预设样式切换事件
-    elements.presetStyle.get(0).addEventListener('change', function(event) {
+    elements.presetStyle.get(0).addEventListener('change', function (event) {
         const selectedKey = event.target.value;
         const selectedStyle = templateInstance.config.customStyles[selectedKey];
         if (selectedStyle) {
@@ -260,7 +268,7 @@ function bindEvents() {
  */
 function bindStyleManagementEvents() {
     // 添加样式
-    elements.addStyleButton.get(0).addEventListener('click', async function() {
+    elements.addStyleButton.get(0).addEventListener('click', async function () {
         const styleName = await EDITOR.callGenericPopup("输入新样式名称：", EDITOR.POPUP_TYPE.INPUT);
         if (!styleName) return;
 
@@ -273,7 +281,7 @@ function bindStyleManagementEvents() {
     });
 
     // 编辑样式名称
-    elements.editStyleButton.get(0).addEventListener('click', async function() {
+    elements.editStyleButton.get(0).addEventListener('click', async function () {
         const selectedKey = dom.getValue(elements.presetStyle);
         if (selectedKey === 'default' || !templateInstance.config.customStyles[selectedKey]) return;
 
@@ -292,7 +300,7 @@ function bindStyleManagementEvents() {
     });
 
     // 删除样式
-    elements.deleteStyleButton.get(0).addEventListener('click', async function() {
+    elements.deleteStyleButton.get(0).addEventListener('click', async function () {
         const selectedKey = dom.getValue(elements.presetStyle);
         if (selectedKey === 'default') {
             return EDITOR.error('不能删除默认样式');
@@ -308,8 +316,8 @@ function bindStyleManagementEvents() {
     });
 
     // 导入样式
-    elements.importStyleButton.get(0).addEventListener('click', async function() {
-        const importData = await EDITOR.callGenericPopup("粘贴样式配置JSON：", EDITOR.POPUP_TYPE.INPUT, '', {rows: 10});
+    elements.importStyleButton.get(0).addEventListener('click', async function () {
+        const importData = await EDITOR.callGenericPopup("粘贴样式配置JSON：", EDITOR.POPUP_TYPE.INPUT, '', { rows: 10 });
         if (!importData) return;
 
         try {
@@ -334,11 +342,11 @@ function bindStyleManagementEvents() {
     });
 
     // 导出样式
-    elements.exportStyleButton.get(0).addEventListener('click', function() {
+    elements.exportStyleButton.get(0).addEventListener('click', function () {
         const selectedKey = dom.getValue(elements.presetStyle);
         if (selectedKey === 'default' || !templateInstance.config.customStyles[selectedKey]) return;
 
-        const exportData = {...templateInstance.config.customStyles[selectedKey], name: selectedKey};
+        const exportData = { ...templateInstance.config.customStyles[selectedKey], name: selectedKey };
         navigator.clipboard.writeText(JSON.stringify(exportData, null, 2))
             .then(() => EDITOR.success('样式已复制到剪贴板'));
     });
@@ -369,7 +377,7 @@ function bindPreviewAndCopyEvents() {
                 <textarea id="table_to_chat_text_preview" rows="10" style="width: 100%">${initialText}</textarea>
             </div>`;
 
-        const popup = new EDITOR.Popup(previewHtml, EDITOR.POPUP_TYPE.TEXT, '', {wide: true});
+        const popup = new EDITOR.Popup(previewHtml, EDITOR.POPUP_TYPE.TEXT, '', { wide: true });
         const $dlg = $(popup.dlg);
 
         popup.show().then(() => {
@@ -378,7 +386,7 @@ function bindPreviewAndCopyEvents() {
         });
 
         setTimeout(() => {
-            $dlg.find('#preview_benchmark_selector').on('change', function() {
+            $dlg.find('#preview_benchmark_selector').on('change', function () {
                 selectedStyle.basedOn = this.value;
                 $dlg.find('#table_to_chat_text_preview').val(initializeText(templateInstance, selectedStyle));
             });
@@ -413,7 +421,7 @@ async function initializeEditor() {
 export async function openSheetStyleRendererPopup(originInstance) {
     // 初始化弹窗
     const manager = await SYSTEM.getTemplate('customSheetStyle');
-    const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.CONFIRM, '', {large: true, wide: true, allowVerticalScrolling: true, okButton: "保存修改", cancelButton: "取消"});
+    const tableRendererPopup = new EDITOR.Popup(manager, EDITOR.POPUP_TYPE.CONFIRM, '', { large: true, wide: true, allowVerticalScrolling: true, okButton: "保存修改", cancelButton: "取消" });
     const $dlg = $(tableRendererPopup.dlg);
     templateInstance = originInstance;
 
@@ -427,7 +435,16 @@ export async function openSheetStyleRendererPopup(originInstance) {
 
     if (tableRendererPopup.result) {
         const finalConfig = collectConfigThenUpdateTemplate();
+        const alternateLevel = Number(finalConfig.alternateLevel);
+        const styleBasedOn = ["html", "csv", "json", "array"];
+        const numberBoollen = isNaN(alternateLevel) || alternateLevel < 0 || Number.isInteger(alternateLevel) === false;  //是否满足非负整数
+        const styleBoollen = styleBasedOn.includes(finalConfig.customStyles['自定义样式'].basedOn);      //方式必须为html、csv、json、array
+        if (numberBoollen || (alternateLevel > 0 && !styleBoollen)) {     //输入的插入层级必须为非负整数，且不能为MarkDown格式否则改为0
+            finalConfig.alternateLevel = 0;
+            EDITOR.warning('穿插层级必须为非负整数，且不能为MarkDown格式，否则强制改为0');
+        }
         Object.assign(originInstance.config, finalConfig);
+        console.log('表格样式已更新', originInstance.config.alternateLevel);
         originInstance.save();
         BASE.updateSystemMessageTableStatus()
         EDITOR.success('表格样式已更新');

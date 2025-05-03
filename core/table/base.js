@@ -1,4 +1,3 @@
-// base.js
 import {Cell} from "./cell.js";
 import {filterSavingData} from "./utils.js";
 
@@ -44,10 +43,15 @@ export class SheetBase {
             toChat: true,                     // 用于标记是否发送到聊天
             useCustomStyle: false,            // 用于标记是否使用自定义样式
             triggerSendToChat: false,            // 用于标记是否触发发送到聊天
+            alternateTable: false,            // 用于标记是否该表格是否参与穿插模式，同时可暴露原设定层级
+            alternateLevel: 0,                     // 用于标记是穿插并到一起,为0表示不穿插，大于0按同层级穿插
+            skipTop: false,                     // 用于标记是否跳过表头
             selectedCustomStyleKey: '',       // 用于存储选中的自定义样式，当selectedCustomStyleUid没有值时，使用默认样式
             customStyles: {'自定义样式': {...customStyleConfig}},                 // 用于存储自定义样式
         }
 
+        // 临时属性
+        this.tableSheet = [];                        // 用于存储表格数据，以便进行合并和穿插
 
         // 以下为派生数据
         this.cells = new Map();                 // cells 在每次 Sheet 初始化时从 cellHistory 加载
