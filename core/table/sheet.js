@@ -131,7 +131,7 @@ export class Sheet extends SheetBase {
                 line = line.trim();
                 if (!line) return false;
                 const parts = line.split(',');
-                if (parts.length < 2) return false;
+                if (parts.length < Math.max(1,this.triggerSendDeep)) return false;  // 确保至少有1个触发式规则
                 const str1 = parts[1]; // 字符串1对应索引1
                 return chatContents.includes(str1);
             });

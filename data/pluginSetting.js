@@ -103,6 +103,7 @@ export async function filterTableDataPopup(originalData, title, warning) {
     // 前端表格
     waitingRegister.isTableToChat = '#table_init_to_chat';
     waitingRegister.show_settings_in_extension_menu = '#table_init_to_chat';
+    waitingRegister.alternate_switch = '#table_init_to_chat';
     waitingRegister.show_drawer_in_extension_list = '#table_init_to_chat';
     waitingRegister.table_to_chat_can_edit = '#table_init_to_chat';
     waitingRegister.table_to_chat_mode = '#table_init_to_chat';
@@ -215,6 +216,8 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     isTableToChat: false,
     // 从扩展菜单进入表格
     show_settings_in_extension_menu: true,
+    // 是否开启穿插模式
+    alternate_switch: true,
     // 在扩展列表显示表格设置
     show_drawer_in_extension_list: true,
     // 表格推送是否可编辑

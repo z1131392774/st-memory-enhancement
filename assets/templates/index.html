@@ -136,7 +136,7 @@
                                                 <option value="deep_assistant">@D 🤖</option>
                                             </select>
                                             <label style="min-width: 60px; padding-left: 10px; " for="dataTable_deep" data-i18n="Depth">深度：</label>
-                                            <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep">
+                                            <!-- <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep"> -->
                                         </div>
                                     </div>
                                     <div style="padding-left: 5px;">
@@ -237,6 +237,12 @@
                                     <input type="checkbox" id="table_to_chat"><span data-i18n="Render table view in conversation">表格视图渲染到对话</span>
                                     <small class="toggle-description justifyLeft" data-i18n="Render table view in conversation description">(启用后会在对话框中显示自定义表格)</small>
                                 </div>
+
+                                <div class="checkbox_label range-block justifyLeft">
+                                    <input type="checkbox" id="alternate_switch" checked><span data-i18n="Render table view in alternate model">穿插模式</span>
+                                    <small class="toggle-description justifyLeft" data-i18n="Render table view in alternate model description">(启用后会在对话框中开启穿插渲染模式)</small>
+                                </div>
+
 
                                 <!-- 表格推送至对话 -->
                                 <div id="table_to_chat_options" style="padding-left: 20px; width: calc(100% - 20px);">
