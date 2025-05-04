@@ -176,7 +176,8 @@ function getAllPrompt(eventData) {
  * @returns {string} 表格相关提示词
  */
 export function getTablePrompt(eventData) {
-    const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === true ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
+    const swipeInfo = isSwipe()
+    const {piece:lastSheetsPiece} = swipeInfo.isSwipe?swipeInfo.deep===0?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
@@ -185,7 +186,16 @@ export function getTablePrompt(eventData) {
     return sheetDataPrompt
 }
 
-
+/**
+ * 判断是否在切换swipe
+ */
+export function isSwipe() {
+    const chats = USER.getContext().chat
+    const isIncludeEndIndex = (!chats.at(-1)) || chats.at(-1).is_user === true
+    if(isIncludeEndIndex) return {isSwipe: false}
+    const {deep} = BASE.getLastSheetsPiece()
+    return {isSwipe: true, deep}
+}
 
 /**
  * 将匹配到的整体字符串转化为单个语句的数组
@@ -636,8 +646,8 @@ async function onChatChanged() {
  */
 async function onMessageSwiped(chat_id) {
     if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiWriteTable === false) return
-
     const chat = USER.getContext().chat[chat_id];
+    console.log("滑动切换消息", chat)
     if (!chat.swipe_info[chat.swipe_id]) return
     try {
         handleEditStrInMessage(chat)
