@@ -64,9 +64,9 @@ function renderHTML() {
     let renderedHTML = currentConfig.useCustomStyle
         ? parseSheetRender(templateInstance, currentConfig)
         : templateInstance.element;
-
-    // 移除所有<script>标签
-    renderedHTML = renderedHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    console.log("renderHTML", renderedHTML);
+    // 当返回为替换后的string时，移除所有<script>标签；否则返回的将是数组无需处理
+    renderedHTML = typeof renderedHTML === 'string' ? renderedHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ''): renderedHTML;
 
     // 改用原生方法插入
     elements.rendererDisplay[0].innerHTML = renderedHTML;
@@ -166,8 +166,8 @@ function setupSheetPreview() {
     templateInstance.element = `<div class="justifyLeft scrollable">${templateInstance.renderSheet((cell) => {
         cell.element.style.cursor = 'default';
     }).outerHTML}</div>`;
-    console.log("setupSheetPreview-elements.rendererDisplay 是否存在:", !!elements.rendererDisplay);
-    console.log("jQuery 对象长度:", elements.rendererDisplay?.length || 0);
+    // console.log("setupSheetPreview-elements.rendererDisplay 是否存在:", !!elements.rendererDisplay);
+    // console.log("jQuery 对象长度:", elements.rendererDisplay?.length || 0);
     renderHTML();
     dom.toggleVisibility(elements.table_renderer_display_container, false);
 }

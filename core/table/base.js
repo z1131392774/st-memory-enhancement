@@ -202,6 +202,7 @@ export class SheetBase {
             console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${hash}`);
             return null;
         }
+        console.log('找到单元格',target);
         return target;
     }
     /**

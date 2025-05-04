@@ -4,14 +4,17 @@ let sheet = null;
 let config = {};
 let selectedCustomStyle = null;
 
-function staticPipeline() {
+function staticPipeline(target) {
+    console.log("进入静态渲染表格");
     const regexReplace = selectedCustomStyle.replace || '';
-    if (!regexReplace || regexReplace === '') return sheet?.element || '<div>表格数据未加载</div>';
-    if (!sheet) return regexReplace;
+    if (!regexReplace || regexReplace === '') return target?.element || '<div>表格数据未加载</div>';
+    if (!target) return regexReplace;
     return regexReplace.replace(/\$(\w)(\d+)/g, (match, colLetter, rowNumber) => {
         const colIndex = colLetter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
         const rowIndex = parseInt(rowNumber);
-        const c = sheet.findCellByPosition(rowIndex, colIndex);
+        console.log("静态渲染行:",rowIndex,"静态渲染列:", colIndex);
+        const c = target.findCellByPosition(rowIndex, colIndex);
+        console.log("获取单元格位置：",c,'\n获取单元格内容：',c.data.value);
         return c ? (c.data.value || `<span style="color: red">?</span>`) :
             `<span style="color: red">无单元格</span>`;
     });
@@ -258,8 +261,8 @@ function executeRendering(target) {
     }
     if (selectedCustomStyle.mode === 'regex') {
         resultHtml = regexPipeline(target);
-    } else if (selectedCustomStyle.mode === 'static') {
-        resultHtml = staticPipeline();
+    } else if (selectedCustomStyle.mode === 'simple') {
+        resultHtml = staticPipeline(target);
     }
     return resultHtml;
 }
