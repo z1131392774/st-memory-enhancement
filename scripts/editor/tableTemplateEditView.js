@@ -75,7 +75,8 @@ const formConfigs = {
             { label: '表格名', type: 'text', dataKey: 'name' },
             { label: '表格说明（提示词）', type: 'textarea', rows: 6, dataKey: 'note', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
             { label: '是否必填', type: 'checkbox', dataKey: 'required'},
-            { label: '是否触发发送', type: 'checkbox', dataKey: 'triggerSend'},
+            { label: '是否触发发送', type: 'checkbox', dataKey: 'triggerSend',},
+            { label: '触发发送深度', type: 'number', dataKey: 'triggerSendDeep'},
             { label: '初始化提示词', type: 'textarea', rows: 4, dataKey: 'initNode', description: '（当该表格为必填，且表格为空时，会发送此提示词催促AI填表）' },
             { label: '插入提示词', type: 'textarea', rows: 4, dataKey: 'insertNode', description: '' },
             { label: '删除提示词', type: 'textarea', rows: 4, dataKey: 'deleteNode', description: '' },
@@ -213,7 +214,8 @@ function bindSheetSetting(sheet, index) {
             deleteNode: sheet.data.deleteNode,
             updateNode: sheet.data.updateNode,
             required: sheet.required,
-            triggerSend: sheet.triggerSend
+            triggerSend: sheet.triggerSend,
+            triggerSendDeep: sheet.triggerSendDeep
         };
         const formInstance = new Form(formConfigs.sheetConfig, initialData);
         const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "保存", allowVerticalScrolling: true, cancelButton: "取消" });
@@ -226,7 +228,7 @@ function bindSheetSetting(sheet, index) {
             // 将比较数据差异的结果更新至表格
             Object.keys(diffData).forEach(key => {
                 console.log(key)
-                if (['domain', 'type', 'name', 'required', 'triggerSend'].includes(key) && diffData[key]!=null) {
+                if (['domain', 'type', 'name', 'required', 'triggerSend', 'triggerSendDeep'].includes(key) && diffData[key]!=null) {
                     console.log("对比成功将更新"+key)
                     sheet[key] = diffData[key];
                     if (key === 'name') needRerender = true
