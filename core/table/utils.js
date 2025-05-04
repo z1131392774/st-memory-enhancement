@@ -28,6 +28,7 @@ export function filterSavingData(sheet) {
         required: sheet.required,
         tochat: sheet.tochat,
         triggerSend: sheet.triggerSend,
+        triggerSendDeep: sheet.triggerSendDeep,
         hashSheet: sheet.hashSheet, // 保存 hashSheet (只包含 cell uid)
         cellHistory: sheet.cellHistory.map((
             {
