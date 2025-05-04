@@ -227,7 +227,7 @@ export function updateSystemMessageTableStatus(force = false) {
 /**
  * 触发穿插模式
  */
-export function updateAlternateTable(force = false) {
+export function updateAlternateTable() {
 
     const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
 
