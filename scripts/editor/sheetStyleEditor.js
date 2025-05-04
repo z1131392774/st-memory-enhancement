@@ -64,7 +64,6 @@ function renderHTML() {
     let renderedHTML = currentConfig.useCustomStyle
         ? parseSheetRender(templateInstance, currentConfig)
         : templateInstance.element;
-    console.log("renderHTML", renderedHTML);
     // 当返回为替换后的string时，移除所有<script>标签；否则返回的将是数组无需处理
     renderedHTML = typeof renderedHTML === 'string' ? renderedHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ''): renderedHTML;
 
