@@ -25,7 +25,8 @@ const formConfigs = {
         fields: [
             { label: '列标题', type: 'text', dataKey: 'value' },
             { label: '不允许值重复', type: 'checkbox', dataKey: 'valueIsOnly' },
-            { label: '数据类型', type: 'select', dataKey: 'columnDataType',
+            {
+                label: '数据类型', type: 'select', dataKey: 'columnDataType',
                 options: [
                     { value: 'text', text: '文本' },
                     // { value: 'number', text: '数字' },
@@ -74,9 +75,9 @@ const formConfigs = {
             },
             { label: '表格名', type: 'text', dataKey: 'name' },
             { label: '表格说明（提示词）', type: 'textarea', rows: 6, dataKey: 'note', description: '(作为该表总体提示词，给AI解释此表格的作用)' },
-            { label: '是否必填', type: 'checkbox', dataKey: 'required'},
-            { label: '是否触发发送', type: 'checkbox', dataKey: 'triggerSend',},
-            { label: '触发发送深度', type: 'number', dataKey: 'triggerSendDeep'},
+            { label: '是否必填', type: 'checkbox', dataKey: 'required' },
+            { label: '是否触发发送', type: 'checkbox', dataKey: 'triggerSend', },
+            { label: '触发发送深度', type: 'number', dataKey: 'triggerSendDeep' },
             { label: '初始化提示词', type: 'textarea', rows: 4, dataKey: 'initNode', description: '（当该表格为必填，且表格为空时，会发送此提示词催促AI填表）' },
             { label: '插入提示词', type: 'textarea', rows: 4, dataKey: 'insertNode', description: '' },
             { label: '删除提示词', type: 'textarea', rows: 4, dataKey: 'deleteNode', description: '' },
@@ -115,18 +116,18 @@ function updateSelect2Dropdown() {
     if (selectedSheets === undefined) {
         selectedSheets = [];
     }
-    $(dropdownElement).val(selectedSheets).trigger("change",[true])
+    $(dropdownElement).val(selectedSheets).trigger("change", [true])
 }
 
 function initChatScopeSelectedSheets() {
-    const newSelectedSheets = BASE.sheetsData.context.map(sheet=>sheet.enable?sheet.uid:null).filter(Boolean)
+    const newSelectedSheets = BASE.sheetsData.context.map(sheet => sheet.enable ? sheet.uid : null).filter(Boolean)
     USER.getContext().chatMetadata.selected_sheets = newSelectedSheets
     return newSelectedSheets
 }
 
-function updateSelectedSheetUids(){
+function updateSelectedSheetUids() {
     updateSheetStatusBySelect()
-    if(scope === 'chat') {
+    if (scope === 'chat') {
         USER.saveChat()
         BASE.refreshContextView()
     }
@@ -159,7 +160,7 @@ function initializeSelect2Dropdown(dropdownElement) {
 
     $(dropdownElement).on('change', function (e, silent) {
         //if(silent || scope === 'chat') return
-        if(silent) return
+        if (silent) return
         setSelectedSheetUids($(this).val())
         updateSelectedSheetUids()
     });
@@ -178,11 +179,11 @@ function initializeSelect2Dropdown(dropdownElement) {
     }
 }
 
-function updateSheetStatusBySelect(){
+function updateSheetStatusBySelect() {
     const selectedSheetsUid = getSelectedSheetUids()
     const templates = getSheets()
-    templates.forEach(temp=>{
-        if(selectedSheetsUid.includes(temp.uid)) temp.enable = true
+    templates.forEach(temp => {
+        if (selectedSheetsUid.includes(temp.uid)) temp.enable = true
         else temp.enable = false
     })
 }
@@ -228,12 +229,15 @@ function bindSheetSetting(sheet, index) {
             // 将比较数据差异的结果更新至表格
             Object.keys(diffData).forEach(key => {
                 console.log(key)
-                if (['domain', 'type', 'name', 'required', 'triggerSend', 'triggerSendDeep'].includes(key) && diffData[key]!=null) {
-                    console.log("对比成功将更新"+key)
+                if (['domain', 'type', 'name', 'required', 'triggerSend'].includes(key) && diffData[key] != null) {
+                    console.log("对比成功将更新" + key)
                     sheet[key] = diffData[key];
                     if (key === 'name') needRerender = true
-                }else if(['note', 'initNode', 'insertNode', 'deleteNode', 'updateNode'].includes(key) && diffData[key]!=null) {
+                } else if (['note', 'initNode', 'insertNode', 'deleteNode', 'updateNode'].includes(key) && diffData[key] != null) {
                     sheet.data[key] = diffData[key];
+                } else if (['triggerSendDeep'].includes(key) && diffData[key] != null) {
+                    console.log("对比成功将更新" + key)
+                    sheet[key] = Math.max(1, Math.floor(diffData[key]));
                 }
             })
             sheet.save()
@@ -257,7 +261,7 @@ function bindSheetSetting(sheet, index) {
 }
 
 async function templateCellDataEdit(cell) {
-    const initialData = {...cell.data};
+    const initialData = { ...cell.data };
     const formInstance = new Form(formConfigs[cell.type], initialData);
 
     formInstance.on('editRenderStyleEvent', (formData) => {
@@ -279,17 +283,17 @@ async function templateCellDataEdit(cell) {
         cell.renderCell()
         // cell.parent.updateRender()
         refreshTempView(true);
-        if(scope === 'chat') BASE.refreshContextView()
+        if (scope === 'chat') BASE.refreshContextView()
     }
 }
 
-function handleAction(cell, action){
+function handleAction(cell, action) {
     console.log("开始执行操作")
     cell.newAction(action)
     console.log("执行操作然后刷新")
     refreshTempView();
     // 如果是chat域，则刷新表格
-    if(scope === 'chat') BASE.refreshContextView()
+    if (scope === 'chat') BASE.refreshContextView()
 }
 
 
@@ -306,15 +310,15 @@ function bindCellClickEvent(cell) {
         const sheetType = cell.parent.type;
 
         if (rowIndex === 0 && colIndex === 0) {
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { handleAction(cell,cell.CellAction.insertRightColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { handleAction(cell, cell.CellAction.insertRightColumn) });
             if (sheetType === cell.parent.SheetType.free || sheetType === cell.parent.SheetType.static) {
-                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { handleAction(cell,cell.CellAction.insertDownRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { handleAction(cell, cell.CellAction.insertDownRow) });
             }
         } else if (rowIndex === 0) {
             cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async (e) => { await templateCellDataEdit(cell) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { handleAction(cell,cell.CellAction.insertLeftColumn) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { handleAction(cell,cell.CellAction.insertRightColumn) });
-            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { handleAction(cell,cell.CellAction.deleteSelfColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-left"></i> 向左插入列', (e) => { handleAction(cell, cell.CellAction.insertLeftColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-right"></i> 向右插入列', (e) => { handleAction(cell, cell.CellAction.insertRightColumn) });
+            cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除列', (e) => { handleAction(cell, cell.CellAction.deleteSelfColumn) });
         } else if (colIndex === 0) {
             // if (sheetType === cell.parent.SheetType.dynamic) {
             //     cell.element.delete();
@@ -323,9 +327,9 @@ function bindCellClickEvent(cell) {
 
             cell.parent.currentPopupMenu.add('<i class="fa fa-i-cursor"></i> 编辑该行', async (e) => { await templateCellDataEdit(cell) });
             if (sheetType === cell.parent.SheetType.free || sheetType === cell.parent.SheetType.static) {
-                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { handleAction(cell,cell.CellAction.insertUpRow) });
-                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { handleAction(cell,cell.CellAction.insertDownRow) });
-                cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { handleAction(cell,cell.CellAction.deleteSelfRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-up"></i> 向上插入行', (e) => { handleAction(cell, cell.CellAction.insertUpRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-arrow-down"></i> 向下插入行', (e) => { handleAction(cell, cell.CellAction.insertDownRow) });
+                cell.parent.currentPopupMenu.add('<i class="fa fa-trash-alt"></i> 删除行', (e) => { handleAction(cell, cell.CellAction.deleteSelfRow) });
             }
         } else {
             if (sheetType === cell.parent.SheetType.static) {
@@ -370,7 +374,7 @@ function setSelectedSheetUids(selectedSheets) {
     }
 }
 
-function getSheets(){
+function getSheets() {
     return scope === 'chat' ? BASE.sheetsData.context : BASE.templates
 }
 
@@ -388,9 +392,9 @@ async function updateDragTables() {
     }
 
     container.empty();
-    console.log("dragSpace是什么",drag.dragSpace)
+    console.log("dragSpace是什么", drag.dragSpace)
 
-    selectedSheetUids.forEach((uid,index) => {
+    selectedSheetUids.forEach((uid, index) => {
 
         let sheetDataExists;
         if (scope === 'chat') {
@@ -416,7 +420,7 @@ async function updateDragTables() {
         //     return
         // }
 
-        const tableElement = sheet.renderSheet(bindCellClickEvent, sheet.hashSheet.slice(0, 1) );
+        const tableElement = sheet.renderSheet(bindCellClickEvent, sheet.hashSheet.slice(0, 1));
         tableElement.style.marginLeft = '5px'
         renderedTables.set(uid, tableElement);
         container.append(tableElement);
@@ -451,7 +455,7 @@ export function updateTableContainerPosition() {
 }
 
 export async function refreshTempView(ignoreGlobal = false) {
-    if(ignoreGlobal && scope === 'global') return
+    if (ignoreGlobal && scope === 'global') return
     console.log("刷新表格模板视图")
     await updateDropdownElement()
     initializeSelect2Dropdown(dropdownElement);
@@ -489,22 +493,22 @@ async function initTableEdit(mesId) {
         console.log("触发")
         let newTemplateUid = null
         let newTemplate = null
-        if(scope === 'chat'){
-            newTemplate = new BASE.Sheet().createNewSheet(2,1)
+        if (scope === 'chat') {
+            newTemplate = new BASE.Sheet().createNewSheet(2, 1)
             newTemplateUid = newTemplate.uid
-        }else{
+        } else {
             newTemplate = new BASE.SheetTemplate().createNewTemplate();
             newTemplateUid = newTemplate.uid
         }
 
         let currentSelectedValues = getSelectedSheetUids()
         setSelectedSheetUids([...currentSelectedValues, newTemplateUid])
-        if(scope === 'chat') USER.saveChat()
+        if (scope === 'chat') USER.saveChat()
         else USER.saveSettings();
         await updateDropdownElement();
         //updateDragTables();
         console.log("测试", [...currentSelectedValues, newTemplateUid])
-        $(dropdownElement).val([...currentSelectedValues, newTemplateUid]).trigger("change",[true]);
+        $(dropdownElement).val([...currentSelectedValues, newTemplateUid]).trigger("change", [true]);
         updateSelectedSheetUids()
     });
     $(document).on('click', '#import_table_template_button', function () {

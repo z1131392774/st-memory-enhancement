@@ -98,7 +98,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         newSheet.required = oldTable.Required
         newSheet.tochat = true
         newSheet.triggerSend = false
-        newSheet.triggerSendDeep = 0
+        newSheet.triggerSendDeep = 1
 
         addOldTablePrompt(newSheet)
         newSheet.data.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
