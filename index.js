@@ -291,7 +291,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     console.log("解析到的表格编辑指令", tableEditActions)
 
     // 获取上一个表格数据
-    const {piece:prePiece} = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
+    const { piece: prePiece } = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets).filter(sheet => sheet.enable)
     console.log("执行指令时的信息", sheets)
     for (const EditAction of sortActions(tableEditActions)) {
