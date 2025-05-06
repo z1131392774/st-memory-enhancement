@@ -528,6 +528,19 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         const uniqueNonDeleteActions = nonDeleteActions.filter((action, index, self) => {
             if (action.action.toLowerCase() === 'insert') {
                 const table = DERIVED.any.waitingTable[action.tableIndex];
+
+                // 容错
+                if (!table) {
+                    console.warn(`表索引 ${action.tableIndex} 无效，跳过操作:`, action);
+                    return;
+                }
+                if (!table.content || !Array.isArray(table.content)) {
+                    const tableNameForLog = table.tableName ? `(名称: ${table.tableName})` : '';
+                    console.warn(`表索引 ${action.tableIndex} ${tableNameForLog} 的 'content' 属性无效或不是数组。将初始化为空数组。原始 'content':`, table.content);
+                    table.content = [];
+                }
+
+
                 const dataStr = JSON.stringify(action.data);
                 // 检查是否已存在完全相同的行
                 const existsInTable = table.content.some(row => JSON.stringify(row) === dataStr);
