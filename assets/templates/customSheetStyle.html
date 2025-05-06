@@ -29,10 +29,6 @@
                 <label for="table_style_button" data-i18n="enableCustomStyleLabel">启用该表的自定义样式</label>
             </div>
             <div class="checkbox_label range-block justifyLeft">
-                <input type="checkbox" id="table_triggerSendToChat_button">
-                <label for="table_triggerSendToChat_button" data-i18n="enableTriggerSendToChat">启用该表的触发词推送到聊天</label>
-            </div>
-            <div class="checkbox_label range-block justifyLeft">
                 <input type="checkbox" id="table_style_preview_button">
                 <label for="table_style_preview_button" data-i18n="enableCustomStylePreview">预览渲染结果</label>
             </div>
@@ -51,7 +47,25 @@
             <div class="menu_button button-square-icon fa-solid fa-file-export" style="padding: 0; margin: 0" id="table-push-to-chat-style-export" title="导出样式预设" data-i18n="table push to chat style export button"></div>
             <div class="menu_button button-square-icon fa-solid fa-trash redWarningBG" style="padding: 0; margin: 0" id="table-push-to-chat-style-delete" title="删除样式预设" data-i18n="table push to chat style delete button"></div>
         </div>
-
+        <div class="checkbox_label range-block justifyLeft">
+            <input type="checkbox" id="table_skipTop_button">
+            <label for="table_skipTop_button" data-i18n="enableSkipTop">是否跳过表头</label>
+        </div>
+        <div class="checkbox_label range-block justifyLeft">
+            <input type="checkbox" id="table_triggerSendToChat_button">
+            <label for="table_triggerSendToChat_button" data-i18n="enableTriggerSendToChat">启用该表的触发词推送到聊天</label>
+        </div>
+        <div class="checkbox_label range-block justifyLeft">
+            <input type="checkbox" id="table_alternateTable_button">
+            <label for="table_alternateTable_button" data-i18n="enableAlternateTable">是否参与穿模模式</label>
+        </div>
+        <div id="push_to_chat_alternate_options">
+            <div style="display: flex; flex-direction: row; align-items: center; gap: 8px; text-align: left">
+                <label style="white-space: nowrap;">穿插层级：</label>
+                <small style="white-space: nowrap;" data-i18n="pushToChatDesc">(层级为0时不穿插，否则相同层级的会穿插推送)</small>
+                <input type="text" class="text_pole" id="table_to_alternate" placeholder=".*">
+            </div>
+        </div>
         <div class="checkbox flex-container" style="align-content: flex-start; margin-top: 10px;">
             <span data-i18n="pushSheetToChatStyleMode">匹配方法：</span>
             <select class="flex1" id="match_method" style="min-width: 100px">

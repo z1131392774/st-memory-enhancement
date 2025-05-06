@@ -48,33 +48,44 @@ class Form {
                     </div>
                 `;
             } else {
-                contentHTML += `
-                    <label>${field.label}</label>
-                `;
-                if (field.description) {
-                    contentHTML += `<small> ${field.description}</small>`;
-                }
-                if (field.type === 'text') {
-                    contentHTML += `<input type="text" id="${field.id}" class="margin0 text_pole" style=" margin-bottom: 20px;"/>`;
-                } else if (field.type === 'textarea') {
-                    contentHTML += `<textarea id="${field.id}" class="wide100p" rows="${field.rows || 2}"></textarea>`;
-                } else if (field.type === 'checkbox') {
+                if (field.type === 'checkbox') {
                     contentHTML += `
-                        <div class="checkbox flex-container" style="margin-bottom: 10px;">
-                            <input type="checkbox" id="${field.id}"><span></span>
+                        <div class="checkbox-container" style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="${field.id}" data-key="${field.dataKey}">
+                            <label for="${field.id}" style="margin-left: 5px;">${field.label}</label>
                         </div>
                     `;
-                } else if (field.type === 'select') {
+                } else if (field.type === 'number') {
                     contentHTML += `
-                        <select id="${field.id}">`;
-                    if (Array.isArray(field.options)) {
-                        field.options.forEach(option => {
-                            contentHTML += `<option value="${option.value}">${option.text || option.value || option}</option>`;
-                        });
+                        <div class="number-container" style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <label for="${field.id}" style="margin-right: 5px;">${field.label}</label>
+                            <input type="number" id="${field.id}" class="text_pole wideMax100px margin0">
+                        </div>
+                    `;
+                }
+                else {
+                    contentHTML += `
+                    <label>${field.label}</label>
+                `;
+                    if (field.description) {
+                        contentHTML += `<small> ${field.description}</small>`;
                     }
-                    contentHTML += `
+                    if (field.type === 'text') {
+                        contentHTML += `<input type="text" id="${field.id}" class="margin0 text_pole" style=" margin-bottom: 20px;"/>`;
+                    } else if (field.type === 'textarea') {
+                        contentHTML += `<textarea id="${field.id}" class="wide100p" rows="${field.rows || 2}"></textarea>`;
+                    } else if (field.type === 'select') {
+                        contentHTML += `
+                        <select id="${field.id}">`;
+                        if (Array.isArray(field.options)) {
+                            field.options.forEach(option => {
+                                contentHTML += `<option value="${option.value}">${option.text || option.value || option}</option>`;
+                            });
+                        }
+                        contentHTML += `
                         </select>
                     `;
+                    }
                 }
             }
         }

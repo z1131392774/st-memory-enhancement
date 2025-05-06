@@ -124,7 +124,7 @@ function scrollToBottom(container) {
     contentContainer.scrollTop(contentContainer[0].scrollHeight);
 }
 
-function updateTableHistoryData(container) {
+async function updateTableHistoryData(container) {
     const { piece, deep } = BASE.getLastSheetsPiece();
     const sheetsData = BASE.sheetsData.context;
     if (!piece || !piece.hash_sheets) return;
@@ -247,8 +247,5 @@ export async function openTableHistoryPopup(){
     const historyContainer = $(tableHistoryPopup.dlg)[0];
 
     updateTableHistoryData(historyContainer);
-
-    await tableHistoryPopup.show();
-
-    scrollToBottom(historyContainer);
+    tableHistoryPopup.show();
 }
