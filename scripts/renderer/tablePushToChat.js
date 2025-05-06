@@ -87,7 +87,6 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
                 return a[1] - b[1]; // 层级相同，按原索引排序（确保稳定）
             }
         });
-        // console.log('排序后的层级索引对应：', levelIndexAlternate);
         // 获得待排序的表格并记录原索引
         for (const [level, index] of levelIndexAlternate) {
             const sheetData = loadValueSheetBySheetHashSheet(_sheets[index]).slice(1);
@@ -98,8 +97,6 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             });
         }
 
-        // console.log('排序前的表格(平铺后)：', tableAlternate);
-        // console.log('排序前的原表格索引：', indexForRowAlternate);
 
         // 创建包含行数据、原表格索引和当前索引的对象数组
         const indexedTable = tableAlternate.map((row, currentIndex) => ({
@@ -110,20 +107,32 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
 
         // 排序（按第2列角色名）
         indexedTable.sort((a, b) => {
-            const valA = String(a.row[1] || "").trim();
-            const valB = String(b.row[1] || "").trim();
-            if (valA === valB) {
-                return a.currentIndex - b.currentIndex;
+            const clean = (str) => String(str).trim().replace(/[\u200B-\u200D\uFEFF]/g, '').toLowerCase();
+            const roleA = clean(a.row[1]) || "";
+            const roleB = clean(b.row[1]) || "";
+
+            // 创建角色首次出现的索引映射
+            const firstAppearance = new Map();
+            indexedTable.forEach((item, idx) => {
+            const role = clean(item.row[1]);
+            if (!firstAppearance.has(role)) {
+            firstAppearance.set(role, idx);
             }
-            return valA.localeCompare(valB, undefined, { sensitivity: 'base' });
-        });
+            });
+
+            // 角色分组排序
+            if (roleA !== roleB) {
+            return firstAppearance.get(roleA) - firstAppearance.get(roleB);
+            }
+
+            // 同角色按原表格顺序排序
+            return a.originalIndex - b.originalIndex;
+            });
 
         // 提取排序后的行和对应的原表格索引
         tableAlternate = indexedTable.map(item => item.row);
         indexForRowAlternate = indexedTable.map(item => item.originalIndex);
 
-        // console.log('排序后的表格：', tableAlternate);
-        // console.log('排序后的索引：', indexForRowAlternate);
         // 对穿插表格的所有行进行渲染
         for (let i = 0; i < tableAlternate.length; i++) {
             let sheet = _sheets[indexForRowAlternate[i]];
@@ -137,10 +146,17 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             let sheet = _sheets[indexOriginary[i]];
             sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
             // console.log('进行普通渲染当前普通表格内容：',sheet.tableSheet);
-            ordinarycustomStyleRender(sheet, _viewSheetsContainer);
+            if (sheet.config.toChat === false) continue; // 如果不需要推送到聊天，则跳过
+            if (sheet.config.useCustomStyle === true) {
+                sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
+                ordinarycustomStyleRender(sheet, _viewSheetsContainer);
+            } else {
+                defaultStyleRender(indexOriginary, sheet, _viewSheetsContainer);
+            }
         }
     }
     else {
+        console.log('进入普通渲染模式');
         for (let [index, sheet] of _sheets.entries()) { // 遍历工作表数组,使用entries()方法获取每个工作表的索引和内容
             if (sheet.config.toChat === false) continue; // 如果不需要推送到聊天，则跳过
             if (sheet.config.useCustomStyle === true) {
@@ -227,7 +243,7 @@ export function updateSystemMessageTableStatus(force = false) {
 /**
  * 触发穿插模式
  */
-export function updateAlternateTable(force = false) {
+export function updateAlternateTable() {
 
     const sheets = BASE.hashSheetsToSheets(BASE.getLastSheetsPiece()?.piece.hash_sheets);
 
