@@ -146,10 +146,17 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             let sheet = _sheets[indexOriginary[i]];
             sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
             // console.log('进行普通渲染当前普通表格内容：',sheet.tableSheet);
-            ordinarycustomStyleRender(sheet, _viewSheetsContainer);
+            if (sheet.config.toChat === false) continue; // 如果不需要推送到聊天，则跳过
+            if (sheet.config.useCustomStyle === true) {
+                sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
+                ordinarycustomStyleRender(sheet, _viewSheetsContainer);
+            } else {
+                defaultStyleRender(indexOriginary, sheet, _viewSheetsContainer);
+            }
         }
     }
     else {
+        console.log('进入普通渲染模式');
         for (let [index, sheet] of _sheets.entries()) { // 遍历工作表数组,使用entries()方法获取每个工作表的索引和内容
             if (sheet.config.toChat === false) continue; // 如果不需要推送到聊天，则跳过
             if (sheet.config.useCustomStyle === true) {
