@@ -7,6 +7,7 @@ import {filterTableDataPopup} from "../../data/pluginSetting.js";
 import {initRefreshTypeSelector} from "../runtime/absoluteRefresh.js";
 import {rollbackVersion} from "../../services/debugs.js";
 import {customSheetsStylePopup} from "../editor/customSheetsStyle.js";
+import {openAppHeaderTableDrawer} from "../renderer/appHeaderTableBaseDrawer.js";
 
 /**
  * 格式化深度设置
@@ -47,7 +48,8 @@ function updateTableView() {
 `);
         // 设置点击事件
         $('#drawer_in_extension_list_button').on('click', () => {
-            $('#table_drawer_icon').click()
+            // $('#table_drawer_icon').click()
+            openAppHeaderTableDrawer('database');
         });
     } else {
         document.querySelector('#drawer_in_extension_list_button')?.remove();
@@ -434,6 +436,15 @@ function InitBinging() {
         USER.tableBaseSetting.custom_temperature = Number(value);
     });
 
+    // 代理地址
+    $('#table_proxy_address').on('input', function() {
+        USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address = $(this).val();
+    });
+    // 代理密钥
+    $('#table_proxy_key').on('input', function() {
+        USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key = $(this).val();
+    });
+
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
 
@@ -482,6 +493,8 @@ export function renderSetting() {
     $('#custom_api_url').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url || '');
     $('#custom_api_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key || '');
     $('#custom_model_name').val(USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name || '');
+    $('#table_proxy_address').val(USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address || '');
+    $('#table_proxy_key').val(USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key || '');
 
     // 初始化开关状态
     updateSwitch('#table_switch', USER.tableBaseSetting.isExtensionAble);

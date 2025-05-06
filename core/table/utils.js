@@ -32,6 +32,9 @@ export function filterSavingData(sheet) {
         hashSheet: sheet.hashSheet, // 保存 hashSheet (只包含 cell uid)
         cellHistory: sheet.cellHistory.map((
             {
+                CellAction,
+                CellType,
+                bridge,
                 parent,
                 element,
                 customEventListeners,
