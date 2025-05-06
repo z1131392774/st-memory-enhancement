@@ -659,6 +659,17 @@ async function onMessageSwiped(chat_id) {
 }
 
 /**
+ * 恢复指定层数的表格
+ */
+export async function undoSheets(deep) {
+    const {piece, deep:findDeep} = BASE.getLastSheetsPiece(deep)
+    if(findDeep === -1) return 
+    console.log("撤回表格数据", piece, findDeep)
+    handleEditStrInMessage(piece, findDeep, true)
+    updateSheetsView()
+}
+
+/**
  * 更新新表格视图
  * @description 更新表格视图，使用新的Sheet系统
  * @returns {Promise<*[]>}

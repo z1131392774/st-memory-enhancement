@@ -34,13 +34,14 @@ export const USER = {
     // getContextSheets: () => APP.getContext().chatMetadata.sheets,
     // getRoleSheets: () => APP,
     // getGlobalSheets: () => APP,
-    getChatPiece: (deep = 0) => {
+    getChatPiece: (deep = 0, direction = 'up') => {
         const chat = APP.getContext().chat;
         if (!chat || chat.length === 0 || deep >= chat.length) return null;
         let index = chat.length - 1 - deep
         while (chat[index].is_user === true) {
-            index--;
-            if (index < 0) return null; // 如果没有找到非用户消息，则返回null
+            if(direction === 'up')index--
+            else index++
+            if (!chat[index]) return null; // 如果没有找到非用户消息，则返回null
         }
         return chat[index]
     },

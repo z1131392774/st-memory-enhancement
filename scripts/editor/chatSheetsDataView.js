@@ -482,6 +482,23 @@ export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _ce
     }
 }
 
+/**
+ * 恢复表格
+ * @param {number} mesId 需要清空表格的消息id
+ * @param {Element} tableContainer 表格容器DOM
+ */
+async function undoTable(mesId, tableContainer) {
+    if (mesId === -1) return
+    //const button = { text: '撤销10轮', result: 3 }
+    const popup = new EDITOR.Popup("撤销指定轮次内的所有手动修改及重整理数据，恢复表格", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "撤销本轮", cancelButton: "取消" });
+    const result = await popup.show()
+    if (result) {
+        await undoSheets(0)
+        EDITOR.success('恢复成功')
+    }
+}
+
+
 async function renderSheetsDOM() {
     const task = new SYSTEM.taskTiming('renderSheetsDOM_task')
 
@@ -536,6 +553,10 @@ async function initTableView(mesId) {
     // 点击编辑表格按钮
     $(document).on('click', '#table_edit_mode_button', function () {
         // openTableEditorPopup();
+    })
+    // 点击恢复表格按钮
+    $(document).on('click', '#table_undo', function () {
+        undoTable();
     })
     // 点击复制表格按钮
     $(document).on('click', '#copy_table_button', function () {
