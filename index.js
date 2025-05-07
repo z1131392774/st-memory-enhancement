@@ -57,12 +57,13 @@ export function buildSheetsByTemplates(targetPiece) {
             return; // 跳过处理此模板
         }
         try {
-            const newSheet = new BASE.createChatSheetByTemp(template);
+            const newSheet = BASE.createChatSheetByTemp(template);
             newSheet.save(targetPiece);
         } catch (error) {
             console.error(`[Memory Enhancement] 从模板创建或保存 sheet 时出错:`, template, error);
         }
     })
+    BASE.updateSelectBySheetStatus()
     USER.saveChat()
 }
 

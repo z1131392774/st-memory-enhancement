@@ -104,7 +104,7 @@ async function importTable(mesId, viewSheetsContainer) {
                         const tables = JSON.parse(loadEvent.target.result)
                         if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
                         BASE.applyJsonToChatSheets(tables)
-                        renderSheetsDOM()
+                        await renderSheetsDOM()
                         EDITOR.success('导入成功')
                 }
             };
@@ -577,15 +577,18 @@ async function initTableView(mesId) {
 }
 
 export async function refreshContextView() {
-    renderSheetsDOM();
+    if(BASE.contextViewRefreshing) return
+    BASE.contextViewRefreshing = true
+    await renderSheetsDOM();
     console.log("刷新表格视图")
+    BASE.contextViewRefreshing = false
 }
 
 export async function getChatSheetsView(mesId = -1) {
     // 如果已经初始化过，直接返回缓存的容器，避免重复创建
     if (initializedTableView) {
         // 更新表格内容，但不重新创建整个容器
-        renderSheetsDOM();
+        await renderSheetsDOM();
         return initializedTableView;
     }
     return await initTableView(mesId);

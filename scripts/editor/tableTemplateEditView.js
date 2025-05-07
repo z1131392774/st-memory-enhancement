@@ -126,9 +126,9 @@ function initChatScopeSelectedSheets() {
 }
 
 function updateSelectedSheetUids() {
-    updateSheetStatusBySelect()
     if (scope === 'chat') {
         USER.saveChat()
+        console.log("这里触发的")
         BASE.refreshContextView()
     }
     else USER.saveSettings();
@@ -160,6 +160,7 @@ function initializeSelect2Dropdown(dropdownElement) {
 
     $(dropdownElement).on('change', function (e, silent) {
         //if(silent || scope === 'chat') return
+        console.log("选择了",silent,$(this).val())
         if (silent) return
         setSelectedSheetUids($(this).val())
         updateSelectedSheetUids()
@@ -185,6 +186,7 @@ function updateSheetStatusBySelect() {
     templates.forEach(temp => {
         if (selectedSheetsUid.includes(temp.uid)) temp.enable = true
         else temp.enable = false
+        temp.save && temp.save(undefined, true)
     })
 }
 
@@ -378,10 +380,11 @@ function setSelectedSheetUids(selectedSheets) {
     } else {
         USER.getSettings().table_selected_sheets = selectedSheets;
     }
+    updateSheetStatusBySelect()
 }
 
 function getSheets() {
-    return scope === 'chat' ? BASE.sheetsData.context : BASE.templates
+    return scope === 'chat' ? BASE.getChatSheets() : BASE.templates
 }
 
 

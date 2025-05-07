@@ -81,6 +81,7 @@ export const BASE = {
     get templates() {
         return USER.loadUserAllTemplates()
     },
+    contextViewRefreshing: false,
     sheetsData: new Proxy({}, {
         get(_, target) {
             switch (target) {
@@ -142,7 +143,8 @@ export const BASE = {
         return sheet
     },
     createChatSheetByTemp(temp){
-        const newSheet = new BASE.Sheet(template);
+        DERIVED.any.chatSheetMap = DERIVED.any.chatSheetMap || {}
+        const newSheet = new BASE.Sheet(temp);
         DERIVED.any.chatSheetMap[newSheet.uid] = newSheet
         return newSheet
     },
@@ -191,6 +193,9 @@ export const BASE = {
         updateSelectBySheetStatus()
         BASE.refreshTempView(true)
         USER.saveChat()
+    },
+    updateSelectBySheetStatus(){
+        updateSelectBySheetStatus()
     },
     getLastSheetsPiece(deep = 0, cutoff = 1000, startAtLastest = true) {
         console.log("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
