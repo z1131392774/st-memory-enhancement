@@ -124,9 +124,9 @@ function scrollToBottom(container) {
     contentContainer.scrollTop(contentContainer[0].scrollHeight);
 }
 
-function updateTableHistoryData(container) {
+async function updateTableHistoryData(container) {
     const { piece, deep } = BASE.getLastSheetsPiece();
-    const sheetsData = BASE.sheetsData.context;
+    const sheetsData = BASE.getChatSheets();
     if (!piece || !piece.hash_sheets) return;
 
     // 获取内容容器
@@ -168,10 +168,9 @@ function updateTableHistoryData(container) {
 
         // 计数有效的历史记录数量
         let validHistoryCount = 0;
-        const sheetInstance = new BASE.Sheet(sheetData);
 
-        sheetInstance.cellHistory.forEach(cell => {
-            const cellInstance = sheetInstance.cells.get(cell.uid);
+        sheetData.cellHistory.forEach(cell => {
+            const cellInstance = sheetData.cells.get(cell.uid);
             const [rowIndex, colIndex] = cellInstance.position;
             // console.log(rowIndex, colIndex, cellInstance);
 
@@ -247,8 +246,5 @@ export async function openTableHistoryPopup(){
     const historyContainer = $(tableHistoryPopup.dlg)[0];
 
     updateTableHistoryData(historyContainer);
-
-    await tableHistoryPopup.show();
-
-    scrollToBottom(historyContainer);
+    tableHistoryPopup.show();
 }

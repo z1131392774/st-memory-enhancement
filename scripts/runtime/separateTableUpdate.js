@@ -1,5 +1,5 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import {refreshTableActions} from "./absoluteRefresh.js";
+import {rebuildTableActions} from "./absoluteRefresh.js";
 
 let toBeExecuted = [];
 
@@ -167,7 +167,7 @@ export async function TableTwoStepSummary() {
             MarkChatAsWaiting(currentPiece, swipeUid);
             return false;
         } else {
-            const r = await refreshTableActions(true, true, todoChats);   // 执行两步总结
+            const r = await rebuildTableActions(true, true, todoChats);   // 执行两步总结
 
             if (!r || r === '' || r === 'error') {
                 console.log('执行两步总结失败: ', `(${todoChats.length}) `, toBeExecuted);

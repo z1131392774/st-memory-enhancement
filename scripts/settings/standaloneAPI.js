@@ -314,11 +314,13 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         try {
             // 创建LLMApiService实例
             const llmService = new LLMApiService({
-                api_url: USER_API_URL,
+                api_url: apiUrl,
                 api_key: currentApiKey,
                 model_name: USER_API_MODEL,
                 system_prompt: systemPrompt,
-                temperature: USER.tableBaseSetting.custom_temperature
+                temperature: USER.tableBaseSetting.custom_temperature,
+                table_proxy_address: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address,
+                table_proxy_key: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key
             });
 
             // 调用API

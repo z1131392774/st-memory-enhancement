@@ -1,12 +1,12 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
 import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
-import { findNextChatWhitTableData, } from "../../index.js";
+import { findNextChatWhitTableData,undoSheets } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
 import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
-import {openTableStatisticsPopup} from "./tableStatistics.js";
-import {openCellHistoryPopup} from "./cellHistory.js";
-import {openSheetStyleRendererPopup} from "./sheetStyleEditor.js";
+import { openTableStatisticsPopup } from "./tableStatistics.js";
+import { openCellHistoryPopup } from "./cellHistory.js";
+import { openSheetStyleRendererPopup } from "./sheetStyleEditor.js";
 
 let tablePopup = null
 let copyTableData = {}
@@ -97,21 +97,21 @@ async function importTable(mesId, viewSheetsContainer) {
 
             // 4. 定义 FileReader 的 onload 事件处理函数
             // 当文件读取成功后，会触发 onload 事件
-            reader.onload = function (loadEvent) {
-                const tables = JSON.parse(loadEvent.target.result)
-                // loadEvent.target.result 包含了读取到的文件内容 (文本格式)
-                try {
-                    // // 5. 尝试解析 JSON 数据
-                    USER.getChatPiece().dataTable = tables
-                    renderSheetsDOM()
-                    EDITOR.success('导入成功')
-                } catch (error) {
-                    // 7. 捕获 JSON 解析错误，并打印错误信息
-                    console.error("JSON 解析错误:", error);
-                    alert("JSON 文件解析失败，请检查文件格式是否正确。");
+            reader.onload = async function (loadEvent) {
+                const button = { text: '导入模板及数据', result: 3 }
+                const popup = new EDITOR.Popup("请选择导入的部分", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "导入模板及数据", cancelButton: "取消"});
+                const result = await popup.show()
+                if (result) {
+                        const tables = JSON.parse(loadEvent.target.result)
+                        if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
+                        if(result === 3)
+                            BASE.applyJsonToChatSheets(tables, "data")
+                        else
+                            BASE.applyJsonToChatSheets(tables)
+                        await renderSheetsDOM()
+                        EDITOR.success('导入成功')
                 }
             };
-
             reader.readAsText(file, 'UTF-8'); // 建议指定 UTF-8 编码，确保中文等字符正常读取
         }
     });
@@ -128,13 +128,18 @@ async function exportTable() {
         return;
     }
     const sheets = DERIVED.any.renderingSheets
-    const csvTables = sheets.map(sheet => "SHEET-START"+sheet.uid+"\n"+sheet.getSheetCSV(false)+"SHEET-END").join('\n')
+    // const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
+    const jsonTables = {}
+    sheets.forEach(sheet => {
+        jsonTables[sheet.uid] = sheet.getJson()
+    })
+    jsonTables.mate = {type:'chatSheets', version: 1}
     const bom = '\uFEFF';
-    const blob = new Blob([bom + csvTables], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([bom + JSON.stringify(jsonTables)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
-    downloadLink.download = 'table_data.csv'; // 默认文件名
+    downloadLink.download = 'table_data.json'; // 默认文件名
     document.body.appendChild(downloadLink); // 必须添加到 DOM 才能触发下载
     downloadLink.click();
     document.body.removeChild(downloadLink); // 下载完成后移除
@@ -157,7 +162,7 @@ async function clearTable(mesId, viewSheetsContainer) {
             if (piece.hash_sheets) {
                 delete piece.hash_sheets
             }
-            if(piece.dataTable) delete piece.dataTable
+            if (piece.dataTable) delete piece.dataTable
         }))
         setTimeout(() => {
             USER.saveSettings()
@@ -196,7 +201,7 @@ async function cellDataEdit(cell) {
     const result = await EDITOR.callGenericPopup("编辑单元格", EDITOR.POPUP_TYPE.INPUT, cell.data.value, { rows: 3 })
     if (result) {
         cell.editCellData({ value: result })
-        refreshContextView(true);
+        refreshContextView();
         if(cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
     }
 }
@@ -223,7 +228,7 @@ async function columnDataEdit(cell) {
 
     if (columnCellDataPopup.result) {
         // cell.editCellData({ value: result })
-        refreshContextView(true);
+        refreshContextView();
     }
 }
 
@@ -315,6 +320,7 @@ async function confirmAction(event, text = '是否继续该操作？') {
  * 单元格高亮
  */
 export function cellHighlight(sheet) {
+    if (sheet.hashSheet.length < 2) return;    //表格内容为空的时候不执行后续函数,提高健壮性
     const lastHashSheet = lastCellsHashSheet[sheet.uid] || []
     const changeSheet = sheet.hashSheet.map((row) => {
         const isNewRow = lastHashSheet.includes(row[0])
@@ -342,11 +348,11 @@ async function cellHistoryView(cell) {
 
 /**
  * 自定义表格样式事件
- * @param {*} cell 
+ * @param {*} cell
  */
 async function customSheetStyle(cell) {
     await openSheetStyleRendererPopup(cell.parent)
-    await refreshContextView(true);
+    await refreshContextView();
 }
 
 function cellClickEvent(cell) {
@@ -379,12 +385,12 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
-            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', async() => customSheetStyle(cell) );
+            menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', async () => customSheetStyle(cell));
         } else if (colIndex === 0) {
             menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
-            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow), menu.ItemType.warning )
+            menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow), menu.ItemType.warning)
         } else if (rowIndex === 0) {
             menu.add('<i class="fa fa-i-cursor"></i> 编辑该列', async () => await cellDataEdit(cell));
             menu.add('<i class="fa fa-arrow-left"></i> 向左插入列', () => handleAction(cell, cell.CellAction.insertLeftColumn));
@@ -439,17 +445,17 @@ function cellClickEvent(cell) {
     })
 }
 
-function handleAction(cell, action){
+function handleAction(cell, action) {
     cell.newAction(action)
-    refreshContextView(true);
+    refreshContextView();
     if(cell.type === cell.CellType.column_header) BASE.refreshTempView(true)
 }
 
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
     for (let [index, sheet] of _sheets.entries()) {
-        if(!sheet.enable) continue
-        const instance = new BASE.Sheet(sheet)
-        console.log("渲染：",instance)
+        if (!sheet.enable) continue
+        const instance = sheet
+        console.log("渲染：", instance)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
         sheetContainer.style.overflowX = 'none'
@@ -470,9 +476,10 @@ export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _ce
                 sheetTitleText.style.opacity = '0.5'
             }
         } else {
-            sheetElement = instance.renderSheet(_cellClickEvent)
+            sheetElement = await instance.renderSheet(_cellClickEvent)
         }
         cellHighlight(instance)
+        console.log("渲染表格：", sheetElement)
         $(sheetContainer).append(sheetElement)
 
         $(_viewSheetsContainer).append(sheetTitleText)
@@ -480,6 +487,23 @@ export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _ce
         $(_viewSheetsContainer).append(`<hr>`)
     }
 }
+
+/**
+ * 恢复表格
+ * @param {number} mesId 需要清空表格的消息id
+ * @param {Element} tableContainer 表格容器DOM
+ */
+async function undoTable(mesId, tableContainer) {
+    if (mesId === -1) return
+    //const button = { text: '撤销10轮', result: 3 }
+    const popup = new EDITOR.Popup("撤销指定轮次内的所有手动修改及重整理数据，恢复表格", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "撤销本轮", cancelButton: "取消" });
+    const result = await popup.show()
+    if (result) {
+        await undoSheets(0)
+        EDITOR.success('恢复成功')
+    }
+}
+
 
 async function renderSheetsDOM() {
     const task = new SYSTEM.taskTiming('renderSheetsDOM_task')
@@ -536,12 +560,16 @@ async function initTableView(mesId) {
     $(document).on('click', '#table_edit_mode_button', function () {
         // openTableEditorPopup();
     })
+    // 点击恢复表格按钮
+    $(document).on('click', '#table_undo', function () {
+        undoTable();
+    })
     // 点击复制表格按钮
     $(document).on('click', '#copy_table_button', function () {
         copyTable();
     })
     // 点击导入表格按钮
-    $(document).on('click', '#import_clear_up_button', function () {
+    $(document).on('click', '#import_table_button', function () {
         importTable(userTableEditInfo.chatIndex, viewSheetsContainer);
     })
     // 点击导出表格按钮
@@ -553,15 +581,18 @@ async function initTableView(mesId) {
 }
 
 export async function refreshContextView() {
-    renderSheetsDOM();
+    if(BASE.contextViewRefreshing) return
+    BASE.contextViewRefreshing = true
+    await renderSheetsDOM();
     console.log("刷新表格视图")
+    BASE.contextViewRefreshing = false
 }
 
 export async function getChatSheetsView(mesId = -1) {
     // 如果已经初始化过，直接返回缓存的容器，避免重复创建
     if (initializedTableView) {
         // 更新表格内容，但不重新创建整个容器
-        renderSheetsDOM();
+        await renderSheetsDOM();
         return initializedTableView;
     }
     return await initTableView(mesId);

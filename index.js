@@ -57,12 +57,13 @@ export function buildSheetsByTemplates(targetPiece) {
             return; // 跳过处理此模板
         }
         try {
-            const newSheet = new BASE.Sheet(template);
+            const newSheet = BASE.createChatSheetByTemp(template);
             newSheet.save(targetPiece);
         } catch (error) {
             console.error(`[Memory Enhancement] 从模板创建或保存 sheet 时出错:`, template, error);
         }
     })
+    BASE.updateSelectBySheetStatus()
     USER.saveChat()
 }
 
@@ -80,7 +81,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         const targetSheetUid = BASE.sheetsData.context.find(sheet => sheet.name === oldTable.tableName)?.uid
         if (targetSheetUid) {
             // 如果表格已存在，则更新表格数据
-            const targetSheet = new BASE.Sheet(targetSheetUid)
+            const targetSheet = BASE.getChatSheet(targetSheetUid)
             console.log("表格已存在，更新表格数据", targetSheet)
             targetSheet.rebuildHashSheetByValueSheet(valueSheet)
             targetSheet.save(targetPiece)
@@ -89,14 +90,15 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
             continue
         }
         // 如果表格未存在，则创建新的表格
-        const newSheet = new BASE.Sheet();
-        newSheet.createNewSheet(cols, rows, false);
+        const newSheet = BASE.createChatSheet(cols, rows);
         newSheet.name = oldTable.tableName
         newSheet.domain = newSheet.SheetDomain.chat
         newSheet.type = newSheet.SheetType.dynamic
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required
         newSheet.tochat = true
+        newSheet.triggerSend = false
+        newSheet.triggerSendDeep = 1
 
         addOldTablePrompt(newSheet)
         newSheet.data.description = `${oldTable.note}\n${oldTable.initNode}\n${oldTable.insertNode}\n${oldTable.updateNode}\n${oldTable.deleteNode}`
@@ -155,8 +157,8 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  * 搜寻最后一个含有表格数据的消息，并生成提示词
  * @returns 生成的完整提示词
  */
-export function initTableData() {
-    const promptContent = replaceUserTag(getAllPrompt())  //替换所有的<user>标签
+export function initTableData(eventData) {
+    const promptContent = replaceUserTag(getAllPrompt(eventData))  //替换所有的<user>标签
     console.log("完整提示", promptContent)
     return promptContent
 }
@@ -165,25 +167,35 @@ export function initTableData() {
  * 获取所有的完整提示词
  * @returns 完整提示词
  */
-function getAllPrompt() {
-    return USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt())
+function getAllPrompt(eventData) {
+    return USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt(eventData))
 }
 
 /**
  * 获取表格相关提示词
  * @returns {string} 表格相关提示词
  */
-export function getTablePrompt() {
-    const {piece:lastSheetsPiece} = USER.getContext().chat.at(-1).is_user === true ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece()
+export function getTablePrompt(eventData) {
+    const swipeInfo = isSwipe()
+    const {piece:lastSheetsPiece} = swipeInfo.isSwipe?swipeInfo.deep===0?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
     console.log("构建提示词时的信息", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index)).join('\n')
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index,undefined,eventData)).join('\n')
     return sheetDataPrompt
 }
 
-
+/**
+ * 判断是否在切换swipe
+ */
+export function isSwipe() {
+    const chats = USER.getContext().chat
+    const isIncludeEndIndex = (!chats.at(-1)) || chats.at(-1).is_user === true
+    if(isIncludeEndIndex) return {isSwipe: false}
+    const {deep} = BASE.getLastSheetsPiece()
+    return {isSwipe: true, deep}
+}
 
 /**
  * 将匹配到的整体字符串转化为单个语句的数组
@@ -279,7 +291,7 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
     console.log("解析到的表格编辑指令", tableEditActions)
 
     // 获取上一个表格数据
-    const {piece:prePiece} = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
+    const { piece: prePiece } = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets).filter(sheet => sheet.enable)
     console.log("执行指令时的信息", sheets)
     for (const EditAction of sortActions(tableEditActions)) {
@@ -471,7 +483,7 @@ async function onChatCompletionPromptReady(eventData) {
             USER.tableBaseSetting.injection_mode === "injection_off" ||
             USER.tableBaseSetting.step_by_step === true) return
         console.log("生成提示词前", USER.getContext().chat)
-        const promptContent = initTableData()
+        const promptContent = initTableData(eventData)
         if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
         else
@@ -634,8 +646,8 @@ async function onChatChanged() {
  */
 async function onMessageSwiped(chat_id) {
     if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiWriteTable === false) return
-
     const chat = USER.getContext().chat[chat_id];
+    console.log("滑动切换消息", chat)
     if (!chat.swipe_info[chat.swipe_id]) return
     try {
         handleEditStrInMessage(chat)
@@ -643,6 +655,17 @@ async function onMessageSwiped(chat_id) {
         EDITOR.error("记忆插件：swipe切换失败\n原因：", error.message, error)
     }
 
+    updateSheetsView()
+}
+
+/**
+ * 恢复指定层数的表格
+ */
+export async function undoSheets(deep) {
+    const {piece, deep:findDeep} = BASE.getLastSheetsPiece(deep)
+    if(findDeep === -1) return 
+    console.log("撤回表格数据", piece, findDeep)
+    handleEditStrInMessage(piece, findDeep, true)
     updateSheetsView()
 }
 

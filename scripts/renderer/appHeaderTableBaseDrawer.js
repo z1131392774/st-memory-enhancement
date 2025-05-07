@@ -132,12 +132,12 @@ export async function initAppHeaderTableDrawer() {
 /**
  * 打开/关闭应用头部表格抽屉 (保持不变)
  */
-export async function openAppHeaderTableDrawer() {
+export async function openAppHeaderTableDrawer(target = undefined) {
     if (!isEventListenersBound) {
         await initAppHeaderTableDrawer();
     }
 
-    // ... (这部分逻辑保持不变)
+    // 如果目标是设置按钮，则直接打开设置抽屉
     if (tableDrawerIcon.hasClass('closedIcon')) {
         // 关闭其他抽屉
         $('.openDrawer').not('#table_drawer_content').not('.pinnedOpen').addClass('resizing').each((_, el) => {
@@ -163,6 +163,17 @@ export async function openAppHeaderTableDrawer() {
                 },
             });
         });
+
+        if (target) {
+            // 如果目标是设置按钮，则直接打开设置抽屉
+            if (target === 'database') {
+                databaseButton.trigger('click');
+            } else if (target === 'setting') {
+                settingButton.trigger('click');
+            } else if (target === 'editor') {
+                editorButton.trigger('click');
+            }
+        }
     } else {
         // 关闭当前抽屉
         tableDrawerIcon.toggleClass('openIcon closedIcon');
