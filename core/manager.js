@@ -168,7 +168,7 @@ export const BASE = {
         }
         return newHashSheet
     },
-    applyJsonToChatSheets(json) {
+    applyJsonToChatSheets(json, type ="both") {
         const newSheets = Object.entries(json).map(([sheetUid, sheetData]) => {
             if(sheetUid === 'mate') return null
             const sheet = BASE.getChatSheet(sheetUid);
@@ -176,12 +176,23 @@ export const BASE = {
                 sheet.loadJson(sheetData)
                 return sheet
             } else {
-                return BASE.createChatSheetByJson(sheetData)
+                if(type === 'data') return null
+                else return BASE.createChatSheetByJson(sheetData)
             }
         }).filter(Boolean)
+        console.log("应用表格数据", newSheets)
+        if(type === 'data') return BASE.saveChatSheets()
         const oldSheets = BASE.getChatSheets(sheet => sheet.enable = false).filter(sheet => !newSheets.some(newSheet => newSheet.uid === sheet.uid))
         const mergedSheets = [...newSheets, ...oldSheets]
         BASE.reSaveAllChatSheets(mergedSheets)
+    },
+    saveChatSheets(saveToPiece = true) {
+        if(saveToPiece){
+            const piece = USER.getChatPiece()
+            if(!piece) return EDITOR.error("表格数据没有记录载体，请聊过一轮后再试")
+            BASE.getChatSheets(sheet => sheet.save(piece, true))
+        }else BASE.getChatSheets(sheet => sheet.save(undefined, true))
+        USER.saveChat()
     },
     reSaveAllChatSheets(sheets) {
         BASE.sheetsData.context = []

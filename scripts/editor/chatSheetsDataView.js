@@ -98,12 +98,16 @@ async function importTable(mesId, viewSheetsContainer) {
             // 4. 定义 FileReader 的 onload 事件处理函数
             // 当文件读取成功后，会触发 onload 事件
             reader.onload = async function (loadEvent) {
-                const popup = new EDITOR.Popup("请选择导入的部分", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "只导入数据", cancelButton: "取消" });
+                const button = { text: '导入模板及数据', result: 3 }
+                const popup = new EDITOR.Popup("请选择导入的部分", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "导入模板及数据", cancelButton: "取消"});
                 const result = await popup.show()
                 if (result) {
                         const tables = JSON.parse(loadEvent.target.result)
                         if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
-                        BASE.applyJsonToChatSheets(tables)
+                        if(result === 3)
+                            BASE.applyJsonToChatSheets(tables, "data")
+                        else
+                            BASE.applyJsonToChatSheets(tables)
                         await renderSheetsDOM()
                         EDITOR.success('导入成功')
                 }
