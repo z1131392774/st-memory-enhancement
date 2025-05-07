@@ -57,7 +57,7 @@ export function buildSheetsByTemplates(targetPiece) {
             return; // 跳过处理此模板
         }
         try {
-            const newSheet = new BASE.Sheet(template);
+            const newSheet = new BASE.createChatSheetByTemp(template);
             newSheet.save(targetPiece);
         } catch (error) {
             console.error(`[Memory Enhancement] 从模板创建或保存 sheet 时出错:`, template, error);
@@ -80,7 +80,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         const targetSheetUid = BASE.sheetsData.context.find(sheet => sheet.name === oldTable.tableName)?.uid
         if (targetSheetUid) {
             // 如果表格已存在，则更新表格数据
-            const targetSheet = new BASE.Sheet(targetSheetUid)
+            const targetSheet = BASE.getChatSheet(targetSheetUid)
             console.log("表格已存在，更新表格数据", targetSheet)
             targetSheet.rebuildHashSheetByValueSheet(valueSheet)
             targetSheet.save(targetPiece)
@@ -89,8 +89,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
             continue
         }
         // 如果表格未存在，则创建新的表格
-        const newSheet = new BASE.Sheet();
-        newSheet.createNewSheet(cols, rows, false);
+        const newSheet = BASE.createChatSheet(cols, rows);
         newSheet.name = oldTable.tableName
         newSheet.domain = newSheet.SheetDomain.chat
         newSheet.type = newSheet.SheetType.dynamic

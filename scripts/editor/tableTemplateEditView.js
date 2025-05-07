@@ -188,6 +188,12 @@ function updateSheetStatusBySelect() {
     })
 }
 
+export function updateSelectBySheetStatus() {
+    const templates = getSheets()
+    const selectedSheetsUid = templates.filter(temp => temp.enable).map(temp => temp.uid)
+    setSelectedSheetUids(selectedSheetsUid)
+}
+
 let table_editor_container = null
 
 
@@ -411,7 +417,7 @@ async function updateDragTables() {
         }
 
         let sheet = scope === 'chat'
-            ? new BASE.Sheet(uid)
+            ? BASE.getChatSheet(uid)
             : new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
@@ -494,7 +500,7 @@ async function initTableEdit(mesId) {
         let newTemplateUid = null
         let newTemplate = null
         if (scope === 'chat') {
-            newTemplate = new BASE.Sheet().createNewSheet(2, 1)
+            newTemplate = new BASE.createChatSheet(2, 1)
             newTemplateUid = newTemplate.uid
         } else {
             newTemplate = new BASE.SheetTemplate().createNewTemplate();

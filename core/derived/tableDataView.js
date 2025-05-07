@@ -535,7 +535,7 @@ export function bindTableHeaderButtonEvent() {
         pasteTable(userTableEditInfo.chatIndex, tableContainer);
     })
     // 点击导入表格按钮
-    dlg.on('click', '#import_clear_up_button', function () {
+    dlg.on('click', '#import_table_button', function () {
         importTable(userTableEditInfo.chatIndex, tableContainer);
     })
     // 点击导出表格按钮

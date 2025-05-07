@@ -1,6 +1,6 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
 import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
-import { findNextChatWhitTableData, } from "../../index.js";
+import { findNextChatWhitTableData,undoSheets } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
 import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
@@ -97,21 +97,17 @@ async function importTable(mesId, viewSheetsContainer) {
 
             // 4. 定义 FileReader 的 onload 事件处理函数
             // 当文件读取成功后，会触发 onload 事件
-            reader.onload = function (loadEvent) {
-                const tables = JSON.parse(loadEvent.target.result)
-                // loadEvent.target.result 包含了读取到的文件内容 (文本格式)
-                try {
-                    // // 5. 尝试解析 JSON 数据
-                    USER.getChatPiece().dataTable = tables
-                    renderSheetsDOM()
-                    EDITOR.success('导入成功')
-                } catch (error) {
-                    // 7. 捕获 JSON 解析错误，并打印错误信息
-                    console.error("JSON 解析错误:", error);
-                    alert("JSON 文件解析失败，请检查文件格式是否正确。");
+            reader.onload = async function (loadEvent) {
+                const popup = new EDITOR.Popup("请选择导入的部分", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "只导入数据", cancelButton: "取消" });
+                const result = await popup.show()
+                if (result) {
+                        const tables = JSON.parse(loadEvent.target.result)
+                        if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
+                        BASE.applyJsonToChatSheets(tables)
+                        renderSheetsDOM()
+                        EDITOR.success('导入成功')
                 }
             };
-
             reader.readAsText(file, 'UTF-8'); // 建议指定 UTF-8 编码，确保中文等字符正常读取
         }
     });
@@ -128,13 +124,18 @@ async function exportTable() {
         return;
     }
     const sheets = DERIVED.any.renderingSheets
-    const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
+    // const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
+    const jsonTables = {}
+    sheets.forEach(sheet => {
+        jsonTables[sheet.uid] = sheet.getJson()
+    })
+    jsonTables.mate = {type:'chatSheets', version: 1}
     const bom = '\uFEFF';
-    const blob = new Blob([bom + csvTables], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([bom + JSON.stringify(jsonTables)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
-    downloadLink.download = 'table_data.csv'; // 默认文件名
+    downloadLink.download = 'table_data.json'; // 默认文件名
     document.body.appendChild(downloadLink); // 必须添加到 DOM 才能触发下载
     downloadLink.click();
     document.body.removeChild(downloadLink); // 下载完成后移除
@@ -449,7 +450,7 @@ function handleAction(cell, action) {
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
     for (let [index, sheet] of _sheets.entries()) {
         if (!sheet.enable) continue
-        const instance = new BASE.Sheet(sheet)
+        const instance = sheet
         console.log("渲染：", instance)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
@@ -471,9 +472,10 @@ export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _ce
                 sheetTitleText.style.opacity = '0.5'
             }
         } else {
-            sheetElement = instance.renderSheet(_cellClickEvent)
+            sheetElement = await instance.renderSheet(_cellClickEvent)
         }
         cellHighlight(instance)
+        console.log("渲染表格：", sheetElement)
         $(sheetContainer).append(sheetElement)
 
         $(_viewSheetsContainer).append(sheetTitleText)
@@ -563,7 +565,7 @@ async function initTableView(mesId) {
         copyTable();
     })
     // 点击导入表格按钮
-    $(document).on('click', '#import_clear_up_button', function () {
+    $(document).on('click', '#import_table_button', function () {
         importTable(userTableEditInfo.chatIndex, viewSheetsContainer);
     })
     // 点击导出表格按钮
