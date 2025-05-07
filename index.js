@@ -17,7 +17,7 @@ import {executeTranslation} from "./services/translate.js";
 
 console.log("______________________记忆插件：开始加载______________________")
 
-const VERSION = '2.0.0'
+const VERSION = '2.0.1'
 
 const editErrorInfo = {
     forgotCommentTag: false,
