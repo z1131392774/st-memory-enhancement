@@ -12,9 +12,9 @@ function staticPipeline(target) {
     return regexReplace.replace(/\$(\w)(\d+)/g, (match, colLetter, rowNumber) => {
         const colIndex = colLetter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
         const rowIndex = parseInt(rowNumber);
-        console.log("静态渲染行:",rowIndex,"静态渲染列:", colIndex);
+        console.log("静态渲染行:", rowIndex, "静态渲染列:", colIndex);
         const c = target.findCellByPosition(rowIndex, colIndex);
-        console.log("获取单元格位置：",c,'\n获取单元格内容：',c.data.value);
+        console.log("获取单元格位置：", c, '\n获取单元格内容：', c.data.value);
         return c ? (c.data.value || `<span style="color: red">?</span>`) :
             `<span style="color: red">无单元格</span>`;
     });
@@ -149,15 +149,29 @@ function regexReplacePipeline(text) {
             .replace(/\\v/g, '\v')   // Convert \v to actual vertical tab
             .replace(/\\\\/g, '\\'); // Convert \\ to actual backslash
 
-        // Apply the regex replacement first
-        let result = text.replace(regex, processedReplaceString);
+        // Apply the regex replacement first，增加特定标签包裹的循环替换功能
+        let result = "";
+        let cycleReplace = processedReplaceString.match(/<cycleDivide>([\s\S]*?)<\/cycleDivide>/);  //获取循环替换字符串
 
-        // Now convert newlines to HTML <br> tags to ensure they display properly in HTML
-        if (selectedCustomStyle.basedOn !== 'html' && selectedCustomStyle.basedOn !== 'csv') {  //增加条件不是CSV格式的文本，目前测试出CSV使用该代码会出现渲染错误
-            result = result.replace(/\n/g, '<br>');
+        if (cycleReplace) {
+            let cycleReplaceString = cycleReplace[1]; //不含cycleDivide标签
+            const cycleReplaceRegex = cycleReplace[0]; //含cycleDivide标签
+            // console.log("进入循环替换，获取的循环替换字符串：", '类型：', typeof cycleReplaceString, '内容：', cycleReplaceString);
+            processedReplaceString = processedReplaceString.replace(cycleReplaceRegex, "regexTemporaryString"); //临时替换循环替换字符串
+            cycleReplaceString = text.replace(regex, cycleReplaceString); //按正则替换循环字符串代码
+            // console.log("循环替换后的字符串：", cycleReplaceString);
+            result = processedReplaceString.replace("regexTemporaryString", cycleReplaceString);
+        } else {
+            result = text.replace(regex, processedReplaceString);
+            // }
+
+            // Now convert newlines to HTML <br> tags to ensure they display properly in HTML
+            if (selectedCustomStyle.basedOn !== 'html' && selectedCustomStyle.basedOn !== 'csv') {  //增加条件不是CSV格式的文本，目前测试出CSV使用该代码会出现渲染错误
+                result = result.replace(/\n/g, '<br>');
+            }
         }
-
         return result;
+
     } catch (error) {
         console.error('Error in regex replacement:', error);
         return text; // Return original text on error
