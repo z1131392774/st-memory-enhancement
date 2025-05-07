@@ -9,7 +9,7 @@ import { openCellHistoryPopup } from "./cellHistory.js";
 import { openSheetStyleRendererPopup } from "./sheetStyleEditor.js";
 
 let tablePopup = null
-let copyTableData = {}
+let copyTableData = null
 let selectedCell = null
 let editModeSelectedRows = []
 let viewSheetsContainer = null
@@ -28,10 +28,8 @@ const userTableEditInfo = {
  * @param {*} tables 所有表格数据
  */
 export async function copyTable() {
-    copyTableData = {}
-    copyTableData.hash_sheets = BASE.getLastSheetsPiece().piece.hash_sheets
-    copyTableData.sheets_data = BASE.sheetsData.context
-
+    copyTableData = JSON.stringify(getTableJson({type:'chatSheets', version: 1})) 
+    if(!copyTableData) return
     $('#table_drawer_icon').click()
 
     EDITOR.confirm(`正在复制表格数据 (#${SYSTEM.generateRandomString(4)})`, '取消', '粘贴到当前对话').then(async (r) => {
@@ -57,9 +55,11 @@ async function pasteTable() {
     const confirmation = await EDITOR.callGenericPopup('粘贴会清空原有的表格数据，是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
         if (copyTableData) {
-            USER.getChatPiece().hash_sheets = copyTableData.hash_sheets
-            BASE.sheetsData.context = copyTableData.sheets_data
-            USER.saveChat()
+            const tables = JSON.parse(copyTableData)
+            if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
+            BASE.applyJsonToChatSheets(tables)
+            await renderSheetsDOM()
+            EDITOR.success('粘贴成功')
         } else {
             EDITOR.error("粘贴失败：剪切板没有表格数据")
         }
@@ -123,17 +123,8 @@ async function importTable(mesId, viewSheetsContainer) {
  * @param {Array} tables 所有表格数据
  */
 async function exportTable() {
-    if (!DERIVED.any.renderingSheets || DERIVED.any.renderingSheets.length === 0) {
-        EDITOR.warning('当前表格没有数据，无法导出');
-        return;
-    }
-    const sheets = DERIVED.any.renderingSheets
-    // const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
-    const jsonTables = {}
-    sheets.forEach(sheet => {
-        jsonTables[sheet.uid] = sheet.getJson()
-    })
-    jsonTables.mate = {type:'chatSheets', version: 1}
+    const jsonTables = getTableJson({type:'chatSheets', version: 1})
+    if(!jsonTables) return
     const bom = '\uFEFF';
     const blob = new Blob([bom + JSON.stringify(jsonTables)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -147,6 +138,24 @@ async function exportTable() {
     URL.revokeObjectURL(url); // 释放 URL 对象
 
     EDITOR.success('已导出');
+}
+
+/**
+ * 获取表格Json数据
+ */
+function getTableJson(mate) {
+    if (!DERIVED.any.renderingSheets || DERIVED.any.renderingSheets.length === 0) {
+        EDITOR.warning('当前表格没有数据，无法导出');
+        return;
+    }
+    const sheets = DERIVED.any.renderingSheets
+    // const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
+    const jsonTables = {}
+    sheets.forEach(sheet => {
+        jsonTables[sheet.uid] = sheet.getJson()
+    })
+    jsonTables.mate = mate
+    return jsonTables
 }
 
 /**
