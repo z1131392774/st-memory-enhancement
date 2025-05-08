@@ -180,9 +180,10 @@ export const BASE = {
                 else return BASE.createChatSheetByJson(sheetData)
             }
         }).filter(Boolean)
-        console.log("应用表格数据", newSheets)
         if(type === 'data') return BASE.saveChatSheets()
-        const oldSheets = BASE.getChatSheets(sheet => sheet.enable = false).filter(sheet => !newSheets.some(newSheet => newSheet.uid === sheet.uid))
+        const oldSheets = BASE.getChatSheets().filter(sheet => !newSheets.some(newSheet => newSheet.uid === sheet.uid))
+        oldSheets.forEach(sheet => sheet.enable = false)
+        console.log("应用表格数据", newSheets, oldSheets)
         const mergedSheets = [...newSheets, ...oldSheets]
         BASE.reSaveAllChatSheets(mergedSheets)
     },
