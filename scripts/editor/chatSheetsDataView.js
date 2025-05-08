@@ -1,6 +1,6 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
 import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
-import { findNextChatWhitTableData, } from "../../index.js";
+import { findNextChatWhitTableData,undoSheets } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
 import { openTableHistoryPopup } from "./tableHistory.js";
 import { PopupMenu } from "../../components/popupMenu.js";
@@ -97,21 +97,21 @@ async function importTable(mesId, viewSheetsContainer) {
 
             // 4. 定义 FileReader 的 onload 事件处理函数
             // 当文件读取成功后，会触发 onload 事件
-            reader.onload = function (loadEvent) {
-                const tables = JSON.parse(loadEvent.target.result)
-                // loadEvent.target.result 包含了读取到的文件内容 (文本格式)
-                try {
-                    // // 5. 尝试解析 JSON 数据
-                    USER.getChatPiece().dataTable = tables
-                    renderSheetsDOM()
-                    EDITOR.success('导入成功')
-                } catch (error) {
-                    // 7. 捕获 JSON 解析错误，并打印错误信息
-                    console.error("JSON 解析错误:", error);
-                    alert("JSON 文件解析失败，请检查文件格式是否正确。");
+            reader.onload = async function (loadEvent) {
+                const button = { text: '导入模板及数据', result: 3 }
+                const popup = new EDITOR.Popup("请选择导入的部分", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "导入模板及数据", cancelButton: "取消"});
+                const result = await popup.show()
+                if (result) {
+                        const tables = JSON.parse(loadEvent.target.result)
+                        if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
+                        if(result === 3)
+                            BASE.applyJsonToChatSheets(tables, "data")
+                        else
+                            BASE.applyJsonToChatSheets(tables)
+                        await renderSheetsDOM()
+                        EDITOR.success('导入成功')
                 }
             };
-
             reader.readAsText(file, 'UTF-8'); // 建议指定 UTF-8 编码，确保中文等字符正常读取
         }
     });
@@ -123,18 +123,14 @@ async function importTable(mesId, viewSheetsContainer) {
  * @param {Array} tables 所有表格数据
  */
 async function exportTable() {
-    if (!DERIVED.any.renderingSheets || DERIVED.any.renderingSheets.length === 0) {
-        EDITOR.warning('当前表格没有数据，无法导出');
-        return;
-    }
-    const sheets = DERIVED.any.renderingSheets
-    const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
+    const jsonTables = getTableJson({type:'chatSheets', version: 1})
+    if(!jsonTables) return
     const bom = '\uFEFF';
-    const blob = new Blob([bom + csvTables], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([bom + JSON.stringify(jsonTables)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
-    downloadLink.download = 'table_data.csv'; // 默认文件名
+    downloadLink.download = 'table_data.json'; // 默认文件名
     document.body.appendChild(downloadLink); // 必须添加到 DOM 才能触发下载
     downloadLink.click();
     document.body.removeChild(downloadLink); // 下载完成后移除
@@ -419,11 +415,13 @@ function cellClickEvent(cell) {
 
         }, 0)
 
+        const element = event.target
+
         // 备份当前cell的style，以便在菜单关闭时恢复
-        const style = cell.element.style.cssText;
+        const style = element.style.cssText;
 
         // 获取单元格位置
-        const rect = cell.element.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
         const tableRect = viewSheetsContainer.getBoundingClientRect();
 
         // 计算菜单位置（相对于表格容器）
@@ -433,17 +431,17 @@ function cellClickEvent(cell) {
         $(viewSheetsContainer).append(menuElement);
 
         // 高亮cell
-        cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
-        cell.element.style.color = 'var(--SmartThemeQuoteColor)';
-        cell.element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
-        cell.element.style.zIndex = '999';
+        element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+        element.style.color = 'var(--SmartThemeQuoteColor)';
+        element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
+        element.style.zIndex = '999';
 
         menu.show(menuLeft, menuTop).then(() => {
-            cell.element.style.cssText = style;
+            element.style.cssText = style;
         })
         menu.frameUpdate((menu) => {
             // 重新定位菜单
-            const rect = cell.element.getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
             const tableRect = viewSheetsContainer.getBoundingClientRect();
 
             // 计算菜单位置（相对于表格容器）
@@ -467,7 +465,7 @@ function handleAction(cell, action) {
 export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _cellClickEvent = cellClickEvent) {
     for (let [index, sheet] of _sheets.entries()) {
         if (!sheet.enable) continue
-        const instance = new BASE.Sheet(sheet)
+        const instance = sheet
         console.log("渲染：", instance)
         const sheetContainer = document.createElement('div')
         const sheetTitleText = document.createElement('h3')
@@ -489,9 +487,10 @@ export async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer, _ce
                 sheetTitleText.style.opacity = '0.5'
             }
         } else {
-            sheetElement = instance.renderSheet(_cellClickEvent)
+            sheetElement = await instance.renderSheet(_cellClickEvent)
         }
         cellHighlight(instance)
+        console.log("渲染表格：", sheetElement)
         $(sheetContainer).append(sheetElement)
 
         $(_viewSheetsContainer).append(sheetTitleText)
@@ -581,7 +580,7 @@ async function initTableView(mesId) {
         copyTable();
     })
     // 点击导入表格按钮
-    $(document).on('click', '#import_clear_up_button', function () {
+    $(document).on('click', '#import_table_button', function () {
         importTable(userTableEditInfo.chatIndex, viewSheetsContainer);
     })
     // 点击导出表格按钮
@@ -593,15 +592,18 @@ async function initTableView(mesId) {
 }
 
 export async function refreshContextView() {
-    renderSheetsDOM();
+    if(BASE.contextViewRefreshing) return
+    BASE.contextViewRefreshing = true
+    await renderSheetsDOM();
     console.log("刷新表格视图")
+    BASE.contextViewRefreshing = false
 }
 
 export async function getChatSheetsView(mesId = -1) {
     // 如果已经初始化过，直接返回缓存的容器，避免重复创建
     if (initializedTableView) {
         // 更新表格内容，但不重新创建整个容器
-        renderSheetsDOM();
+        await renderSheetsDOM();
         return initializedTableView;
     }
     return await initTableView(mesId);

@@ -126,9 +126,9 @@ function initChatScopeSelectedSheets() {
 }
 
 function updateSelectedSheetUids() {
-    updateSheetStatusBySelect()
     if (scope === 'chat') {
         USER.saveChat()
+        console.log("这里触发的")
         BASE.refreshContextView()
     }
     else USER.saveSettings();
@@ -160,6 +160,7 @@ function initializeSelect2Dropdown(dropdownElement) {
 
     $(dropdownElement).on('change', function (e, silent) {
         //if(silent || scope === 'chat') return
+        console.log("选择了",silent,$(this).val())
         if (silent) return
         setSelectedSheetUids($(this).val())
         updateSelectedSheetUids()
@@ -185,7 +186,14 @@ function updateSheetStatusBySelect() {
     templates.forEach(temp => {
         if (selectedSheetsUid.includes(temp.uid)) temp.enable = true
         else temp.enable = false
+        temp.save && temp.save(undefined, true)
     })
+}
+
+export function updateSelectBySheetStatus() {
+    const templates = getSheets()
+    const selectedSheetsUid = templates.filter(temp => temp.enable).map(temp => temp.uid)
+    setSelectedSheetUids(selectedSheetsUid)
 }
 
 let table_editor_container = null
@@ -372,10 +380,11 @@ function setSelectedSheetUids(selectedSheets) {
     } else {
         USER.getSettings().table_selected_sheets = selectedSheets;
     }
+    updateSheetStatusBySelect()
 }
 
 function getSheets() {
-    return scope === 'chat' ? BASE.sheetsData.context : BASE.templates
+    return scope === 'chat' ? BASE.getChatSheets() : BASE.templates
 }
 
 
@@ -411,7 +420,7 @@ async function updateDragTables() {
         }
 
         let sheet = scope === 'chat'
-            ? new BASE.Sheet(uid)
+            ? BASE.getChatSheet(uid)
             : new BASE.SheetTemplate(uid);
         sheet.currentPopupMenu = currentPopupMenu;
 
@@ -494,7 +503,7 @@ async function initTableEdit(mesId) {
         let newTemplateUid = null
         let newTemplate = null
         if (scope === 'chat') {
-            newTemplate = new BASE.Sheet().createNewSheet(2, 1)
+            newTemplate = new BASE.createChatSheet(2, 1)
             newTemplateUid = newTemplate.uid
         } else {
             newTemplate = new BASE.SheetTemplate().createNewTemplate();
