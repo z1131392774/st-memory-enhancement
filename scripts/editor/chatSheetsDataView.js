@@ -126,7 +126,7 @@ async function exportTable() {
     const jsonTables = getTableJson({type:'chatSheets', version: 1})
     if(!jsonTables) return
     const bom = '\uFEFF';
-    const blob = new Blob([bom + JSON.stringify(jsonTables)], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([bom + JSON.stringify(jsonTables)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
