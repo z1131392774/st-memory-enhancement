@@ -65,7 +65,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
     console.log("穿插模式是否开启：" + USER.tableBaseSetting.alternate_switch)
     if (USER.tableBaseSetting.alternate_switch) {    //首先判断是否开启了穿插模式，再看是否有必要进入穿插模型
         for (let [index, sheet] of _sheets.entries()) {
-            if (sheet.config.toChat === true && sheet.config.alternateLevel > 0 && sheet.config.alternateTable === true) {
+            if (sheet.config.toChat === true && sheet.config.useCustomStyle === true && sheet.config.alternateTable === true && sheet.config.alternateLevel > 0) {
                 sumAlternateLevel++;        // 符合条件的计数器增加
                 levelIndexAlternate.push([Number(sheet.config.alternateLevel), index]); // 加入层级和索引对应数组，强制转换成数字类型，提高健壮性
                 sheet.config.skipTop = false;  //穿擦模式只对表格内容进行渲染，且不需要跳过header行
@@ -114,20 +114,20 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             // 创建角色首次出现的索引映射
             const firstAppearance = new Map();
             indexedTable.forEach((item, idx) => {
-            const role = clean(item.row[1]);
-            if (!firstAppearance.has(role)) {
-            firstAppearance.set(role, idx);
-            }
+                const role = clean(item.row[1]);
+                if (!firstAppearance.has(role)) {
+                    firstAppearance.set(role, idx);
+                }
             });
 
             // 角色分组排序
             if (roleA !== roleB) {
-            return firstAppearance.get(roleA) - firstAppearance.get(roleB);
+                return firstAppearance.get(roleA) - firstAppearance.get(roleB);
             }
 
             // 同角色按原表格顺序排序
             return a.originalIndex - b.originalIndex;
-            });
+        });
 
         // 提取排序后的行和对应的原表格索引
         tableAlternate = indexedTable.map(item => item.row);
@@ -151,7 +151,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
                 sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
                 ordinarycustomStyleRender(sheet, _viewSheetsContainer);
             } else {
-                defaultStyleRender(indexOriginary, sheet, _viewSheetsContainer);
+                defaultStyleRender(indexOriginary[i], sheet, _viewSheetsContainer);
             }
         }
     }
