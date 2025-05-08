@@ -153,7 +153,10 @@ export class PopupConfirm {
                     }
                     // Remove container if it's empty
                     if (this.toastContainer && this.toastContainer.children.length === 0) {
-                        document.body.removeChild(this.toastContainer);
+                        if (document.body.contains(this.toastContainer)) {
+                            console.log('Removing toast container from body');
+                            document.body.removeChild(this.toastContainer);
+                        }
                     }
                     this.toastElement = null;
                 }, 300);
