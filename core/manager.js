@@ -15,7 +15,6 @@ import { newPopupConfirm, PopupConfirm } from "../components/popupConfirm.js";
 import { refreshContextView } from "../scripts/editor/chatSheetsDataView.js";
 import { updateSystemMessageTableStatus } from "../scripts/renderer/tablePushToChat.js";
 import {taskTiming} from "../utils/system.js";
-import {updateSelectBySheetStatus} from "../scripts/editor/tableTemplateEditView.js";
 
 let derivedData = {}
 
@@ -81,7 +80,6 @@ export const BASE = {
     get templates() {
         return USER.loadUserAllTemplates()
     },
-    contextViewRefreshing: false,
     sheetsData: new Proxy({}, {
         get(_, target) {
             switch (target) {
@@ -119,47 +117,6 @@ export const BASE = {
             }
         }
     }),
-    getChatSheets(process=()=> {}) {
-        DERIVED.any.chatSheetMap = DERIVED.any.chatSheetMap || {}
-        const sheets = []
-        BASE.sheetsData.context.forEach(sheet => {
-            if (!DERIVED.any.chatSheetMap[sheet.uid]) {
-                const newSheet = new BASE.Sheet(sheet.uid)
-                DERIVED.any.chatSheetMap[sheet.uid] = newSheet
-            }
-            process(DERIVED.any.chatSheetMap[sheet.uid])
-            sheets.push(DERIVED.any.chatSheetMap[sheet.uid])
-        })
-        return sheets
-    },
-    getChatSheet(uid){
-        const sheet = DERIVED.any.chatSheetMap[uid]
-        if (!sheet) {
-            if(!BASE.sheetsData.context.some(sheet => sheet.uid === uid)) return null
-            const newSheet = new BASE.Sheet(uid)
-            DERIVED.any.chatSheetMap[uid] = newSheet
-            return newSheet
-        }
-        return sheet
-    },
-    createChatSheetByTemp(temp){
-        DERIVED.any.chatSheetMap = DERIVED.any.chatSheetMap || {}
-        const newSheet = new BASE.Sheet(temp);
-        DERIVED.any.chatSheetMap[newSheet.uid] = newSheet
-        return newSheet
-    },
-    createChatSheet(cols, rows){
-        const newSheet = new BASE.Sheet();
-        newSheet.createNewSheet(cols, rows, false);
-        DERIVED.any.chatSheetMap[newSheet.uid] = newSheet
-        return newSheet
-    },
-    createChatSheetByJson(json){
-        const newSheet = new BASE.Sheet();
-        newSheet.loadJson(json);
-        DERIVED.any.chatSheetMap[newSheet.uid] = newSheet
-        return newSheet
-    },
     copyHashSheets(hashSheets) {
         const newHashSheet = {}
         for (const sheetUid in hashSheets) {
@@ -167,46 +124,6 @@ export const BASE = {
             newHashSheet[sheetUid] = hashSheet.map(row => row.map(hash => hash));
         }
         return newHashSheet
-    },
-    applyJsonToChatSheets(json, type ="both") {
-        const newSheets = Object.entries(json).map(([sheetUid, sheetData]) => {
-            if(sheetUid === 'mate') return null
-            const sheet = BASE.getChatSheet(sheetUid);
-            if (sheet) {
-                sheet.loadJson(sheetData)
-                return sheet
-            } else {
-                if(type === 'data') return null
-                else return BASE.createChatSheetByJson(sheetData)
-            }
-        }).filter(Boolean)
-        console.log("应用表格数据", newSheets)
-        if(type === 'data') return BASE.saveChatSheets()
-        const oldSheets = BASE.getChatSheets(sheet => sheet.enable = false).filter(sheet => !newSheets.some(newSheet => newSheet.uid === sheet.uid))
-        const mergedSheets = [...newSheets, ...oldSheets]
-        BASE.reSaveAllChatSheets(mergedSheets)
-    },
-    saveChatSheets(saveToPiece = true) {
-        if(saveToPiece){
-            const piece = USER.getChatPiece()
-            if(!piece) return EDITOR.error("表格数据没有记录载体，请聊过一轮后再试")
-            BASE.getChatSheets(sheet => sheet.save(piece, true))
-        }else BASE.getChatSheets(sheet => sheet.save(undefined, true))
-        USER.saveChat()
-    },
-    reSaveAllChatSheets(sheets) {
-        BASE.sheetsData.context = []
-        const piece = USER.getChatPiece()
-        if(!piece) return EDITOR.error("没有记录载体")
-        sheets.forEach(sheet => {
-            sheet.save(piece, true)
-        })
-        updateSelectBySheetStatus()
-        BASE.refreshTempView(true)
-        USER.saveChat()
-    },
-    updateSelectBySheetStatus(){
-        updateSelectBySheetStatus()
     },
     getLastSheetsPiece(deep = 0, cutoff = 1000, startAtLastest = true) {
         console.log("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
@@ -237,10 +154,16 @@ export const BASE = {
         if (!hashSheets) {
             return [];
         }
-        return BASE.getChatSheets((sheet)=>{
+        return BASE.sheetsData.context.map(sheet => {
             if (hashSheets[sheet.uid]) {
-                sheet.hashSheet = hashSheets[sheet.uid].map(row => row.map(hash => hash));
-            }else sheet.initHashSheet()
+                const newSheet = new BASE.Sheet(sheet.uid)
+                newSheet.hashSheet = hashSheets[sheet.uid].map(row => row.map(hash => hash));
+                return newSheet
+            } else {
+                const newSheet = new BASE.Sheet(sheet.uid)
+                newSheet.initHashSheet()
+                return newSheet
+            }
         })
     },
     initHashSheet() {

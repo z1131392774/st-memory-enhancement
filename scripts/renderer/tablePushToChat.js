@@ -37,7 +37,7 @@ function ordinarycustomStyleRender(sheet, _viewSheetsContainer) {
  * @param {*} _viewSheetsContainer -DOM元素，作为工作表的容器
  */
 function defaultStyleRender(index, sheet, _viewSheetsContainer) {
-    const instance = sheet
+    const instance = new BASE.Sheet(sheet)
     const sheetContainer = document.createElement('div')
     const sheetTitleText = document.createElement('h3')
     sheetContainer.style.overflowX = 'none'

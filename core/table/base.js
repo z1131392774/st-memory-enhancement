@@ -136,14 +136,6 @@ export class SheetBase {
         return this
     }
 
-    loadJson(json) {
-        Object.assign(this, JSON.parse(JSON.stringify(json)));
-        if(this.cellHistory.length > 0) this.loadCells()
-        if(this.content) this.rebuildHashSheetByValueSheet(this.content)
-    
-        this.markPositionCacheDirty();
-    }
-
     loadCells() {
         // 从 cellHistory 遍历加载 Cell 对象
         try {
@@ -158,9 +150,17 @@ export class SheetBase {
             return false;
         }
 
-        // 重新标记cell类型
+        // 加载后，根据 hashSheet 结构重新初始化所有 Cell
         try {
             if (this.hashSheet && this.hashSheet.length > 0) {
+                // 如果 hashSheet 只有一行，说明没有数据，只初始化表头行
+                if (this.hashSheet.length === 1) {
+                    this.hashSheet[0].forEach(hash => {
+                        const cell = this.cells.get(hash);
+                        this.cells.set(cell.uid, cell);
+                    });
+                }
+                // 如果 hashSheet 有数据，遍历 hashSheet，初始化每一个 Cell
                 this.hashSheet.forEach((rowUids, rowIndex) => {
                     rowUids.forEach((cellUid, colIndex) => {
                         const cell = this.cells.get(cellUid);
@@ -172,7 +172,7 @@ export class SheetBase {
                             } else if (colIndex === 0) {
                                 cell.type = cell.CellType.row_header;
                             } else {
-                                cell.type = cell.CellType.cell;
+                                cell.type = cell.CellType.cell; // 默认单元格类型
                             }
                         }
                     });
@@ -240,8 +240,8 @@ export class SheetBase {
         return this.hashSheet.length <= 1;
     }
 
-    filterSavingData(key, withHead = false) {
-        return filterSavingData(this, key, withHead)
+    filterSavingData() {
+        return filterSavingData(this)
     }
 
     getRowCount() {
