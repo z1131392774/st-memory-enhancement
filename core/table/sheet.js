@@ -29,26 +29,20 @@ export class Sheet extends SheetBase {
     renderSheet(cellEventHandler = this.lastCellEventHandler, targetHashSheet = this.hashSheet) {
         this.lastCellEventHandler = cellEventHandler;
 
-        if (!this.element) {
-            this.element = document.createElement('table');
-            this.element.classList.add('sheet-table', 'tableDom');
-            this.element.style.position = 'relative';
-            this.element.style.display = 'flex';
-            this.element.style.flexDirection = 'column';
-            this.element.style.flexGrow = '0';
-            this.element.style.flexShrink = '1';
+        this.element = document.createElement('table');
+        this.element.classList.add('sheet-table', 'tableDom');
+        this.element.style.position = 'relative';
+        this.element.style.display = 'flex';
+        this.element.style.flexDirection = 'column';
+        this.element.style.flexGrow = '0';
+        this.element.style.flexShrink = '1';
 
-            const styleElement = document.createElement('style');
-            styleElement.textContent = cellStyle;
-            this.element.appendChild(styleElement);
-        }
+        const styleElement = document.createElement('style');
+        styleElement.textContent = cellStyle;
+        this.element.appendChild(styleElement);
 
-        // 确保 element 中有 tbody，没有则创建
-        let tbody = this.element.querySelector('tbody');
-        if (!tbody) {
-            tbody = document.createElement('tbody');
-            this.element.appendChild(tbody);
-        }
+        const tbody = document.createElement('tbody');
+        this.element.appendChild(tbody);
         // 清空 tbody 的内容
         tbody.innerHTML = '';
 
@@ -131,7 +125,7 @@ export class Sheet extends SheetBase {
                 line = line.trim();
                 if (!line) return false;
                 const parts = line.split(',');
-                if (parts.length < Math.max(1,this.triggerSendDeep)) return false;  // 确保至少有1个触发式规则
+                if (parts.length < Math.max(1, this.triggerSendDeep)) return false;  // 确保至少有1个触发式规则
                 const str1 = parts[1]; // 字符串1对应索引1
                 return chatContents.includes(str1);
             });
@@ -178,36 +172,47 @@ export class Sheet extends SheetBase {
         if (!withHead) return trimmedContent.slice(1);
         return content;
     }
+
+    getJson() {
+        const sheetDataToSave = this.filterSavingData(["uid", "name", "domain", "type", "enable", "required", "tochat", "triggerSend", "triggerSendDeep", "config", "sourceData", "content"])
+        delete sheetDataToSave.cellHistory
+        delete sheetDataToSave.hashSheet
+        sheetDataToSave.sourceData = this.source.data
+        sheetDataToSave.content = this.getContent(true)
+        return sheetDataToSave
+    }
     /** _______________________________________ 以下函数不进行外部调用 _______________________________________ */
 
     #load(target) {
-        if (target === null) {
+        if (target == null) {
             return this;
         }
-        if (target.domain === this.SheetDomain.global) {
-            console.log('从模板转化表格', target, this);
-            this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
-            this.name = target.name.replace('模板', '表格');
-            this.hashSheet = [target.hashSheet[0].map(uid => uid)];
-            this.required = target.required;
-            this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
-            this.config = { ...target.config };
-            this.loadCells();
-            this.markPositionCacheDirty();
-            this.template = target;
-            return
+        if (typeof target === 'string') {
+            let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === target);
+            if (targetSheetData?.uid) {
+                this.loadJson(targetSheetData)
+                return this;
+            }
+            throw new Error('未找到对应的模板');
         }
-        let targetUid = target?.uid || target;
-        let targetSheetData = BASE.sheetsData.context?.find(t => t.uid === targetUid);
-        if (targetSheetData?.uid) {
-            Object.assign(this, filterSavingData(targetSheetData));
-            if (target.hashSheet) this.hashSheet = target.hashSheet.map(row => row.map(hash => hash));
-            this.loadCells();
-            this.markPositionCacheDirty();
-            return this;
+        if (typeof target === 'object') {
+            if (target.domain === this.SheetDomain.global) {
+                console.log('从模板转化表格', target, this);
+                this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
+                this.name = target.name.replace('模板', '表格');
+                this.hashSheet = [target.hashSheet[0].map(uid => uid)];
+                this.required = target.required;
+                this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
+                this.config = { ...target.config };
+                this.loadCells();
+                this.markPositionCacheDirty();
+                this.template = target;
+                return this
+            } else {
+                this.loadJson(target)
+                return this;
+            }
         }
-        console.log(`未找到对应的模板`, target)
-        throw new Error('未找到对应的模板');
     }
     /**
      * 获取表格编辑规则提示词

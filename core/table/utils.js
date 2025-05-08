@@ -18,32 +18,38 @@ export function getColumnLetter(colIndex) {
     return letter;
 }
 
-export function filterSavingData(sheet) {
-    const r = {
-        uid: sheet.uid,
-        name: sheet.name,
-        domain: sheet.domain,
-        type: sheet.type,
-        enable: sheet.enable,
-        required: sheet.required,
-        tochat: sheet.tochat,
-        triggerSend: sheet.triggerSend,
-        triggerSendDeep: sheet.triggerSendDeep,
-        hashSheet: sheet.hashSheet, // 保存 hashSheet (只包含 cell uid)
-        cellHistory: sheet.cellHistory.map((
-            {
-                CellAction,
-                CellType,
-                bridge,
-                parent,
-                element,
-                customEventListeners,
-                ...filter
-            }) => {
-            return filter;
-        }), // 保存 cellHistory (不包含 parent)
-        config: sheet.config,
-    };
+export function filterSavingData(sheet, key=["uid", "name", "domain", "type", "enable", "required", "tochat", "triggerSend", "triggerSendDeep", "hashSheet", "cellHistory", "config"], withHead = false) {
+    const r = {}
+    key.forEach(k => {
+        if(k === 'cellHistory') {
+            r.cellHistory = sheet.cellHistory.map((
+                {
+                    CellAction,
+                    CellType,
+                    bridge,
+                    parent,
+                    element,
+                    customEventListeners,
+                    ...filter
+                }) => {
+                return filter;
+            });
+            return
+        }
+        if(k === 'content') {
+            r.content = sheet.getContent(withHead)
+            return
+        }
+        if(k === 'sourceData') {
+            r.sourceData = sheet.source.data
+            return
+        }
+        if(k === 'hashSheet'){
+            r.hashSheet = sheet.hashSheet.map(row => row.map(cell=> cell))
+            return
+        }
+        r[k] = sheet[k];
+    })
     const rr = JSON.parse(JSON.stringify(r));
     return rr;
 }
