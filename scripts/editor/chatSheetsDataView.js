@@ -415,11 +415,13 @@ function cellClickEvent(cell) {
 
         }, 0)
 
+        const element = event.target
+
         // 备份当前cell的style，以便在菜单关闭时恢复
-        const style = cell.element.style.cssText;
+        const style = element.style.cssText;
 
         // 获取单元格位置
-        const rect = cell.element.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
         const tableRect = viewSheetsContainer.getBoundingClientRect();
 
         // 计算菜单位置（相对于表格容器）
@@ -429,17 +431,17 @@ function cellClickEvent(cell) {
         $(viewSheetsContainer).append(menuElement);
 
         // 高亮cell
-        cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
-        cell.element.style.color = 'var(--SmartThemeQuoteColor)';
-        cell.element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
-        cell.element.style.zIndex = '999';
+        element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+        element.style.color = 'var(--SmartThemeQuoteColor)';
+        element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
+        element.style.zIndex = '999';
 
         menu.show(menuLeft, menuTop).then(() => {
-            cell.element.style.cssText = style;
+            element.style.cssText = style;
         })
         menu.frameUpdate((menu) => {
             // 重新定位菜单
-            const rect = cell.element.getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
             const tableRect = viewSheetsContainer.getBoundingClientRect();
 
             // 计算菜单位置（相对于表格容器）
