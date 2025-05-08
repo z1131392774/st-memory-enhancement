@@ -1,6 +1,7 @@
 import {USER} from '../core/manager.js';
 // @ts-ignore
-import { ChatCompletionService } from '/scripts/custom-request.js';
+//import { ChatCompletionService } from '/scripts/custom-request.js';
+//先注释掉防止无法启动
 
 export class LLMApiService {
     constructor(config = {}) {
@@ -51,7 +52,8 @@ export class LLMApiService {
                     if (!streamCallback || typeof streamCallback !== 'function') {
                         throw new Error("流式模式下必须提供有效的streamCallback函数");
                     }
-                    const streamGenerator = await ChatCompletionService.processRequest(requestData, {}, false); // extractData = false for stream
+                    const streamGenerator = '' //临时注释用
+                    //const streamGenerator = await ChatCompletionService.processRequest(requestData, {}, false); // extractData = false for stream
                     let fullResponse = '';
                     for await (const chunk of streamGenerator()) {
                         if (chunk.text) {
@@ -61,23 +63,16 @@ export class LLMApiService {
                     }
                     return this.#cleanResponse(fullResponse);
                 } else {
-                    const responseData = await ChatCompletionService.processRequest(requestData, {}, true); // extractData = true for non-stream
+                    const responseData = '' //临时注释用
+                    //const responseData = await ChatCompletionService.processRequest(requestData, {}, true); // extractData = true for non-stream
                     if (!responseData || !responseData.content) {
                         throw new Error("通过内部路由获取响应失败或响应内容为空");
                     }
                     return this.#cleanResponse(responseData.content);
                 }
             } catch (error) {
-                console.error("通过 SillyTavern 内部路由调用 LLM API 错误:", {
-                    message: error.message,
-                    stack: error.stack,
-                    requestData: {
-                        url: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address,
-                        model: this.config.model_name,
-                        api_url: this.config.api_url
-                    }
-                });
-                throw new Error(`代理请求失败: ${error.message}. 请检查代理地址(${USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address})和密钥是否正确`);
+                console.error("通过 SillyTavern 内部路由调用 LLM API 错误:", error);
+                throw error;
             }
         } else {
             // 未配置代理，使用原始的直接 fetch 逻辑
@@ -239,7 +234,8 @@ export class LLMApiService {
                     proxy_password: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key || null,
                 };
                 // 使用 processRequest 进行非流式请求测试
-                const responseData = await ChatCompletionService.processRequest(requestData, {}, true);
+                const responseData = '' //临时注释用
+                //const responseData = await ChatCompletionService.processRequest(requestData, {}, true);
                 if (!responseData || !responseData.content) {
                     throw new Error("通过内部路由测试连接失败或响应内容为空");
                 }
