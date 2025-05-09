@@ -347,10 +347,10 @@ function bindCellClickEvent(cell) {
             }
         }
 
+        const element = event.target
         // 备份当前cell的style，以便在菜单关闭时恢复
-        const style = cell.element.style.cssText;
-
-        const rect = cell.element.getBoundingClientRect();
+        const style = element.style.cssText;
+        const rect = element.getBoundingClientRect();
         const dragSpaceRect = drag.dragSpace.getBoundingClientRect();
         let popupX = rect.left - dragSpaceRect.left;
         let popupY = rect.top - dragSpaceRect.top;
@@ -358,14 +358,14 @@ function bindCellClickEvent(cell) {
         popupY /= drag.scale;
         popupY += rect.height / drag.scale + 3;
 
-        cell.element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
-        cell.element.style.color = 'var(--SmartThemeQuoteColor)';
-        cell.element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
-        cell.element.style.zIndex = '999';
+        element.style.backgroundColor = 'var(--SmartThemeUserMesBlurTintColor)';
+        element.style.color = 'var(--SmartThemeQuoteColor)';
+        element.style.outline = '1px solid var(--SmartThemeQuoteColor)';
+        element.style.zIndex = '999';
 
         drag.add('menu', cell.parent.currentPopupMenu.renderMenu());
         cell.parent.currentPopupMenu.show(popupX, popupY).then(() => {
-            cell.element.style.cssText = style;
+            element.style.cssText = style;
         });
     });
 }
