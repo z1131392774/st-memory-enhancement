@@ -198,14 +198,10 @@ export class Sheet extends SheetBase {
         if (typeof target === 'object') {
             if (target.domain === this.SheetDomain.global) {
                 console.log('从模板转化表格', target, this);
+                this.loadJson(target)
+                this.domain = 'chat'
                 this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;
-                this.name = target.name.replace('模板', '表格');
-                this.hashSheet = [target.hashSheet[0].map(uid => uid)];
-                this.required = target.required;
-                this.cellHistory = target.cellHistory.filter(c => this.hashSheet[0].includes(c.uid));
-                this.config = { ...target.config };
-                this.loadCells();
-                this.markPositionCacheDirty();
+                this.name = this.name.replace('模板', '表格');
                 this.template = target;
                 return this
             } else {
