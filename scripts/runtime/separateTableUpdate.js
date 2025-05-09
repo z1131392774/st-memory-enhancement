@@ -1,5 +1,7 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {rebuildTableActions} from "./absoluteRefresh.js";
+import { profile_prompts } from '../../data/profile_prompts.js';
+import { getPromptAndRebuildTable } from "./absoluteRefresh.js";
 
 let toBeExecuted = [];
 
@@ -63,8 +65,8 @@ function handleMessages(string) {
 
 function MarkChatAsWaiting(chat, swipeUid) {
     console.log(USER.getContext().chat);
-    console.log(chat.two_step_links);
-    console.log(chat.two_step_waiting);
+    console.log('chat.two_step_links:',chat.two_step_links);
+    console.log('chat.two_step_waiting:',chat.two_step_waiting);
     chat.two_step_waiting[swipeUid] = true;
 }
 
@@ -101,7 +103,7 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
         toBeExecuted.unshift(chat);
 
         // 如果对话长度未达到阈值，则直接继续往前找
-        if (r.length < USER.tableBaseSetting.step_by_step_threshold) continue;
+        if (toBeExecuted.length < USER.tableBaseSetting.step_by_step_threshold) continue;
 
         // 如果对话长度达到阈值，则通过标识符判断是否需要继续往前找
         const lastChatSwipeUid = getSwipeUid(lastChat);
@@ -161,33 +163,90 @@ export async function TableTwoStepSummary() {
     }
 
     // 检查是否开启执行前确认
-    EDITOR.confirm(`累计 ${todoChats.length} 长度的待总结文本，是否执行两步总结？`, '取消', '执行两步总结').then(async (result) => {
-        if (result === false) {
-            console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
-            MarkChatAsWaiting(currentPiece, swipeUid);
-            return false;
-        } else {
-            const r = await rebuildTableActions(true, true, todoChats);   // 执行两步总结
+    const popupContent = document.createElement('div');
+    popupContent.innerHTML = `
+        <p>累计 ${todoChats.length} 长度的待总结文本，是否执行两步总结？</p>
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <label for="two_step_summary_template_selector" style="display: block; margin-bottom: 5px;">选择总结模板:</label>
+            <select id="two_step_summary_template_selector" class="text_pole" style="width: 100%;">
+                <!-- Options will be populated here -->
+            </select>
+        </div>
+    `;
 
-            if (!r || r === '' || r === 'error') {
-                console.log('执行两步总结失败: ', `(${todoChats.length}) `, toBeExecuted);
-                MarkChatAsWaiting(currentPiece, swipeUid);
-                return false;
+    const $selector = $(popupContent.querySelector('#two_step_summary_template_selector'));
+    $selector.empty();
+
+    if (typeof profile_prompts !== 'undefined' && profile_prompts !== null) {
+        Object.entries(profile_prompts).forEach(([key, prompt]) => {
+            let prefix = '';
+            if (prompt.type === 'third_party') prefix = '**第三方** ';
+
+            $selector.append(
+                $('<option></option>')
+                    .val(key)
+                    .text(prefix + (prompt.name || key))
+            );
+        });
+
+        if (Object.keys(profile_prompts).length > 0) {
+            // 优先使用上次选择的模板，其次是 'rebuild_base'，最后是列表中的第一个
+            const defaultKey = USER.tableBaseSetting?.lastSelectedTemplate || (profile_prompts['rebuild_base'] ? 'rebuild_base' : Object.keys(profile_prompts)[0]);
+            if (profile_prompts[defaultKey]) {
+                 $selector.val(defaultKey);
+            } else if (Object.keys(profile_prompts).length > 0) {
+                 // 如果上述都找不到，则选择第一个可用的
+                 $selector.val(Object.keys(profile_prompts)[0]);
             }
+        }
+    } else {
+        console.warn('两步总结模板不可用，下拉菜单将为空或显示错误。');
+        $selector.append($('<option value="">模板加载失败</option>'));
+    }
 
-            if (r === 'suspended') {
-                console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
-                MarkChatAsWaiting(currentPiece, swipeUid);
-                return false;
-            }
+    const confirmationPopup = new EDITOR.Popup(popupContent, EDITOR.POPUP_TYPE.CONFIRM, '执行两步总结', {
+        okButton: "执行两步总结",
+        cancelButton: "取消"
+    });
 
+    await confirmationPopup.show();
+    console.log('confirmationPopup.result:', confirmationPopup.result);
+
+    if (!confirmationPopup.result) {
+        console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
+        MarkChatAsWaiting(currentPiece, swipeUid);
+    } else {
+        const selectedTemplateKey = $selector.val();
+        USER.tableBaseSetting.lastSelectedTemplate = selectedTemplateKey; // 保存当前选择
+        console.log('用户选择的总结模板KEY:', selectedTemplateKey);
+        // const selectedTemplate = profile_prompts[selectedTemplateKey]; // 获取用户选择的总结模板
+        // console.log('用户选择的总结模板:', selectedTemplate);
+
+        const r = await getPromptAndRebuildTable(selectedTemplateKey,'',true, true, todoChats);   // 执行两步总结
+
+        console.log('执行两步总结结果:', r);
+        //改为rebuild后只检查是否成功
+        if(r ==='success') {
             toBeExecuted.forEach(chat => {
                 const chatSwipeUid = getSwipeUid(chat);
                 chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
-            })
+            });
             toBeExecuted = [];
-
-            return true;
         }
-    })
+
+
+        // if (!r || r === '' || r === 'error') {
+        //     console.log('执行两步总结失败: ', `(${todoChats.length}) `, toBeExecuted);
+        //     MarkChatAsWaiting(currentPiece, swipeUid);
+        // } else if (r === 'suspended') {
+        //     console.log('用户取消执行两步总结 (API): ', `(${todoChats.length}) `, toBeExecuted);
+        //     MarkChatAsWaiting(currentPiece, swipeUid);
+        // } else {
+        //     toBeExecuted.forEach(chat => {
+        //         const chatSwipeUid = getSwipeUid(chat);
+        //         chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
+        //     });
+        //     toBeExecuted = [];
+        // }
+    }
 }
