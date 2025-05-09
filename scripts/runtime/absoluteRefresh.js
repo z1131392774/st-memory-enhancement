@@ -239,6 +239,7 @@ export async function getPromptAndRebuildTable(templateName = '', additionalProm
             // 默认使用rebuildTableActions
             r = await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
         }
+        return r;
     } catch (error) {
         console.error('获取提示模板失败:', error);
         EDITOR.error(`获取提示模板失败: ${error.message}`);

@@ -65,8 +65,8 @@ function handleMessages(string) {
 
 function MarkChatAsWaiting(chat, swipeUid) {
     console.log(USER.getContext().chat);
-    console.log(chat.two_step_links);
-    console.log(chat.two_step_waiting);
+    console.log('chat.two_step_links:',chat.two_step_links);
+    console.log('chat.two_step_waiting:',chat.two_step_waiting);
     chat.two_step_waiting[swipeUid] = true;
 }
 
@@ -224,6 +224,7 @@ export async function TableTwoStepSummary() {
 
         const r = await getPromptAndRebuildTable(selectedTemplateKey,'',true, true, todoChats);   // 执行两步总结
 
+        console.log('执行两步总结结果:', r);
         //改为rebuild后只检查是否成功
         if(r ==='success') {
             toBeExecuted.forEach(chat => {
