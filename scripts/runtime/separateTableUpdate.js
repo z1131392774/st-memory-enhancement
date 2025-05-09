@@ -210,8 +210,9 @@ export async function TableTwoStepSummary() {
     });
 
     await confirmationPopup.show();
+    console.log('confirmationPopup.result:', confirmationPopup.result);
 
-    if (confirmationPopup.result === false) {
+    if (!confirmationPopup.result) {
         console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
         MarkChatAsWaiting(currentPiece, swipeUid);
     } else {
