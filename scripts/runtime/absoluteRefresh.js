@@ -184,9 +184,12 @@ export function initRefreshTypeSelector() {
  * 根据选择的刷新类型获取对应的提示模板并调用rebuildTableActions
  * @param {string} templateName 提示模板名称
  * @param {string} additionalPrompt 附加的提示内容
+ * @param {boolean} force 是否强制刷新,不显示确认对话框
+ * @param {boolean} isSilentUpdate 是否静默更新,不显示操作确认
+ * @param {string} chatToBeUsed 要使用的聊天记录,为空则使用最近的聊天记录
  * @returns {Promise<void>}
  */
-async function getPromptAndRebuildTable(templateName = '', additionalPrompt) {
+export async function getPromptAndRebuildTable(templateName = '', additionalPrompt ,force, isSilentUpdate, chatToBeUsed = '') {
     let systemPrompt = '';
     let userPrompt = '';
 
@@ -226,14 +229,14 @@ async function getPromptAndRebuildTable(templateName = '', additionalPrompt) {
 
         // 根据提示模板类型选择不同的表格处理函数
         // const force = $('#bool_force_refresh').prop('checked');
-        const silentUpdate = $('#bool_silent_refresh').prop('checked');
+        const silentUpdate = isSilentUpdate !== undefined ? isSilentUpdate : $('#bool_silent_refresh').prop('checked');
         if (selectedPrompt.type === 'rebuild') {
-            await rebuildTableActions(true, silentUpdate);
+            await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
         } else if (selectedPrompt.type === 'refresh') {
-            await refreshTableActions(true, silentUpdate);
+            await refreshTableActions(force || true, silentUpdate);
         } else {
             // 默认使用rebuildTableActions
-            await rebuildTableActions(true, silentUpdate);
+            await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
         }
     } catch (error) {
         console.error('获取提示模板失败:', error);
@@ -310,6 +313,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                     return
                 }
             } catch (error) {
+                EDITOR.clear();
                 EDITOR.error('主API请求错误: ' + error.message);
             }
         }
@@ -317,10 +321,12 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
             try {
                 rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
                 if (rawContent === 'suspended') {
+                    EDITOR.clear();
                     EDITOR.info('操作已取消');
                     return
                 }
             } catch (error) {
+                EDITOR.clear();
                 EDITOR.error('自定义API请求错误: ' + error.message);
             }
         }
@@ -716,7 +722,10 @@ export async function rebuildSheets() {
     });
 
     // 设置默认选中项
-    $selector.val('rebuild_base');
+    // 从USER中读取上次选择的选项，如果没有则使用默认值
+    $selector.val(USER.tableBaseSetting?.lastSelectedTemplate || 'rebuild_base');
+    // 保存当前选择到USER中
+    USER.tableBaseSetting.lastSelectedTemplate = $selector.val();
     $additionalPrompt.val('');
 
     const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {

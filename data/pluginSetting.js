@@ -275,6 +275,8 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     use_token_limit: false,
     // 重整理token限制
     rebuild_token_limit_value: 10000,
+    // 重整理使用的提示词模板
+    lastSelectedTemplate: 'rebuild_base',
     refresh_system_message_template: `你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
     refresh_user_message_template: `根据以下规则整理表格：
 <整理规则>
