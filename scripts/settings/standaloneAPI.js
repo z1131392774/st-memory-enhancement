@@ -314,7 +314,7 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         try {
             // 创建LLMApiService实例
             const llmService = new LLMApiService({
-                api_url: apiUrl,
+                api_url: USER_API_URL,
                 api_key: currentApiKey,
                 model_name: USER_API_MODEL,
                 system_prompt: systemPrompt,
