@@ -192,6 +192,7 @@ export function initRefreshTypeSelector() {
 export async function getPromptAndRebuildTable(templateName = '', additionalPrompt ,force, isSilentUpdate, chatToBeUsed = '') {
     let systemPrompt = '';
     let userPrompt = '';
+    let r='';
 
     try {
         // 根据刷新类型获取对应的提示模板
@@ -231,12 +232,12 @@ export async function getPromptAndRebuildTable(templateName = '', additionalProm
         // const force = $('#bool_force_refresh').prop('checked');
         const silentUpdate = isSilentUpdate !== undefined ? isSilentUpdate : $('#bool_silent_refresh').prop('checked');
         if (selectedPrompt.type === 'rebuild') {
-            await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
+            r = await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
         } else if (selectedPrompt.type === 'refresh') {
-            await refreshTableActions(force || true, silentUpdate);
+            r = await refreshTableActions(force || true, silentUpdate);
         } else {
             // 默认使用rebuildTableActions
-            await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
+            r = await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
         }
     } catch (error) {
         console.error('获取提示模板失败:', error);
@@ -252,6 +253,7 @@ export async function getPromptAndRebuildTable(templateName = '', additionalProm
  * @returns
  */
 export async function rebuildTableActions(force = false, silentUpdate = false, chatToBeUsed = '') {
+    let r = '';
     if (!SYSTEM.lazy('rebuildTableActions', 1000)) return;
 
     // 如果不是强制刷新，先确认是否继续
@@ -390,6 +392,8 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                     // console.error("无法刷新表格：容器未找到");
                     // EDITOR.error('生成表格失败：容器未找到');
                 }
+                r = 'success';
+                return r;
             } catch (error) {
                 console.error('保存表格时出错:', error);
                 EDITOR.error(`生成表格失败：${error.message}`);

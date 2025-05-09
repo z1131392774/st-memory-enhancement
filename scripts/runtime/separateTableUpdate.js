@@ -224,18 +224,28 @@ export async function TableTwoStepSummary() {
 
         const r = await getPromptAndRebuildTable(selectedTemplateKey,'',true, true, todoChats);   // 执行两步总结
 
-        if (!r || r === '' || r === 'error') {
-            console.log('执行两步总结失败: ', `(${todoChats.length}) `, toBeExecuted);
-            MarkChatAsWaiting(currentPiece, swipeUid);
-        } else if (r === 'suspended') {
-            console.log('用户取消执行两步总结 (API): ', `(${todoChats.length}) `, toBeExecuted);
-            MarkChatAsWaiting(currentPiece, swipeUid);
-        } else {
+        //改为rebuild后只检查是否成功
+        if(r ==='success') {
             toBeExecuted.forEach(chat => {
                 const chatSwipeUid = getSwipeUid(chat);
                 chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
             });
             toBeExecuted = [];
         }
+
+
+        // if (!r || r === '' || r === 'error') {
+        //     console.log('执行两步总结失败: ', `(${todoChats.length}) `, toBeExecuted);
+        //     MarkChatAsWaiting(currentPiece, swipeUid);
+        // } else if (r === 'suspended') {
+        //     console.log('用户取消执行两步总结 (API): ', `(${todoChats.length}) `, toBeExecuted);
+        //     MarkChatAsWaiting(currentPiece, swipeUid);
+        // } else {
+        //     toBeExecuted.forEach(chat => {
+        //         const chatSwipeUid = getSwipeUid(chat);
+        //         chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
+        //     });
+        //     toBeExecuted = [];
+        // }
     }
 }
