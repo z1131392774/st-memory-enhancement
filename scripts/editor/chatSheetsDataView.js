@@ -28,7 +28,7 @@ const userTableEditInfo = {
  * @param {*} tables 所有表格数据
  */
 export async function copyTable() {
-    copyTableData = JSON.stringify(getTableJson({type:'chatSheets', version: 1})) 
+    copyTableData = JSON.stringify(getTableJson({type:'chatSheets', version: 1}))
     if(!copyTableData) return
     $('#table_drawer_icon').click()
 

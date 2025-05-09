@@ -317,7 +317,7 @@ function executeAction(EditAction, sheets) {
     switch (EditAction.type) {
         case 'update':
             // 执行更新操作
-            const rowIndex = parseInt(action.rowIndex)
+            const rowIndex = action.rowIndex ? parseInt(action.rowIndex):0
             if(rowIndex >= sheet.getRowCount()-1) return executeAction({...EditAction, type:'insert'}, sheets)
             Object.entries(action.data).forEach(([key, value]) => {
                 const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1)
@@ -637,7 +637,11 @@ async function onMessageReceived(chat_id) {
  * 聊天变化时触发
  */
 async function onChatChanged() {
-    updateSheetsView()
+    try{
+        updateSheetsView()
+    }catch (error) {
+        EDITOR.error("记忆插件：初始化表格失败\n原因：", error.message, error)
+    }
 }
 
 

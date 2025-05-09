@@ -35,5 +35,5 @@ export async function customSheetsStylePopup() {
         USER.tableBaseSetting.to_chat_container = resultDataContainer.value;
         updateSystemMessageTableStatus()
     }
-    console.log(resultDataContainer.value)
+    // console.log(resultDataContainer.value)
 }
