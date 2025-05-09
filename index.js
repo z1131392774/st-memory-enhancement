@@ -637,7 +637,11 @@ async function onMessageReceived(chat_id) {
  * 聊天变化时触发
  */
 async function onChatChanged() {
-    updateSheetsView()
+    try{
+        updateSheetsView()
+    }catch (error) {
+        EDITOR.error("记忆插件：初始化表格失败\n原因：", error.message, error)
+    }
 }
 
 
