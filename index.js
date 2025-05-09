@@ -60,7 +60,7 @@ export function buildSheetsByTemplates(targetPiece) {
             const newSheet = BASE.createChatSheetByTemp(template);
             newSheet.save(targetPiece);
         } catch (error) {
-            console.error(`[Memory Enhancement] 从模板创建或保存 sheet 时出错:`, template, error);
+            EDITOR.error(`[Memory Enhancement] 从模板创建或保存 sheet 时出错:`, "", error);
         }
     })
     BASE.updateSelectBySheetStatus()
@@ -491,21 +491,7 @@ async function onChatCompletionPromptReady(eventData) {
 
         updateSheetsView()
     } catch (error) {
-        // 获取堆栈信息
-        const stack = error.stack;
-        let lineNumber = '未知行';
-        if (stack) {
-            // 尝试从堆栈信息中提取行号，这里假设堆栈信息格式是常见的格式，例如 "at functionName (http://localhost:8080/file.js:12:34)"
-            const match = stack.match(/:(\d+):/); // 匹配冒号和数字，例如 ":12:"
-            if (match && match[1]) {
-                lineNumber = match[1] + '行';
-            } else {
-                // 如果无法提取到行号，则显示完整的堆栈信息，方便调试
-                lineNumber = '行号信息提取失败，堆栈信息：' + stack;
-            }
-        }
-
-        EDITOR.error(`记忆插件：表格数据注入失败\n位置：第${lineNumber}\n原因：`, '', error);
+        EDITOR.error(`记忆插件：表格数据注入失败\n原因：`,error.message, error);
     }
     console.log("注入表格总体提示词", eventData.chat)
 }
@@ -519,20 +505,7 @@ function getMacroPrompt() {
         const promptContent = initTableData()
         return promptContent
     }catch (error) {
-        // 获取堆栈信息
-        const stack = error.stack;
-        let lineNumber = '未知行';
-        if (stack) {
-            // 尝试从堆栈信息中提取行号，这里假设堆栈信息格式是常见的格式，例如 "at functionName (http://localhost:8080/file.js:12:34)"
-            const match = stack.match(/:(\d+):/); // 匹配冒号和数字，例如 ":12:"
-            if (match && match[1]) {
-                lineNumber = match[1] + '行';
-            } else {
-                // 如果无法提取到行号，则显示完整的堆栈信息，方便调试
-                lineNumber = '行号信息提取失败，堆栈信息：' + stack;
-            }
-        }
-        toastr.error(`记忆插件：宏提示词注入失败\n原因：${error.message}\n位置：第${lineNumber}`);
+        EDITOR.error(`记忆插件：宏提示词注入失败\n原因：`, error.message, error);
         return ""
     }
 }
@@ -546,20 +519,7 @@ function getMacroTablePrompt() {
         const promptContent = replaceUserTag(getTablePrompt())
         return promptContent
     }catch (error) {
-        // 获取堆栈信息
-        const stack = error.stack;
-        let lineNumber = '未知行';
-        if (stack) {
-            // 尝试从堆栈信息中提取行号，这里假设堆栈信息格式是常见的格式，例如 "at functionName (http://localhost:8080/file.js:12:34)"
-            const match = stack.match(/:(\d+):/); // 匹配冒号和数字，例如 ":12:"
-            if (match && match[1]) {
-                lineNumber = match[1] + '行';
-            } else {
-                // 如果无法提取到行号，则显示完整的堆栈信息，方便调试
-                lineNumber = '行号信息提取失败，堆栈信息：' + stack;
-            }
-        }
-        toastr.error(`记忆插件：宏提示词注入失败\n原因：${error.message}\n位置：第${lineNumber}`);
+        EDITOR.error(`记忆插件：宏提示词注入失败\n原因：`, error.message, error);
         return ""
     }
 }
@@ -680,14 +640,18 @@ export async function undoSheets(deep) {
  */
 async function updateSheetsView() {
     const task = new SYSTEM.taskTiming('openAppHeaderTableDrawer_task')
-    // 刷新表格视图
-    console.log("========================================\n更新表格视图")
-    refreshTempView(true).then(() => task.log());
-    console.log("========================================\n更新表格内容视图")
-    refreshContextView().then(() => task.log());
+    try{
+       // 刷新表格视图
+        console.log("========================================\n更新表格视图")
+        refreshTempView(true).then(() => task.log());
+        console.log("========================================\n更新表格内容视图")
+        refreshContextView().then(() => task.log());
 
-    // 更新系统消息中的表格状态
-    updateSystemMessageTableStatus();
+        // 更新系统消息中的表格状态
+        updateSystemMessageTableStatus(); 
+    }catch (error) {
+        EDITOR.error("记忆插件：更新表格视图失败\n原因：", error.message, error)
+    }
 }
 
 jQuery(async () => {
@@ -748,7 +712,6 @@ jQuery(async () => {
     // 对话数据表格弹出窗
     $(document).on('click', '.open_table_by_id', function () {
         const messageId = $(this).closest('.mes').attr('mesid');
-        // openTablePopup(parseInt(messageId));
         initRefreshTypeSelector();
     })
     // 设置表格开启开关

@@ -554,18 +554,18 @@ async function initTableView(mesId) {
     // 设置编辑提示
     // 点击打开查看表格数据统计
     $(document).on('click', '#table_data_statistics_button', function () {
-        openTableStatisticsPopup();
+        EDITOR.tryBlock(openTableStatisticsPopup, "打开表格统计失败")
     })
     // 点击打开查看表格历史按钮
     $(document).on('click', '#dataTable_history_button', function () {
-        openTableHistoryPopup();
+        EDITOR.tryBlock(openTableHistoryPopup, "打开表格历史失败")
     })
     // 点击清空表格按钮
     $(document).on('click', '#clear_table_button', function () {
-        clearTable(userTableEditInfo.chatIndex, viewSheetsContainer);
+        EDITOR.tryBlock(clearTable, "清空表格失败", userTableEditInfo.chatIndex, viewSheetsContainer);
     })
     $(document).on('click', '#table_rebuild_button', function () {
-        rebuildSheets()
+        EDITOR.tryBlock(rebuildSheets, "重建表格失败");
     })
     // 点击编辑表格按钮
     $(document).on('click', '#table_edit_mode_button', function () {
@@ -573,19 +573,19 @@ async function initTableView(mesId) {
     })
     // 点击恢复表格按钮
     $(document).on('click', '#table_undo', function () {
-        undoTable();
+        EDITOR.tryBlock(undoTable, "恢复表格失败");
     })
     // 点击复制表格按钮
     $(document).on('click', '#copy_table_button', function () {
-        copyTable();
+        EDITOR.tryBlock(copyTable, "复制表格失败");
     })
     // 点击导入表格按钮
     $(document).on('click', '#import_table_button', function () {
-        importTable(userTableEditInfo.chatIndex, viewSheetsContainer);
+        EDITOR.tryBlock(importTable, "导入表格失败", userTableEditInfo.chatIndex, viewSheetsContainer);
     })
     // 点击导出表格按钮
     $(document).on('click', '#export_table_button', function () {
-        exportTable();
+        EDITOR.tryBlock(exportTable, "导出表格失败");
     })
 
     return initializedTableView;
