@@ -1,5 +1,4 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
-
 let sheet = null;
 let config = {};
 let selectedCustomStyle = null;
@@ -288,13 +287,23 @@ function executeRendering(target) {
  * @returns {string} 渲染后的HTML
  */
 export function parseSheetRender(instance, rendererConfig = undefined) {
-    sheet = JSON.parse(JSON.stringify(instance));
+    let config;
     if (rendererConfig !== undefined) {
         config = rendererConfig;
     } else {
-        config = sheet.config || {};
+        // 直接使用 instance 的 config
+        config = instance.config || {};  // 修改这里
     }
-    selectedCustomStyle = config.customStyles[config.selectedCustomStyleKey];
+
+    // 添加防御性编程
+    if (!config.customStyles) {
+        config.customStyles = {};
+    }
+    if (!config.selectedCustomStyleKey) {
+        config.selectedCustomStyleKey = 'default'; // 使用默认自定义样式
+    }
+
+    selectedCustomStyle = config.customStyles[config.selectedCustomStyleKey] || {};
 
     const r = executeRendering(instance);
     return r;
