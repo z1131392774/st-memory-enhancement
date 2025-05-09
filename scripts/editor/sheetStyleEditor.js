@@ -457,7 +457,7 @@ export async function openSheetStyleRendererPopup(originInstance) {
         const alternateLevel = Number(finalConfig.alternateLevel);
         const styleBasedOn = ["html", "csv", "json", "array"];
         const numberBoollen = isNaN(alternateLevel) || alternateLevel < 0 || Number.isInteger(alternateLevel) === false;  //是否满足非负整数
-        const styleBoollen = styleBasedOn.includes(finalConfig.customStyles.basedOn);      //方式必须为html、csv、json、array
+        const styleBoollen = styleBasedOn.includes(finalConfig.customStyles[finalConfig.selectedCustomStyleKey].basedOn);      //方式必须为html、csv、json、array
         if (numberBoollen || (alternateLevel > 0 && !styleBoollen)) {     //输入的插入层级必须为非负整数，且不能为MarkDown格式否则改为0
             finalConfig.alternateLevel = 0;
             EDITOR.warning('穿插层级必须为非负整数，且不能为MarkDown格式，否则强制改为0');
