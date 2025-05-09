@@ -293,7 +293,6 @@ function bindStyleManagementEvents() {
 
         templateInstance.config.customStyles = templateInstance.config.customStyles || {};
         templateInstance.config.customStyles[styleName] = getFormData();
-        console.log("bindStyleManagementEvents: 收集到的样式配置:", getFormData());
         dom.addOption(elements.presetStyle, styleName);
         dom.setValue(elements.presetStyle, styleName);
         dom.triggerEvent(elements.presetStyle, 'change');
