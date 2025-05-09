@@ -101,7 +101,7 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
         toBeExecuted.unshift(chat);
 
         // 如果对话长度未达到阈值，则直接继续往前找
-        if (r.length < USER.tableBaseSetting.step_by_step_threshold) continue;
+        if (toBeExecuted.length < USER.tableBaseSetting.step_by_step_threshold) continue;
 
         // 如果对话长度达到阈值，则通过标识符判断是否需要继续往前找
         const lastChatSwipeUid = getSwipeUid(lastChat);
