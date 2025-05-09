@@ -503,8 +503,9 @@ async function initTableEdit(mesId) {
         let newTemplateUid = null
         let newTemplate = null
         if (scope === 'chat') {
-            newTemplate = new BASE.createChatSheet(2, 1)
+            newTemplate = BASE.createChatSheet(2, 1)
             newTemplateUid = newTemplate.uid
+            newTemplate.save()
         } else {
             newTemplate = new BASE.SheetTemplate().createNewTemplate();
             newTemplateUid = newTemplate.uid
