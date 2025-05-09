@@ -732,5 +732,6 @@ jQuery(async () => {
     APP.eventSource.on(APP.event_types.CHAT_CHANGED, onChatChanged);
     APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
     APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
+    APP.eventSource.on(APP.event_types.MESSAGE_DELETED, onChatChanged);
     console.log("______________________记忆插件：加载完成______________________")
 });
