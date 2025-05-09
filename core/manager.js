@@ -278,7 +278,14 @@ export const EDITOR = {
     getSlideToggleOptions: APP.getSlideToggleOptions,
     slideToggle: APP.slideToggle,
     confirm: newPopupConfirm,
-
+    tryBlock: (cb, errorMsg, ...args) => {
+        try {
+            return cb(...args);
+        } catch (e) {
+            EDITOR.error(errorMsg ?? '执行代码块失败', e.message, e);
+            return null;
+        }
+    },
     info: (message, detail = '', timeout = 500) => consoleMessageToEditor.info(message, detail, timeout),
     success: (message, detail = '', timeout = 500) => consoleMessageToEditor.success(message, detail, timeout),
     warning: (message, detail = '', timeout = 2000) => consoleMessageToEditor.warning(message, detail, timeout),
