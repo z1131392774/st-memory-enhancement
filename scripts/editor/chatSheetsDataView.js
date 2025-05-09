@@ -244,7 +244,7 @@ async function columnDataEdit(cell) {
 function batchEditMode(cell) {
     DERIVED.any.batchEditMode = true;
     DERIVED.any.batchEditModeSheet = cell.parent;
-    EDITOR.confirm(`正在编辑 #${cell.parent.name} 的行`, '取消', '保存修改').then((r) => {
+    EDITOR.confirm(`正在编辑 #${cell.parent.name} 的行`, '取消', '完成').then((r) => {
         DERIVED.any.batchEditMode = false;
         DERIVED.any.batchEditModeSheet = null;
         renderSheetsDOM();
@@ -283,9 +283,10 @@ export function cellClickEditModeEvent(cell) {
         $(deleteDiv).on('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            if (cell.locked) return
+            handleAction(cell, cell.CellAction.deleteSelfRow)
+            //if (cell.locked) return
 
-            cell.parent.hashSheet.forEach(row => {
+            /* cell.parent.hashSheet.forEach(row => {
                 if (row[0] === cell.uid) {
                     row.forEach((hash) => {
                         const target = cell.parent.cells.get(hash)
@@ -293,10 +294,10 @@ export function cellClickEditModeEvent(cell) {
                         target.element.style.backgroundColor = target._pre_deletion ? '#ff000044' : ''
                     })
                 }
-            })
+            }) */
         })
 
-        $(rightDiv).append(lockDiv).append(deleteDiv)
+        $(rightDiv).append(deleteDiv)
         $(containerDiv).append(indexDiv).append(rightDiv)
         $(cell.element).append(containerDiv)
 
@@ -391,7 +392,7 @@ function cellClickEvent(cell) {
         const sheetType = cell.parent.type;
 
         if (rowIndex === 0 && colIndex === 0) {
-            menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
+            menu.add('<i class="fa-solid fa-bars-staggered"></i> 批量行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-right"></i> 向右插入列', () => handleAction(cell, cell.CellAction.insertRightColumn));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
             menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', async () => customSheetStyle(cell));
