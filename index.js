@@ -317,7 +317,7 @@ function executeAction(EditAction, sheets) {
     switch (EditAction.type) {
         case 'update':
             // 执行更新操作
-            const rowIndex = parseInt(action.rowIndex)
+            const rowIndex = action.rowIndex ? parseInt(action.rowIndex):0
             if(rowIndex >= sheet.getRowCount()-1) return executeAction({...EditAction, type:'insert'}, sheets)
             Object.entries(action.data).forEach(([key, value]) => {
                 const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1)
