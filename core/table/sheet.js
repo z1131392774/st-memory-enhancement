@@ -111,7 +111,7 @@ export class Sheet extends SheetBase {
      */
     getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules'], eventData) {
         console.log('获取表格内容提示词', this)
-        if (this.triggerSendDeep < 1) return ''; // 如果触发深度=0，则不发送，可以用作信息一览表
+        if (this.triggerSend && this.triggerSendDeep < 1) return ''; // 如果触发深度=0，则不发送，可以用作信息一览表
         const title = `* ${index}:${this.name}\n`;
         const node = this.source.data.note && this.source.data.note !== '' ? '【说明】' + this.source.data.note + '\n' : '';
         const headers = "rowIndex," + this.getCellsByRowIndex(0).slice(1).map((cell, index) => index + ':' + cell.data.value).join(',') + '\n';
