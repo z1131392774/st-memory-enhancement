@@ -179,8 +179,7 @@ function collectConfigThenUpdateTemplate() {
     const styleName = elements.presetStyle.find('option:selected').text();
     const customStyles = { ...(templateInstance.config.customStyles || {}) };
     const currentStyle = getFormData();
-
-    if (selectedKey !== 'default') {
+    if (selectedKey !== 'default' || Object.keys(customStyles).length === 0) {
         customStyles[styleName] = currentStyle;
     }
 
@@ -294,7 +293,6 @@ function bindStyleManagementEvents() {
 
         templateInstance.config.customStyles = templateInstance.config.customStyles || {};
         templateInstance.config.customStyles[styleName] = getFormData();
-
         dom.addOption(elements.presetStyle, styleName);
         dom.setValue(elements.presetStyle, styleName);
         dom.triggerEvent(elements.presetStyle, 'change');
@@ -458,7 +456,7 @@ export async function openSheetStyleRendererPopup(originInstance) {
         const alternateLevel = Number(finalConfig.alternateLevel);
         const styleBasedOn = ["html", "csv", "json", "array"];
         const numberBoollen = isNaN(alternateLevel) || alternateLevel < 0 || Number.isInteger(alternateLevel) === false;  //是否满足非负整数
-        const styleBoollen = styleBasedOn.includes(finalConfig.customStyles['自定义样式'].basedOn);      //方式必须为html、csv、json、array
+        const styleBoollen = styleBasedOn.includes(finalConfig.customStyles[finalConfig.selectedCustomStyleKey].basedOn);      //方式必须为html、csv、json、array
         if (numberBoollen || (alternateLevel > 0 && !styleBoollen)) {     //输入的插入层级必须为非负整数，且不能为MarkDown格式否则改为0
             finalConfig.alternateLevel = 0;
             EDITOR.warning('穿插层级必须为非负整数，且不能为MarkDown格式，否则强制改为0');

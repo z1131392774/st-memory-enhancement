@@ -148,23 +148,41 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             // console.log('进行普通渲染当前普通表格内容：',sheet.tableSheet);
             if (sheet.config.toChat === false) continue; // 如果不需要推送到聊天，则跳过
             if (sheet.config.useCustomStyle === true) {
-                sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
-                ordinarycustomStyleRender(sheet, _viewSheetsContainer);
-            } else {
-                defaultStyleRender(indexOriginary[i], sheet, _viewSheetsContainer);
+                // 确保 customStyles 存在且选中的样式有 replace 属性
+                if (sheet.config.customStyles &&
+                    sheet.config.selectedCustomStyleKey &&
+                    sheet.config.customStyles[sheet.config.selectedCustomStyleKey]?.replace) {
+
+                    sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
+                    ordinarycustomStyleRender(sheet, _viewSheetsContainer);
+                    continue; // 处理完成后跳过默认渲染
+                }
             }
+            defaultStyleRender(indexOriginary[i], sheet, _viewSheetsContainer);
+
         }
     }
     else {
-        console.log('进入普通渲染模式');
-        for (let [index, sheet] of _sheets.entries()) { // 遍历工作表数组,使用entries()方法获取每个工作表的索引和内容
-            if (sheet.config.toChat === false) continue; // 如果不需要推送到聊天，则跳过
+        // console.log('进入普通渲染模式');
+        for (let [index, sheet] of _sheets.entries()) {
+            // 如果不需要推送到聊天，则跳过
+            if (sheet.config.toChat === false) continue;
+
+            // 检查是否使用自定义样式且满足条件
             if (sheet.config.useCustomStyle === true) {
-                sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
-                ordinarycustomStyleRender(sheet, _viewSheetsContainer);
-            } else {
-                defaultStyleRender(index, sheet, _viewSheetsContainer);
+                // 确保 customStyles 存在且选中的样式有 replace 属性
+                if (sheet.config.customStyles &&
+                    sheet.config.selectedCustomStyleKey &&
+                    sheet.config.customStyles[sheet.config.selectedCustomStyleKey]?.replace) {
+
+                    sheet.tableSheet = loadValueSheetBySheetHashSheet(sheet);
+                    ordinarycustomStyleRender(sheet, _viewSheetsContainer);
+                    continue; // 处理完成后跳过默认渲染
+                }
             }
+
+            // 默认样式渲染（包括 useCustomStyle=false 或 customStyles 不满足条件的情况）
+            defaultStyleRender(index, sheet, _viewSheetsContainer);
         }
     }
 }
