@@ -103,7 +103,8 @@ async function importTable(mesId, viewSheetsContainer) {
                 const result = await popup.show()
                 if (result) {
                         const tables = JSON.parse(loadEvent.target.result)
-                        if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
+                        console.log("导入内容", tables, tables.mate, !(tables.mate === 'chatSheets'))
+                        if(!(tables.mate === 'chatSheets'))  return EDITOR.error("导入失败：文件格式不正确", "请检查你导入的是否是表格数据")
                         if(result === 3)
                             BASE.applyJsonToChatSheets(tables, "data")
                         else
