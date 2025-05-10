@@ -122,11 +122,11 @@ export class Sheet extends SheetBase {
             const chatContents = eventData.chat.map(chat => chat.content).join('\n');
             // console.log("获取事件数据-聊天内容", chatContents);  //调试用，正常情况不打开
             const rowsArray = rows.split('\n').filter(line => {
+                if (this.triggerSendDeep < 1) return false; // 如果触发深度=0，则不发送，可以用作信息一览表
                 line = line.trim();
                 if (!line) return false;
                 const parts = line.split(',');
-                if (parts.length < Math.max(1, this.triggerSendDeep)) return false;  // 确保至少有1个触发式规则
-                const str1 = parts[1]; // 字符串1对应索引1
+                const str1 = parts?.[1] ?? ""; // 字符串1对应索引1
                 return chatContents.includes(str1);
             });
             rows = rowsArray.join('\n');

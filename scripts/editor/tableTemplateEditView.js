@@ -245,7 +245,7 @@ function bindSheetSetting(sheet, index) {
                     sheet.data[key] = diffData[key];
                 } else if (['triggerSendDeep'].includes(key) && diffData[key] != null) {
                     console.log("对比成功将更新" + key)
-                    sheet[key] = Math.max(1, Math.floor(diffData[key]));
+                    sheet[key] = Math.max(0, Math.floor(diffData[key]));
                 }
             })
             sheet.save()
