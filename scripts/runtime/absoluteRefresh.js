@@ -389,11 +389,11 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
                     refreshContextView();
                     updateSystemMessageTableStatus();
                     EDITOR.success('生成表格成功！');
+                    r = 'success';
                 } else {
                     // console.error("无法刷新表格：容器未找到");
                     // EDITOR.error('生成表格失败：容器未找到');
                 }
-                r = 'success';
                 return r;
             } catch (error) {
                 console.error('保存表格时出错:', error);
@@ -983,14 +983,99 @@ function fixTableFormat(inputText) {
     };
 
     const extractTable = (text) => {
-        // 匹配包含6个表格的特征（如"tableIndex":5）
-        const comprehensiveRegex = /(\[\s*{[\s\S]*?"tableIndex":\s*5[\s\S]*?}\s*\])/;
-        const match = text.match(comprehensiveRegex);
-        if (match) return match[1];
+        let balance = 0;
+        let startIndex = -1;
+        let inString = false;
+        let escapeNext = false;
 
-        // 兜底：直接提取最长的疑似JSON数组
-        const candidates = text.match(/\[[^\[\]]*\]/g) || [];
-        return candidates.sort((a, b) => b.length - a.length)[0];
+        // 查找潜在数组的第一个左方括号
+        let initialArrayIndex = -1;
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '[') {
+                initialArrayIndex = i;
+                break;
+            }
+        }
+
+        if (initialArrayIndex === -1) {
+            console.warn("extractTable: 未找到左方括号 '['。将回退到正则表达式。");
+            const regex = /\[(?:[^\[\]"]|"(?:\\.|[^"\\])*"|\{[^{}]*?\})*?\]/g;
+            let match;
+            const candidates = [];
+            while((match = regex.exec(text)) !== null) {
+                try {
+                    JSON5.parse(match[0]);
+                    candidates.push(match[0]);
+                } catch(e) { /* 忽略无效的JSON */ }
+            }
+            if (candidates.length > 0) return candidates.sort((a, b) => b.length - a.length)[0];
+            const simpleCandidates = text.match(/\[[^\[\]]*\]/g) || [];
+            return simpleCandidates.sort((a, b) => b.length - a.length)[0] || null;
+        }
+
+        startIndex = initialArrayIndex;
+
+        for (let i = startIndex; i < text.length; i++) {
+            const char = text[i];
+
+            if (escapeNext) {
+                escapeNext = false;
+                continue;
+            }
+
+            if (char === '\\') {
+                escapeNext = true;
+                continue;
+            }
+
+            if (char === '"') {
+                inString = !inString;
+            }
+
+            if (inString) {
+                continue;
+            }
+
+            if (char === '[') {
+                balance++;
+            } else if (char === ']') {
+                balance--;
+                if (balance === 0 && startIndex !== -1) {
+                    const extracted = text.substring(startIndex, i + 1);
+                    try {
+                        JSON5.parse(extracted);
+                        return extracted;
+                    } catch (e) {
+                        console.error("extractTable: 通过括号计数提取的片段不是有效的JSON。片段:", extracted, "错误:", e, "正在回退。");
+                        startIndex = -1; // 使当前尝试无效
+                        balance = 0; // 重置计数
+                        break; // 退出循环以进行回退
+                    }
+                }
+            }
+        }
+        EDITOR.clear();
+        EDITOR.error("整理失败！生成的回复不完整，大概率是破限问题!");
+        throw new Error("未能找到完整的有效JSON数组，流程中止！");
+
+        // console.warn("extractTable: 括号计数未能找到完整的有效JSON数组。将回退到正则表达式。");
+        // const regex = /\[(?:[^\[\]"]|"(?:\\.|[^"\\])*"|\{[^{}]*?\})*?\]/g;
+        // let match;
+        // const candidates = [];
+        // while((match = regex.exec(text)) !== null) {
+        //     try {
+        //         JSON5.parse(match[0]);
+        //         candidates.push(match[0]);
+        //     } catch(e) { /* 忽略无效的JSON */ }
+        // }
+        //
+        // if (candidates.length > 0) {
+        //     return candidates.sort((a, b) => b.length - a.length)[0];
+        // }
+
+        // console.warn("extractTable: 改进的正则表达式也失败了。将回退到原始的简单正则表达式。");
+        // const simpleCandidates = text.match(/\[[^\[\]]*\]/g) || [];
+        // return simpleCandidates.sort((a, b) => b.length - a.length)[0] || null;
     };
 
     // 主流程
@@ -1024,22 +1109,43 @@ function fixTableFormat(inputText) {
         }));
 
 
-        // 列对齐修正（原逻辑保留）
-        return tables.map(table => {
-            const columnCount = table.columns.length;
-            table.content = table.content.map(row =>
-                Array.from({ length: columnCount }, (_, i) => row[i]?.toString().trim() || "")
-            );
+        // 列对齐修正
+        return tables.map((table, index) => {
+            if (!table || typeof table !== 'object') {
+                console.error(`处理索引 ${index} 处的表格时出错：表格数据无效（null、undefined 或不是对象）。接收到：`, table);
+                return { tableName: `无效表格 (索引 ${index})`, columns: [], content: [] }; // 返回默认的空表格结构
+            }
+
+            let columnCount = 0;
+            if (table.columns) {
+                if (Array.isArray(table.columns)) {
+                    columnCount = table.columns.length;
+                } else {
+                    console.error(`表格 "${table.tableName || `(原始索引 ${index})`}" 在映射索引 ${index} 处的表格结构错误：'columns' 属性不是数组。找到：`, table.columns);
+                }
+            } else {
+                console.error(`表格 "${table.tableName || `(原始索引 ${index})`}" 在映射索引 ${index} 处的表格结构错误：未找到 'columns' 属性。找到：`, table);
+            }
+
+            if (Array.isArray(table.content)) {
+                table.content = table.content.map(row => {
+                    if (row === null || row === undefined) {
+                        return Array(columnCount).fill("");
+                    }
+                    return Array.from({ length: columnCount }, (_, i) => row[i]?.toString().trim() || "");
+                });
+            } else {
+                console.error(`表格 "${table.tableName || `(原始索引 ${index})`}" 在映射索引 ${index} 处的表格结构错误：'content' 属性不是数组。找到：`, table.content);
+                table.content = []; // 如果 'content' 不是数组或缺失，则默认为空
+            }
             return table;
         });
     } catch (error) {
         console.error("修复失败:", error);
-        console.error("修复失败，尝试最后手段...");
-        // 暴力提取所有可能表格
-        const rawTables = inputText.match(/{[^}]*?"tableIndex":\s*\d+[^}]*}/g) || [];
-        console.log('暴力提取所有可能表格:', rawTables);
-        const sixTables = rawTables.slice(0, 6).map(t => JSON.parse(t.replace(/'/g, '"')));
-        console.log('前6个表格为:', sixTables);
-        return sixTables
+        throw new Error('无法解析表格数据');
+        // 原暴力提取逻辑已禁用
+        // const rawTables = inputText.match(/{[^}]*?"tableIndex":\s*\d+[^}]*}/g) || [];
+        // const sixTables = rawTables.slice(0, 6).map(t => JSON.parse(t.replace(/'/g, '"')));
+        // return sixTables
     }
 }

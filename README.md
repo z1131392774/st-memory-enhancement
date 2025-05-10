@@ -104,9 +104,9 @@
     </a>
 </p>
 
-**Master 分支贡献统计：**
+**Dev 分支贡献统计：**
 <p align="center">
-    <img src="https://repobeats.axiom.co/api/embed/ece4e039de7cf89ed5ccc9fba2e9b432e44dfaaa.svg" alt="Master 分支代码分析" style="max-width: 80%; border-radius: 5px;">
+    <img src="https://repobeats.axiom.co/api/embed/eb3c2af1bcdb84704bb9ff8f61379fe38d634884.svg" alt="Dev 分支代码分析" style="max-width: 80%; border-radius: 5px;">
 </p>
 
 ## 🤗 感谢所有人的使用与支持

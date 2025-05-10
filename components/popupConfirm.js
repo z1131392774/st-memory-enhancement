@@ -148,7 +148,7 @@ export class PopupConfirm {
 
                 // Remove element after animation completes
                 setTimeout(() => {
-                    if (this.toastElement && this.toastElement.parentNode) {
+                    if (this.toastContainer && this.toastElement && this.toastElement.parentNode === this.toastContainer) {
                         this.toastContainer.removeChild(this.toastElement);
                     }
                     // Remove container if it's empty
@@ -183,9 +183,13 @@ export class PopupConfirm {
             // this.toastElement.style.transform = 'translateY(-30px)';
             this.toastElement.style.opacity = '0';
             setTimeout(() => {
-                this.toastContainer.removeChild(this.toastElement);
-                if (this.toastContainer.children.length === 0) {
-                    document.body.removeChild(this.toastContainer);
+                if (this.toastContainer && this.toastElement && this.toastElement.parentNode === this.toastContainer) {
+                    this.toastContainer.removeChild(this.toastElement);
+                }
+                if (this.toastContainer && this.toastContainer.children.length === 0) {
+                    if (document.body.contains(this.toastContainer)) {
+                        document.body.removeChild(this.toastContainer);
+                    }
                 }
             }, 300);
         }
