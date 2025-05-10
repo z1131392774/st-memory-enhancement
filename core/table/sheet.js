@@ -111,6 +111,7 @@ export class Sheet extends SheetBase {
      */
     getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules'], eventData) {
         console.log('获取表格内容提示词', this)
+        if (this.triggerSendDeep < 1) return ''; // 如果触发深度=0，则不发送，可以用作信息一览表
         const title = `* ${index}:${this.name}\n`;
         const node = this.source.data.note && this.source.data.note !== '' ? '【说明】' + this.source.data.note + '\n' : '';
         const headers = "rowIndex," + this.getCellsByRowIndex(0).slice(1).map((cell, index) => index + ':' + cell.data.value).join(',') + '\n';
@@ -122,7 +123,6 @@ export class Sheet extends SheetBase {
             const chatContents = eventData.chat.map(chat => chat.content).join('\n');
             // console.log("获取事件数据-聊天内容", chatContents);  //调试用，正常情况不打开
             const rowsArray = rows.split('\n').filter(line => {
-                if (this.triggerSendDeep < 1) return false; // 如果触发深度=0，则不发送，可以用作信息一览表
                 line = line.trim();
                 if (!line) return false;
                 const parts = line.split(',');
@@ -131,7 +131,6 @@ export class Sheet extends SheetBase {
             });
             rows = rowsArray.join('\n');
         }
-
         let result = '';
 
         if (customParts.includes('title')) {
