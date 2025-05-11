@@ -57,12 +57,11 @@ function insertCustomRender(tableRole, insertMark, cycleMark, indexForTableRole,
         // console.log("穿插及嵌入渲染表格角色赋值给sheet：" + _sheets[index].tableSheet);
         const customContent = parseSheetRender(_sheets[index]);
         // console.log("穿插及嵌入渲染表格返回文本customContentt：" + customContent);
-        if (insertMark[i]) {
-            customStyle = customStyle.replace(
-                new RegExp(`<replaceHolder${index}([^>]*)><\\/replaceHolder${index}>`, 'g'),
-                customContent
-            );
+        const placeholderPattern = `<replaceHolder${index}([^>]*)><\\/replaceHolder${index}>`;
+        const placeholderRegex = new RegExp(placeholderPattern, 'g');
 
+        if (insertMark[i] && customStyle.match(placeholderRegex)) {
+            customStyle = customStyle.replace(placeholderRegex, customContent);
         } else {
             customStyle += customContent;
         }
