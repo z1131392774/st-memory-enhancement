@@ -17,6 +17,7 @@ const customStyleConfig = {
     basedOn: 'html',
     regex: '/(^[\\s\\S]*$)/g',
     replace: `$1`,
+    replaceDivide: '',  //用于临时保存分离后的css代码
 }
 
 export class SheetBase {
@@ -45,6 +46,7 @@ export class SheetBase {
             useCustomStyle: false,            // 用于标记是否使用自定义样式
             triggerSendToChat: false,            // 用于标记是否触发发送到聊天
             alternateTable: false,            // 用于标记是否该表格是否参与穿插模式，同时可暴露原设定层级
+            insertTable: false,                  // 用于标记是否需要插入表格，默认为false，不插入表格
             alternateLevel: 0,                     // 用于标记是穿插并到一起,为0表示不穿插，大于0按同层级穿插
             skipTop: false,                     // 用于标记是否跳过表头
             selectedCustomStyleKey: '',       // 用于存储选中的自定义样式，当selectedCustomStyleUid没有值时，使用默认样式
@@ -140,7 +142,7 @@ export class SheetBase {
         Object.assign(this, JSON.parse(JSON.stringify(json)));
         if(this.cellHistory.length > 0) this.loadCells()
         if(this.content) this.rebuildHashSheetByValueSheet(this.content)
-    
+
         this.markPositionCacheDirty();
     }
 

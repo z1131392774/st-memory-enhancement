@@ -86,6 +86,7 @@ async function getUIElements($dlg) {
         tableStyleButton: $dlg.find('#table_style_button'),
         triggerSendToChatButton: $dlg.find('#table_triggerSendToChat_button'),
         alternateTableButton: $dlg.find('#table_alternateTable_button'),
+        insertTableButton: $dlg.find('#table_insertTable_button'),
         skipTopButton: $dlg.find('#table_skipTop_button'),
         tablePreviewButton: $dlg.find('#table_style_preview_button'),
         presetStyle: $dlg.find('#preset_style'),
@@ -188,6 +189,7 @@ function collectConfigThenUpdateTemplate() {
         useCustomStyle: dom.isChecked(elements.tableStyleButton),
         triggerSendToChat: dom.isChecked(elements.triggerSendToChatButton),
         alternateTable: dom.isChecked(elements.alternateTableButton),
+        insertTable: dom.isChecked(elements.insertTableButton),
         skipTop: dom.isChecked(elements.skipTopButton),
         alternateLevel: dom.getValue(elements.alternateLevel),
         selectedCustomStyleKey: styleName,
@@ -224,6 +226,7 @@ function initUIValues() {
     dom.setChecked(elements.tableStyleButton, templateInstance.config.useCustomStyle !== false);
     dom.setChecked(elements.triggerSendToChatButton, templateInstance.config.triggerSendToChat !== false);
     dom.setChecked(elements.alternateTableButton, templateInstance.config.alternateTable == true);
+    dom.setChecked(elements.insertTableButton, templateInstance.config.insertTable == true);
     dom.setChecked(elements.skipTopButton, templateInstance.config.skipTop == true);
     dom.setChecked(elements.tablePreviewButton, false);
     dom.setValue(elements.alternateLevel, templateInstance.config.alternateLevel || 0);

@@ -118,7 +118,7 @@ function regexReplacePipeline(text) {
 
     // Get regex and replace strings from the configuration
     const regexString = selectedCustomStyle.regex || '';
-    const replaceString = selectedCustomStyle.replace || '';
+    const replaceString = selectedCustomStyle.replaceDivide || '';
 
     // If either regex or replace is empty, return the original text
     if (!regexString || regexString === '') return text;
@@ -178,14 +178,14 @@ function regexReplacePipeline(text) {
 }
 /**
  * 获取最近的剧情内容
- * @returns {string} - 获取最近的剧情内容，正则掉思维连和表格函数
+ * @returns {string} - 获取最近的剧情内容，正则掉思维连
  */
 function getLastPlot() {
     const chat = USER.getContext().chat;
     for (let i = chat.length - 1; i >= 0; i--) {
         if (chat[i].mes != "" && chat[i].is_user == false) {
             const regex1 = "<thinking>[\\s\\S]*?<\/thinking>";
-            const regex2 = "<tableEdit>[\\s\\S]*?<\/tableEdit>";
+            const regex2 = "临时停用<tableEdit>[\\s\\S]*?<\/tableEdit>";  //暂时不正则掉tableEdit内容看看效果
             const regex = new RegExp(`${regex1}|${regex2}`, "g")
             return chat[i].mes.replace(regex, '');
         }
@@ -214,8 +214,6 @@ function triggerValueSheet(valueSheet = []) {
  */
 export function initializeText(target, selectedStyle) {
     let initialize = '';
-    // let result = selectedStyle.replace || '';
-    // if (!result || result === '') return target?.element || '<div>表格数据未加载</div>';
     // console.log("瞅瞅target是："+target.config.triggerSendToChat); //调试用，正常不开启
     let valueSheet = target.tableSheet;  // 获取表格数据，二维数组
     // console.log("初始化文本：" + valueSheet);
