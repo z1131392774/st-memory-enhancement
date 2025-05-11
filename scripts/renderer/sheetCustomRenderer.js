@@ -192,20 +192,29 @@ function getLastPlot() {
 
     }
 }
-function triggerValueSheet(valueSheet = []) {
+function triggerValueSheet(valueSheet = [], skipTop, alternateTable) {
     if (!Array.isArray(valueSheet)) {
         return Promise.reject(new Error("valueSheet必须为array类型!"));
     }
     const lastchat = getLastPlot();
-    // console.log("触发器是：" + lastchat);
-    let triggerArray = [valueSheet[0]];
-    for (let i = 1; i < valueSheet.length; i++) {
+    let triggerArray = [];
+    let i = 0;
+    // console.log("上个聊天内容lastchat：", lastchat);
+    // console.log("valueSheet为：", valueSheet);
+    // console.log("valueSheet第1行为：", valueSheet[0]);
+    // console.log("判定前triggerArray为：", triggerArray);
+    if (!alternateTable && !skipTop) {
+        i = 1;
+    }
+    // console.log("触发数组triggerArray为：", triggerArray, "\ni为：",i);
+    for (i; i < valueSheet.length; i++) {
+        // console.log("触发词是：", valueSheet[i][1], "类型为：", typeof valueSheet[i][1]);
         if (lastchat.includes(valueSheet[i][1])) {
             triggerArray.push(valueSheet[i]);
         }
     }
     return triggerArray;
-};
+}
 /** 用于初始化文本数据的函数，根据不同的格式要求将表格数据转换为指定格式的文本。
  *
  * @param {*table} target - 单个表格对象
@@ -216,11 +225,11 @@ export function initializeText(target, selectedStyle) {
     let initialize = '';
     // console.log("瞅瞅target是："+target.config.triggerSendToChat); //调试用，正常不开启
     let valueSheet = target.tableSheet;  // 获取表格数据，二维数组
-    // console.log("初始化文本：" + valueSheet);
+    console.log("初始化文本：" , valueSheet);
     // 新增，判断是否需要触发sendToChat
     if (target.config.triggerSendToChat) {
         // console.log(target.name + "开启触发推送" + valueSheet);
-        valueSheet = triggerValueSheet(valueSheet);
+        valueSheet = triggerValueSheet(valueSheet, target.config.skipTop, target.config.alternateTable);
         // console.log(target.name + "检索后valueSheet是否为数组：" + Array.isArray(valueSheet) + "\n检索后valueSheet最后是什么：" + valueSheet);
     }
     const method = selectedStyle.basedOn || 'array';
