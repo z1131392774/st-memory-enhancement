@@ -103,7 +103,8 @@ async function importTable(mesId, viewSheetsContainer) {
                 const result = await popup.show()
                 if (result) {
                         const tables = JSON.parse(loadEvent.target.result)
-                        if(!tables.mate === 'chatSheets')  return EDITOR.error("导入失败：文件格式不正确")
+                        console.log("导入内容", tables, tables.mate, !(tables.mate === 'chatSheets'))
+                        if(!(tables.mate?.type === 'chatSheets'))  return EDITOR.error("导入失败：文件格式不正确", "请检查你导入的是否是表格数据")
                         if(result === 3)
                             BASE.applyJsonToChatSheets(tables, "data")
                         else
@@ -397,7 +398,7 @@ function cellClickEvent(cell) {
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
             menu.add('<i class="fa-solid fa-wand-magic-sparkles"></i> 自定义表格样式', async () => customSheetStyle(cell));
         } else if (colIndex === 0) {
-            menu.add('<i class="fa-solid fa-bars-staggered"></i> 行编辑', () => batchEditMode(cell));
+            menu.add('<i class="fa-solid fa-bars-staggered"></i> 批量行编辑', () => batchEditMode(cell));
             menu.add('<i class="fa fa-arrow-up"></i> 向上插入行', () => handleAction(cell, cell.CellAction.insertUpRow));
             menu.add('<i class="fa fa-arrow-down"></i> 向下插入行', () => handleAction(cell, cell.CellAction.insertDownRow));
             menu.add('<i class="fa fa-trash-alt"></i> 删除行', () => handleAction(cell, cell.CellAction.deleteSelfRow), menu.ItemType.warning)
