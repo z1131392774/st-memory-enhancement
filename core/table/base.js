@@ -68,7 +68,7 @@ export class SheetBase {
         this._cellPositionCacheDirty = true;    // 用于标记是否需要重新计算 sheetCellPosition
         this.positionCache = new Proxy(new Map(), {
             get: (map, uid) => {
-                if (this._cellPositionCacheDirty) {
+                if (this._cellPositionCacheDirty || !map.has(uid)) {
                     map.clear();
                     this.hashSheet.forEach((row, rowIndex) => {
                         row.forEach((cellUid, colIndex) => {
