@@ -285,7 +285,7 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
-        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets);
+        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets).filter(sheet=>sheet.enable);
         DERIVED.any.waitingTable = latestTables;
 
         const oldTable = sheetsToTables(latestTables)
