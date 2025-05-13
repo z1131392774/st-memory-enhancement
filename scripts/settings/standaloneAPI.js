@@ -131,7 +131,8 @@ export async function handleMainAPIRequest(systemPrompt, userPrompt) {
     loadingToast.frameUpdate(() => {
         loadingToast.text = `正在使用【主API】重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
     })
-
+    console.log('主API请求的数据part1， systemPrompt：', systemPrompt);
+    console.log('主API请求的数据part2， userPrompt：', userPrompt);
     const response = await EDITOR.generateRaw(
         userPrompt,
         '',

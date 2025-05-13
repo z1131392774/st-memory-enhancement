@@ -220,7 +220,10 @@ export async function getPromptAndRebuildTable(templateName = '', additionalProm
         if (selectedPrompt.core_rules) {
             userPrompt += `\n${selectedPrompt.core_rules}`;
         }
-        userPrompt += `\n<用户附加需求>\n${additionalPrompt}\n</用户附加需求>\n`;
+        // 仅当additionalPrompt非空时才添加用户附加需求部分
+        if (additionalPrompt) {
+            userPrompt += `\n<用户附加需求>\n${additionalPrompt}\n</用户附加需求>\n`;
+        }
 
         // 将获取到的提示模板设置到USER.tableBaseSetting中
         USER.tableBaseSetting.rebuild_system_message_template = systemPrompt;
@@ -287,7 +290,8 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat,
             USER.tableBaseSetting.clear_up_stairs,
             USER.tableBaseSetting.ignore_user_sent,
-            USER.tableBaseSetting.use_token_limit ? USER.tableBaseSetting.rebuild_token_limit_value : 0
+            USER.tableBaseSetting.rebuild_token_limit_value
+            // USER.tableBaseSetting.use_token_limit ? USER.tableBaseSetting.rebuild_token_limit_value : 0
         ) : chatToBeUsed;
 
         // 构建AI提示
@@ -334,6 +338,14 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
             }
         }
         console.log('rawContent:', rawContent);
+
+        // 检查 rawContent 是否有效
+        if (typeof rawContent !== 'string' || !rawContent.trim()) {
+            EDITOR.clear();
+            EDITOR.error('API响应内容无效或为空，无法继续处理表格。');
+            console.error('API响应内容无效或为空，rawContent:', rawContent);
+            return;
+        }
 
         //清洗
         let cleanContentTable = fixTableFormat(rawContent);

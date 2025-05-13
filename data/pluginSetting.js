@@ -272,7 +272,7 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     // 重整理参考上文
     clear_up_stairs: 9,
     // 用token代替聊天记录限制
-    use_token_limit: false,
+    use_token_limit: true,
     // 重整理token限制
     rebuild_token_limit_value: 10000,
     // 重整理使用的提示词模板
