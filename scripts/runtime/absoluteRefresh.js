@@ -206,6 +206,7 @@ export async function getPromptAndRebuildTable(templateName = '', additionalProm
         console.log('选择的提示模板名称:', selectedPrompt.name, '附加的提示内容:', additionalPrompt);
 
         systemPrompt = selectedPrompt.system_prompt;
+
         // 构建userPrompt，由四部分组成：user_prompt_begin、history、last_table和core_rules
         userPrompt = selectedPrompt.user_prompt_begin || '';
         // 根据include_history决定是否包含聊天记录部分
@@ -216,11 +217,21 @@ export async function getPromptAndRebuildTable(templateName = '', additionalProm
         if (selectedPrompt.include_last_table) {
             userPrompt += `\n<当前表格>\n    $0\n</当前表格>\n`;
         }
+
         // 添加core_rules部分
         if (selectedPrompt.core_rules) {
             userPrompt += `\n${selectedPrompt.core_rules}`;
         }
-        userPrompt += `\n<用户附加需求>\n${additionalPrompt}\n</用户附加需求>\n`;
+        // 仅当additionalPrompt非空时才添加用户附加需求部分
+        if (additionalPrompt) {
+            userPrompt += `\n<用户附加需求>\n${additionalPrompt}\n</用户附加需求>\n`;
+        }
+
+        // 如果不是默认表格，则根据当前表格，生成一份空表格作为格式示例
+        if (selectedPrompt.name !== 'rebuild_base') {
+            userPrompt += `\n回复格式示例。再次强调，直接按以下格式回复，不要思考过程，不要解释，不要多余内容：\n<新的表格>\n    $2\n</新的表格>\n`;
+        }
+
 
         // 将获取到的提示模板设置到USER.tableBaseSetting中
         USER.tableBaseSetting.rebuild_system_message_template = systemPrompt;
@@ -278,7 +289,27 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         DERIVED.any.waitingTable = latestTables;
 
         const oldTable = sheetsToTables(latestTables)
-        let originText = JSON.stringify(tablesToString(latestTables))
+        let originText = JSON.stringify(tablesToString(latestTables));
+
+        // 提取表头信息
+        const tableHeadersOnly = oldTable.map((table, index) => {
+            let name = `Table ${index + 1}`;
+            if (typeof table.tableName === 'string' && table.tableName) {
+                name = table.tableName;
+            }
+            let headers = [];
+            if (Array.isArray(table.headers) && table.headers.length > 0) {
+                headers = table.headers;
+            } else if (Array.isArray(table.columns) && table.columns.length > 0) {
+                headers = table.columns;
+            }
+            return {
+                tableName: name,
+                headers: headers
+            };
+        });
+        const tableHeadersJson = JSON.stringify(tableHeadersOnly);
+        console.log('表头数据 (JSON):', tableHeadersJson);
 
         console.log('重整理 - 最新的表格数据:', originText);
 
@@ -287,7 +318,8 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat,
             USER.tableBaseSetting.clear_up_stairs,
             USER.tableBaseSetting.ignore_user_sent,
-            USER.tableBaseSetting.use_token_limit ? USER.tableBaseSetting.rebuild_token_limit_value : 0
+            USER.tableBaseSetting.rebuild_token_limit_value
+            // USER.tableBaseSetting.use_token_limit ? USER.tableBaseSetting.rebuild_token_limit_value : 0
         ) : chatToBeUsed;
 
         // 构建AI提示
@@ -296,10 +328,10 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
         // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
         systemPrompt = systemPrompt.replace(/\$0/g, originText);
         systemPrompt = systemPrompt.replace(/\$1/g, lastChats);
-        // 搜索userPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
-
+        // 搜索userPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats，将$2替换成空表头
         userPrompt = userPrompt.replace(/\$0/g, originText);
         userPrompt = userPrompt.replace(/\$1/g, lastChats);
+        userPrompt = userPrompt.replace(/\$2/g, tableHeadersJson);
 
         // console.log('systemPrompt:', systemPrompt);
         // console.log('userPrompt:', userPrompt);
@@ -334,6 +366,14 @@ export async function rebuildTableActions(force = false, silentUpdate = false, c
             }
         }
         console.log('rawContent:', rawContent);
+
+        // 检查 rawContent 是否有效
+        if (typeof rawContent !== 'string' || !rawContent.trim()) {
+            EDITOR.clear();
+            EDITOR.error('API响应内容无效或为空，无法继续处理表格。');
+            console.error('API响应内容无效或为空，rawContent:', rawContent);
+            return;
+        }
 
         //清洗
         let cleanContentTable = fixTableFormat(rawContent);

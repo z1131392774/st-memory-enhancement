@@ -511,7 +511,7 @@ export function renderSetting() {
     updateSwitch('#sum_multiple_rounds', USER.tableBaseSetting.sum_multiple_rounds);
     // updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
     updateSwitch('#bool_silent_refresh', USER.tableBaseSetting.bool_silent_refresh);
-    updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
+    // updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
     updateSwitch('#ignore_user_sent', USER.tableBaseSetting.ignore_user_sent);
     updateSwitch('#show_settings_in_extension_menu', USER.tableBaseSetting.show_settings_in_extension_menu);
     updateSwitch('#alternate_switch', USER.tableBaseSetting.alternate_switch);

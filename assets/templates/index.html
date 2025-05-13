@@ -188,17 +188,18 @@
                                     </div>
                                     <div class="inline-drawer-content" style="display: none; padding-left: 20px; width: calc(100% - 20px)">
                                         <!-- 高级设置选项 -->
-                                        <div class="flex-container slider-container" style="margin: 5px; padding-bottom: 10px" id="clear_up_stairs_container">
+                                        <div class="flex-container slider-container" style="margin: 5px; padding-bottom: 10px; display: none;" id="clear_up_stairs_container">
                                             <label><span data-i18n="Reference recent chat history">参考最近聊天记录：</span><code id="clear_up_stairs_value">9条</code></label>
                                             <input type="range" id="clear_up_stairs" min="1" max="99" step="1" value="9" style="width: calc(100% - 20px);">
                                         </div>
-                                        <div class="flex-container slider-container" style="margin: 5px; padding-bottom: 10px; display: none;" id="token_limit_container">
+                                        <div class="flex-container slider-container" style="margin: 5px; padding-bottom: 10px" id="token_limit_container">
                                             <label><span data-i18n="Token limit">Token限制：</span><code id="rebuild_token_limit_value">10000</code></label>
                                             <input type="range" id="rebuild_token_limit" min="1000" max="100000" step="1000" value="10000" style="width: calc(100% - 20px);">
                                         </div>
-                                        <div class="checkbox_label">
+                                        <!-- 屏蔽选项，改为默认token限制 -->
+                                        <!-- <div class="checkbox_label">
                                             <input type="checkbox" id="use_token_limit"><span data-i18n="Use token limit instead of chat history limit">用token代替聊天记录限制</span>
-                                        </div>
+                                        </div> -->
                                         <div class="checkbox_label">
                                             <input type="checkbox" id="ignore_user_sent" checked><span data-i18n="Only reference AI replies">只参考AI回复的消息</span>
                                         </div>
