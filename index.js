@@ -191,7 +191,8 @@ export function getTablePrompt(eventData) {
  */
 export function isSwipe() {
     const chats = USER.getContext().chat
-    const isIncludeEndIndex = (!chats.at(-1)) || chats.at(-1).is_user === true
+    const lastChat = chats[chats.length - 1];
+    const isIncludeEndIndex = (!lastChat) || lastChat.is_user === true;
     if(isIncludeEndIndex) return {isSwipe: false}
     const {deep} = BASE.getLastSheetsPiece()
     return {isSwipe: true, deep}
