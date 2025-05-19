@@ -322,7 +322,7 @@ function executeAction(EditAction, sheets) {
             if(rowIndex >= sheet.getRowCount()-1) return executeAction({...EditAction, type:'insert'}, sheets)
             Object.entries(action.data).forEach(([key, value]) => {
                 const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1)
-                if (!cell) return
+                if (!cell) return -1
                 cell.newAction(cell.CellAction.editCell, { value }, false)
             })
             break
@@ -332,8 +332,9 @@ function executeAction(EditAction, sheets) {
             cell.newAction(cell.CellAction.insertDownRow, {}, false)
             const lastestRow = sheet.getRowCount() - 1
             const cells = sheet.getCellsByRowIndex(lastestRow)
+            if(!cells || !action.data) return
             cells.forEach((cell, index) => {
-                if (index === 0) return
+                if (index === 0) return -1 
                 cell.data.value = action.data[index - 1]
             })
         }
