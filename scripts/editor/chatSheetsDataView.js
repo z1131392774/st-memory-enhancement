@@ -382,6 +382,9 @@ function cellClickEvent(cell) {
         event.stopPropagation();
         event.preventDefault();
 
+        // 重新获取hash
+        BASE.getLastestSheets()
+
         if (cell.parent.currentPopupMenu) {
             cell.parent.currentPopupMenu.destroy();
             cell.parent.currentPopupMenu = null;
