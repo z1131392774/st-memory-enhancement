@@ -205,7 +205,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
         let cycleMark = [];     //临时辅助数组临时标记
         let indexForTableRole = [];
         let j = 0;              //标记用变量
-        console.log("排序后的表格：", tableAlternate);
+        // console.log("排序后的表格：", tableAlternate);
         // 穿插+合并表格的渲染
         for (let i = 0; i < tableAlternate.length; i++) {
             console.log('当前行：', i, tableAlternate[i][1])
