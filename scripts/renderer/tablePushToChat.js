@@ -54,7 +54,7 @@ function insertCustomRender(tableRole, insertMark, cycleMark, indexForTableRole,
         // console.log("穿插及嵌入渲染表格角色索引：" + index);
         // console.log("穿插及嵌入渲染表格角色：" + tableRole[i]);
         _sheets[index].tableSheet = tableRole[i];
-        console.log("穿插及嵌入渲染表格角色赋值给sheet：", _sheets[index].tableSheet);
+        // console.log("穿插及嵌入渲染表格角色赋值给sheet：", _sheets[index].tableSheet);
         const customContent = parseSheetRender(_sheets[index]);
         // console.log("穿插及嵌入渲染表格返回文本customContentt：" + customContent);
         const placeholderPattern = `<replaceHolder${index}([^>]*)><\\/replaceHolder${index}>`;
