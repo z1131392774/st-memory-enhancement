@@ -225,7 +225,7 @@ export function initializeText(target, selectedStyle) {
     let initialize = '';
     // console.log("瞅瞅target是："+target.config.triggerSendToChat); //调试用，正常不开启
     let valueSheet = target.tableSheet;  // 获取表格数据，二维数组
-    // console.log("初始化文本：" , valueSheet);
+    // console.log(target.name,"初始化文本表格：" , valueSheet);
     // 新增，判断是否需要触发sendToChat
     if (target.config.triggerSendToChat) {
         // console.log(target.name + "开启触发推送" + valueSheet);
@@ -264,6 +264,7 @@ export function initializeText(target, selectedStyle) {
  */
 function regexPipeline(target, selectedStyle = selectedCustomStyle) {
     const initText = initializeText(target, selectedStyle);  //初始化文本
+    // console.log(target.name,"初始化文本：", initText);
     let result = selectedStyle.replace || '';
     const r = result ? regexReplacePipeline(initText) : initText;  //没有替换内容则显示初始化内容，有则进行正则替换
     return r

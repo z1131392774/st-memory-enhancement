@@ -52,7 +52,7 @@ function insertCustomRender(tableRole, insertMark, cycleMark, indexForTableRole,
     for (let i = 0; i < tableRole.length; i++) {
         index = indexForTableRole[i]
         // console.log("穿插及嵌入渲染表格角色索引：" + index);
-        // console.log("穿插及嵌入渲染表格角色：" + tableRole[i]);
+        // console.log("穿插及嵌入渲染表格角色：" ,tableRole[i]);
         _sheets[index].tableSheet = tableRole[i];
         // console.log("穿插及嵌入渲染表格角色赋值给sheet：", _sheets[index].tableSheet);
         const customContent = parseSheetRender(_sheets[index]);
@@ -211,7 +211,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
             // console.log('当前行：', i, tableAlternate[i][1])
             if (i === tableAlternate.length - 1) {
                 if (cycleJudge(cycleDivideMark, indexForRowAlternate, i - 1) || cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {
-                    tableRole[j].push([tableAlternate[i]]);
+                    tableRole[j].push(tableAlternate[i]);
                 } else {
                     tableRole.push([tableAlternate[i]]);
                     indexForTableRole[j] = indexForRowAlternate[i];
@@ -231,7 +231,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
                         // console.log('循环标记开始', j, i);
                         // console.log('循环标记开始的tableRole：', tableRole);
                     }
-                    tableRole[j].push([tableAlternate[i]]);
+                    tableRole[j].push(tableAlternate[i]);
                     if (!cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {  //判定标记循环结束
                         j++;
                         // console.log('循环标记结束', j, i);
@@ -247,7 +247,11 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
 
             } else {
                 if (cycleJudge(cycleDivideMark, indexForRowAlternate, i - 1) || cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {
-                    tableRole[j].push([tableAlternate[i]]);
+                    tableRole[j].push(tableAlternate[i]);
+                    if (!cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {  //判定标记循环结束
+                        j++;
+                        // console.log('循环标记结束', j, i);
+                    }
                 } else {
                     tableRole.push([tableAlternate[i]]);
                     indexForTableRole[j] = indexForRowAlternate[i];
