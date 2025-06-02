@@ -208,10 +208,10 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
         // console.log("排序后的表格：", tableAlternate);
         // 穿插+合并表格的渲染
         for (let i = 0; i < tableAlternate.length; i++) {
-            console.log('当前行：', i, tableAlternate[i][1])
+            // console.log('当前行：', i, tableAlternate[i][1])
             if (i === tableAlternate.length - 1) {
                 if (cycleJudge(cycleDivideMark, indexForRowAlternate, i - 1) || cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {
-                    tableRole[j].push([tableAlternate[i]]);
+                    tableRole[j].push(tableAlternate[i]);
                 } else {
                     tableRole.push([tableAlternate[i]]);
                     indexForTableRole[j] = indexForRowAlternate[i];
@@ -231,7 +231,7 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
                         // console.log('循环标记开始', j, i);
                         // console.log('循环标记开始的tableRole：', tableRole);
                     }
-                    tableRole[j].push([tableAlternate[i]]);
+                    tableRole[j].push(tableAlternate[i]);
                     if (!cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {  //判定标记循环结束
                         j++;
                         // console.log('循环标记结束', j, i);
@@ -247,7 +247,11 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
 
             } else {
                 if (cycleJudge(cycleDivideMark, indexForRowAlternate, i - 1) || cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {
-                    tableRole[j].push([tableAlternate[i]]);
+                    tableRole[j].push(tableAlternate[i]);
+                    if (!cycleJudge(cycleDivideMark, indexForRowAlternate, i)) {  //判定标记循环结束
+                        j++;
+                        // console.log('循环标记结束', j, i);
+                    }
                 } else {
                     tableRole.push([tableAlternate[i]]);
                     indexForTableRole[j] = indexForRowAlternate[i];
@@ -260,13 +264,6 @@ async function renderEditableSheetsDOM(_sheets, _viewSheetsContainer) {
                 j = 0;
             }
         }
-        // 对穿插表格的所有行进行渲染
-        // for (let i = 0; i < tableAlternate.length; i++) {
-        //     let sheet = _sheets[indexForRowAlternate[i]];
-        //     sheet.tableSheet = [tableAlternate[i]];  //注意将铺平后的数组转回嵌套数组
-        //     // console.log('当前穿插渲染的表格内容：',sheet.tableSheet,'\n是否跳过首行',sheet.config.skipTop);
-        //     ordinarycustomStyleRender(sheet, _viewSheetsContainer);
-        // }
 
         // 对普通表格进行渲染
         // console.log('普通表格的索引:', indexOriginary, '普通表格的长度', indexOriginary.length);
