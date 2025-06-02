@@ -235,17 +235,6 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
         color: #888;
         font-size: 0.8rem;
     }
-    .f5-reload-window {
-        bottom: 10px;
-        left: 10px;
-        padding: 0 10px;
-        border-radius: 5px;
-        background: none;
-        border: 1px solid var(--SmartThemeBorderColor);
-        color: var(--SmartThemeBodyColor);
-        z-index: 999;
-        cursor: pointer;
-    }
     </style>`,
     /**
      * ===========================
