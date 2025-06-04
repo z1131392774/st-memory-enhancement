@@ -909,7 +909,7 @@ window.testFuncClean = function(strTest) {
 function cleanApiResponse(rawContent, options = {}) {
     const {
         removeCodeBlock = true,       // 移除代码块标记
-        extractJson = false,           // 提取JSON部分
+        extractJson = true,           // 提取JSON部分
         normalizeKeys = true,         // 统一键名格式
         convertSingleQuotes = true,   // 单引号转双引号
         normalizeTableStructure = true, // 标准化表格结构，处理tablename到columns部分，中文引号改为英文引号
@@ -923,31 +923,36 @@ function cleanApiResponse(rawContent, options = {}) {
     if (removeCodeBlock) {
         // 移除 ```json 和 ``` 代码块标记
         content = content.replace(/```json|```/g, '');
+        console.log("removeCodeBlock", content)
     }
-
     if (extractJson) {
         // 提取第一个完整的JSON数组/对象（支持跨行匹配）
-        content = content.replace(/^[^[]*(\[.*\])[^]]*$/s, '$1');
+        const start = content.indexOf('[');
+        const end = content.lastIndexOf(']');
+        if (start === -1 || end === -1 || end <= start) {
+            console.error('未找到合法的 JSON 数组结构');
+            return null;
+        }
+        content = content.slice(start, end + 1);
     }
-
     if (normalizeKeys) {
         // 统一键名格式：将带引号或不带引号的键名标准化为带双引号
         content = content.replace(/([{,]\s*)(?:"?([a-zA-Z_]\w*)"?\s*:)/g, '$1"$2":');
+        console.log("normalizeKeys", content)
     }
-
     if (convertSingleQuotes) {
         // 将单引号转换为双引号（JSON标准要求双引号）
         content = content.replace(/'/g, '"');
+        console.log("convertSingleQuotes", content)
     }
-
     if (normalizeTableStructure) {
         // 标准化表格结构，处理tablename到columns部分，中文引号改为英文引号
         const regex = /([\"“”])tableName\1\s*:\s*([\"“”])(.+?)\2\s*,\s*([\"“”])tableIndex\4\s*:\s*(\d+)\s*,\s*([\"“”])columns(?:[\"“”]?)/g;
         content =  content.replace(regex, (match, g1QuoteKeyTable, g2QuoteValueTable, g3TableName, g4QuoteKeyIndex, g5TableIndex, g6QuoteKeyColumns) => {
             return `"tableName":"${g3TableName}","tableIndex":${g5TableIndex},"columns"`;
         });
+        console.log("normalizeTableStructure", content)
     }
-
     function replaceQuotesInContext(text) {
         if (typeof text !== 'string') return text;
         return text.replace(/[“”]/g, (match, offset, fullString) => {
@@ -1021,13 +1026,13 @@ function cleanApiResponse(rawContent, options = {}) {
 
             return `"columns":${finalColumnsStr},"content":${finalContentStr}`;
           });
+          console.log("normalizeAndValidateColumnsContentPairs", content)
     }
-
     if (removeBlockComments) {
         // 移除 /* ... */ 形式的块注释
         content = content.replace(/\/\*.*?\*\//g, '');
+        console.log("removeBlockComments", content)
     }
-
     // 通过括号配平来确定JSON的结束位置
     const openChar = content[0];
     const closeChar = (openChar === '[') ? ']' : '}';
