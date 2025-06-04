@@ -191,13 +191,12 @@ export function initRefreshTypeSelector() {
  * @param {string} chatToBeUsed 要使用的聊天记录,为空则使用最近的聊天记录
  * @returns {Promise<void>}
  */
-export async function getPromptAndRebuildTable(templateName = '', additionalPrompt ,force, isSilentUpdate, chatToBeUsed = '') {
+export async function getPromptAndRebuildTable(templateName = '', additionalPrompt ,force, isSilentUpdate = USER.tableBaseSetting.bool_silent_refresh, chatToBeUsed = '') {
     let r='';
     try {
         // 根据提示模板类型选择不同的表格处理函数
         // const force = $('#bool_force_refresh').prop('checked');
-        const silentUpdate = isSilentUpdate !== undefined ? isSilentUpdate : $('#bool_silent_refresh').prop('checked');
-        r = await rebuildTableActions(force || true, silentUpdate, chatToBeUsed);
+        r = await rebuildTableActions(force || true, isSilentUpdate, chatToBeUsed);
         return r;
     } catch (error) {
         console.error('获取提示模板失败:', error);
@@ -212,7 +211,7 @@ export async function getPromptAndRebuildTable(templateName = '', additionalProm
  * @param chatToBeUsed
  * @returns
  */
-export async function rebuildTableActions(force = false, silentUpdate = false, chatToBeUsed = '') {
+export async function rebuildTableActions(force = false, silentUpdate = USER.tableBaseSetting.bool_silent_refresh, chatToBeUsed = '') {
     let r = '';
     if (!SYSTEM.lazy('rebuildTableActions', 1000)) return;
 

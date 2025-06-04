@@ -222,7 +222,7 @@ export async function TableTwoStepSummary() {
         // const selectedTemplate = profile_prompts[selectedTemplateKey]; // 获取用户选择的总结模板
         // console.log('用户选择的总结模板:', selectedTemplate);
 
-        const r = await getPromptAndRebuildTable(selectedTemplateKey,'',true, true, todoChats);   // 执行两步总结
+        const r = await getPromptAndRebuildTable(selectedTemplateKey,'',true, undefined, todoChats);   // 执行两步总结
 
         console.log('执行两步总结结果:', r);
         //改为rebuild后只检查是否成功
