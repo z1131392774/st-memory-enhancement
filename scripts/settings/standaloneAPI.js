@@ -256,8 +256,16 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
                 throw new Error('Invalid or empty response received.');
             }
         } catch (error) {
-            console.error(`API Key index ${i} test failed:`, error);
-            results.push({ keyIndex: i, success: false, error: error.message || 'Unknown error' });
+            console.error(`API Key index ${i} test failed (raw error object):`, error); // Log the raw error object
+            let errorMessage = 'Unknown error';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error && typeof error.toString === 'function') {
+                errorMessage = error.toString();
+            }
+            results.push({ keyIndex: i, success: false, error: errorMessage });
         }
     }
     return results;
@@ -350,9 +358,10 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         return 'suspended';
     }
 
-    EDITOR.error(`所有 ${attempts} 次尝试均失败。最后错误: ${lastError?.message || '未知错误'}`);
+    const errorMessage = `所有 ${attempts} 次尝试均失败。最后错误: ${lastError?.message || '未知错误'}`;
+    EDITOR.error(errorMessage);
     console.error('所有API调用尝试均失败。', lastError);
-    return; // 返回错误信息
+    return `错误: ${errorMessage}`; // 返回一个明确的错误字符串
 
     // // 公共请求配置 (Commented out original code remains unchanged)
     // const requestConfig = {

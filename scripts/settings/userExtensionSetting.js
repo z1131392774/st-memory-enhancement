@@ -417,6 +417,10 @@ function InitBinging() {
         $('#step_by_step_threshold_value').text(value);
         USER.tableBaseSetting.step_by_step_threshold = Number(value);
     });
+    // 分步总结破限词
+    $('#step_by_step_breaking_limit_words').on('input', function() {
+        USER.tableBaseSetting.step_by_step_breaking_limit_words = $(this).val();
+    });
     // 清理聊天记录楼层
     $('#clear_up_stairs').on('input', function() {
         const value = $(this).val();
@@ -501,6 +505,10 @@ export function renderSetting() {
     $('#custom_temperature_value').text(USER.tableBaseSetting.custom_temperature);
     $('#step_by_step_threshold').val(USER.tableBaseSetting.step_by_step_threshold);
     $('#step_by_step_threshold_value').text(USER.tableBaseSetting.step_by_step_threshold);
+    // Load step-by-step breaking limit words
+    $('#step_by_step_breaking_limit_words').val(USER.tableBaseSetting.step_by_step_breaking_limit_words || '');
+    // 分步填表读取的上下文层数
+    $('#separateReadContextLayers').val(USER.tableBaseSetting.separateReadContextLayers);
     refreshRebuildTemplate()
 
     // private data

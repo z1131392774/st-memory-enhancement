@@ -1,6 +1,6 @@
 import {USER} from '../core/manager.js';
 // @ts-ignore
-//import { ChatCompletionService } from '/scripts/custom-request.js';
+import { ChatCompletionService } from '/scripts/custom-request.js';
 //先注释掉防止无法启动
 
 export class LLMApiService {
@@ -35,6 +35,20 @@ export class LLMApiService {
         // 如果配置了代理地址，则使用 SillyTavern 的内部路由
         if (USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address) {
             console.log("检测到代理配置，将使用 SillyTavern 内部路由");
+            // 检查 ChatCompletionService 是否实际可用 (基于当前代码被注释的情况)
+            // const chatCompletionServiceAvailable = false; // 因为相关代码被注释了
+            // if (!chatCompletionServiceAvailable) {
+            // const errorMessage = "代理功能当前未启用或配置不完整 (ChatCompletionService is commented out). 请取消代理设置或联系开发者。";
+            // console.error(errorMessage);
+            // throw new Error(errorMessage);
+            // }
+            // 假设 ChatCompletionService 总是可用的，如果导入成功的话。
+            // 如果 custom-request.js 不存在或 ChatCompletionService 未导出，则会在启动时或首次使用时抛出更早的错误。
+            if (typeof ChatCompletionService === 'undefined' || !ChatCompletionService?.processRequest) {
+                const errorMessage = "代理服务 (ChatCompletionService) 未正确加载。请检查 '/scripts/custom-request.js' 文件是否存在且正确导出了 ChatCompletionService。";
+                console.error(errorMessage);
+                throw new Error(errorMessage);
+            }
             try {
                 const requestData = {
                     stream: this.config.stream,
@@ -52,8 +66,7 @@ export class LLMApiService {
                     if (!streamCallback || typeof streamCallback !== 'function') {
                         throw new Error("流式模式下必须提供有效的streamCallback函数");
                     }
-                    const streamGenerator = '' //临时注释用
-                    //const streamGenerator = await ChatCompletionService.processRequest(requestData, {}, false); // extractData = false for stream
+                    const streamGenerator = await ChatCompletionService.processRequest(requestData, {}, false); // extractData = false for stream
                     let fullResponse = '';
                     for await (const chunk of streamGenerator()) {
                         if (chunk.text) {
@@ -63,8 +76,7 @@ export class LLMApiService {
                     }
                     return this.#cleanResponse(fullResponse);
                 } else {
-                    const responseData = '' //临时注释用
-                    //const responseData = await ChatCompletionService.processRequest(requestData, {}, true); // extractData = true for non-stream
+                    const responseData = await ChatCompletionService.processRequest(requestData, {}, true); // extractData = true for non-stream
                     if (!responseData || !responseData.content) {
                         throw new Error("通过内部路由获取响应失败或响应内容为空");
                     }
@@ -234,8 +246,7 @@ export class LLMApiService {
                     proxy_password: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key || null,
                 };
                 // 使用 processRequest 进行非流式请求测试
-                const responseData = '' //临时注释用
-                //const responseData = await ChatCompletionService.processRequest(requestData, {}, true);
+                const responseData = await ChatCompletionService.processRequest(requestData, {}, true);
                 if (!responseData || !responseData.content) {
                     throw new Error("通过内部路由测试连接失败或响应内容为空");
                 }

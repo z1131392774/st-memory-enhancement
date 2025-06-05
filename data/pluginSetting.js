@@ -262,10 +262,11 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     use_token_limit: true,
     // 重整理token限制
     rebuild_token_limit_value: 10000,
-    // 重整理使用的提示词模板
-    lastSelectedTemplate: 'rebuild_base',
-    rebuild_default_system_message_template: `你是一个专业的表格整理助手，请严格按照用户的指令和格式要求处理表格数据。`,
-    rebuild_default_message_template: `请你根据<整理规则>和<聊天记录>处理<当前表格>，并严格按照<当前表格>的格式回复我<新的表格>，回复务必使用中文，只回复<新的表格>的内容，不要回复多余的解释和思考：
+    // 实际用于“表格整理/增量更新”的系统提示词
+    refresh_system_message_template: `你是一个专业的表格整理助手。请根据用户提供的<聊天记录>和<当前表格>，并遵循<操作规则>，使用<tableEdit>标签和指定的函数（insertRow, updateRow, deleteRow）来输出对表格的修改。确保你的回复只包含<tableEdit>标签及其内容。`,
+    // 实际用于“表格整理/增量更新”的用户提示词
+    refresh_user_message_template: `请你根据<聊天记录>和<当前表格>，并严格遵守<操作规则>和<重要操作原则>，对表格进行必要的增、删、改操作。你的回复必须只包含<tableEdit>标签及其中的函数调用，不要包含任何其他解释或思考过程。
+
     <聊天记录>
         $1
     </聊天记录>
@@ -274,243 +275,94 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
         $0
     </当前表格>
 
-    <整理规则>
-    {
-      "TableProcessingProtocol": {
-        "languageDirective": {
-          "processingRules": "en-US",
-          "outputSpecification": "zh-CN"
-        },
-        "structuralIntegrity": {
-          "tableIndexPolicy": {
-            "creation": "PROHIBITED",
-            "modification": "PROHIBITED",
-            "deletion": "PROHIBITED"
-          },
-          "columnManagement": {
-            "freezeSchema": true,
-            "allowedOperations": ["valueInsertion", "contentOptimization"]
-          }
-        },
-        "processingWorkflow": ["SUPPLEMENT", "SIMPLIFY", "CORRECT", "SUMMARY"],
+    <表头信息>
+        $2
+    </表头信息>
 
-        "SUPPLEMENT": {
-          "insertionProtocol": {
-            "characterRegistration": {
-              "triggerCondition": "newCharacterDetection || traitMutation",
-              "attributeCapture": {
-                "scope": "explicitDescriptionsOnly",
-                "protectedDescriptors": ["粗布衣裳", "布条束发"],
-                "mandatoryFields": ["角色名", "身体特征", "其他重要信息"],
-                "validationRules": {
-                  "physique_description": "MUST_CONTAIN [体型/肤色/发色/瞳色]",
-                  "relationship_tier": "VALUE_RANGE:[-100, 100]"
-                }
-              }
-            },
-            "eventCapture": {
-              "thresholdConditions": ["plotCriticality≥3", "emotionalShift≥2"],
-              "emergencyBreakCondition": "3_consecutiveSimilarEvents"
-            },
-            "itemRegistration": {
-              "significanceThreshold": "symbolicImportance≥5"
-            }
-          },
-          "dataEnrichment": {
-            "dynamicControl": {
-              "costumeDescription": {
-                "detailedModeThreshold": 25,
-                "overflowAction": "SIMPLIFY_TRIGGER"
-              },
-              "eventDrivenUpdates": {
-                "checkInterval": "EVERY_50_EVENTS",
-                "monitoringDimensions": [
-                  "TIME_CONTRADICTIONS",
-                  "LOCATION_CONSISTENCY",
-                  "ITEM_TIMELINE",
-                  "CLOTHING_CHANGES"
-                ],
-                "updateStrategy": {
-                  "primaryMethod": "APPEND_WITH_MARKERS",
-                  "conflictResolution": "PRIORITIZE_CHRONOLOGICAL_ORDER"
-                }
-              },
-              "formatCompatibility": {
-                "timeFormatHandling": "ORIGINAL_PRESERVED_WITH_UTC_CONVERSION",
-                "locationFormatStandard": "HIERARCHY_SEPARATOR(>)_WITH_GEOCODE",
-                "errorCorrectionProtocols": {
-                  "dateOverflow": "AUTO_ADJUST_WITH_HISTORIC_PRESERVATION",
-                  "spatialConflict": "FLAG_AND_REMOVE_WITH_BACKUP"
-                }
-              }
-            },
-            "traitProtection": {
-              "keyFeatures": ["heterochromia", "scarPatterns"],
-              "lockCondition": "keywordMatch≥2"
-            }
-          }
-        },
+    # 增删改dataTable操作方法：
+    - 当你需要根据<聊天记录>和<当前表格>对表格进行增删改时，请在<tableEdit>标签中使用 JavaScript 函数的写法调用函数。
 
-        "SIMPLIFY": {
-          "compressionLogic": {
-            "characterDescriptors": {
-              "activationCondition": "wordCount>25 PerCell && !protectedStatus",
-              "optimizationStrategy": {
-                "baseRule": "material + color + style",
-                "prohibitedElements": ["stitchingDetails", "wearMethod"],
-                "mergeExamples": ["深褐/浅褐眼睛 → 褐色眼睛"]
-              }
-            },
-            "eventConsolidation": {
-              "mergeDepth": 2,
-              "mergeRestrictions": ["crossCharacter", "crossTimeline"],
-              "keepCriterion": "LONGER_DESCRIPTION_WITH_KEY_DETAILS"
-            }
-          },
-          "protectionMechanism": {
-            "protectedContent": {
-              "summaryMarkers": ["[TIER1]", "[MILESTONE]"],
-              "criticalTraits": ["异色瞳", "皇室纹章"]
-            }
-          }
-        },
+    ## 操作规则 (必须严格遵守)
+    <OperateRule>
+    - 在某个表格中插入新行时，使用insertRow函数：
+      insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
+      例如：insertRow(0, {0: "2021-09-01", 1: "12:00", 2: "阳台", 3: "小花"})
+    - 在某个表格中删除行时，使用deleteRow函数：
+      deleteRow(tableIndex:number, rowIndex:number)
+      例如：deleteRow(0, 0)
+    - 在某个表格中更新行时，使用updateRow函数：
+      updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
+      例如：updateRow(0, 0, {3: "惠惠"})
+    </OperateRule>
 
-        "CORRECT": {
-          "validationMatrix": {
-            "temporalConsistency": {
-              "checkFrequency": "every10Events",
-              "anomalyResolution": "purgeConflicts"
-            },
-            "columnValidation": {
-              "checkConditions": [
-                "NUMERICAL_IN_TEXT_COLUMN",
-                "TEXT_IN_NUMERICAL_COLUMN",
-                "MISPLACED_FEATURE_DESCRIPTION",
-                "WRONG_TABLE_PLACEMENT"
-              ],
-              "correctionProtocol": {
-                "autoRelocation": "MOVE_TO_CORRECT_COLUMN",
-                "typeMismatchHandling": {
-                  "primaryAction": "CONVERT_OR_RELOCATE",
-                  "fallbackAction": "FLAG_AND_ISOLATE"
-                },
-                "preserveOriginalState": false
-              }
-            },
-            "duplicationControl": {
-              "characterWhitelist": ["Physical Characteristics", "Clothing Details"],
-              "mergeProtocol": {
-                "exactMatch": "purgeRedundant",
-                "sceneConsistency": "actionChaining"
-              }
-            },
-            "exceptionHandlers": {
-              "invalidRelationshipTier": {
-                "operation": "FORCE_NUMERICAL_WITH_LOGGING",
-                "loggingDetails": {
-                  "originalData": "Record the original invalid relationship tier data",
-                  "conversionStepsAndResults": "The operation steps and results of forced conversion to numerical values",
-                  "timestamp": "Operation timestamp",
-                  "tableAndRowInfo": "Names of relevant tables and indexes of relevant data rows"
-                }
-              },
-              "physiqueInfoConflict": {
-                "operation": "TRANSFER_TO_other_info_WITH_MARKER",
-                "markerDetails": {
-                  "conflictCause": "Mark the specific cause of the conflict",
-                  "originalPhysiqueInfo": "Original physique information content",
-                  "transferTimestamp": "Transfer operation timestamp"
-                }
-              }
-            }
-          }
-        },
+    # 重要操作原则 (必须遵守)
+    - 每次回复都必须根据剧情在正确的位置进行增、删、改操作，禁止捏造信息和填入未知。
+    - 使用 insertRow 函数插入行时，请为所有已知的列提供对应的数据。参考<表头信息>来确定每个表格的列数和意义。data对象中的键(colIndex)必须是数字字符串，例如 "0", "1", "2"。
+    - 单元格中禁止使用逗号，语义分割应使用 / 。
+    - string中，禁止出现双引号。
+    - <tableEdit>标签内必须使用<!-- -->标记进行注释。
+    - 如果没有操作，则返回空的 <tableEdit></tableEdit> 标签。
 
-        "SUMMARY": {
-          "hierarchicalSystem": {
-            "primaryCompression": {
-              "triggerCondition": "10_rawEvents && unlockStatus",
-              "generationTemplate": "[角色]在[时间段]通过[动作链]展现[特征]",
-              "outputConstraints": {
-                "maxLength": 200,
-                "lockAfterGeneration": true,
-                "placement": "重要事件历史表格",
-                "columns": {
-                  "角色": "相关角色",
-                  "事件简述": "总结内容",
-                  "日期": "相关日期",
-                  "地点": "相关地点",
-                  "情绪": "相关情绪"
-                }
-              }
-            },
-            "advancedSynthesis": {
-              "triggerCondition": "3_primarySummaries",
-              "synthesisFocus": ["growthArc", "worldRulesManifestation"],
-              "outputConstraints": {
-                "placement": "重要事件历史表格",
-                "columns": {
-                  "角色": "相关角色",
-                  "事件简述": "总结内容",
-                  "日期": "相关日期",
-                  "地点": "相关地点",
-                  "情绪": "相关情绪"
-                }
-              }
-            }
-          },
-          "safetyOverrides": {
-            "overcompensationGuard": {
-              "detectionCriteria": "compressionArtifacts≥3",
-              "recoveryProtocol": "rollback5Events"
-            }
-          }
-        },
-
-        "SystemSafeguards": {
-          "priorityChannel": {
-            "coreProcesses": ["deduplication", "traitPreservation"],
-            "loadBalancing": {
-              "timeoutThreshold": 15,
-              "degradationProtocol": "basicValidationOnly"
-            }
-          },
-          "paradoxResolution": {
-            "temporalAnomalies": {
-              "resolutionFlow": "freezeAndHighlight",
-              "humanInterventionTag": "⚠️REQUIRES_ADMIN"
-            }
-          },
-          "intelligentCleanupEngine": {
-            "mandatoryPurgeRules": [
-              "EXACT_DUPLICATES_WITH_TIMESTAMP_CHECK",
-              "USER_ENTRIES_IN_SOCIAL_TABLE",
-              "TIMELINE_VIOLATIONS_WITH_CASCADE_DELETION",
-              "EMPTY_ROWS(excluding spacetime)",
-              "EXPIRED_QUESTS(>20d)_WITH_ARCHIVAL"
-            ],
-            "protectionOverrides": {
-              "protectedMarkers": ["[TIER1]", "[MILESTONE]"],
-              "exemptionConditions": [
-                "HAS_PROTECTED_TRAITS",
-                "CRITICAL_PLOT_POINT"
-              ]
-            },
-            "cleanupTriggers": {
-              "eventCountThreshold": 1000,
-              "storageUtilizationThreshold": "85%"
-            }
-          }
-        }
-      }
-    }
-
-    回复格式示例。再次强调，直接按以下格式回复，不要思考过程，不要解释，不要多余内容：
-    <新的表格>
-    [{"tableName":"时空表格","tableIndex":0,"columns":["日期","时间","地点（当前描写）","此地角色"],"content":[["2024-01-01","12:00","异世界>酒馆","年轻女子"]]},{"tableName":"角色特征表格","tableIndex":1,"columns":["角色名","身体特征","性格","职业","爱好","喜欢的事物（作品、虚拟人物、物品等）","住所","其他重要信息"],"content":[["年轻女子","身形高挑/小麦色肌肤/乌黑长发/锐利眼睛","野性/不羁/豪爽/好奇","战士","习武","未知","未知","腰悬弯刀/兽牙项链/手指带血"]]},{"tableName":"角色与<user>社交表格","tableIndex":2,"columns":["角色名","对<user>关系","对<user>态度","对<user>好感"],"content":[["年轻女子","陌生人","疑惑/好奇","低"]]},{"tableName":"任务、命令或者约定表格","tableIndex":3,"columns":["角色","任务","地点","持续时间"],"content":[]},{"tableName":"重要事件历史表格","tableIndex":4,"columns":["角色","事件简述","日期","地点","情绪"],"content":[["年轻女子","进入酒馆/点酒/观察<user>","2024-01-01 12:00","异世界>酒馆","好奇"]]},{"tableName":"重要物品表格","tableIndex":5,"columns":["拥有人","物品描述","物品名","重要原因"],"content":[]}]
-    </新的表格>
+    # 输出示例：
+    <tableEdit>
+    <!--
+    insertRow(0, {"0":"十月","1":"冬天/下雪","2":"学校","3":"<user>/悠悠"})
+    deleteRow(1, 2)
+    insertRow(1, {"0":"悠悠", "1":"体重60kg/黑色长发", "2":"开朗活泼", "3":"学生", "4":"羽毛球", "5":"鬼灭之刃", "6":"宿舍", "7":"运动部部长"})
+    -->
+    </tableEdit>
     `,
-    rebuild_message_template_list:{},
+    // 用于“完整重建表格”的提示词模板 (rebuildTableActions 函数使用)
+    rebuild_default_system_message_template: `你是一个专业的表格整理助手。请根据用户提供的<聊天记录>和<当前表格>，并遵循<操作规则>，使用<tableEdit>标签和指定的函数（insertRow, updateRow, deleteRow）来输出对表格的修改。确保你的回复只包含<tableEdit>标签及其内容。`, //保持这个也使用tableEdit，以防万一
+    rebuild_default_message_template: `请你根据<聊天记录>和<当前表格>，并严格遵守<操作规则>和<重要操作原则>，对表格进行必要的增、删、改操作。你的回复必须只包含<tableEdit>标签及其中的函数调用，不要包含任何其他解释或思考过程。
+
+    <聊天记录>
+        $1
+    </聊天记录>
+
+    <当前表格>
+        $0
+    </当前表格>
+
+    <表头信息>
+        $2
+    </表头信息>
+
+    # 增删改dataTable操作方法：
+    - 当你需要根据<聊天记录>和<当前表格>对表格进行增删改时，请在<tableEdit>标签中使用 JavaScript 函数的写法调用函数。
+
+    ## 操作规则 (必须严格遵守)
+    <OperateRule>
+    - 在某个表格中插入新行时，使用insertRow函数：
+      insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
+      例如：insertRow(0, {0: "2021-09-01", 1: "12:00", 2: "阳台", 3: "小花"})
+    - 在某个表格中删除行时，使用deleteRow函数：
+      deleteRow(tableIndex:number, rowIndex:number)
+      例如：deleteRow(0, 0)
+    - 在某个表格中更新行时，使用updateRow函数：
+      updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
+      例如：updateRow(0, 0, {3: "惠惠"})
+    </OperateRule>
+
+    # 重要操作原则 (必须遵守)
+    - 每次回复都必须根据剧情在正确的位置进行增、删、改操作，禁止捏造信息和填入未知。
+    - 使用 insertRow 函数插入行时，请为所有已知的列提供对应的数据。参考<表头信息>来确定每个表格的列数和意义。data对象中的键(colIndex)必须是数字字符串，例如 "0", "1", "2"。
+    - 单元格中禁止使用逗号，语义分割应使用 / 。
+    - string中，禁止出现双引号。
+    - <tableEdit>标签内必须使用<!-- -->标记进行注释。
+    - 如果没有操作，则返回空的 <tableEdit></tableEdit> 标签。
+
+    # 输出示例：
+    <tableEdit>
+    <!--
+    insertRow(0, {"0":"十月","1":"冬天/下雪","2":"学校","3":"<user>/悠悠"})
+    deleteRow(1, 2)
+    insertRow(1, {"0":"悠悠", "1":"体重60kg/黑色长发", "2":"开朗活泼", "3":"学生", "4":"羽毛球", "5":"鬼灭之刃", "6":"宿舍", "7":"运动部部长"})
+    -->
+    </tableEdit>
+    `,
+    rebuild_message_template_list:{}, // For full rebuild templates (used by rebuildTableActions)
+    lastSelectedTemplate: "rebuild_base", // For full rebuild templates (used by rebuildTableActions)
     /**
      * ===========================
      * 双步设置
@@ -522,10 +374,14 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     step_by_step_use_main_api: true,
     // 双步累计的token数
     step_by_step_threshold: 500,
+    // 分步总结破限词
+    step_by_step_breaking_limit_words: "",
     // 双步字数累加
     sum_multiple_rounds: true,
     // 双步跳过整理后的确认弹窗
     bool_silent_refresh: false,
+    // 分步填表读取的上下文层数
+    separateReadContextLayers: 1,
     /**
      * ===========================
      * 表格结构

@@ -758,7 +758,7 @@ function tablesToString(sheets) {
 }
 
 // 将sheets转化为tables
-function sheetsToTables(sheets) {
+export function sheetsToTables(sheets) { // Ensure this is exported
     return sheets.map((sheet, index) => ({
         tableName: sheet.name,
         tableIndex: index,
@@ -1350,15 +1350,15 @@ export async function deleteRebuildTemplate() {
     }
     const confirmation = await EDITOR.callGenericPopup('是否删除此模板？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "继续", cancelButton: "取消" });
     if (confirmation) {
-        const newTemplates = {}
+        const newTemplates = {};
         Object.values(USER.tableBaseSetting.rebuild_message_template_list).forEach((template) => {
             if (template.name !== selectedTemplate) {
                 newTemplates[template.name] = template;
             }
-        })
-        USER.tableBaseSetting.rebuild_message_template_list = newTemplates
+        });
+        USER.tableBaseSetting.rebuild_message_template_list = newTemplates;
         USER.tableBaseSetting.lastSelectedTemplate = 'rebuild_base';
-        refreshRebuildTemplate()
+        refreshRebuildTemplate();
         EDITOR.success(`删除模板 "${selectedTemplate}" 成功`);
     }
 }
@@ -1414,7 +1414,7 @@ export async function importRebuildTemplate() {
             USER.tableBaseSetting.rebuild_message_template_list = {
                 ...USER.tableBaseSetting.rebuild_message_template_list,
                 [name]: template
-            }
+            };
             USER.tableBaseSetting.lastSelectedTemplate = name;
             refreshRebuildTemplate();
             EDITOR.success(`导入模板 "${name}" 成功`);
@@ -1426,4 +1426,432 @@ export async function importRebuildTemplate() {
     });
 
     input.click();
+}
+
+/**
+ * 执行增量更新（可用于普通刷新和分步总结）
+ * @param {string} chatToBeUsed - 要使用的聊天记录, 为空则使用最近的聊天记录
+ * @param {string} originTableText - 当前表格的文本表示
+ * @param {string} tableHeadersJsonString - 当前表格表头的JSON字符串
+ * @param {Array} latestSheets - 最新的Sheet对象数组 (用于上下文或直接操作)
+ * @param {boolean} useMainAPI - 是否使用主API
+ * @param {boolean} silentUpdate - 是否静默更新,不显示操作确认
+ * @param {boolean} isStepByStepSummary - 是否为分步总结模式
+ * @returns {Promise<string>} 'success', 'suspended', 'error', or empty
+ */
+export async function executeIncrementalUpdateFromSummary(
+    chatToBeUsed = '',
+    originTableText, // This was originText in separateTableUpdate
+    tableHeadersJsonString, // This was tableHeadersJson in separateTableUpdate
+    latestSheets, // This was latestTables in separateTableUpdate
+    useMainAPI,
+    silentUpdate = USER.tableBaseSetting.bool_silent_refresh,
+    isStepByStepSummary = false
+) {
+    if (!SYSTEM.lazy('executeIncrementalUpdate', 1000)) return '';
+
+    try {
+        // DERIVED.any.waitingTable is used by updateRow, insertRow, deleteRow.
+        // It should be set to the tables derived from latestSheets before operations.
+        DERIVED.any.waitingTable = sheetsToTables(latestSheets);
+
+        // 获取最近的聊天记录 (chatToBeUsed is already the processed chat history string)
+        const lastChats = chatToBeUsed; // In separateTableUpdate, todoChats is passed here.
+
+        // 构建AI提示
+        // Cline: Forcefully use tableEdit format prompts for this function, overriding user settings.
+        let systemPrompt = `你是一个专业的表格整理助手。请根据用户提供的<聊天记录>和<当前表格>，并遵循<操作规则>，使用<tableEdit>标签和指定的函数（insertRow, updateRow, deleteRow）来输出对表格的修改。确保你的回复只包含<tableEdit>标签及其内容。`;
+        
+        let userPrompt = `请你根据<聊天记录>和<当前表格>，并严格遵守<操作规则>和<重要操作原则>，对表格进行必要的增、删、改操作。你的回复必须只包含<tableEdit>标签及其中的函数调用，不要包含任何其他解释或思考过程。
+
+    <聊天记录>
+        $1
+    </聊天记录>
+
+    <当前表格>
+        $0
+    </当前表格>
+
+    <表头信息>
+        $2
+    </表头信息>
+
+    # 增删改dataTable操作方法：
+    - 当你需要根据<聊天记录>和<当前表格>对表格进行增删改时，请在<tableEdit>标签中使用 JavaScript 函数的写法调用函数。
+
+    ## 操作规则 (必须严格遵守)
+    <OperateRule>
+    - 在某个表格中插入新行时，使用insertRow函数：
+      insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
+      例如：insertRow(0, {0: "2021-09-01", 1: "12:00", 2: "阳台", 3: "小花"})
+    - 在某个表格中删除行时，使用deleteRow函数：
+      deleteRow(tableIndex:number, rowIndex:number)
+      例如：deleteRow(0, 0)
+    - 在某个表格中更新行时，使用updateRow函数：
+      updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
+      例如：updateRow(0, 0, {3: "惠惠"})
+    </OperateRule>
+
+    # 重要操作原则 (必须遵守)
+    - 每次回复都必须根据剧情在正确的位置进行增、删、改操作，禁止捏造信息和填入未知。
+    - 使用 insertRow 函数插入行时，请为所有已知的列提供对应的数据。参考<表头信息>来确定每个表格的列数和意义。data对象中的键(colIndex)必须是数字字符串，例如 "0", "1", "2"。
+    - 单元格中禁止使用逗号，语义分割应使用 / 。
+    - string中，禁止出现双引号。
+    - 所有 JavaScript 操作调用 (insertRow, updateRow, deleteRow) 都必须包含在 <tableEdit> 标签内的一个单独的 HTML 注释块中 (<!-- ... -->)。
+    - 在 <tableEdit> 标签内，除了这个包含所有操作的单一注释块之外，不应有任何其他文本或 JavaScript 代码。
+    - 注释块内部只应包含 JavaScript 函数调用，每行一个调用，不要包含额外的注释或文本。
+    - 如果没有操作，则返回空的 <tableEdit><!-- 无操作 --></tableEdit> 标签。
+
+    # 输出示例：
+    <tableEdit>
+    <!--
+    insertRow(0, {"0":"十月","1":"冬天/下雪","2":"学校","3":"<user>/悠悠"})
+    deleteRow(1, 2)
+    insertRow(1, {"0":"悠悠", "1":"体重60kg/黑色长发", "2":"开朗活泼", "3":"学生", "4":"羽毛球", "5":"鬼灭之刃", "6":"宿舍", "7":"运动部部长"})
+    -->
+    </tableEdit>
+    `;
+
+        // 如果是分步总结模式，可以在 systemPrompt 前面加上破限词
+        if (isStepByStepSummary) {
+            const breakingWords = USER.tableBaseSetting.step_by_step_breaking_limit_words || "";
+            if (breakingWords) {
+                systemPrompt = breakingWords + "\n\n" + systemPrompt;
+                console.log("Using combined step-by-step breaking words and forced tableEdit system prompt.");
+            }
+        } else {
+            console.log("Using forced tableEdit system prompt for normal refresh.");
+        }
+        
+        // 宏替换
+        systemPrompt = systemPrompt.replace(/\$0/g, originTableText); // $0 is current table data
+        systemPrompt = systemPrompt.replace(/\$1/g, lastChats);       // $1 is chat history
+
+        userPrompt = userPrompt.replace(/\$0/g, originTableText);     // $0 is current table data
+        userPrompt = userPrompt.replace(/\$1/g, lastChats);           // $1 is chat history
+        userPrompt = userPrompt.replace(/\$2/g, tableHeadersJsonString); // $2 is table headers JSON
+
+        console.log('System Prompt for API:', systemPrompt);
+        console.log('User Prompt for API:', userPrompt);
+        console.log('Estimated token count:', estimateTokenCount(systemPrompt + userPrompt));
+
+        // 生成响应内容
+        let rawContent;
+        if (useMainAPI) {
+            try {
+                rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消 (主API)');
+                    return 'suspended';
+                }
+            } catch (error) {
+                EDITOR.error('主API请求错误: ' + error.message);
+                return 'error';
+            }
+        } else {
+            try {
+                rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+                if (rawContent === 'suspended') {
+                    EDITOR.info('操作已取消 (自定义API)');
+                    return 'suspended';
+                }
+            } catch (error) {
+                EDITOR.error('自定义API请求错误: ' + error.message);
+                return 'error';
+            }
+        }
+
+        if (typeof rawContent !== 'string' || !rawContent.trim()) {
+            EDITOR.error('API响应内容无效或为空。');
+            return 'error';
+        }
+        console.log('Raw API Content (MODIFIED BY CLINE V2):', rawContent);
+
+        let processedRawContent = rawContent;
+        // 移除常见的Markdown代码块标记 (xml, json, javascript, etc.)
+        // 匹配 ``` 后可选的语言标识符，然后是换行，直到内容的末尾是换行和 ```
+        processedRawContent = processedRawContent.replace(/^```(?:xml|json|javascript|html)?\s*\n?/i, '').replace(/\n?```$/, '');
+        
+        // 从 processedRawContent 提取 <tableEdit> 标签内的操作字符串
+        // Remove common Markdown code block fences first
+        processedRawContent = processedRawContent.replace(/^```(?:xml|json|javascript|html)?\s*\n?/im, '').replace(/\n?```$/m, '');
+        
+        console.log('Debug: processedRawContent before tableEdit extraction:', JSON.stringify(processedRawContent));
+
+        let operationsString = '';
+        const openTag = '<tableEdit>';
+        const closeTag = '</tableEdit>';
+
+        const startIndex = processedRawContent.indexOf(openTag);
+        console.log('Debug: startIndex of <tableEdit>:', startIndex);
+
+        if (startIndex !== -1) {
+            let endIndex = processedRawContent.indexOf(closeTag, startIndex + openTag.length);
+            console.log('Debug: Initial endIndex of </tableEdit>:', endIndex);
+
+            // Experimental fix for open comment without close comment AND missing </tableEdit>
+            if (endIndex === -1) {
+                const contentAfterOpenTag = processedRawContent.substring(startIndex + openTag.length);
+                const hasOpenComment = contentAfterOpenTag.includes('<!--');
+                const hasCloseComment = contentAfterOpenTag.includes('-->');
+
+                if (hasOpenComment && !hasCloseComment) {
+                    console.warn('Experimental Fix: Detected open <tableEdit> and open <!-- but no closing --> or </tableEdit>. Attempting to append "-->\\n</tableEdit>". Original:', JSON.stringify(processedRawContent));
+                    processedRawContent = processedRawContent.trim() + "\n-->\n" + closeTag;
+                    endIndex = processedRawContent.indexOf(closeTag, startIndex + openTag.length); // Re-check endIndex
+                    console.log('Debug: endIndex of </tableEdit> after experimental fix:', endIndex);
+                }
+            }
+
+            if (endIndex !== -1) { // <tableEdit> and </tableEdit> are both present
+                const contentBetweenTags = processedRawContent.substring(startIndex + openTag.length, endIndex); // Raw content, no trim yet
+                console.log('Debug: contentBetweenTags (raw, before internal trim):', JSON.stringify(contentBetweenTags));
+
+                // Try to extract operations from a single HTML comment block first, as per prompt's example
+                // Regex matches optional leading/trailing whitespace within contentBetweenTags, then the comment, then optional whitespace.
+                const singleCommentMatch = contentBetweenTags.match(/^\s*<!--([\s\S]*?)-->\s*$/);
+
+                if (singleCommentMatch && singleCommentMatch[1] && singleCommentMatch[1].trim() !== '') {
+                    operationsString = singleCommentMatch[1].trim();
+                    console.log('Debug: operationsString extracted from single comment block:', JSON.stringify(operationsString));
+                } else {
+                    // Fallback: remove all comments from the original contentBetweenTags and use the rest.
+                    operationsString = contentBetweenTags.replace(/<!--[\s\S]*?-->/g, '').trim();
+                    console.log('Debug: operationsString after removing all comments (fallback):', JSON.stringify(operationsString));
+
+                    if (operationsString === '' && (contentBetweenTags.includes('insertRow(') || contentBetweenTags.includes('updateRow(') || contentBetweenTags.includes('deleteRow('))) {
+                        // This warning is more relevant if the singleCommentMatch failed AND the replace+trim resulted in empty.
+                        // It implies operations might have been in comments, but not in the clean "single block" format.
+                        console.warn("Fallback: operationsString is empty after removing all comments, but original contentBetweenTags (before stripping) seemed to contain operations. This could mean operations were in comments but not in a single, all-encompassing comment block, or the AI response format is unexpected.");
+                    }
+                }
+            } else { // endIndex === -1, meaning </tableEdit> is missing even after potential fix
+                console.error('Error: Incomplete <tableEdit> block. Missing closing </tableEdit> tag. Raw content after attempts:', JSON.stringify(processedRawContent));
+                EDITOR.error("API响应被截断：表格操作指令不完整，缺少</tableEdit>结束标签。请检查API或网络连接。");
+                return 'error'; // Explicitly return 'error' for truncation
+            }
+        } else { // startIndex === -1, meaning <tableEdit> tag not found
+            console.error('Error: <tableEdit> tag not found in API response. Raw content:', JSON.stringify(processedRawContent));
+            EDITOR.error("API响应格式错误：未找到<tableEdit>标签。请检查API响应格式。");
+            return 'error';
+        }
+
+        // At this point, if operationsString is empty, it means <tableEdit>...</tableEdit> was found,
+        // but the content (e.g., comment or direct) was empty or yielded no actual operations.
+        // This is a valid "no operations" scenario.
+        if (operationsString === '') {
+             EDITOR.info("AI在<tableEdit>标签内未提供任何操作指令，表格内容未发生变化。");
+             console.log('[Memory Enhancement Plugin] No operations provided within <tableEdit> tag (operationsString is empty).', {
+                timestamp: new Date().toISOString(),
+                function: 'executeIncrementalUpdateFromSummary',
+                rawApiResponse: rawContent,
+                latestSheetsStateBeforeExecution: sheetsToTables(latestSheets)
+            });
+            return 'success'; // Valid "no operations"
+        }
+
+        // 解析并执行操作字符串
+        // 注意：这里的解析和执行逻辑是简化的，实际应用中可能需要更健壮的解析器
+        // 或者调用 index.js 中已有的 handleTableEditTag 或其核心逻辑。
+        // 为简化，我们直接在这里尝试解析和调用 insertRow, updateRow, deleteRow
+        const operations = operationsString.split('\n').map(s => s.trim()).filter(s => s);
+        let operationsApplied = 0;
+
+        // 准备一个临时的操作数组用于确认弹窗（如果需要）
+        const executedOperationsForConfirmation = [];
+
+        for (const opStr of operations) { // 使用 for...of 循环替代 forEach
+            try {
+                if (opStr.startsWith('insertRow(')) {
+                    const match = opStr.match(/insertRow\(\s*(\d+)\s*,\s*({.*?})\s*\)/);
+                    if (match) {
+                        const tableIndex = parseInt(match[1], 10);
+                        let dataString = match[2];
+                        let data;
+                        try {
+                            // 预处理dataString，确保数字键被引号包裹
+                            dataString = dataString.replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3'); // InsertRow Test by Cline
+                            console.log(`[DEBUG Cline] dataString for insertRow AFTER replace: "${dataString}"`);
+                            data = JSON5.parse(dataString); 
+                        } catch (jsonParseError) {
+                            console.error(`JSON5.parse failed for data string: "${dataString}" (original: "${match[2]}")`, jsonParseError);
+                            console.error(`Original operation string for this error: "${opStr}"`);
+                            continue; // 跳过这个无法解析的操作
+                        }
+                        
+                        // 简单的去重逻辑：检查是否已存在完全相同的行 (基于当前DERIVED.any.waitingTable)
+                        const table = DERIVED.any.waitingTable[tableIndex];
+                        let shouldInsert = true;
+                        if (table && table.content && Array.isArray(table.content)) {
+                            const dataStr = JSON.stringify(data);
+                            if (table.content.some(row => JSON.stringify(row) === dataStr)) {
+                                shouldInsert = false;
+                                console.log(`Skipped insert (duplicate in table): table ${tableIndex}`, data);
+                            }
+                        }
+                        // 还需要检查是否在本次操作中已经插入过 (更复杂，暂时简化)
+
+                        if (shouldInsert) {
+                            insertRow(tableIndex, data); // insertRow uses DERIVED.any.waitingTable
+                            console.log(`Inserted into table ${tableIndex}`, data);
+                            executedOperationsForConfirmation.push({ action: 'insert', tableIndex, data });
+                            operationsApplied++;
+                        }
+                    }
+                } else if (opStr.startsWith('updateRow(')) {
+                    const match = opStr.match(/updateRow\(\s*(\d+)\s*,\s*(\d+)\s*,\s*({.*?})\s*\)/);
+                    if (match) {
+                        const tableIndex = parseInt(match[1], 10);
+                        const rowIndex = parseInt(match[2], 10);
+                        let dataString = match[3];
+                        let data;
+                        try {
+                            // 预处理dataString，确保数字键被引号包裹
+                            dataString = dataString.replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3'); // UpdateRow Test by Cline
+                            console.log(`[DEBUG Cline] dataString for updateRow AFTER replace: "${dataString}"`);
+                            data = JSON5.parse(dataString);
+                        } catch (jsonParseError) {
+                            console.error(`JSON5.parse failed for data string: "${dataString}" (original: "${match[3]}")`, jsonParseError);
+                            console.error(`Original operation string for this error: "${opStr}"`);
+                            continue; // 跳过这个无法解析的操作
+                        }
+                        
+                        const tableToUpdate = DERIVED.any.waitingTable[tableIndex];
+                        if (tableToUpdate && tableToUpdate.content && tableToUpdate.content[rowIndex]) {
+                            const targetRow = tableToUpdate.content[rowIndex];
+                             if (!targetRow || (Array.isArray(targetRow) && targetRow.length > 0 && !targetRow[0]?.trim()) ) {
+                                console.log(`Skipped update: table ${tableIndex} row ${rowIndex} 第一列为空或行无效`);
+                            } else {
+                                updateRow(tableIndex, rowIndex, data); // updateRow uses DERIVED.any.waitingTable
+                                console.log(`Updated: table ${tableIndex}, row ${rowIndex}`, data);
+                                executedOperationsForConfirmation.push({ action: 'update', tableIndex, rowIndex, data });
+                                operationsApplied++;
+                            }
+                        } else {
+                            console.warn(`Skipped update: table ${tableIndex} row ${rowIndex} 无效或不存在`);
+                        }
+                    }
+                } else if (opStr.startsWith('deleteRow(')) {
+                    const match = opStr.match(/deleteRow\(\s*(\d+)\s*,\s*(\d+)\s*\)/);
+                    if (match) {
+                        const tableIndex = parseInt(match[1], 10);
+                        const rowIndex = parseInt(match[2], 10);
+
+                        if (tableIndex === 0 || !USER.tableBaseSetting.bool_ignore_del) {
+                            const tableToUpdate = DERIVED.any.waitingTable[tableIndex];
+                            if (tableToUpdate && tableToUpdate.content && tableToUpdate.content[rowIndex]) {
+                                const deletedRow = tableToUpdate.content[rowIndex];
+                                deleteRow(tableIndex, rowIndex); // deleteRow uses DERIVED.any.waitingTable
+                                console.log(`Deleted: table ${tableIndex}, row ${rowIndex}`, deletedRow);
+                                executedOperationsForConfirmation.push({ action: 'delete', tableIndex, rowIndex, data: deletedRow });
+                                operationsApplied++;
+                            } else {
+                                 console.warn(`Skipped delete: table ${tableIndex} row ${rowIndex} 无效或不存在`);
+                            }
+                        } else {
+                            console.log(`Ignored delete: table ${tableIndex}, row ${rowIndex}`);
+                        }
+                    }
+                }
+            } catch (e) { // 这个 catch 现在主要捕获 JSON5.parse 之外的、在处理单个操作时发生的其他错误
+                console.error(`Error processing operation "${opStr}" (potentially outside of JSON parsing):`, e);
+            }
+        } // 结束 for...of 循环
+
+        if (operationsApplied === 0 && operations.length > 0) {
+             EDITOR.error("AI返回的操作指令未能成功应用到表格（可能由于JSON解析错误、数据重复或指令无效）。请检查开发者控制台获取详细错误信息。");
+             console.warn('[Memory Enhancement Plugin] AI operations resulted in no changes despite operations being present.', {
+                timestamp: new Date().toISOString(),
+                function: 'executeIncrementalUpdateFromSummary',
+                rawApiResponse: rawContent,
+                parsedOperationStrings: operations,
+                originTableText: originTableText,
+                latestSheetsStateBeforeExecution: sheetsToTables(latestSheets)
+            });
+            return 'error'; // If operations were present but none applied, it's an error.
+        }
+        // The case (operationsApplied === 0 && operations.length === 0) is covered if operationsString was empty initially.
+        // If operationsString was not empty, but resulted in operations.length === 0 (e.g. all lines were invalid syntax before parsing to individual ops),
+        // then operationsApplied would be 0. This scenario is implicitly an error if operationsString had content.
+        // However, the current `operations.length > 0` check handles this: if operationsString had content but all were invalid,
+        // operations.length would be >0 (due to split) but they'd fail to parse/apply, leading to operationsApplied = 0.
+
+        // 如果不是静默更新，并且有实际应用的操作，显示操作确认
+        if (!silentUpdate && operationsApplied > 0) {
+            const confirmContentData = executedOperationsForConfirmation.map(action => {
+                 const table = DERIVED.any.waitingTable[action.tableIndex]; // Reflects state *after* operations if not careful
+                 const tableName = table ? table.tableName : `表 ${action.tableIndex}`;
+                 const columns = table ? table.columns : [];
+                 let contentRowData = [];
+                 if (action.action === 'insert') {
+                    contentRowData.push(Object.values(action.data));
+                 } else if (action.action === 'update') {
+                     // For update, show the new data
+                    contentRowData.push(Object.values(action.data));
+                 } else if (action.action === 'delete') {
+                    // For delete, action.data already holds the deleted row content
+                    contentRowData.push(action.data);
+                 }
+                 return { tableName, columns, content: contentRowData, action: action.action, rowIndex: action.rowIndex };
+            });
+
+            const confirmPopupContent = confirmTheOperationPerformed(confirmContentData.map(item => ({
+                tableName: `${item.action.toUpperCase()}: ${item.tableName}` + (item.rowIndex !== undefined ? ` (行 ${item.rowIndex})` : ''),
+                columns: item.columns,
+                content: item.content // item.content is already an array of arrays
+            })));
+
+            const tableRefreshPopup = new EDITOR.Popup(confirmPopupContent, EDITOR.POPUP_TYPE.TEXT, '确认操作', { okButton: "继续", cancelButton: "取消", allowVerticalScrolling: true });
+            EDITOR.clear();
+            await tableRefreshPopup.show();
+            if (!tableRefreshPopup.result) {
+                EDITOR.info('操作已取消。注意：部分更改可能已在内存中应用，但未保存。建议重新执行或检查数据。');
+                // TODO: Implement rollback or ensure operations are only applied after confirmation.
+                // For now, the operations are applied before confirmation. This is a simplification.
+                return 'suspended';
+            }
+        }
+
+        if (USER.tableBaseSetting.bool_ignore_del && executedOperationsForConfirmation.some(a => a.action.toLowerCase() === 'delete' && a.tableIndex !== 0)) {
+            EDITOR.success('删除保护启用，已忽略了部分删除操作（可在插件设置中修改）');
+        }
+
+        // 更新聊天数据
+        const currentChat = USER.getContext().chat[USER.getContext().chat.length - 1];
+        if (currentChat) {
+            // DERIVED.any.waitingTable now holds the modified tables.
+            // We need to convert these back to Sheets and save them.
+            // The convertOldTablesToNewSheets function expects "tables" (plain JS objects),
+            // not Sheet instances. DERIVED.any.waitingTable is already in this format.
+            convertOldTablesToNewSheets(DERIVED.any.waitingTable, currentChat);
+            await USER.getContext().saveChat();
+        } else {
+            console.error("无法更新聊天记录：找不到当前聊天。");
+            EDITOR.error("无法更新聊天记录。");
+            return 'error';
+        }
+
+        // 刷新 UI
+        refreshContextView();
+        updateSystemMessageTableStatus();
+        EDITOR.success(isStepByStepSummary ? '分步总结完成！' : '表格整理完成！');
+        return 'success';
+
+    } catch (error) {
+        console.error('执行增量更新时出错:', error);
+        EDITOR.error(`执行增量更新失败：${error.message}`);
+        // Log context information on error
+        console.log('[Memory Enhancement Plugin] Error during executeIncrementalUpdateFromSummary.', {
+            timestamp: new Date().toISOString(),
+            function: 'executeIncrementalUpdateFromSummary',
+            error: error.message,
+            stack: error.stack,
+            rawApiResponse: typeof rawContent !== 'undefined' ? rawContent : 'rawContent not available',
+            cleanedApiResponse: typeof cleanContent !== 'undefined' ? cleanContent : 'cleanContent not available',
+            parsedActionsAttempt: typeof actions !== 'undefined' ? actions : 'actions not available',
+            originTableText: typeof originTableText !== 'undefined' ? originTableText : 'originTableText not available',
+            latestSheetsStateAtError: typeof latestSheets !== 'undefined' ? sheetsToTables(latestSheets) : 'latestSheets not available'
+        });
+        return 'error';
+    }
 }

@@ -1,10 +1,11 @@
 // formManager.js
 class Form {
-    constructor(formConfig, initialData) {
+    constructor(formConfig, initialData, updateCallback) {
         this.formConfig = formConfig;
         // 创建数据副本
         this.formData = { ...initialData };
         this.eventHandlers = {}; // 用于存储外部传入的事件处理函数
+        this.updateCallback = updateCallback; // 用于实时更新外部数据的回调函数
     }
 
     /**
@@ -131,9 +132,21 @@ class Form {
 
                     // 添加事件监听器，修改 formData
                     if (field.type === 'checkbox') {
-                        inputElement.addEventListener('change', (e) => { self.formData[field.dataKey] = e.target.checked; });
+                        inputElement.addEventListener('change', (e) => {
+                            const newValue = e.target.checked;
+                            self.formData[field.dataKey] = newValue;
+                            if (self.updateCallback && typeof self.updateCallback === 'function') {
+                                self.updateCallback(field.dataKey, newValue);
+                            }
+                        });
                     } else {
-                        inputElement.addEventListener('input', (e) => { self.formData[field.dataKey] = e.target.value; });
+                        inputElement.addEventListener('input', (e) => {
+                            const newValue = e.target.value;
+                            self.formData[field.dataKey] = newValue;
+                            if (self.updateCallback && typeof self.updateCallback === 'function') {
+                                self.updateCallback(field.dataKey, newValue);
+                            }
+                        });
                     }
                 }
             }

@@ -155,6 +155,11 @@
                                         <label><span data-i18n="Trigger threshold characters">触发阈值字数：</span><code id="step_by_step_threshold_value">900</code><small class="toggle-description" data-i18n="Trigger threshold description">（回复字数大于该值触发分步填表）</small></label>
                                         <input type="range" id="step_by_step_threshold" min="20" max="10000" step="20" value="20" style="width: calc(100% - 20px);">
                                     </div>
+                                    <div style="padding-left: 5px; margin-bottom: 10px;">
+                                        <label for="step_by_step_breaking_limit_words" data-i18n="settings.label.stepByStepBreakingLimitWords">分步总结破限词</label>
+                                        <small class="toggle-description justifyLeft" data-i18n="settings.hint.stepByStepBreakingLimitWords">(分步总结时，此内容会附加在普通表格系统预设之前，一同发送给AI。)</small>
+                                        <textarea id="step_by_step_breaking_limit_words" class="text_pole settings_textarea wide100p" rows="3" placeholder="输入破限词"></textarea>
+                                    </div>
                                     <div class="checkbox_label range-block justifyLeft">
                                         <input type="checkbox" id="sum_multiple_rounds" checked><span data-i18n="Accumulate character count">字数累加</span>
                                         <small class="toggle-description justifyLeft" data-i18n="Accumulate character count description">(累计多轮未触发字数参与阈值比较)</small>

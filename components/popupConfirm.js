@@ -1,24 +1,59 @@
 import {SYSTEM, USER} from "../core/manager.js";
 
+// Static map to track temporarily disabled popups by ID
+const disabledPopups = {};
+
 const bgc = '#3736bb'
 const bgcg = '#de81f1'
 // const bgc = 'var(--SmartThemeBotMesBlurTintColor)'
 // const bgcg = 'var(--SmartThemeUserMesBlurTintColor)'
 const tc = '#fff'
 
-export async function newPopupConfirm(text, cancelText = 'Cancel', confirmText = 'Confirm', id = '') {
-    return await new PopupConfirm().show(text, cancelText, confirmText);
+export async function newPopupConfirm(text, cancelText = 'Cancel', confirmText = 'Confirm', id = '', dontRemindText = null) {
+    if (id && disabledPopups[id]) {
+        return Promise.resolve('dont_remind_active');
+    }
+    return await new PopupConfirm().show(text, cancelText, confirmText, id, dontRemindText);
 }
 
 export class PopupConfirm {
+    static get disabledPopups() { // Getter for external access if needed, though direct modification is in _handleAction
+        return disabledPopups;
+    }
+
     constructor() {
         this.uid = SYSTEM.generateRandomString(10);
-        this.confirm = false;
+        // this.confirm = false; // Less relevant now with specific promise resolutions
         this.toastContainer = null;
         this.toastElement = null;
         this.resolvePromise = null;
         this._text = '';
         this.messageText = null; // 保存文本元素的引用
+        this.id = null; // To store the popup ID
+    }
+
+    _handleAction(resolutionValue) {
+        let actualResolutionValue = resolutionValue;
+        if (resolutionValue === 'dont_remind_selected' && this.id) {
+            disabledPopups[this.id] = true;
+            actualResolutionValue = true; // Act as if "Confirm" was pressed
+        }
+
+        if (this.toastElement) {
+            this.toastElement.style.opacity = '0';
+            setTimeout(() => {
+                if (this.toastContainer && this.toastElement && this.toastElement.parentNode === this.toastContainer) {
+                    this.toastContainer.removeChild(this.toastElement);
+                }
+                if (this.toastContainer && this.toastContainer.children.length === 0 && document.body.contains(this.toastContainer)) {
+                    document.body.removeChild(this.toastContainer);
+                }
+                this.toastElement = null;
+            }, 300);
+        }
+        if (this.resolvePromise) {
+            this.resolvePromise(actualResolutionValue);
+        }
     }
 
     // 添加text属性的getter和setter
@@ -28,17 +63,15 @@ export class PopupConfirm {
 
     set text(value) {
         this._text = value;
-        // 如果messageText元素已创建，则更新其内容
         if (this.messageText) {
             this.messageText.textContent = value;
         }
     }
 
-    async show(message = 'Are you sure?', cancelText = 'Cancel', confirmText = 'Confirm') {
-        // 设置初始文本
+    async show(message = 'Are you sure?', cancelText = 'Cancel', confirmText = 'Confirm', id = null, dontRemindText = null) {
         this._text = message;
+        this.id = id; // Store the ID
 
-        // Check if toast container exists, if not create one
         this.toastContainer = document.getElementById('toast-container');
         if (!this.toastContainer) {
             this.toastContainer = document.createElement('div');
@@ -105,12 +138,13 @@ export class PopupConfirm {
         confirmBtn.style.cursor = 'pointer';
         confirmBtn.style.fontSize = '0.85rem';
         confirmBtn.style.fontWeight = 'bold';
-        confirmBtn.classList.add('popup-button-ok', 'menu_button', 'result-control', 'interactable')
+        confirmBtn.classList.add('popup-button-ok', 'menu_button', 'result-control', 'interactable');
+        confirmBtn.onclick = () => this._handleAction(true);
 
         // Create cancel button
         const cancelBtn = document.createElement('button');
         cancelBtn.textContent = cancelText;
-        cancelBtn.style.width = '100%'
+        cancelBtn.style.width = '100%';
         cancelBtn.style.padding = '3px 12px';
         cancelBtn.style.background = 'none';
         // cancelBtn.style.backgroundColor = bgcg;
@@ -119,12 +153,30 @@ export class PopupConfirm {
         cancelBtn.style.borderRadius = '6px';
         cancelBtn.style.cursor = 'pointer';
         cancelBtn.style.fontSize = '0.85rem';
-        cancelBtn.classList.add('popup-button-cancel', 'menu_button', 'result-control', 'interactable')
+        cancelBtn.classList.add('popup-button-cancel', 'menu_button', 'result-control', 'interactable');
+        cancelBtn.onclick = () => this._handleAction(false);
 
         // Build the DOM structure
-        buttons.appendChild(cancelBtn);
-        buttons.appendChild(confirmBtn);
-        // this.toastElement.appendChild(closeButton);
+        buttons.appendChild(cancelBtn); // "否" button
+        buttons.appendChild(confirmBtn); // "是" button
+
+        // Create "Don't Remind" button if text and id are provided
+        if (dontRemindText && this.id) {
+            const dontRemindBtn = document.createElement('button');
+            dontRemindBtn.textContent = dontRemindText; // e.g., "暂不提醒"
+            dontRemindBtn.style.width = '100%';
+            dontRemindBtn.style.padding = '3px 12px';
+            dontRemindBtn.style.background = 'none';
+            dontRemindBtn.style.color = tc;
+            dontRemindBtn.style.border = `1px solid ${bgcg}`; // Slightly different border or same as cancel
+            dontRemindBtn.style.borderRadius = '6px';
+            dontRemindBtn.style.cursor = 'pointer';
+            dontRemindBtn.style.fontSize = '0.85rem';
+            dontRemindBtn.classList.add('popup-button-dont-remind', 'menu_button', 'result-control', 'interactable');
+            dontRemindBtn.onclick = () => this._handleAction('dont_remind_selected');
+            buttons.appendChild(dontRemindBtn); // Added after "是" and "否"
+        }
+
         this.toastElement.appendChild(messageEl);
         this.toastElement.appendChild(buttons);
         // this.toastContainer.appendChild(this.toastElement);
@@ -139,60 +191,37 @@ export class PopupConfirm {
 
         // Return a promise that resolves when user clicks a button
         return new Promise((resolve) => {
-            this.resolvePromise = resolve;
-
-            const cleanup = () => {
-                // Start fade out animation
-                // this.toastElement.style.transform = 'translateY(-30px)';
-                this.toastElement.style.opacity = '0';
-
-                // Remove element after animation completes
-                setTimeout(() => {
-                    if (this.toastContainer && this.toastElement && this.toastElement.parentNode === this.toastContainer) {
-                        this.toastContainer.removeChild(this.toastElement);
-                    }
-                    // Remove container if it's empty
-                    if (this.toastContainer && this.toastContainer.children.length === 0) {
-                        if (document.body.contains(this.toastContainer)) {
-                            console.log('Removing toast container from body');
-                            document.body.removeChild(this.toastContainer);
-                        }
-                    }
-                    this.toastElement = null;
-                }, 300);
-            };
-
-            confirmBtn.onclick = () => {
-                this.confirm = true;
-                cleanup();
-                resolve(true);
-            };
-
-            cancelBtn.onclick = () => {
-                this.confirm = false;
-                cleanup();
-                resolve(false);
-            };
+            this.resolvePromise = resolve; // _handleAction will use this
+            // Button onclick handlers are now set directly to call _handleAction.
         });
     }
 
-    // 关闭弹窗
+    // 关闭弹窗 - this.close() can be called if an external force closes the popup.
+    // _handleAction now manages the standard cleanup path.
     close() {
         this.cancelFrameUpdate();
+        // If resolvePromise exists, it means the popup was shown and might not have been resolved yet.
+        // Resolve with a default value (e.g., false or a specific 'closed_manually' value) if needed.
+        // For now, just visually close it. If _handleAction wasn't called, the promise won't resolve.
+        // This behavior might need adjustment based on how .close() is used externally.
+        // Typically, user interaction (handled by _handleAction) resolves the promise.
         if (this.toastElement) {
-            // this.toastElement.style.transform = 'translateY(-30px)';
             this.toastElement.style.opacity = '0';
             setTimeout(() => {
                 if (this.toastContainer && this.toastElement && this.toastElement.parentNode === this.toastContainer) {
                     this.toastContainer.removeChild(this.toastElement);
                 }
-                if (this.toastContainer && this.toastContainer.children.length === 0) {
-                    if (document.body.contains(this.toastContainer)) {
-                        document.body.removeChild(this.toastContainer);
-                    }
+                if (this.toastContainer && this.toastContainer.children.length === 0 && document.body.contains(this.toastContainer)) {
+                    document.body.removeChild(this.toastContainer);
                 }
+                this.toastElement = null;
             }, 300);
         }
+        // If the promise needs to be resolved when close() is called externally:
+        // if (this.resolvePromise) {
+        //     this.resolvePromise('closed_externally'); // Or false, or null
+        //     this.resolvePromise = null; // Prevent multiple resolutions
+        // }
     }
 
     frameUpdate(callback) {
