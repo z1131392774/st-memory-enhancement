@@ -376,6 +376,56 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     step_by_step_threshold: 500,
     // 分步总结破限词
     step_by_step_breaking_limit_words: "",
+    // 分步填表提示词
+    step_by_step_user_prompt: `请你根据<聊天记录>和<当前表格>，并严格遵守<操作规则>和<重要操作原则>，对表格进行必要的增、删、改操作。你的回复必须只包含<tableEdit>标签及其中的函数调用，不要包含任何其他解释或思考过程。
+
+    <聊天记录>
+        $1
+    </聊天记录>
+
+    <当前表格>
+        $0
+    </当前表格>
+
+    <表头信息>
+        $2
+    </表头信息>
+
+    # 增删改dataTable操作方法：
+    - 当你需要根据<聊天记录>和<当前表格>对表格进行增删改时，请在<tableEdit>标签中使用 JavaScript 函数的写法调用函数。
+
+    ## 操作规则 (必须严格遵守)
+    <OperateRule>
+    - 在某个表格中插入新行时，使用insertRow函数：
+      insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
+      例如：insertRow(0, {0: "2021-09-01", 1: "12:00", 2: "阳台", 3: "小花"})
+    - 在某个表格中删除行时，使用deleteRow函数：
+      deleteRow(tableIndex:number, rowIndex:number)
+      例如：deleteRow(0, 0)
+    - 在某个表格中更新行时，使用updateRow函数：
+      updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
+      例如：updateRow(0, 0, {3: "惠惠"})
+    </OperateRule>
+
+    # 重要操作原则 (必须遵守)
+    - 每次回复都必须根据剧情在正确的位置进行增、删、改操作，禁止捏造信息和填入未知。
+    - 使用 insertRow 函数插入行时，请为所有已知的列提供对应的数据。参考<表头信息>来确定每个表格的列数和意义。data对象中的键(colIndex)必须是数字字符串，例如 "0", "1", "2"。
+    - 单元格中禁止使用逗号，语义分割应使用 / 。
+    - string中，禁止出现双引号。
+    - 所有 JavaScript 操作调用 (insertRow, updateRow, deleteRow) 都必须包含在 <tableEdit> 标签内的一个单独的 HTML 注释块中 (<!-- ... -->)。
+    - 在 <tableEdit> 标签内，除了这个包含所有操作的单一注释块之外，不应有任何其他文本或 JavaScript 代码。
+    - 注释块内部只应包含 JavaScript 函数调用，每行一个调用，不要包含额外的注释或文本。
+    - 如果没有操作，则返回空的 <tableEdit><!-- 无操作 --></tableEdit> 标签。
+
+    # 输出示例：
+    <tableEdit>
+    <!--
+    insertRow(0, {"0":"十月","1":"冬天/下雪","2":"学校","3":"<user>/悠悠"})
+    deleteRow(1, 2)
+    insertRow(1, {"0":"悠悠", "1":"体重60kg/黑色长发", "2":"开朗活泼", "3":"学生", "4":"羽毛球", "5":"鬼灭之刃", "6":"宿舍", "7":"运动部部长"})
+    -->
+    </tableEdit>
+    `,
     // 双步字数累加
     sum_multiple_rounds: true,
     // 双步跳过整理后的确认弹窗
