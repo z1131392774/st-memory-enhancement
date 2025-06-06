@@ -1,3 +1,22 @@
+v2.0.22:
+- 重构：彻底分离了“普通填表”和“分步填表”的提示词配置，解决了之前因错误复用预设导致的功能异常。
+  - 新增：在 `data/pluginSetting.js` 中为“分步填表”添加了独立的 `step_by_step_user_prompt` 设置项，并提供了功能完备的默认提示词。
+  - 新增：在 `scripts/settings/userExtensionSetting.js` 中更新了设置界面，为新的 `step_by_step_user_prompt` 设置项增加了一个可编辑的文本域，使用户可以自定义“分步填表”的提示词。
+  - 修改：重写了 `scripts/runtime/absoluteRefresh.js` 中 `executeIncrementalUpdateFromSummary` 函数的提示词构建逻辑。现在，当进行“分步填表”时，该函数会固定使用新的、专用的 `step_by_step_user_prompt` 设置，而不再与“普通填表”的预设或复杂的备用逻辑耦合。
+  - 修复：在 `assets/templates/index.html` 文件中补全了“分步填表提示词”的 `<textarea>` 元素，解决了新设置项在UI中不显示的问题。
+  - 新增：为“分步填表提示词”文本框增加了一个“重置为默认”按钮，允许用户一键恢复为插件预设的提示词，防止因误改导致功能异常。
+  - 此项重构确保了两种填表模式的配置完全独立，提高了插件的稳定性和可维护性，并为用户提供了清晰的自定义路径  。
+
+v2.0.21:
+- 修复：解决了在 v2.0.20 版本中引入的一个bug，该bug导致在使用“自定义API”进行“分步填表”或“普通填表”时，由于向 `handleCustomAPIRequest` 函数传递了未定义的变量 (`systemPrompt` 和 `userPrompt`) 而非正确的 `systemPromptForApi` 和 `userPromptForApi`，导致出现 "systemPrompt is not defined" 错误。
+  - 修改了 `scripts/runtime/absoluteRefresh.js` 中的 `executeIncrementalUpdateFromSummary` 函数，确保在调用 `handleCustomAPIRequest` 时使用正确的变量名。
+
+v2.0.20:
+- 增强：修改了 `scripts/runtime/absoluteRefresh.js` 中的 `executeIncrementalUpdateFromSummary` 函数。
+  - 当进行“分步填表”（`isStepByStepSummary` 为 `true`）时，该函数现在会尝试从 `USER.tableBaseSetting` 加载并使用当前已应用的“普通填表”预设中的提示词（例如 `message_template` 和 `refresh_system_message_template`）。
+  - 如果无法从用户设置中成功加载这些预设提示词（例如，`message_template` 未定义或无法解析其内容），函数将回退到之前硬编码的、专门为分步总结设计的提示词，以确保功能连续性。
+  - 此更改旨在允许用户通过加载不同的“普通填表”预设来间接控制“分步填表”功能所使用的提示词，从而实现更灵活的预设管理。
+
 v2.0.19:
 - 修复：改进了 `scripts/runtime/absoluteRefresh.js` 中 `executeIncrementalUpdateFromSummary` 函数提取 `<tableEdit>` 标签内操作指令的逻辑，以更准确地处理AI响应。
   - 优先尝试从 `<tableEdit>` 和 `</tableEdit>` 之间内容中的单个HTML注释块（`<!-- ... -->`）提取操作指令。这符合了更新后的AI提示词，该提示词要求AI将所有操作指令放入一个单独的注释块中。
@@ -28,7 +47,7 @@ v2.0.16:
 
 v2.0.15:
 - 实验性修复与增强：针对独立自定义API响应中 `<tableEdit>` 标签内容被截断的问题，在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中加入了实验性的补充逻辑。
-  - **实验性补充逻辑**：如果检测到API响应包含 `<tableEdit>` 和 `<!--`，但缺少对应的 `-->` 和 `</tableEdit>`，会尝试在响应末尾追加 `-->\n</tableEdit>`。
+  - **实验性补充逻辑**：如果检测到API响应包含 `<tableEdit>` 和 `<!--`，但缺少对应的 `-->` 和 `</tableEdit>`，会尝试在响应末尾追加 ` -->\n</tableEdit>`。
   - **重要警告**：此补充逻辑高度实验性，仅针对当前观察到的特定截断模式。如果API响应以其他方式截断（例如，在 `<!--` 之前，或 `<!-- ... -->` 完整但 `<tableEdit>` 标签不完整），此逻辑可能无效甚至导致新的解析错误。强烈建议从API源头解决响应截断问题。
   - 修复了上一版本中因重复声明 `endIndex` 变量导致的TypeScript编译错误。
   - 此版本旨在提供一个临时的、有条件的缓解方案，同时继续强调API返回完整数据的重要性。

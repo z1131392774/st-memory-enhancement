@@ -1458,88 +1458,54 @@ export async function executeIncrementalUpdateFromSummary(
         // 获取最近的聊天记录 (chatToBeUsed is already the processed chat history string)
         const lastChats = chatToBeUsed; // In separateTableUpdate, todoChats is passed here.
 
-        // 构建AI提示
-        // Cline: Forcefully use tableEdit format prompts for this function, overriding user settings.
-        let systemPrompt = `你是一个专业的表格整理助手。请根据用户提供的<聊天记录>和<当前表格>，并遵循<操作规则>，使用<tableEdit>标签和指定的函数（insertRow, updateRow, deleteRow）来输出对表格的修改。确保你的回复只包含<tableEdit>标签及其内容。`;
-        
-        let userPrompt = `请你根据<聊天记录>和<当前表格>，并严格遵守<操作规则>和<重要操作原则>，对表格进行必要的增、删、改操作。你的回复必须只包含<tableEdit>标签及其中的函数调用，不要包含任何其他解释或思考过程。
+        let systemPromptForApi;
+        let userPromptForApi;
+        const defaultSystemPrompt = `你是一个专业的表格整理助手。请根据用户提供的<聊天记录>和<当前表格>，并遵循<操作规则>，使用<tableEdit>标签和指定的函数（insertRow, updateRow, deleteRow）来输出对表格的修改。确保你的回复只包含<tableEdit>标签及其内容。`;
 
-    <聊天记录>
-        $1
-    </聊天记录>
-
-    <当前表格>
-        $0
-    </当前表格>
-
-    <表头信息>
-        $2
-    </表头信息>
-
-    # 增删改dataTable操作方法：
-    - 当你需要根据<聊天记录>和<当前表格>对表格进行增删改时，请在<tableEdit>标签中使用 JavaScript 函数的写法调用函数。
-
-    ## 操作规则 (必须严格遵守)
-    <OperateRule>
-    - 在某个表格中插入新行时，使用insertRow函数：
-      insertRow(tableIndex:number, data:{[colIndex:number]:string|number})
-      例如：insertRow(0, {0: "2021-09-01", 1: "12:00", 2: "阳台", 3: "小花"})
-    - 在某个表格中删除行时，使用deleteRow函数：
-      deleteRow(tableIndex:number, rowIndex:number)
-      例如：deleteRow(0, 0)
-    - 在某个表格中更新行时，使用updateRow函数：
-      updateRow(tableIndex:number, rowIndex:number, data:{[colIndex:number]:string|number})
-      例如：updateRow(0, 0, {3: "惠惠"})
-    </OperateRule>
-
-    # 重要操作原则 (必须遵守)
-    - 每次回复都必须根据剧情在正确的位置进行增、删、改操作，禁止捏造信息和填入未知。
-    - 使用 insertRow 函数插入行时，请为所有已知的列提供对应的数据。参考<表头信息>来确定每个表格的列数和意义。data对象中的键(colIndex)必须是数字字符串，例如 "0", "1", "2"。
-    - 单元格中禁止使用逗号，语义分割应使用 / 。
-    - string中，禁止出现双引号。
-    - 所有 JavaScript 操作调用 (insertRow, updateRow, deleteRow) 都必须包含在 <tableEdit> 标签内的一个单独的 HTML 注释块中 (<!-- ... -->)。
-    - 在 <tableEdit> 标签内，除了这个包含所有操作的单一注释块之外，不应有任何其他文本或 JavaScript 代码。
-    - 注释块内部只应包含 JavaScript 函数调用，每行一个调用，不要包含额外的注释或文本。
-    - 如果没有操作，则返回空的 <tableEdit><!-- 无操作 --></tableEdit> 标签。
-
-    # 输出示例：
-    <tableEdit>
-    <!--
-    insertRow(0, {"0":"十月","1":"冬天/下雪","2":"学校","3":"<user>/悠悠"})
-    deleteRow(1, 2)
-    insertRow(1, {"0":"悠悠", "1":"体重60kg/黑色长发", "2":"开朗活泼", "3":"学生", "4":"羽毛球", "5":"鬼灭之刃", "6":"宿舍", "7":"运动部部长"})
-    -->
-    </tableEdit>
-    `;
-
-        // 如果是分步总结模式，可以在 systemPrompt 前面加上破限词
         if (isStepByStepSummary) {
+            console.log("[Memory Enhancement] Step-by-step summary: Using dedicated step-by-step prompt.");
+            userPromptForApi = USER.tableBaseSetting.step_by_step_user_prompt || ''; // Load from new setting
+            
+            // Use refresh_system_message_template as base for system prompt in step-by-step, prepended by breaking words
+            systemPromptForApi = USER.tableBaseSetting.refresh_system_message_template || defaultSystemPrompt;
             const breakingWords = USER.tableBaseSetting.step_by_step_breaking_limit_words || "";
             if (breakingWords) {
-                systemPrompt = breakingWords + "\n\n" + systemPrompt;
-                console.log("Using combined step-by-step breaking words and forced tableEdit system prompt.");
+                systemPromptForApi = breakingWords + "\n\n" + systemPromptForApi;
             }
+            
+            // Substitute placeholders for step-by-step
+            // $0 is current table data, $1 is chat history, $2 is table headers JSON
+            userPromptForApi = userPromptForApi.replace(/\$0/g, originTableText);
+            userPromptForApi = userPromptForApi.replace(/\$1/g, lastChats);
+            userPromptForApi = userPromptForApi.replace(/\$2/g, tableHeadersJsonString);
+
+            systemPromptForApi = systemPromptForApi.replace(/\$0/g, originTableText); // If refresh_system_message_template uses them
+            systemPromptForApi = systemPromptForApi.replace(/\$1/g, lastChats);       // If refresh_system_message_template uses them
+
         } else {
-            console.log("Using forced tableEdit system prompt for normal refresh.");
+            // This is for "normal" incremental update (not step-by-step),
+            // which uses refresh_system_message_template and refresh_user_message_template
+            console.log("[Memory Enhancement] Normal incremental update: Using refresh_system_message_template and refresh_user_message_template.");
+            systemPromptForApi = USER.tableBaseSetting.refresh_system_message_template || defaultSystemPrompt;
+            userPromptForApi = USER.tableBaseSetting.refresh_user_message_template || ''; // Fallback to empty if not defined
+
+            // Substitute placeholders for normal refresh
+            systemPromptForApi = systemPromptForApi.replace(/\$0/g, originTableText);
+            systemPromptForApi = systemPromptForApi.replace(/\$1/g, lastChats);
+            userPromptForApi = userPromptForApi.replace(/\$0/g, originTableText);
+            userPromptForApi = userPromptForApi.replace(/\$1/g, lastChats);
+            userPromptForApi = userPromptForApi.replace(/\$2/g, tableHeadersJsonString);
         }
-        
-        // 宏替换
-        systemPrompt = systemPrompt.replace(/\$0/g, originTableText); // $0 is current table data
-        systemPrompt = systemPrompt.replace(/\$1/g, lastChats);       // $1 is chat history
 
-        userPrompt = userPrompt.replace(/\$0/g, originTableText);     // $0 is current table data
-        userPrompt = userPrompt.replace(/\$1/g, lastChats);           // $1 is chat history
-        userPrompt = userPrompt.replace(/\$2/g, tableHeadersJsonString); // $2 is table headers JSON
-
-        console.log('System Prompt for API:', systemPrompt);
-        console.log('User Prompt for API:', userPrompt);
-        console.log('Estimated token count:', estimateTokenCount(systemPrompt + userPrompt));
+        console.log('System Prompt for API:', systemPromptForApi);
+        console.log('User Prompt for API:', userPromptForApi);
+        console.log('Estimated token count:', estimateTokenCount(systemPromptForApi + userPromptForApi));
 
         // 生成响应内容
         let rawContent;
         if (useMainAPI) {
             try {
-                rawContent = await handleMainAPIRequest(systemPrompt, userPrompt);
+                rawContent = await handleMainAPIRequest(systemPromptForApi, userPromptForApi);
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消 (主API)');
                     return 'suspended';
@@ -1550,7 +1516,7 @@ export async function executeIncrementalUpdateFromSummary(
             }
         } else {
             try {
-                rawContent = await handleCustomAPIRequest(systemPrompt, userPrompt);
+                rawContent = await handleCustomAPIRequest(systemPromptForApi, userPromptForApi);
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消 (自定义API)');
                     return 'suspended';
