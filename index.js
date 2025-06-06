@@ -175,14 +175,15 @@ function getAllPrompt(eventData) {
  * 获取表格相关提示词
  * @returns {string} 表格相关提示词
  */
-export function getTablePrompt(eventData) {
+export function getTablePrompt(eventData, isPureData = false) {
     const swipeInfo = isSwipe()
     const {piece:lastSheetsPiece} = swipeInfo.isSwipe?swipeInfo.deep===0?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
     console.log("构建提示词时的信息", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index,undefined,eventData)).join('\n')
+    const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, eventData)).join('\n')
     return sheetDataPrompt
 }
 
@@ -479,11 +480,32 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
+        // 优先处理分步填表模式
+        if (USER.tableBaseSetting.step_by_step === true) {
+            // 仅当插件和AI读表功能开启时才注入
+            if (USER.tableBaseSetting.isExtensionAble === true && USER.tableBaseSetting.isAiReadTable === true) {
+                const tableData = getTablePrompt(eventData, true); // 获取纯净数据
+                if (tableData) { // 确保有内容可注入
+                    const finalPrompt = `以下是通过表格记录的当前场景信息以及历史记录信息，你需要以此为参考进行思考：\n${tableData}`;
+                    if (USER.tableBaseSetting.deep === 0) {
+                        eventData.chat.push({ role: getMesRole(), content: finalPrompt });
+                    } else {
+                        eventData.chat.splice(-USER.tableBaseSetting.deep, 0, { role: getMesRole(), content: finalPrompt });
+                    }
+                    console.log("分步填表模式：注入只读表格数据", eventData.chat);
+                }
+            }
+            return; // 处理完分步模式后直接退出，不执行后续的常规注入
+        }
+
+        // 常规模式的注入逻辑
         if (eventData.dryRun === true ||
             USER.tableBaseSetting.isExtensionAble === false ||
             USER.tableBaseSetting.isAiReadTable === false ||
-            USER.tableBaseSetting.injection_mode === "injection_off" ||
-            USER.tableBaseSetting.step_by_step === true) return
+            USER.tableBaseSetting.injection_mode === "injection_off") {
+            return;
+        }
+
         console.log("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData(eventData)
         if (USER.tableBaseSetting.deep === 0)
