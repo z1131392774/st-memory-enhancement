@@ -1,0 +1,49 @@
+项目：记忆插件功能增强
+
+目标：增加在自定义表格美化模板中跨表格调用数据的功能。
+
+已完成工作：
+
+1.  **核心功能：跨表格数据引用**
+    *   **实现方式**：通过引入新的占位符语法 `##TABLE_NAME:CELL_ADDRESS##`，允许用户在模板中通过表格名称指定任意表格的数据。
+    *   **受影响文件**：`scripts/renderer/sheetCustomRenderer.js`
+    *   **具体修改**：
+        *   修改了 `staticPipeline` 函数，增加了对新占位符的解析逻辑。
+        *   使用正则表达式 `/##([^:]+):([A-Z]+\d+)##/g` 来匹配新语法。
+        *   在匹配成功后，通过 `BASE.getChatSheets()` 获取所有表格实例，并根据名称查找目标表格。
+        *   解析单元格地址，并从目标表格中提取数据，替换占位符。
+
+2.  **用户体验优化：名称自动完成**
+    *   **实现方式**：在模板编辑界面的文本输入框中，当用户输入 `##` 时，自动弹出一个可搜索的列表，显示所有可用的表格名称，方便用户选择。
+    *   **受影响文件**：`components/formManager.js`
+    *   **具体修改**：
+        *   为 `textarea` 元素添加了 `input` 事件监听。
+        *   当检测到 `##` 输入时，使用 `PopupMenu` 组件创建一个弹出菜单。
+        *   调用 `BASE.getChatSheets()` 获取所有表格数据并展示在菜单中。
+        *   用户选择后，自动将 `##TABLE_NAME:` 插入文本框，简化了操作流程。
+
+3.  **坐标系修正**
+    *   **问题**：用户反馈占位符的行号对应错误。
+    *   **修正**：根据用户澄清，数据区的行号应从1开始（即不计算表头）。
+    *   **受影响文件**：
+        *   `scripts/renderer/sheetCustomRenderer.js`: 修改 `staticPipeline` 函数，在解析行号后 `+1`，以正确匹配内部数据结构（跳过表头）。
+        *   `想要修改的美化代码.html`: 将模板中所有指向第一行数据的占位符从 `...:X2` 修正为 `...:X1`。
+
+4.  **新增功能：导出所有表格数据的宏（精简版）**
+    *   **实现方式**：新增了一个名为 `GET_ALL_TABLES_JSON` 的宏，用于获取所有表格的精简版数据。
+    *   **受影响文件**：
+        *   `scripts/settings/standaloneAPI.js`: 修改了 `ext_exportAllTablesAsJson` 函数，现在它只导出每个表格的 `uid`、`name` 和 `content`（包含表头）。
+        *   `index.js`: 恢复了 `GET_ALL_TABLES_JSON` 宏，它会调用更新后的导出函数，并返回一个只包含必要数据的JSON字符串。
+    *   **使用方式**：可以在需要的地方（例如，在自定义模板的JavaScript代码中）使用 `{{GET_ALL_TABLES_JSON}}` 来获取所有表格的精简数据。例如：`const myData = {{GET_ALL_TABLES_JSON}};`
+
+5.  **新增功能：表格更新后自动重启“表格地图”正则脚本**
+    *   **实现方式**：
+        *   在 `scripts/runtime/separateTableUpdate.js` 的 `TableTwoStepSummary` 函数中，当分步式总结成功完成后，直接调用重启逻辑。
+        *   该逻辑通过 `TavernHelper.triggerSlash` 依次执行 `/regex-toggle state=off 表格地图` 和 `/regex-toggle state=on 表格地图` 指令。
+    *   **目的**：确保“表格地图”正则脚本在表格数据批量异步更新后，能在最正确的时机重新加载并应用最新的数据。
+
+当前状态：
+
+*   占位符渲染成功，数据能够正确显示在美化模板中。
+*   提供了 `GET_ALL_TABLES_JSON` 宏，用于获取所有表格的精简数据。
+*   实现了表格更新后自动重启“表格地图”正则脚本的功能。

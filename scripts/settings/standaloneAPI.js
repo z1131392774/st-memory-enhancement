@@ -568,3 +568,63 @@ export function estimateTokenCount(text) {
     let estimatedTokenCount = chineseCount + Math.floor(englishCount * 1.2);
     return estimatedTokenCount;
 }
+/**
+ * @description
+ * - **功能**: 导出所有表格数据，方便其他插件调用。
+ * - **使用场景**: 当其他插件需要访问或处理当前插件管理的表格数据时，可以通过此函数获取。
+ * - **返回值**: 返回一个包含所有表格数据的数组，每个表格对象包含：
+ *   - `name`: 表格的名称。
+ *   - `data`: 一个二维数组，表示表格的完整数据（包括表头和所有行）。
+ *
+ * @returns {Array<Object<{name: string, data: Array<Array<string>>}>>}
+ */
+export function ext_getAllTables() {
+    const tables = BASE.getChatSheets();
+    if (!tables || tables.length === 0) {
+        return [];
+    }
+
+    const allData = tables.map(table => {
+        const header = table.getHeader();
+        const body = table.getBody();
+        const fullData = [header, ...body];
+
+        return {
+            name: table.name,
+            data: fullData,
+        };
+    });
+
+    return allData;
+}
+
+/**
+ * @description
+ * - **功能**: 导出所有表格为一个 JSON 对象，格式与 '范例表格.json' 类似。
+ * - **使用场景**: 用于将当前所有表格的状态和数据导出为一个单一的 JSON 文件。
+ * - **返回值**: 返回一个 JSON 对象，键是表格的 UID，值是表格的完整配置和数据。
+ *
+ * @returns {Object}
+ */
+export function ext_exportAllTablesAsJson() {
+    const tables = BASE.getChatSheets();
+    if (!tables || tables.length === 0) {
+        return {};
+    }
+
+    const exportData = {};
+    tables.forEach(table => {
+        try {
+            // 只导出 uid, name, 和 content
+            exportData[table.uid] = {
+                uid: table.uid,
+                name: table.name,
+                content: table.getContent(true) // 使用 getContent(true) 获取包含表头的完整内容
+            };
+        } catch (error) {
+            console.error(`导出表格 ${table.name} (UID: ${table.uid}) 时出错:`, error);
+        }
+    });
+
+    return exportData;
+}

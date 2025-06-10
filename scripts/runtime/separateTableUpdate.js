@@ -237,6 +237,21 @@ export async function TableTwoStepSummary() {
                 chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
             });
             toBeExecuted = [];
+
+            // 在所有更新完成后，执行正则重启
+            console.log(`[Memory Enhancement] 表格组更新完成，准备重启“表格地图”正则脚本。`);
+            try {
+                if (window.TavernHelper && typeof TavernHelper.triggerSlash === 'function') {
+                    await TavernHelper.triggerSlash('/regex-toggle state=off 表格地图功能');
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await TavernHelper.triggerSlash('/regex-toggle state=on 表格地图功能');
+                    console.log(`[Memory Enhancement] “表格地图功能”正则脚本已重启。`);
+                } else {
+                    console.error('[Memory Enhancement] TavernHelper 或 TavernHelper.triggerSlash 未定义，无法重启正则脚本。');
+                }
+            } catch (error) {
+                EDITOR.error("重启“表格地图”正则脚本时出错:", error);
+            }
         } else if (r === 'suspended' || r === 'error' || !r) {
             console.log('执行增量两步总结失败或取消: ', `(${todoChats.length}) `, toBeExecuted);
             MarkChatAsWaiting(currentPiece, swipeUid);

@@ -5,9 +5,42 @@ let selectedCustomStyle = null;
 
 function staticPipeline(target) {
     console.log("进入静态渲染表格");
-    const regexReplace = selectedCustomStyle.replace || '';
+    let regexReplace = selectedCustomStyle.replace || '';
     if (!regexReplace || regexReplace === '') return target?.element || '<div>表格数据未加载</div>';
     if (!target) return regexReplace;
+
+    // 新增：处理 {{GET::...}} 宏
+    regexReplace = regexReplace.replace(/{{GET::\s*([^:]+?)\s*:\s*([A-Z]+\d+)\s*}}/g, (match, tableName, cellAddress) => {
+        const sheets = BASE.getChatSheets();
+        const sheet = sheets.find(s => s.name === tableName);
+        if (!sheet) {
+            return `<span style="color: red">[GET: 未找到表格 "${tableName}"]</span>`;
+        }
+
+        try {
+            const cell = sheet.getCellFromAddress(cellAddress);
+            const cellValue = cell ? cell.data.value : undefined;
+            return cellValue !== undefined ? cellValue : `<span style="color: orange">[GET: 在 "${tableName}" 中未找到单元格 "${cellAddress}"]</span>`;
+        } catch (error) {
+            console.error(`Error resolving GET macro for ${tableName}:${cellAddress}`, error);
+            return `<span style="color: red">[GET: 处理时出错]</span>`;
+        }
+    });
+
+    // 兼容旧的 ##...## 写法
+    regexReplace = regexReplace.replace(/##([^:]+):([A-Z]+\d+)##/g, (match, tableName, cellAddress) => {
+        const sheets = BASE.getChatSheets();
+        const sheet = sheets.find(s => s.name === tableName);
+        if (!sheet) {
+            return `<span style="color: red">未找到表格: ${tableName}</span>`;
+        }
+        
+        const cell = sheet.getCellFromAddress(cellAddress);
+        return cell ? (cell.data.value || `?`) :
+            `<span style="color: red">无单元格: ${cellAddress}</span>`;
+    });
+
+    // 原有的处理逻辑
     return regexReplace.replace(/\$(\w)(\d+)/g, (match, colLetter, rowNumber) => {
         const colIndex = colLetter.toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
         const rowIndex = parseInt(rowNumber);

@@ -1,4 +1,7 @@
 // formManager.js
+import { BASE } from '../core/manager.js';
+import { PopupMenu } from './popupMenu.js';
+
 class Form {
     constructor(formConfig, initialData, updateCallback) {
         this.formConfig = formConfig;
@@ -145,6 +148,29 @@ class Form {
                             self.formData[field.dataKey] = newValue;
                             if (self.updateCallback && typeof self.updateCallback === 'function') {
                                 self.updateCallback(field.dataKey, newValue);
+                            }
+
+                            // 新增：## 自动完成功能
+                            if (field.type === 'textarea' && e.target.value.slice(-2) === '##') {
+                                const popupMenu = new PopupMenu();
+                                const sheets = BASE.getChatSheets();
+
+                                if (sheets.length > 0) {
+                                    sheets.forEach(sheet => {
+                                        popupMenu.add(`${sheet.name}`, () => {
+                                            const currentValue = e.target.value;
+                                            const newValue = currentValue.substring(0, currentValue.length - 2) + `##${sheet.name}:`;
+                                            e.target.value = newValue;
+                                            self.formData[field.dataKey] = newValue;
+                                            e.target.focus();
+                                        });
+                                    });
+                                } else {
+                                    popupMenu.add('没有可用的表格', () => {});
+                                }
+                                
+                                const rect = e.target.getBoundingClientRect();
+                                popupMenu.show(rect.left, rect.bottom);
                             }
                         });
                     }
