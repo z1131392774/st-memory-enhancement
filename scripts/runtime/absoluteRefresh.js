@@ -1441,9 +1441,15 @@ export async function importRebuildTemplate() {
  */
 export async function executeIncrementalUpdateFromSummary(
     chatToBeUsed = '',
+<<<<<<< HEAD
+    originTableText,
+    tableHeadersJsonString,
+    latestSheets,
+=======
     originTableText, // This was originText in separateTableUpdate
     tableHeadersJsonString, // This was tableHeadersJson in separateTableUpdate
     latestSheets, // This was latestTables in separateTableUpdate
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
     useMainAPI,
     silentUpdate = USER.tableBaseSetting.bool_silent_refresh,
     isStepByStepSummary = false
@@ -1451,18 +1457,65 @@ export async function executeIncrementalUpdateFromSummary(
     if (!SYSTEM.lazy('executeIncrementalUpdate', 1000)) return '';
 
     try {
+<<<<<<< HEAD
+        DERIVED.any.waitingTable = sheetsToTables(latestSheets);
+        const lastChats = chatToBeUsed;
+=======
         // DERIVED.any.waitingTable is used by updateRow, insertRow, deleteRow.
         // It should be set to the tables derived from latestSheets before operations.
         DERIVED.any.waitingTable = sheetsToTables(latestSheets);
 
         // 获取最近的聊天记录 (chatToBeUsed is already the processed chat history string)
         const lastChats = chatToBeUsed; // In separateTableUpdate, todoChats is passed here.
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
 
         let systemPromptForApi;
         let userPromptForApi;
         const defaultSystemPrompt = `你是一个专业的表格整理助手。请根据用户提供的<聊天记录>和<当前表格>，并遵循<操作规则>，使用<tableEdit>标签和指定的函数（insertRow, updateRow, deleteRow）来输出对表格的修改。确保你的回复只包含<tableEdit>标签及其内容。`;
 
         if (isStepByStepSummary) {
+<<<<<<< HEAD
+            console.log("[Memory Enhancement] Step-by-step summary: Parsing and using multi-message template string.");
+            const stepByStepPromptString = USER.tableBaseSetting.step_by_step_user_prompt;
+            let promptMessages;
+
+            try {
+                promptMessages = JSON5.parse(stepByStepPromptString);
+                if (!Array.isArray(promptMessages) || promptMessages.length === 0) {
+                    throw new Error("Parsed prompt is not a valid non-empty array.");
+                }
+            } catch (e) {
+                console.error("Error parsing step_by_step_user_prompt string:", e, "Raw string:", stepByStepPromptString);
+                EDITOR.error("分步填表提示词格式错误，无法解析。请检查插件设置。");
+                return 'error';
+            }
+
+            const replacePlaceholders = (text) => {
+                if (typeof text !== 'string') return '';
+                text = text.replace(/(?<!\\)\$0/g, () => originTableText);
+                text = text.replace(/(?<!\\)\$1/g, () => lastChats);
+                text = text.replace(/(?<!\\)\$2/g, () => tableHeadersJsonString);
+                return text;
+            };
+
+            // 完整处理消息数组，替换每个消息中的占位符
+            const processedMessages = promptMessages.map(msg => ({
+                ...msg,
+                content: replacePlaceholders(msg.content)
+            }));
+
+            // 将处理后的完整消息数组传递给API请求处理函数
+            systemPromptForApi = processedMessages;
+            userPromptForApi = null; // 在这种情况下，userPromptForApi 不再需要
+
+            console.log("Step-by-step: Prompts constructed from parsed multi-message template and sent as an array.");
+
+        } else {
+            console.log("[Memory Enhancement] Normal incremental update: Using refresh_system_message_template and refresh_user_message_template.");
+            systemPromptForApi = USER.tableBaseSetting.refresh_system_message_template || defaultSystemPrompt;
+            userPromptForApi = USER.tableBaseSetting.refresh_user_message_template || '';
+
+=======
             console.log("[Memory Enhancement] Step-by-step summary: Using dedicated step-by-step prompt.");
             userPromptForApi = USER.tableBaseSetting.step_by_step_user_prompt || ''; // Load from new setting
             
@@ -1490,6 +1543,7 @@ export async function executeIncrementalUpdateFromSummary(
             userPromptForApi = USER.tableBaseSetting.refresh_user_message_template || ''; // Fallback to empty if not defined
 
             // Substitute placeholders for normal refresh
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
             systemPromptForApi = systemPromptForApi.replace(/\$0/g, originTableText);
             systemPromptForApi = systemPromptForApi.replace(/\$1/g, lastChats);
             userPromptForApi = userPromptForApi.replace(/\$0/g, originTableText);
@@ -1497,6 +1551,29 @@ export async function executeIncrementalUpdateFromSummary(
             userPromptForApi = userPromptForApi.replace(/\$2/g, tableHeadersJsonString);
         }
 
+<<<<<<< HEAD
+        // 打印将要发送到API的最终数据
+        if (Array.isArray(systemPromptForApi)) {
+            console.log('API-bound data (as message array):', systemPromptForApi);
+            const totalContent = systemPromptForApi.map(m => m.content).join('');
+            console.log('Estimated token count:', estimateTokenCount(totalContent));
+        } else {
+            console.log('System Prompt for API:', systemPromptForApi);
+            console.log('User Prompt for API:', userPromptForApi);
+            console.log('Estimated token count:', estimateTokenCount(systemPromptForApi + (userPromptForApi || '')));
+        }
+        
+        let rawContent;
+        if (useMainAPI) { // Using Main API
+            try {
+                // If it's step-by-step summary, systemPromptForApi is already the message array
+                // Pass the array as the first arg and null/empty as the second for multi-message format
+                // Otherwise, pass the separate system and user prompts for normal refresh
+                rawContent = await handleMainAPIRequest(
+                    isStepByStepSummary ? systemPromptForApi : systemPromptForApi,
+                    isStepByStepSummary ? null : userPromptForApi
+                );
+=======
         console.log('System Prompt for API:', systemPromptForApi);
         console.log('User Prompt for API:', userPromptForApi);
         console.log('Estimated token count:', estimateTokenCount(systemPromptForApi + userPromptForApi));
@@ -1506,6 +1583,7 @@ export async function executeIncrementalUpdateFromSummary(
         if (useMainAPI) {
             try {
                 rawContent = await handleMainAPIRequest(systemPromptForApi, userPromptForApi);
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消 (主API)');
                     return 'suspended';
@@ -1514,9 +1592,16 @@ export async function executeIncrementalUpdateFromSummary(
                 EDITOR.error('主API请求错误: ' + error.message);
                 return 'error';
             }
+<<<<<<< HEAD
+        } else { // Using Custom API
+            try {
+                // Calls handleCustomAPIRequest for custom API, pass isStepByStepSummary flag
+                rawContent = await handleCustomAPIRequest(systemPromptForApi, userPromptForApi, isStepByStepSummary);
+=======
         } else {
             try {
                 rawContent = await handleCustomAPIRequest(systemPromptForApi, userPromptForApi);
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
                 if (rawContent === 'suspended') {
                     EDITOR.info('操作已取消 (自定义API)');
                     return 'suspended';
@@ -1531,6 +1616,43 @@ export async function executeIncrementalUpdateFromSummary(
             EDITOR.error('API响应内容无效或为空。');
             return 'error';
         }
+<<<<<<< HEAD
+        
+        let processedRawContent = rawContent.replace(/^```(?:xml|json|javascript|html)?\s*\n?/im, '').replace(/\n?```$/m, '');
+        
+        let operationsString = '';
+        const openTag = '<tableEdit>';
+        const closeTag = '</tableEdit>';
+        const startIndex = processedRawContent.indexOf(openTag);
+
+        if (startIndex !== -1) {
+            let endIndex = processedRawContent.indexOf(closeTag, startIndex + openTag.length);
+            if (endIndex === -1) {
+                 EDITOR.error("API响应被截断：表格操作指令不完整，缺少</tableEdit>结束标签。");
+                 return 'error';
+            }
+            const contentBetweenTags = processedRawContent.substring(startIndex + openTag.length, endIndex);
+            const singleCommentMatch = contentBetweenTags.match(/^\s*<!--([\s\S]*?)-->\s*$/);
+            if (singleCommentMatch && singleCommentMatch[1] && singleCommentMatch[1].trim() !== '') {
+                operationsString = singleCommentMatch[1].trim();
+            } else {
+                operationsString = contentBetweenTags.replace(/<!--[\s\S]*?-->/g, '').trim();
+            }
+        } else {
+            EDITOR.error("API响应格式错误：未找到<tableEdit>标签。");
+            return 'error';
+        }
+
+        if (operationsString === '') {
+             EDITOR.info("AI在<tableEdit>标签内未提供任何操作指令，表格内容未发生变化。");
+             return 'success';
+        }
+
+        const operations = operationsString.split('\n').map(s => s.trim()).filter(s => s);
+        let operationsApplied = 0;
+        
+        for (const opStr of operations) {
+=======
         console.log('Raw API Content (MODIFIED BY CLINE V2):', rawContent);
 
         let processedRawContent = rawContent;
@@ -1627,12 +1749,19 @@ export async function executeIncrementalUpdateFromSummary(
         const executedOperationsForConfirmation = [];
 
         for (const opStr of operations) { // 使用 for...of 循环替代 forEach
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
             try {
                 if (opStr.startsWith('insertRow(')) {
                     const match = opStr.match(/insertRow\(\s*(\d+)\s*,\s*({.*?})\s*\)/);
                     if (match) {
                         const tableIndex = parseInt(match[1], 10);
                         let dataString = match[2];
+<<<<<<< HEAD
+                        dataString = dataString.replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3');
+                        const data = JSON5.parse(dataString);
+                        insertRow(tableIndex, data);
+                        operationsApplied++;
+=======
                         let data;
                         try {
                             // 预处理dataString，确保数字键被引号包裹
@@ -1663,6 +1792,7 @@ export async function executeIncrementalUpdateFromSummary(
                             executedOperationsForConfirmation.push({ action: 'insert', tableIndex, data });
                             operationsApplied++;
                         }
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
                     }
                 } else if (opStr.startsWith('updateRow(')) {
                     const match = opStr.match(/updateRow\(\s*(\d+)\s*,\s*(\d+)\s*,\s*({.*?})\s*\)/);
@@ -1670,6 +1800,12 @@ export async function executeIncrementalUpdateFromSummary(
                         const tableIndex = parseInt(match[1], 10);
                         const rowIndex = parseInt(match[2], 10);
                         let dataString = match[3];
+<<<<<<< HEAD
+                        dataString = dataString.replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3');
+                        const data = JSON5.parse(dataString);
+                        updateRow(tableIndex, rowIndex, data);
+                        operationsApplied++;
+=======
                         let data;
                         try {
                             // 预处理dataString，确保数字键被引号包裹
@@ -1696,12 +1832,38 @@ export async function executeIncrementalUpdateFromSummary(
                         } else {
                             console.warn(`Skipped update: table ${tableIndex} row ${rowIndex} 无效或不存在`);
                         }
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
                     }
                 } else if (opStr.startsWith('deleteRow(')) {
                     const match = opStr.match(/deleteRow\(\s*(\d+)\s*,\s*(\d+)\s*\)/);
                     if (match) {
                         const tableIndex = parseInt(match[1], 10);
                         const rowIndex = parseInt(match[2], 10);
+<<<<<<< HEAD
+                        deleteRow(tableIndex, rowIndex);
+                        operationsApplied++;
+                    }
+                }
+            } catch (e) {
+                console.error(`Error processing operation "${opStr}":`, e);
+            }
+        }
+
+        if (operationsApplied === 0 && operations.length > 0) {
+             EDITOR.error("AI返回的操作指令未能成功应用到表格。请检查开发者控制台。");
+             return 'error';
+        }
+
+        const currentChat = USER.getContext().chat[USER.getContext().chat.length - 1];
+        if (currentChat) {
+            convertOldTablesToNewSheets(DERIVED.any.waitingTable, currentChat);
+            await USER.getContext().saveChat();
+        } else {
+            EDITOR.error("无法更新聊天记录：找不到当前聊天。");
+            return 'error';
+        }
+
+=======
 
                         if (tableIndex === 0 || !USER.tableBaseSetting.bool_ignore_del) {
                             const tableToUpdate = DERIVED.any.waitingTable[tableIndex];
@@ -1798,6 +1960,7 @@ export async function executeIncrementalUpdateFromSummary(
         }
 
         // 刷新 UI
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
         refreshContextView();
         updateSystemMessageTableStatus();
         EDITOR.success(isStepByStepSummary ? '分步总结完成！' : '表格整理完成！');
@@ -1806,6 +1969,12 @@ export async function executeIncrementalUpdateFromSummary(
     } catch (error) {
         console.error('执行增量更新时出错:', error);
         EDITOR.error(`执行增量更新失败：${error.message}`);
+<<<<<<< HEAD
+        console.log('[Memory Enhancement Plugin] Error context:', {
+            timestamp: new Date().toISOString(),
+            error: error.message,
+            stack: error.stack,
+=======
         // Log context information on error
         console.log('[Memory Enhancement Plugin] Error during executeIncrementalUpdateFromSummary.', {
             timestamp: new Date().toISOString(),
@@ -1817,6 +1986,7 @@ export async function executeIncrementalUpdateFromSummary(
             parsedActionsAttempt: typeof actions !== 'undefined' ? actions : 'actions not available',
             originTableText: typeof originTableText !== 'undefined' ? originTableText : 'originTableText not available',
             latestSheetsStateAtError: typeof latestSheets !== 'undefined' ? sheetsToTables(latestSheets) : 'latestSheets not available'
+>>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
         });
         return 'error';
     }
