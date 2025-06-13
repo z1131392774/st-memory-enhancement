@@ -345,9 +345,9 @@ export function cellHighlight(sheet) {
         row.forEach((cell) => {
             const cellElement = sheet.cells.get(cell.hash).element
             if (cell.type === "newRow") {
-                cellElement.style.backgroundColor = '#00ff0011'
+                cellElement.classList.add('insert-item')
             } else if (cell.type === "update") {
-                cellElement.style.backgroundColor = '#0000ff11'
+                cellElement.classList.add('update-item')
             }
         })
     })

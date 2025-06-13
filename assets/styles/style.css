@@ -356,11 +356,11 @@ td.selected {
 }
 
 .insert-item {
-    background-color: rgb(84, 145, 89);
+    background-color: #00ff0011;
 }
 
 .update-item {
-    background-color: rgb(55, 95, 173);
+    background-color: #0000ff11;
 }
 
 .delete-item {
