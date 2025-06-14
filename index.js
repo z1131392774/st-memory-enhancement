@@ -603,7 +603,7 @@ async function onMessageEdited(this_edit_mes_id) {
  */
 async function onMessageReceived(chat_id) {
     if (USER.tableBaseSetting.isExtensionAble === false) return
-    if (USER.tableBaseSetting.step_by_step === true) {
+    if (USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
         TableTwoStepSummary();  // 请勿使用await，否则会导致主进程阻塞引起的连锁bug
     } else {
         if (USER.tableBaseSetting.isAiWriteTable === false) return
