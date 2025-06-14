@@ -560,6 +560,7 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     </新的表格>
     `,
     lastSelectedTemplate: "rebuild_base", // For full rebuild templates (used by rebuildTableActions)
+    rebuild_message_template_list:{},
     /**
      * ===========================
      * 双步设置
