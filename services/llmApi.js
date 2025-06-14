@@ -1,10 +1,6 @@
 import {USER} from '../core/manager.js';
 // @ts-ignore
 import { ChatCompletionService } from '/scripts/custom-request.js';
-<<<<<<< HEAD
-=======
-//先注释掉防止无法启动
->>>>>>> 7ab09fccb090041abaa198eceb6fade0998ff1b9
 
 export class LLMApiService {
     constructor(config = {}) {
