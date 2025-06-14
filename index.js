@@ -1,6 +1,7 @@
 import { APP, BASE, DERIVED, EDITOR, SYSTEM, USER } from './core/manager.js';
 import { openTableRendererPopup, updateSystemMessageTableStatus } from "./scripts/renderer/tablePushToChat.js";
 import { loadSettings } from "./scripts/settings/userExtensionSetting.js";
+import { ext_getAllTables, ext_exportAllTablesAsJson } from './scripts/settings/standaloneAPI.js';
 // 移除旧表格系统引用
 // import {initAllTable, TableEditAction} from "./scripts/oldTableActions.js";
 import { openTableDebugLogPopup } from "./scripts/settings/devConsole.js";
@@ -175,14 +176,15 @@ function getAllPrompt(eventData) {
  * 获取表格相关提示词
  * @returns {string} 表格相关提示词
  */
-export function getTablePrompt(eventData) {
+export function getTablePrompt(eventData, isPureData = false) {
     const swipeInfo = isSwipe()
     const {piece:lastSheetsPiece} = swipeInfo.isSwipe?swipeInfo.deep===0?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
     console.log("构建提示词时的信息", hash_sheets, sheets)
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index,undefined,eventData)).join('\n')
+    const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, eventData)).join('\n')
     return sheetDataPrompt
 }
 
@@ -479,11 +481,32 @@ function getMesRole() {
  */
 async function onChatCompletionPromptReady(eventData) {
     try {
+        // 优先处理分步填表模式
+        if (USER.tableBaseSetting.step_by_step === true) {
+            // 仅当插件和AI读表功能开启时才注入
+            if (USER.tableBaseSetting.isExtensionAble === true && USER.tableBaseSetting.isAiReadTable === true) {
+                const tableData = getTablePrompt(eventData, true); // 获取纯净数据
+                if (tableData) { // 确保有内容可注入
+                    const finalPrompt = `以下是通过表格记录的当前场景信息以及历史记录信息，你需要以此为参考进行思考：\n${tableData}`;
+                    if (USER.tableBaseSetting.deep === 0) {
+                        eventData.chat.push({ role: getMesRole(), content: finalPrompt });
+                    } else {
+                        eventData.chat.splice(-USER.tableBaseSetting.deep, 0, { role: getMesRole(), content: finalPrompt });
+                    }
+                    console.log("分步填表模式：注入只读表格数据", eventData.chat);
+                }
+            }
+            return; // 处理完分步模式后直接退出，不执行后续的常规注入
+        }
+
+        // 常规模式的注入逻辑
         if (eventData.dryRun === true ||
             USER.tableBaseSetting.isExtensionAble === false ||
             USER.tableBaseSetting.isAiReadTable === false ||
-            USER.tableBaseSetting.injection_mode === "injection_off" ||
-            USER.tableBaseSetting.step_by_step === true) return
+            USER.tableBaseSetting.injection_mode === "injection_off") {
+            return;
+        }
+
         console.log("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData(eventData)
         if (USER.tableBaseSetting.deep === 0)
@@ -546,6 +569,7 @@ function trimString(str) {
  * @param {string} mes 消息正文字符串
  * @returns {matches} 匹配到的内容数组
  */
+
 function getTableEditTag(mes) {
     const regex = /<tableEdit>(.*?)<\/tableEdit>/gs;
     const matches = [];
@@ -596,13 +620,57 @@ async function onMessageReceived(chat_id) {
 }
 
 /**
+ * 解析字符串中所有 {{GET::...}} 宏
+ * @param {string} text - 需要解析的文本
+ * @returns {string} - 解析并替换宏之后的文本
+ */
+function resolveTableMacros(text) {
+    if (typeof text !== 'string' || !text.includes('{{GET::')) {
+        return text;
+    }
+
+    return text.replace(/{{GET::\s*([^:]+?)\s*:\s*([A-Z]+\d+)\s*}}/g, (match, tableName, cellAddress) => {
+        const sheets = BASE.getChatSheets();
+        const targetTable = sheets.find(t => t.name.trim() === tableName.trim());
+
+        if (!targetTable) {
+            return `<span style="color: red">[GET: 未找到表格 "${tableName}"]</span>`;
+        }
+
+        try {
+            const cell = targetTable.getCellFromAddress(cellAddress);
+            const cellValue = cell ? cell.data.value : undefined;
+            return cellValue !== undefined ? cellValue : `<span style="color: orange">[GET: 在 "${tableName}" 中未找到单元格 "${cellAddress}"]</span>`;
+        } catch (error) {
+            console.error(`Error resolving GET macro for ${tableName}:${cellAddress}`, error);
+            return `<span style="color: red">[GET: 处理时出错]</span>`;
+        }
+    });
+}
+
+/**
  * 聊天变化时触发
  */
 async function onChatChanged() {
-    try{
-        updateSheetsView()
-    }catch (error) {
-        EDITOR.error("记忆插件：初始化表格失败\n原因：", error.message, error)
+    try {
+        // 更新表格视图
+        updateSheetsView();
+
+        // 在聊天消息中渲染宏
+        document.querySelectorAll('.mes_text').forEach(mes => {
+            if (mes.dataset.macroProcessed) return;
+
+            const originalHtml = mes.innerHTML;
+            const newHtml = resolveTableMacros(originalHtml);
+
+            if (originalHtml !== newHtml) {
+                mes.innerHTML = newHtml;
+                mes.dataset.macroProcessed = true;
+            }
+        });
+
+    } catch (error) {
+        EDITOR.error("记忆插件：处理聊天变更失败\n原因：", error.message, error)
     }
 }
 
@@ -657,6 +725,12 @@ async function updateSheetsView() {
 }
 
 jQuery(async () => {
+    // 注册API
+    window.stMemoryEnhancement = {
+        ext_getAllTables,
+        ext_exportAllTablesAsJson,
+    };
+
     // 版本检查
     fetch("http://api.muyoo.com.cn/check-version", {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: VERSION, user: USER.getContext().name1 })
@@ -692,6 +766,20 @@ jQuery(async () => {
     // 注册宏
     USER.getContext().registerMacro("tablePrompt", () =>getMacroPrompt())
     USER.getContext().registerMacro("tableData", () =>getMacroTablePrompt())
+    USER.getContext().registerMacro("GET_ALL_TABLES_JSON", () => {
+        try {
+            const jsonData = ext_exportAllTablesAsJson();
+            if (Object.keys(jsonData).length === 0) {
+                return "{}"; // 如果没有数据，返回一个空的JSON对象
+            }
+            // 返回JSON字符串，不带额外的格式化，以便在代码中直接使用
+            return JSON.stringify(jsonData);
+        } catch (error) {
+            console.error("GET_ALL_TABLES_JSON 宏执行出错:", error);
+            EDITOR.error("导出所有表格数据时出错。");
+            return "{}"; // 出错时返回空JSON对象
+        }
+    });
 
     // 设置表格编辑按钮
     $(document).on('click', '#table_drawer_icon', function () {
@@ -735,5 +823,7 @@ jQuery(async () => {
     APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
     APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
     APP.eventSource.on(APP.event_types.MESSAGE_DELETED, onChatChanged);
+
+    
     console.log("______________________记忆插件：加载完成______________________")
 });

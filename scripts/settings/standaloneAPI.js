@@ -116,33 +116,70 @@ async function createLoadingToast(isUseMainAPI = true) {
 }
 
 /**主API调用
- * @param {string} systemPrompt - 系统提示
- * @param {string} userPrompt - 用户提示
+ * @param {string|Array<object>} systemPrompt - 系统提示或消息数组
+ * @param {string} [userPrompt] - 用户提示 (如果第一个参数是消息数组，则此参数被忽略)
  * @returns {Promise<string>} 生成的响应内容
  */
 export async function handleMainAPIRequest(systemPrompt, userPrompt) {
-    let suspended = false;
-    createLoadingToast().then((r) => {
-        loadingToast.close()
-        suspended = r;
-    })
+    let finalSystemPrompt = '';
+    let finalUserPrompt = '';
+    let suspended = false; // Define suspended outside the blocks
 
-    let startTime = Date.now();
-    loadingToast.frameUpdate(() => {
-        loadingToast.text = `正在使用【主API】重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
-    })
-    console.log('主API请求的数据part1， systemPrompt：', systemPrompt);
-    console.log('主API请求的数据part2， userPrompt：', userPrompt);
-    const response = await EDITOR.generateRaw(
-        userPrompt,
-        '',
-        false,
-        false,
-        systemPrompt,
-    );
-    loadingToast.close()
-    return suspended ? 'suspended' : response;
-}
+    if (Array.isArray(systemPrompt)) {
+        // --- Start: Processing for array input ---
+        const messages = systemPrompt; // messages is defined here now
+
+        // Loading toast logic
+        createLoadingToast().then((r) => {
+            loadingToast.close()
+            suspended = r; // Assign to the outer suspended variable
+        });
+
+        let startTime = Date.now();
+        loadingToast.frameUpdate(() => {
+            loadingToast.text = `正在使用【主API】(多消息)重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
+        });
+
+        console.log('主API请求的多消息数组:', messages); // Log the actual array
+        // Use TavernHelper.generateRaw with the array, enabling streaming
+        const response = await TavernHelper.generateRaw({
+            ordered_prompts: messages, // Pass the array directly
+            should_stream: true,      // Re-enable streaming
+        });
+        loadingToast.close();
+        return suspended ? 'suspended' : response;
+        // --- End: Processing for array input ---
+
+    } else { // Correctly placed ELSE block
+        // --- Start: Original logic for non-array input ---
+        finalSystemPrompt = systemPrompt;
+        finalUserPrompt = userPrompt;
+
+        createLoadingToast().then((r) => {
+            loadingToast.close()
+            suspended = r; // Assign to the outer suspended variable
+        });
+
+        let startTime = Date.now();
+        loadingToast.frameUpdate(() => {
+            loadingToast.text = `正在使用【主API】(旧逻辑)重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
+        });
+
+        console.log('主API请求的数据part1 (旧逻辑)， systemPrompt：', finalSystemPrompt);
+        console.log('主API请求的数据part2 (旧逻辑)， userPrompt：', finalUserPrompt);
+        // Use EDITOR.generateRaw for non-array input
+        const response = await EDITOR.generateRaw(
+            finalUserPrompt,
+            '',
+            false,
+            false,
+            finalSystemPrompt,
+        );
+        loadingToast.close();
+        return suspended ? 'suspended' : response;
+        // --- End: Original logic ---
+    }
+} // Correct closing brace for the function
 
 /**
  * 处理 API 测试请求，包括获取输入、解密密钥、调用测试函数和返回结果。
@@ -256,19 +293,28 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
                 throw new Error('Invalid or empty response received.');
             }
         } catch (error) {
-            console.error(`API Key index ${i} test failed:`, error);
-            results.push({ keyIndex: i, success: false, error: error.message || 'Unknown error' });
+            console.error(`API Key index ${i} test failed (raw error object):`, error); // Log the raw error object
+            let errorMessage = 'Unknown error';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error && typeof error.toString === 'function') {
+                errorMessage = error.toString();
+            }
+            results.push({ keyIndex: i, success: false, error: errorMessage });
         }
     }
     return results;
 }
 
 /**自定义API调用
- * @param {string} systemPrompt - 系统提示
- * @param {string} userPrompt - 用户提示
+ * @param {string|Array<object>} systemPrompt - 系统提示或消息数组
+ * @param {string} [userPrompt] - 用户提示 (如果第一个参数是消息数组，则此参数被忽略)
+ * @param {boolean} [isStepByStepSummary=false] - 是否为分步总结模式，用于控制流式传输
  * @returns {Promise<string>} 生成的响应内容
  */
-export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
+export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByStepSummary = false) {
     const USER_API_URL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
     const decryptedApiKeysString = await getDecryptedApiKey(); // 获取逗号分隔的密钥字符串
     const USER_API_MODEL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
@@ -312,34 +358,51 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         console.log(`尝试使用API密钥索引进行API调用: ${keyIndexToTry}`);
         loadingToast.text = `尝试使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key...`;
 
-        try {
-            // 创建LLMApiService实例
+        try { // Outer try for the whole attempt with the current key
+            const promptData = Array.isArray(systemPrompt) ? systemPrompt : userPrompt;
+            let response; // Declare response variable
+
+            // --- ALWAYS Use llmService ---
+            console.log(`自定义API: 使用 llmService.callLLM (输入类型: ${Array.isArray(promptData) ? '多消息数组' : '单条消息'})`);
+            loadingToast.text = `正在使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key (llmService)...`;
+
             const llmService = new LLMApiService({
                 api_url: USER_API_URL,
                 api_key: currentApiKey,
                 model_name: USER_API_MODEL,
-                system_prompt: systemPrompt,
+                // Pass empty system_prompt if promptData is array, otherwise pass the original systemPrompt string
+                system_prompt: Array.isArray(promptData) ? "" : systemPrompt,
                 temperature: USER.tableBaseSetting.custom_temperature,
                 table_proxy_address: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address,
                 table_proxy_key: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key
             });
 
-            // 调用API
-            const response = await llmService.callLLM(userPrompt, (chunk) => {
+            const streamCallback = (chunk) => {
                 if (loadingToast) {
-                   loadingToast.text = `正在使用第 ${keyIndexToTry + 1} 个Key生成: ${chunk}`;
+                    const modeText = isStepByStepSummary ? "(分步)" : ""; // isStepByStepSummary might be useful here still
+                    loadingToast.text = `正在使用第 ${keyIndexToTry + 1} 个Key生成${modeText}: ${chunk}`;
                 }
-            });
+            };
 
-            console.log(`请求成功 (密钥索引: ${keyIndexToTry}):`, response);
-            loadingToast?.close();
-            return suspended ? 'suspended' : response;
+            try {
+                // Pass promptData (which could be string or array) to callLLM
+                response = await llmService.callLLM(promptData, streamCallback);
+                console.log(`请求成功 (llmService, 密钥索引: ${keyIndexToTry}):`, response);
+                loadingToast?.close();
+                return suspended ? 'suspended' : response; // Success, return immediately
+            } catch (llmServiceError) {
+                // llmService failed, log error and continue loop
+                console.error(`API调用失败 (llmService)，密钥索引 ${keyIndexToTry}:`, llmServiceError);
+                lastError = llmServiceError;
+                EDITOR.error(`使用第 ${keyIndexToTry + 1} 个 Key 调用 (llmService) 失败: ${llmServiceError.message || '未知错误'}`);
+                // Let the loop continue to the next key
+            }
+            // If code reaches here, the llmService call failed for this key
 
-        } catch (error) {
-            console.error(`API调用失败，密钥索引 ${keyIndexToTry}:`, error);
-            lastError = error; // 记录错误
-            EDITOR.error(`使用第 ${keyIndexToTry + 1} 个 Key 调用失败: ${error.message || '未知错误'}`);
-            // 然后继续下一个key
+        } catch (error) { // This catch should ideally not be reached due to inner try/catch
+            console.error(`处理密钥索引 ${keyIndexToTry} 时发生意外错误:`, error);
+            lastError = error;
+            EDITOR.error(`处理第 ${keyIndexToTry + 1} 个 Key 时发生意外错误: ${error.message || '未知错误'}`);
         }
     }
 
@@ -350,9 +413,10 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt) {
         return 'suspended';
     }
 
-    EDITOR.error(`所有 ${attempts} 次尝试均失败。最后错误: ${lastError?.message || '未知错误'}`);
+    const errorMessage = `所有 ${attempts} 次尝试均失败。最后错误: ${lastError?.message || '未知错误'}`;
+    EDITOR.error(errorMessage);
     console.error('所有API调用尝试均失败。', lastError);
-    return; // 返回错误信息
+    return `错误: ${errorMessage}`; // 返回一个明确的错误字符串
 
     // // 公共请求配置 (Commented out original code remains unchanged)
     // const requestConfig = {
@@ -558,4 +622,64 @@ export function estimateTokenCount(text) {
     // 估算 token 数量
     let estimatedTokenCount = chineseCount + Math.floor(englishCount * 1.2);
     return estimatedTokenCount;
+}
+/**
+ * @description
+ * - **功能**: 导出所有表格数据，方便其他插件调用。
+ * - **使用场景**: 当其他插件需要访问或处理当前插件管理的表格数据时，可以通过此函数获取。
+ * - **返回值**: 返回一个包含所有表格数据的数组，每个表格对象包含：
+ *   - `name`: 表格的名称。
+ *   - `data`: 一个二维数组，表示表格的完整数据（包括表头和所有行）。
+ *
+ * @returns {Array<Object<{name: string, data: Array<Array<string>>}>>}
+ */
+export function ext_getAllTables() {
+    const tables = BASE.getChatSheets();
+    if (!tables || tables.length === 0) {
+        return [];
+    }
+
+    const allData = tables.map(table => {
+        const header = table.getHeader();
+        const body = table.getBody();
+        const fullData = [header, ...body];
+
+        return {
+            name: table.name,
+            data: fullData,
+        };
+    });
+
+    return allData;
+}
+
+/**
+ * @description
+ * - **功能**: 导出所有表格为一个 JSON 对象，格式与 '范例表格.json' 类似。
+ * - **使用场景**: 用于将当前所有表格的状态和数据导出为一个单一的 JSON 文件。
+ * - **返回值**: 返回一个 JSON 对象，键是表格的 UID，值是表格的完整配置和数据。
+ *
+ * @returns {Object}
+ */
+export function ext_exportAllTablesAsJson() {
+    const tables = BASE.getChatSheets();
+    if (!tables || tables.length === 0) {
+        return {};
+    }
+
+    const exportData = {};
+    tables.forEach(table => {
+        try {
+            // 只导出 uid, name, 和 content
+            exportData[table.uid] = {
+                uid: table.uid,
+                name: table.name,
+                content: table.getContent(true) // 使用 getContent(true) 获取包含表头的完整内容
+            };
+        } catch (error) {
+            console.error(`导出表格 ${table.name} (UID: ${table.uid}) 时出错:`, error);
+        }
+    });
+
+    return exportData;
 }

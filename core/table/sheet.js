@@ -86,6 +86,7 @@ export class Sheet extends SheetBase {
             targetPiece.hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
             console.log('保存表格数据', targetPiece, this.hashSheet);
             if (!manualSave) USER.saveChat();
+            
             return this;
         } catch (e) {
             EDITOR.error(`保存模板失败：${e}`);
@@ -231,5 +232,32 @@ export class Sheet extends SheetBase {
     initHashSheet() {
         this.hashSheet = [this.hashSheet[0].map(uid => uid)];
         this.markPositionCacheDirty();
+    }
+    
+    /**
+     * 根据 "A1" 格式的地址获取单元格
+     * @param {string} address - 例如 "A1", "B2"
+     * @returns {Cell|null}
+     */
+    getCellFromAddress(address) {
+        if (typeof address !== 'string' || !/^[A-Z]+\d+$/.test(address)) {
+            return null;
+        }
+
+        const colStr = address.match(/^[A-Z]+/)[0];
+        const rowStr = address.match(/\d+$/)[0];
+
+        const row = parseInt(rowStr, 10) - 1;
+
+        let col = 0;
+        for (let i = 0; i < colStr.length; i++) {
+            col = col * 26 + (colStr.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
+        }
+        col -= 1;
+
+        if (row < 0 || col < 0) return null;
+
+        const cellUid = this.hashSheet?.[row]?.[col];
+        return cellUid ? this.cells.get(cellUid) : null;
     }
 }

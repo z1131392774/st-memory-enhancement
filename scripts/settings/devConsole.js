@@ -14,18 +14,20 @@ function updateTableDebugLog(type, message, detail = "", timeout, stack) {
     };
     switch (type) {
         case 'info':
-            toastr.info(message, detail, timeout);
+            toastr.info(message, detail, { timeOut: timeout });
             break;
         case 'success':
-            toastr.success(message, detail, timeout);
+            toastr.success(message, detail, { timeOut: timeout });
             break;
         case 'warning':
             console.warn(message, detail);
-            toastr.warning(message, detail, timeout);
+            toastr.warning(message, detail, { timeOut: timeout });
             break;
         case 'error':
             console.error(message, detail);
-            toastr.error(message, detail, timeout);
+            // Assuming 'detail' is intended as the title for toastr.
+            // If detail is an empty string, toastr might not show a title, which is fine.
+            toastr.error(message, detail, { timeOut: timeout });
             if (isPopupOpening) break;
             if (USER.tableBaseSetting.tableDebugModeAble) {
                 setTimeout(() => {
@@ -128,7 +130,17 @@ export const consoleMessageToEditor = {
     info: (message, detail, timeout) => updateTableDebugLog('info', message, detail, timeout),
     success: (message, detail, timeout) => updateTableDebugLog('success', message, detail, timeout),
     warning: (message, detail, timeout) => updateTableDebugLog('warning', message, detail, timeout),
-    error: (message, detail, error, timeout) => updateTableDebugLog('error', message+error?.name, detail, timeout, error?.stack),
+    // 如果 error 参数是一个真正的 Error 对象，则可以附加 error.message 或 error.name。
+    // 但如果调用者只传递了字符串，那么 error 参数会是 undefined。
+    // 假设主要的错误信息已经在 message 或 detail 中。
+    // 如果需要显示堆栈，则 error 参数应该是 Error 对象。
+    error: (message, detail, errorObj, timeout) => {
+        let fullMessage = message;
+        // 如果 detail 存在，可以考虑如何合并它，或者假设它已包含在 message 中。
+        // For now, let's assume 'message' contains the primary string and 'detail' is secondary.
+        // The 'errorObj' is specifically for stack trace.
+        updateTableDebugLog('error', fullMessage, detail, timeout, errorObj?.stack);
+    },
     clear: () => updateTableDebugLog('clear', ''),
 }
 

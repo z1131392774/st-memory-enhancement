@@ -1,7 +1,6 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import {rebuildTableActions} from "./absoluteRefresh.js";
-import { profile_prompts } from '../../data/profile_prompts.js';
-import { getPromptAndRebuildTable } from "./absoluteRefresh.js";
+import { executeIncrementalUpdateFromSummary, sheetsToTables } from "./absoluteRefresh.js";
+import { newPopupConfirm } from '../../components/popupConfirm.js';
 
 let toBeExecuted = [];
 
@@ -81,8 +80,9 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
     let lastChat = null;
     let cacheChat = null;
     let round = 0;
+    let contextLayers = USER.tableBaseSetting.separateReadContextLayers || 1; // 获取上下文层数，默认为1
 
-    for (let i = chats.length - 1; i >= 0; i--) {
+    for (let i = chats.length - 1; i >= 0 && round < contextLayers; i--) { // 增加层数限制
         const chat = chats[i];
         if (chat.is_user === true) {
             toBeExecuted.unshift(chat);
@@ -163,78 +163,100 @@ export async function TableTwoStepSummary() {
     }
 
     // 检查是否开启执行前确认
-    const popupContent = document.createElement('div');
-    popupContent.innerHTML = `
-        <p>累计 ${todoChats.length} 长度的待总结文本，是否执行两步总结？</p>
-        <div style="margin-top: 10px; margin-bottom: 10px;">
-            <label for="two_step_summary_template_selector" style="display: block; margin-bottom: 5px;">选择总结模板:</label>
-            <select id="two_step_summary_template_selector" class="text_pole" style="width: 100%;">
-                <!-- Options will be populated here -->
-            </select>
-        </div>
-    `;
+    const popupContentHtml = `<p>累计 ${todoChats.length} 长度的待总结文本，是否执行分步总结？</p>`;
+    // 移除了模板选择相关的HTML和逻辑
 
-    const $selector = $(popupContent.querySelector('#two_step_summary_template_selector'));
-    $selector.empty();
+    const popupId = 'stepwiseSummaryConfirm';
+    const confirmResult = await newPopupConfirm(
+        popupContentHtml,
+        "取消",
+        "执行总结",
+        popupId,
+        "暂不提醒"
+    );
 
-    if (typeof profile_prompts !== 'undefined' && profile_prompts !== null) {
-        Object.entries(profile_prompts).forEach(([key, prompt]) => {
-            let prefix = '';
-            if (prompt.type === 'third_party') prefix = '**第三方** ';
+    console.log('newPopupConfirm result for stepwise summary:', confirmResult);
 
-            $selector.append(
-                $('<option></option>')
-                    .val(key)
-                    .text(prefix + (prompt.name || key))
-            );
-        });
+    // confirmResult can be:
+    // true: User clicked "Execute" OR user clicked "Don't Remind" (which implies execution)
+    // false: User clicked "Cancel"
+    // 'dont_remind_active': Popup was suppressed because "Don't Remind" was previously selected.
 
-        if (Object.keys(profile_prompts).length > 0) {
-            // 优先使用上次选择的模板，其次是 'rebuild_base'，最后是列表中的第一个
-            const defaultKey = USER.tableBaseSetting?.lastSelectedTemplate || (profile_prompts['rebuild_base'] ? 'rebuild_base' : Object.keys(profile_prompts)[0]);
-            if (profile_prompts[defaultKey]) {
-                 $selector.val(defaultKey);
-            } else if (Object.keys(profile_prompts).length > 0) {
-                 // 如果上述都找不到，则选择第一个可用的
-                 $selector.val(Object.keys(profile_prompts)[0]);
-            }
-        }
-    } else {
-        console.warn('两步总结模板不可用，下拉菜单将为空或显示错误。');
-        $selector.append($('<option value="">模板加载失败</option>'));
-    }
+    // We proceed with execution if:
+    // 1. User explicitly confirmed (confirmResult === true). This covers first-time "Don't Remind" click.
+    // 2. Popup was suppressed (confirmResult === 'dont_remind_active'), meaning we should auto-proceed.
+    // We abort only if user explicitly cancelled (confirmResult === false).
 
-    const confirmationPopup = new EDITOR.Popup(popupContent, EDITOR.POPUP_TYPE.CONFIRM, '执行两步总结', {
-        okButton: "执行两步总结",
-        cancelButton: "取消"
-    });
-
-    await confirmationPopup.show();
-    console.log('confirmationPopup.result:', confirmationPopup.result);
-
-    if (!confirmationPopup.result) {
-        console.log('用户取消执行两步总结: ', `(${todoChats.length}) `, toBeExecuted);
+    if (confirmResult === false) {
+        console.log('用户取消执行分步总结: ', `(${todoChats.length}) `, toBeExecuted);
         MarkChatAsWaiting(currentPiece, swipeUid);
     } else {
-        const selectedTemplateKey = $selector.val();
-        USER.tableBaseSetting.lastSelectedTemplate = selectedTemplateKey; // 保存当前选择
-        console.log('用户选择的总结模板KEY:', selectedTemplateKey);
-        // const selectedTemplate = profile_prompts[selectedTemplateKey]; // 获取用户选择的总结模板
-        // console.log('用户选择的总结模板:', selectedTemplate);
+        // This block executes if confirmResult is true OR 'dont_remind_active'
+        if (confirmResult === 'dont_remind_active') {
+            console.log('分步总结弹窗已被禁止，自动执行。');
+        } else { // confirmResult === true
+            console.log('用户确认执行分步总结 (或首次选择了暂不提醒并确认)');
+        }
 
-        const r = await getPromptAndRebuildTable(selectedTemplateKey,'',true, undefined, todoChats);   // 执行两步总结
+        // 获取当前表格数据
+        const { piece: lastPiece } = BASE.getLastSheetsPiece();
+        if (!lastPiece) {
+            EDITOR.error('无法获取最新的表格数据以执行两步总结。');
+            MarkChatAsWaiting(currentPiece, swipeUid);
+            return;
+        }
+        const latestTables = BASE.hashSheetsToSheets(lastPiece.hash_sheets).filter(sheet => sheet.enable);
+        const originText = '<表格内容>\n' + latestTables
+            .map((table, index) => table.getTableText(index, ['title', 'node', 'headers', 'rows']))
+            .join("\n");
 
-        console.log('执行两步总结结果:', r);
-        //改为rebuild后只检查是否成功
-        if(r ==='success') {
+        const oldTableStructure = sheetsToTables(latestTables);
+        const tableHeadersOnly = oldTableStructure.map((table, index) => ({
+            tableName: table.tableName || `Table ${index + 1}`,
+            headers: table.columns || []
+        }));
+        const tableHeadersJson = JSON.stringify(tableHeadersOnly);
+        
+        const useMainApiForStepByStep = USER.tableBaseSetting.step_by_step_use_main_api === undefined ? true : USER.tableBaseSetting.step_by_step_use_main_api;
+
+        // 调用增量更新函数，并传递 isStepByStepSummary 标志
+        const r = await executeIncrementalUpdateFromSummary(
+            todoChats,
+            originText,
+            tableHeadersJson,
+            latestTables,
+            useMainApiForStepByStep, // API choice for step-by-step
+            USER.tableBaseSetting.bool_silent_refresh, // isSilentUpdate
+            true // isStepByStepSummary flag
+        );
+
+        console.log('执行分步总结（增量更新）结果:', r);
+        if (r === 'success') {
             toBeExecuted.forEach(chat => {
                 const chatSwipeUid = getSwipeUid(chat);
                 chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
             });
             toBeExecuted = [];
+
+            // 在所有更新完成后，执行正则重启
+            console.log(`[Memory Enhancement] 表格组更新完成，准备重启“表格地图”正则脚本。`);
+            try {
+                if (window.TavernHelper && typeof TavernHelper.triggerSlash === 'function') {
+                    await TavernHelper.triggerSlash('/regex-toggle state=off 表格地图功能');
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await TavernHelper.triggerSlash('/regex-toggle state=on 表格地图功能');
+                    console.log(`[Memory Enhancement] “表格地图功能”正则脚本已重启。`);
+                } else {
+                    console.error('[Memory Enhancement] TavernHelper 或 TavernHelper.triggerSlash 未定义，无法重启正则脚本。');
+                }
+            } catch (error) {
+                EDITOR.error("重启“表格地图”正则脚本时出错:", error);
+            }
+        } else if (r === 'suspended' || r === 'error' || !r) {
+            console.log('执行增量两步总结失败或取消: ', `(${todoChats.length}) `, toBeExecuted);
+            MarkChatAsWaiting(currentPiece, swipeUid);
         }
-
-
+        // Removed old rebuild logic and result handling as it's now incremental
         // if (!r || r === '' || r === 'error') {
         //     console.log('执行两步总结失败: ', `(${todoChats.length}) `, toBeExecuted);
         //     MarkChatAsWaiting(currentPiece, swipeUid);

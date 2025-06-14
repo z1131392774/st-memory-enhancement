@@ -58,19 +58,20 @@ export function insertRow(tableIndex, data) {
         }
     } else {
         // 旧系统：保持原有逻辑
-        const newRow = Object.entries(data)
-            .reduce((row, [key, value]) => {
-                row[parseInt(key)] = handleCellValue(value);
-                return row;
-            }, new Array(table.columns.length).fill(""));
-        const dataStr = JSON.stringify(newRow);
+        const newRowArray = new Array(table.columns.length).fill("");
+        Object.entries(data).forEach(([key, value]) => {
+            newRowArray[parseInt(key)] = handleCellValue(value);
+        });
+
+        const dataStr = JSON.stringify(newRowArray);
         // 检查是否已存在相同行
         if (table.content.some(row => JSON.stringify(row) === dataStr)) {
             console.log(`跳过重复插入: table ${tableIndex}, data ${dataStr}`);
             return -1; // 返回-1表示未插入
         }
-        const newRowIndex = table.insert(data);
-        console.log(`插入成功: table ${tableIndex}, row ${newRowIndex}`);
+        table.content.push(newRowArray);
+        const newRowIndex = table.content.length - 1;
+        console.log(`插入成功 (旧系统): table ${tableIndex}, row ${newRowIndex}`);
         return newRowIndex;
     }
 }
@@ -114,7 +115,12 @@ export function deleteRow(tableIndex, rowIndex) {
         }
     } else {
         // 旧系统：保持原有逻辑
-        table.delete(rowIndex);
+        if (table.content && rowIndex >= 0 && rowIndex < table.content.length) {
+            table.content.splice(rowIndex, 1);
+            console.log(`删除成功 (旧系统): table ${tableIndex}, row ${rowIndex}`);
+        } else {
+            console.error(`删除失败 (旧系统): table ${tableIndex}, 无效的行索引 ${rowIndex} 或 content 不存在`);
+        }
     }
 }
 
@@ -165,6 +171,13 @@ export function updateRow(tableIndex, rowIndex, data) {
         }
     } else {
         // 旧系统：保持原有逻辑
-        table.update(rowIndex, data);
+        if (table.content && table.content[rowIndex]) {
+            Object.entries(data).forEach(([key, value]) => {
+                table.content[rowIndex][parseInt(key)] = handleCellValue(value);
+            });
+            console.log(`更新成功 (旧系统): table ${tableIndex}, row ${rowIndex}`);
+        } else {
+            console.error(`更新失败 (旧系统): table ${tableIndex}, row ${rowIndex} 不存在或 content 不存在`);
+        }
     }
 }

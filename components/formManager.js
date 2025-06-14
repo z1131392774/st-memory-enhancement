@@ -1,10 +1,14 @@
 // formManager.js
+import { BASE } from '../core/manager.js';
+import { PopupMenu } from './popupMenu.js';
+
 class Form {
-    constructor(formConfig, initialData) {
+    constructor(formConfig, initialData, updateCallback) {
         this.formConfig = formConfig;
         // 创建数据副本
         this.formData = { ...initialData };
         this.eventHandlers = {}; // 用于存储外部传入的事件处理函数
+        this.updateCallback = updateCallback; // 用于实时更新外部数据的回调函数
     }
 
     /**
@@ -131,9 +135,44 @@ class Form {
 
                     // 添加事件监听器，修改 formData
                     if (field.type === 'checkbox') {
-                        inputElement.addEventListener('change', (e) => { self.formData[field.dataKey] = e.target.checked; });
+                        inputElement.addEventListener('change', (e) => {
+                            const newValue = e.target.checked;
+                            self.formData[field.dataKey] = newValue;
+                            if (self.updateCallback && typeof self.updateCallback === 'function') {
+                                self.updateCallback(field.dataKey, newValue);
+                            }
+                        });
                     } else {
-                        inputElement.addEventListener('input', (e) => { self.formData[field.dataKey] = e.target.value; });
+                        inputElement.addEventListener('input', (e) => {
+                            const newValue = e.target.value;
+                            self.formData[field.dataKey] = newValue;
+                            if (self.updateCallback && typeof self.updateCallback === 'function') {
+                                self.updateCallback(field.dataKey, newValue);
+                            }
+
+                            // 新增：## 自动完成功能
+                            if (field.type === 'textarea' && e.target.value.slice(-2) === '##') {
+                                const popupMenu = new PopupMenu();
+                                const sheets = BASE.getChatSheets();
+
+                                if (sheets.length > 0) {
+                                    sheets.forEach(sheet => {
+                                        popupMenu.add(`${sheet.name}`, () => {
+                                            const currentValue = e.target.value;
+                                            const newValue = currentValue.substring(0, currentValue.length - 2) + `##${sheet.name}:`;
+                                            e.target.value = newValue;
+                                            self.formData[field.dataKey] = newValue;
+                                            e.target.focus();
+                                        });
+                                    });
+                                } else {
+                                    popupMenu.add('没有可用的表格', () => {});
+                                }
+                                
+                                const rect = e.target.getBoundingClientRect();
+                                popupMenu.show(rect.left, rect.bottom);
+                            }
+                        });
                     }
                 }
             }
