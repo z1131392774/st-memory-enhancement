@@ -181,8 +181,10 @@ export function getTablePrompt(eventData, isPureData = false) {
     const {piece:lastSheetsPiece} = swipeInfo.isSwipe?swipeInfo.deep===0?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
     if(!lastSheetsPiece) return ''
     const hash_sheets = lastSheetsPiece.hash_sheets
-    const sheets = BASE.hashSheetsToSheets(hash_sheets).filter(sheet=>sheet.enable)
-    console.log("构建提示词时的信息", hash_sheets, sheets)
+    const sheets = BASE.hashSheetsToSheets(hash_sheets)
+        .filter(sheet => sheet.enable)
+        .filter(sheet => sheet.sendToContext !== false); // 新增过滤器：只包含sendToContext不为false的表格
+    console.log("构建提示词时的信息 (已过滤)", hash_sheets, sheets)
     const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
     const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, eventData)).join('\n')
     return sheetDataPrompt
