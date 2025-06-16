@@ -4,6 +4,7 @@ import { findTableStructureByIndex, convertOldTablesToNewSheets } from "../../in
 import { insertRow, updateRow, deleteRow } from "../../core/table/oldTableActions.js";
 import JSON5 from '../../utils/json5.min.mjs'
 import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
+import { reloadCurrentChat } from "../../../../../../script.js";
 import { estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest } from "../settings/standaloneAPI.js";
 import { profile_prompts } from "../../data/profile_prompts.js";
 import { refreshContextView } from "../editor/chatSheetsDataView.js";
@@ -1469,7 +1470,7 @@ export async function triggerStepByStepNow() {
 
     // 2. 调用核心执行函数
     EDITOR.info("正在启动手动分步填表...");
-    await executeIncrementalUpdateFromSummary(
+    const result = await executeIncrementalUpdateFromSummary(
         lastChats,
         originTableText,
         tableHeadersJsonString,
@@ -1479,6 +1480,10 @@ export async function triggerStepByStepNow() {
         true, // 明确是分步总结模式
         true // 总是以静默模式运行
     );
+
+    if (result === 'success') {
+        reloadCurrentChat();
+    }
 }
 
 /**

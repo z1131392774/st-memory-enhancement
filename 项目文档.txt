@@ -17,6 +17,26 @@ v2.0.26:
     - `scripts/runtime/absoluteRefresh.js`
     - `scripts/settings/standaloneAPI.js`
 
+v2.0.28:
+- **修复：解决了静默模式下的运行时错误**
+  - **问题:** 在静默模式下（即用户选择“一直选是”后），由于API加载提示(`loadingToast`)未被创建，导致后续代码尝试访问`loadingToast.text`时出现`Cannot set properties of null`的错误。
+  - **实现方式:**
+    - 在`scripts/settings/standaloneAPI.js`中，为所有访问`loadingToast`属性（如`.text`或`.frameUpdate`）的地方都增加了`if (loadingToast)`的空值检查。
+  - **结果:** 修复了在静默填表模式下因加载提示为空而导致的程序崩溃问题，确保了后台流程的稳定性。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+>>>>>>> REPLACE
+
+v2.0.27:
+- **修复：手动触发的分步填表在完成后会刷新聊天界面**
+  - **目的:** 统一“手动触发”和“自动触发”的分步填表行为，确保在操作成功后都能刷新UI。
+  - **实现方式:**
+    - **导入:** 在`scripts/runtime/absoluteRefresh.js`中导入了`reloadCurrentChat`函数。
+    - **逻辑:** 修改了`triggerStepByStepNow`函数，使其`await`等待`executeIncrementalUpdateFromSummary`的执行结果。如果返回结果为`'success'`，则调用`reloadCurrentChat()`来刷新聊天界面。
+  - **结果:** 现在通过“立即填表”按钮手动触发的功能在成功完成后，会像自动触发的流程一样刷新聊天界面，提供了更一致的用户体验。
+  - **受影响文件:**
+    - `scripts/runtime/absoluteRefresh.js`
+
 v2.0.25:
 - **新增功能：手动触发分步填表**
   - **目的:** 为用户提供一个直接的方式来启动一次分步填表流程，而无需等待对话字数达到阈值。

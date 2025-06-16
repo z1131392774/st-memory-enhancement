@@ -142,9 +142,13 @@ export async function handleMainAPIRequest(systemPrompt, userPrompt, isSilent = 
         });
 
         let startTime = Date.now();
-        loadingToast.frameUpdate(() => {
-            loadingToast.text = `正在使用【主API】(多消息)重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
-        });
+        if (loadingToast) {
+            loadingToast.frameUpdate(() => {
+                if (loadingToast) {
+                    loadingToast.text = `正在使用【主API】(多消息)重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
+                }
+            });
+        }
 
         console.log('主API请求的多消息数组:', messages); // Log the actual array
         // Use TavernHelper.generateRaw with the array, enabling streaming
@@ -167,9 +171,13 @@ export async function handleMainAPIRequest(systemPrompt, userPrompt, isSilent = 
         });
 
         let startTime = Date.now();
-        loadingToast.frameUpdate(() => {
-            loadingToast.text = `正在使用【主API】(旧逻辑)重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
-        });
+        if (loadingToast) {
+            loadingToast.frameUpdate(() => {
+                if (loadingToast) {
+                    loadingToast.text = `正在使用【主API】(旧逻辑)重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
+                }
+            });
+        }
 
         console.log('主API请求的数据part1 (旧逻辑)， systemPrompt：', finalSystemPrompt);
         console.log('主API请求的数据part2 (旧逻辑)， userPrompt：', finalUserPrompt);
@@ -363,7 +371,9 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
         currentApiKeyIndex++; // 移动到下一个密钥，用于下一次整体请求
 
         console.log(`尝试使用API密钥索引进行API调用: ${keyIndexToTry}`);
-        loadingToast.text = `尝试使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key...`;
+        if (loadingToast) {
+            loadingToast.text = `尝试使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key...`;
+        }
 
         try { // Outer try for the whole attempt with the current key
             const promptData = Array.isArray(systemPrompt) ? systemPrompt : userPrompt;
@@ -371,7 +381,9 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
 
             // --- ALWAYS Use llmService ---
             console.log(`自定义API: 使用 llmService.callLLM (输入类型: ${Array.isArray(promptData) ? '多消息数组' : '单条消息'})`);
-            loadingToast.text = `正在使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key (llmService)...`;
+            if (loadingToast) {
+                loadingToast.text = `正在使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key (llmService)...`;
+            }
 
             const llmService = new LLMApiService({
                 api_url: USER_API_URL,
