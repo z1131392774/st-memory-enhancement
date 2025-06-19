@@ -73,7 +73,7 @@ export function buildSheetsByTemplates(targetPiece) {
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
  */
 export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
-    //USER.getChatPiece().hash_sheets = {};
+    targetPiece.hash_sheets = {}; // 在转换前清空旧的表格数据
     const sheets = []
     for (const oldTable of oldTableList) {
         const valueSheet = [oldTable.columns, ...oldTable.content].map(row => ['', ...row])
