@@ -500,6 +500,11 @@ function InitBinging() {
     $('#trigger_step_by_step_button').on('click', () => {
         triggerStepByStepNow();
     });
+
+    $('#table_step_by_step_history_count').on('change', function () {
+        const value = $(this).val();
+        USER.tableBaseSetting.step_by_step_history_count = value ? parseInt(value, 10) : null;
+    });
 }
 
 /**
@@ -526,6 +531,11 @@ export function renderSetting() {
     $('#step_by_step_user_prompt').val(USER.tableBaseSetting.step_by_step_user_prompt || '');
     // 分步填表读取的上下文层数
     $('#separateReadContextLayers').val(USER.tableBaseSetting.separateReadContextLayers);
+    
+    if (USER.tableBaseSetting.step_by_step_history_count) {
+        $('#table_step_by_step_history_count').val(USER.tableBaseSetting.step_by_step_history_count);
+    }
+
     refreshRebuildTemplate()
 
     // private data

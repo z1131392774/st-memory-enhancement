@@ -81,9 +81,10 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
     let lastChat = null;
     let cacheChat = null;
     let round = 0;
-    let contextLayers = USER.tableBaseSetting.separateReadContextLayers || 1; // 获取上下文层数，默认为1
+    // 统一从设置中读取历史记录数
+    let contextLayers = USER.tableBaseSetting.step_by_step_history_count || USER.tableBaseSetting.separateReadContextLayers || 1;
 
-    for (let i = chats.length - 1; i >= 0 && round < contextLayers; i--) { // 增加层数限制
+    for (let i = chats.length - 1; i >= 0 && round < contextLayers; i--) {
         const chat = chats[i];
         if (chat.is_user === true) {
             toBeExecuted.unshift(chat);
@@ -116,8 +117,9 @@ function GetUnexecutedMarkChats(parentSwipeUid) {
 
 /**
  * 执行两步总结
+ * @param {boolean} [forceExecute=false] - 是否强制执行，跳过所有检查和确认
  * */
-export async function TableTwoStepSummary() {
+export async function TableTwoStepSummary(forceExecute = false) {
     if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === false) return
 
     // 获取当前对话
@@ -163,43 +165,37 @@ export async function TableTwoStepSummary() {
         return;
     }
 
-    // 检查是否开启执行前确认
-    const popupContentHtml = `<p>累计 ${todoChats.length} 长度的待总结文本，是否执行分步总结？</p>`;
-    // 移除了模板选择相关的HTML和逻辑
+    let proceed = forceExecute; // 如果是强制执行，则直接继续
+    let confirmResult; // 将声明提前
 
-    const popupId = 'stepwiseSummaryConfirm';
-    const confirmResult = await newPopupConfirm(
-        popupContentHtml,
-        "取消",
-        "执行总结",
-        popupId,
-        "一直选是" // <--- 修改按钮文本
-    );
+    if (!forceExecute) {
+        // 检查是否开启执行前确认
+        const popupContentHtml = `<p>累计 ${todoChats.length} 长度的待总结文本，是否执行分步总结？</p>`;
+        const popupId = 'stepwiseSummaryConfirm';
+        confirmResult = await newPopupConfirm(
+            popupContentHtml,
+            "取消",
+            "执行总结",
+            popupId,
+            "一直选是"
+        );
+        console.log('newPopupConfirm result for stepwise summary:', confirmResult);
 
-    console.log('newPopupConfirm result for stepwise summary:', confirmResult);
-
-    // confirmResult can be:
-    // true: User clicked "Execute" OR user clicked "Don't Remind" (which implies execution)
-    // false: User clicked "Cancel"
-    // 'dont_remind_active': Popup was suppressed because "Don't Remind" was previously selected.
-
-    // We proceed with execution if:
-    // 1. User explicitly confirmed (confirmResult === true). This covers first-time "Don't Remind" click.
-    // 2. Popup was suppressed (confirmResult === 'dont_remind_active'), meaning we should auto-proceed.
-    // We abort only if user explicitly cancelled (confirmResult === false).
-
-    if (confirmResult === false) {
-        console.log('用户取消执行分步总结: ', `(${todoChats.length}) `, toBeExecuted);
-        MarkChatAsWaiting(currentPiece, swipeUid);
-    } else {
-        // This block executes if confirmResult is true OR 'dont_remind_active'
-        if (confirmResult === 'dont_remind_active') {
-            console.log('分步总结弹窗已被禁止，自动执行。');
-            EDITOR.info('已选择“一直选是”，操作将在后台自动执行...'); // <--- 增加后台执行提示
-        } else { // confirmResult === true
-            console.log('用户确认执行分步总结 (或首次选择了“一直选是”并确认)');
+        if (confirmResult === false) {
+            console.log('用户取消执行分步总结: ', `(${todoChats.length}) `, toBeExecuted);
+            MarkChatAsWaiting(currentPiece, swipeUid);
+        } else {
+            proceed = true; // 用户确认或已选择“一直选是”
+            if (confirmResult === 'dont_remind_active') {
+                console.log('分步总结弹窗已被禁止，自动执行。');
+                EDITOR.info('已选择“一直选是”，操作将在后台自动执行...');
+            } else {
+                console.log('用户确认执行分步总结 (或首次选择了“一直选是”并确认)');
+            }
         }
+    }
 
+    if (proceed) {
         // 获取当前表格数据
         const { piece: lastPiece } = BASE.getLastSheetsPiece();
         if (!lastPiece) {
