@@ -53,14 +53,31 @@ function checkIfChatIsExecuted(chat, targetSwipeUid) {
 }
 
 /**
- * 处理对话中的标识符
- * @param string
- * @returns {string}
+ * 从消息文本中提取纯文本内容，移除所有功能性标签和表格HTML。
+ * @param {string} messageContent - 原始消息字符串.
+ * @returns {string} - 清理后的纯文本.
  */
-function handleMessages(string) {
-    let r = string.replace(/<(tableEdit|think|thinking)>[\s\S]*?<\/\1>/g, '');
+function getPureTextFromMessage(messageContent) {
+    if (typeof messageContent !== 'string') return '';
 
-    return r;
+    // 1. 移除已知的功能性 XML 标签
+    let pureText = messageContent.replace(/<(tableEdit|think|thinking|plot)>[\s\S]*?<\/\1>/gs, '');
+
+    // 2. 移除由表格渲染产生的特定HTML容器
+    // 这包括 `.table_in_chat` 和可能的旧版 `.table-wrapper`
+    pureText = pureText.replace(/<div class="table_in_chat[\s\S]*?<\/div>/gs, '');
+    pureText = pureText.replace(/<div class="table-wrapper[\s\S]*?<\/div>/gs, '');
+
+    // 3. 移除独立的 <table> 标签，以防有未被包裹的情况
+    pureText = pureText.replace(/<table[\s\S]*?<\/table>/gs, '');
+    
+    // 4. (可选) 清理掉所有剩余的HTML标签，获得最纯净的文本
+    // pureText = pureText.replace(/<[^>]+>/g, '');
+
+    // 5. 清理多余的空行，使上下文更紧凑
+    pureText = pureText.replace(/(\n\s*){3,}/g, '\n\n').trim();
+
+    return pureText;
 }
 
 function MarkChatAsWaiting(chat, swipeUid) {
@@ -155,8 +172,8 @@ export async function TableTwoStepSummary(forceExecute = false) {
         return;
     }
 
-    // 获取需要执行的两步总结
-    let todoChats = toBeExecuted.map(chat => chat.mes).join('');
+    // 获取需要执行的两步总结,并确保只包含纯文本
+    let todoChats = toBeExecuted.map(chat => getPureTextFromMessage(chat.mes)).join('\n\n');
 
     // 再次检查是否达到执行两步总结的阈值
     if (todoChats.length < USER.tableBaseSetting.step_by_step_threshold) {
