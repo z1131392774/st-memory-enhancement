@@ -177,30 +177,17 @@ function getAllPrompt(eventData) {
  * @returns {string} 表格相关提示词
  */
 export function getTablePrompt(eventData, isPureData = false) {
-    const swipeInfo = isSwipe();
-    let lastSheetsPiece;
-
-    if (swipeInfo.isSwipe) {
-        // 在滑动或“立即填表”场景下，直接获取最新的聊天片段
-        const chats = USER.getContext().chat;
-        lastSheetsPiece = chats[chats.length - 1];
-    } else {
-        // 否则，使用原有的逻辑获取上一个稳定状态的表格
-        const { piece } = BASE.getLastSheetsPiece();
-        lastSheetsPiece = piece;
-    }
-
-    if (!lastSheetsPiece || !lastSheetsPiece.hash_sheets) return '';
-
-    const hash_sheets = lastSheetsPiece.hash_sheets;
+    const swipeInfo = isSwipe()
+    const {piece:lastSheetsPiece} = swipeInfo.isSwipe?swipeInfo.deep===0?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
+    if(!lastSheetsPiece) return ''
+    const hash_sheets = lastSheetsPiece.hash_sheets
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
         .filter(sheet => sheet.enable)
-        .filter(sheet => sheet.sendToContext !== false);
-
-    console.log("构建提示词时的信息 (已过滤)", hash_sheets, sheets);
+        .filter(sheet => sheet.sendToContext !== false); // 新增过滤器：只包含sendToContext不为false的表格
+    console.log("构建提示词时的信息 (已过滤)", hash_sheets, sheets)
     const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, eventData)).join('\n');
-    return sheetDataPrompt;
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, eventData)).join('\n')
+    return sheetDataPrompt
 }
 
 /**

@@ -4,7 +4,6 @@ import { findTableStructureByIndex, convertOldTablesToNewSheets } from "../../in
 import JSON5 from '../../utils/json5.min.mjs'
 import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
 import { reloadCurrentChat } from "../../../../../../script.js";
-import { TableTwoStepSummary } from "./separateTableUpdate.js";
 import { estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest } from "../settings/standaloneAPI.js";
 import { profile_prompts } from "../../data/profile_prompts.js";
 import { refreshContextView } from "../editor/chatSheetsDataView.js";
@@ -156,25 +155,39 @@ export async function executeIncrementalUpdateFromSummary(
                         let rowIndex;
                         let data;
 
-                        if(match[3]) {
+                        if (match[3]) { // 标准格式: updateRow(tableIdx, rowIdx, { "0": "值", "1": "值" })
                             rowIndex = parseInt(match[2], 10);
-                            data = JSON5.parse(match[3]);
-                        } 
-                        else {
+                            const rawData = JSON5.parse(match[3]);
+                            data = {};
+                            // 只处理数字键，并确信它是 0-based 完整列索引
+                            for (const [key, value] of Object.entries(rawData)) {
+                                const keyAsInt = parseInt(key, 10);
+                                if (!isNaN(keyAsInt)) {
+                                    data[keyAsInt] = value;
+                                }
+                            }
+                        } else { // AI 易错格式: updateRow(tableIdx, [pk, val1, val2...])
                             const dataArray = JSON5.parse(match[2]);
                             const primaryKeyValue = dataArray[0];
                             rowIndex = sheet.getContent().findIndex(row => String(row[0]) === String(primaryKeyValue));
                             data = {};
-                            dataArray.forEach((val, i) => { if(i>0) data[i-1] = val; });
+                            // 数组格式下，第一个元素是主键，所以不处理
+                            // 后续元素按顺序更新 1, 2, 3... 列
+                            dataArray.slice(1).forEach((val, i) => {
+                                // 数据列的第 i 个，是完整表格的第 i+1 列
+                                data[i + 1] = val;
+                            });
                         }
 
                         if (rowIndex !== -1) {
                             let updated = false;
                             Object.entries(data).forEach(([key, value]) => {
-                                const colIndex = parseInt(key) + 1;
-                                const cell = sheet.findCellByPosition(rowIndex + 1, colIndex);
+                                // key 是 0-based 的完整列索引, findCellByPosition 需要 1-based
+                                const colIndex_1based = parseInt(key, 10) + 1;
+                                const cell = sheet.findCellByPosition(rowIndex + 1, colIndex_1based);
                                 if (cell) {
-                                    cell.newAction(cell.CellAction.editCell, { value: String(value) }, false);
+                                    const finalValue = (value === null || value === undefined) ? '' : String(value);
+                                    cell.newAction(cell.CellAction.editCell, { value: finalValue }, false);
                                     updated = true;
                                 }
                             });
@@ -236,11 +249,6 @@ export function sheetsToTables(sheets) {
     }))
 }
 
-export async function triggerStepByStepNow() {
-    console.log('[Memory Enhancement] Manually triggering step-by-step update by calling TableTwoStepSummary(true)...');
-    EDITOR.info("正在启动手动分步填表...");
-    await TableTwoStepSummary(true); 
-}
 
 export async function rebuildSheets() {
     const container = document.createElement('div');

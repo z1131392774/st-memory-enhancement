@@ -260,3 +260,14 @@ export async function TableTwoStepSummary(forceExecute = false) {
         // }
     }
 }
+
+/**
+ * 手动触发分步填表。
+ * 这是“立即填表”按钮的入口点，它通过使用 forceExecute=true 参数来调用核心的 TableTwoStepSummary 函数，
+ * 从而确保手动触发的流程与自动触发的流程在逻辑上完全一致。
+ */
+export async function triggerStepByStepNow() {
+    console.log('[Memory Enhancement] Manually triggering step-by-step update by calling TableTwoStepSummary(true)...');
+    EDITOR.info("正在启动手动分步填表...");
+    await TableTwoStepSummary(true);
+}
