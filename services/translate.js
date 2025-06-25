@@ -12,10 +12,10 @@ async function fetchTranslations(locale) {
     try {
         const response = await fetch(`/scripts/extensions/third-party/st-memory-enhancement/assets/locales/${locale}.json`);
         if (!response.ok) {
-            console.warn(`Could not load translations for ${locale}, falling back to en`);
-            // Fallback to English if requested locale is not available
-            if (locale !== 'en') {
-                return await fetchTranslations('en');
+            console.warn(`Could not load translations for ${locale}, falling back to zh-cn`);
+            // Fallback to Chinese if requested locale is not available
+            if (locale !== 'zh-cn') {
+                return await fetchTranslations('zh-cn');
             }
             return {};
         }

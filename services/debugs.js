@@ -1,5 +1,4 @@
-import {BASE, EDITOR, SYSTEM, USER} from "../core/manager.js";
-import LLMApiService from "./llmApi.js";
+import { SYSTEM, USER} from "../core/manager.js";
 
 // /**______________________请注意不要把填写后的API密钥上传了______________________*/
 // /**

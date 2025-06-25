@@ -1,5 +1,4 @@
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import {findTableStructureByIndex} from "../../index.js";
+import {EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import JSON5 from '../../utils/json5.min.mjs'
 
 let isPopupOpening = false; // 防止在弹窗打开时推送日志导致循环

@@ -1,7 +1,6 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import {updateSystemMessageTableStatus, updateAlternateTable} from "../renderer/tablePushToChat.js";
-import {rebuildSheets , modifyRebuildTemplate, newRebuildTemplate, deleteRebuildTemplate, exportRebuildTemplate, importRebuildTemplate} from "../runtime/absoluteRefresh.js";
-import { triggerStepByStepNow } from "../runtime/separateTableUpdate.js";
+import {rebuildSheets , modifyRebuildTemplate, newRebuildTemplate, deleteRebuildTemplate, exportRebuildTemplate, importRebuildTemplate, triggerStepByStepNow} from "../runtime/absoluteRefresh.js";
 import {generateDeviceId} from "../../utils/utility.js";
 import {updateModelList, handleApiTestRequest ,processApiKey} from "./standaloneAPI.js";
 import {filterTableDataPopup} from "../../data/pluginSetting.js";
@@ -281,15 +280,12 @@ function InitBinging() {
     $('#dataTable_injection_mode').change(function (event) {
         USER.tableBaseSetting.injection_mode = event.target.value;
     });
-    // 分步总结
-    $('#step_by_step').change(function() {
-        $('#reply_options').toggle(!this.checked);
-        $('#step_by_step_options').toggle(this.checked);
-        USER.tableBaseSetting.step_by_step = this.checked;
-    });
-    // 开启多轮字数累计
-    $('#sum_multiple_rounds').change(function() {
-        USER.tableBaseSetting.sum_multiple_rounds = $(this).prop('checked');
+    $("#fill_table_time").change(function() {
+        const value = $(this).val();
+        const step_by_step = value === 'after'
+        $('#reply_options').toggle(!step_by_step);
+        $('#step_by_step_options').toggle(step_by_step);
+        USER.tableBaseSetting.step_by_step = step_by_step;
     })
     // 确认执行
     $('#confirm_before_execution').change(function() {
@@ -412,16 +408,6 @@ function InitBinging() {
         const value = $(this).val();
         USER.tableBaseSetting.deep = Math.abs(value);
     })
-    // 触发分步总结的字数阈值
-    $('#step_by_step_threshold').on('input', function() {
-        const value = $(this).val();
-        $('#step_by_step_threshold_value').text(value);
-        USER.tableBaseSetting.step_by_step_threshold = Number(value);
-    });
-    // 分步总结破限词
-    $('#step_by_step_breaking_limit_words').on('input', function() {
-        USER.tableBaseSetting.step_by_step_breaking_limit_words = $(this).val();
-    });
     // 分步填表提示词
     $('#step_by_step_user_prompt').on('input', function() {
         USER.tableBaseSetting.step_by_step_user_prompt = $(this).val();
@@ -498,14 +484,10 @@ function InitBinging() {
     });
 
     // 手动触发分步填表
-    $('#trigger_step_by_step_button').on('click', () => {
+    $(document).on('click', '#trigger_step_by_step_button', () => {
         triggerStepByStepNow();
     });
 
-    $('#table_step_by_step_history_count').on('change', function () {
-        const value = $(this).val();
-        USER.tableBaseSetting.step_by_step_history_count = value ? parseInt(value, 10) : null;
-    });
 }
 
 /**
@@ -524,19 +506,11 @@ export function renderSetting() {
     $('#rebuild_token_limit_value').text(USER.tableBaseSetting.rebuild_token_limit_value);
     $('#custom_temperature').val(USER.tableBaseSetting.custom_temperature);
     $('#custom_temperature_value').text(USER.tableBaseSetting.custom_temperature);
-    $('#step_by_step_threshold').val(USER.tableBaseSetting.step_by_step_threshold);
-    $('#step_by_step_threshold_value').text(USER.tableBaseSetting.step_by_step_threshold);
-    // Load step-by-step breaking limit words
-    $('#step_by_step_breaking_limit_words').val(USER.tableBaseSetting.step_by_step_breaking_limit_words || '');
     // Load step-by-step user prompt
     $('#step_by_step_user_prompt').val(USER.tableBaseSetting.step_by_step_user_prompt || '');
     // 分步填表读取的上下文层数
     $('#separateReadContextLayers').val(USER.tableBaseSetting.separateReadContextLayers);
-    
-    if (USER.tableBaseSetting.step_by_step_history_count) {
-        $('#table_step_by_step_history_count').val(USER.tableBaseSetting.step_by_step_history_count);
-    }
-
+    $("#fill_table_time").val(USER.tableBaseSetting.step_by_step ? 'after' : 'chat');
     refreshRebuildTemplate()
 
     // private data
@@ -553,12 +527,10 @@ export function renderSetting() {
     updateSwitch('#table_edit_switch', USER.tableBaseSetting.isAiWriteTable);
     updateSwitch('#table_to_chat', USER.tableBaseSetting.isTableToChat);
     // updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
-    updateSwitch('#step_by_step', USER.tableBaseSetting.step_by_step);
     updateSwitch('#confirm_before_execution', USER.tableBaseSetting.confirm_before_execution);
     updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
     updateSwitch('#step_by_step_use_main_api', USER.tableBaseSetting.step_by_step_use_main_api);
     updateSwitch('#ignore_del', USER.tableBaseSetting.bool_ignore_del);
-    updateSwitch('#sum_multiple_rounds', USER.tableBaseSetting.sum_multiple_rounds);
     // updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);
     updateSwitch('#bool_silent_refresh', USER.tableBaseSetting.bool_silent_refresh);
     // updateSwitch('#use_token_limit', USER.tableBaseSetting.use_token_limit);
@@ -567,10 +539,6 @@ export function renderSetting() {
     updateSwitch('#alternate_switch', USER.tableBaseSetting.alternate_switch);
     updateSwitch('#show_drawer_in_extension_list', USER.tableBaseSetting.show_drawer_in_extension_list);
     updateSwitch('#table_to_chat_can_edit', USER.tableBaseSetting.table_to_chat_can_edit);
-
-    // 设置元素结构可见性
-    // $('#advanced_options').toggle(USER.tableBaseSetting.advanced_settings);
-    // $('#custom_api_settings').toggle(!USER.tableBaseSetting.use_main_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
     $('#table_to_chat_options').toggle(USER.tableBaseSetting.isTableToChat);

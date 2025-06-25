@@ -1,6 +1,3 @@
-// popupMenu.js
-import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../core/manager.js';
-import {cssColorToRgba} from "../utils/utility.js";
 
 const MenuItemType = {
     normal: 'normal',

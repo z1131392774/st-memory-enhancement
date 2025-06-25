@@ -1,7 +1,13 @@
-import {USER} from '../core/manager.js';
+import {EDITOR, USER} from '../core/manager.js';
 // @ts-ignore
-import { ChatCompletionService } from '/scripts/custom-request.js';
-
+let ChatCompletionService = undefined;
+try {
+    // 动态导入，兼容模块不存在的情况
+    const module = await import('/scripts/custom-request.js');
+    ChatCompletionService = module.ChatCompletionService;
+} catch (e) {
+    console.warn("未检测到 /scripts/custom-request.js 或未正确导出 ChatCompletionService，将禁用代理相关功能。", e);
+}
 export class LLMApiService {
     constructor(config = {}) {
         this.config = {
@@ -44,18 +50,9 @@ export class LLMApiService {
         // 如果配置了代理地址，则使用 SillyTavern 的内部路由
         if (USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address) {
             console.log("检测到代理配置，将使用 SillyTavern 内部路由");
-            // 检查 ChatCompletionService 是否实际可用 (基于当前代码被注释的情况)
-            // const chatCompletionServiceAvailable = false; // 因为相关代码被注释了
-            // if (!chatCompletionServiceAvailable) {
-            // const errorMessage = "代理功能当前未启用或配置不完整 (ChatCompletionService is commented out). 请取消代理设置或联系开发者。";
-            // console.error(errorMessage);
-            // throw new Error(errorMessage);
-            // }
-            // 假设 ChatCompletionService 总是可用的，如果导入成功的话。
-            // 如果 custom-request.js 不存在或 ChatCompletionService 未导出，则会在启动时或首次使用时抛出更早的错误。
             if (typeof ChatCompletionService === 'undefined' || !ChatCompletionService?.processRequest) {
-                const errorMessage = "代理服务 (ChatCompletionService) 未正确加载。请检查 '/scripts/custom-request.js' 文件是否存在且正确导出了 ChatCompletionService。";
-                console.error(errorMessage);
+                const errorMessage = "当前酒馆版本过低，无法发送自定义请求。请更新你的酒馆版本";
+                EDITOR.error(errorMessage);
                 throw new Error(errorMessage);
             }
             try {

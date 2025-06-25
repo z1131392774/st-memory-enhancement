@@ -32,19 +32,29 @@ export const USER = {
     saveSettings: () => APP.saveSettings(),
     saveChat: () => APP.saveChat(),
     getContext: () => APP.getContext(),
+    isSwipe:()=>
+    {
+        const chats = USER.getContext().chat
+        const lastChat = chats[chats.length - 1];
+        const isIncludeEndIndex = (!lastChat) || lastChat.is_user === true;
+        if(isIncludeEndIndex) return {isSwipe: false}
+        const {deep} = USER.getChatPiece()
+        return {isSwipe: true, deep}
+    },
+
     // getContextSheets: () => APP.getContext().chatMetadata.sheets,
     // getRoleSheets: () => APP,
     // getGlobalSheets: () => APP,
     getChatPiece: (deep = 0, direction = 'up') => {
         const chat = APP.getContext().chat;
-        if (!chat || chat.length === 0 || deep >= chat.length) return null;
+        if (!chat || chat.length === 0 || deep >= chat.length) return  {piece: null, deep: -1};
         let index = chat.length - 1 - deep
         while (chat[index].is_user === true) {
             if(direction === 'up')index--
             else index++
-            if (!chat[index]) return null; // 如果没有找到非用户消息，则返回null
+            if (!chat[index]) return {piece: null, deep: -1}; // 如果没有找到非用户消息，则返回null
         }
-        return chat[index]
+        return {piece:chat[index], deep: index};
     },
     loadUserAllTemplates() {
         let templates = USER.getSettings().table_database_templates;
@@ -189,7 +199,7 @@ export const BASE = {
     },
     saveChatSheets(saveToPiece = true) {
         if(saveToPiece){
-            const piece = USER.getChatPiece()
+            const {piece} = USER.getChatPiece()
             if(!piece) return EDITOR.error("表格数据没有记录载体，请聊过一轮后再试")
             BASE.getChatSheets(sheet => sheet.save(piece, true))
         }else BASE.getChatSheets(sheet => sheet.save(undefined, true))
@@ -197,7 +207,7 @@ export const BASE = {
     },
     reSaveAllChatSheets(sheets) {
         BASE.sheetsData.context = []
-        const piece = USER.getChatPiece()
+        const {piece} = USER.getChatPiece()
         if(!piece) return EDITOR.error("没有记录载体")
         sheets.forEach(sheet => {
             sheet.save(piece, true)
@@ -234,6 +244,12 @@ export const BASE = {
         }
         return { deep: -1, piece: BASE.initHashSheet() }
     },
+    getReferencePiece(){
+        const swipeInfo = USER.isSwipe()
+        console.log("获取参考片段", swipeInfo)
+        const {piece} = swipeInfo.isSwipe?swipeInfo.deep===-1?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
+        return piece
+    },
     hashSheetsToSheets(hashSheets) {
         if (!hashSheets) {
             return [];
@@ -252,7 +268,7 @@ export const BASE = {
     initHashSheet() {
         if (BASE.sheetsData.context.length === 0) {
             console.log("尝试从模板中构建表格数据")
-            const currentPiece = USER.getChatPiece()
+            const {piece: currentPiece} = USER.getChatPiece()
             buildSheetsByTemplates(currentPiece)
             if (currentPiece?.hash_sheets) {
                 // console.log('使用模板创建了新的表格数据', currentPiece)
@@ -303,7 +319,7 @@ export const EDITOR = {
             'context': USER.getContext(),
             'context_chatMetadata_sheets': USER.getContext().chatMetadata?.sheets,
             'context_sheets_data': BASE.sheetsData.context,
-            'chat_last_piece': USER.getChatPiece(),
+            'chat_last_piece': USER.getChatPiece()?.piece,
             'chat_last_sheet': BASE.getLastSheetsPiece()?.piece.hash_sheets,
             'chat_last_old_table': BASE.getLastSheetsPiece()?.piece.dataTable,
         }, 3);

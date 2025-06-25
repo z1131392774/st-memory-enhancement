@@ -44,7 +44,6 @@
                                         <!--                                        <input type="file" id="table-set-importFile" accept=".json" hidden>-->
                                         <div class="menu_button button-square-icon fa-solid fa-file-export" id="table-set-export" title="导出表格预设" data-i18n="[title]Export table presets"></div>
                                         <div class="menu_button button-square-icon fa-solid fa-undo" id="table-reset" title="重置表格预设" data-i18n="[title]Reset table presets"></div>
-                                        <div class="menu_button button-square-icon fa-solid fa-1 redWarningBG" id="table-init-from-2-to-1" title="回退上一版本" data-i18n="[title]Revert to previous version"></div>
                                     </div>
                                 </div>
 
@@ -58,6 +57,12 @@
                                 <div class="checkbox_label range-block justifyLeft">
                                     <input type="checkbox" id="table_switch_debug_mode"><span data-i18n="Debug mode">调试模式</span>
                                     <small class="toggle-description justifyLeft" data-i18n="Debug mode description">(开启后会有一定性能损耗，仅用于代码开发调试)</small>
+                                </div>
+
+                                <div style="padding-left: 5px;">
+                                    <label for="dataTable_message_template" data-i18n="Message template">消息模板</label>
+                                    <small class="toggle-description justifyLeft" data-i18n="Message template description">(用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
+                                    <textarea id="dataTable_message_template" class="wide100p" rows="8"></textarea>
                                 </div>
 
                                 <div class="inline-drawer wide100p">
@@ -107,24 +112,23 @@
                             <div>
                                 <!-- 预设设置 -->
                                 <h4 class="standoutHeader" data-i18n="Run strategy">运行策略</h4>
-                                <!--                            <b class="table_setting_category_header">回复设置</b><div style="height: 10px;"></div>-->
-                                <!-- 分步填表 -->
-                                <div class="checkbox_label">
-                                    <input type="checkbox" id="table_read_switch"><span data-i18n="AI read table switch">AI读表开关</span>
-                                </div>
-                                <div class="checkbox_label">
-                                    <input type="checkbox" id="table_edit_switch"><span data-i18n="AI edit table switch">AI改表开关</span>
-                                </div>
-
-                                <!--                                <h4>自定义策略</h4>-->
-                                <div class="checkbox_label range-block justifyLeft">
-                                    <input type="checkbox" id="step_by_step"><span data-i18n="Enable step-by-step table filling">启用分步填表</span>
-                                    <small class="toggle-description justifyLeft" data-i18n="Step-by-step table filling description">(每次对话后如达到阈值则自动调用api总结表格)</small>
-                                </div>
+                                <label for="fill_table_time" data-i18n="Render to">填表行为发生在：</label>
+                                    <select id="fill_table_time" class="flex1" style="min-width: 100px">
+                                        <option value="chat">聊天的同时填表</option>
+                                        <option value="after">收到消息后再单独填表</option>
+                                    </select>
+                                
 
                                 <!-- 默认不分步填表 -->
                                 <div id="reply_options" style="padding-left: 20px; width: calc(100% - 20px);">
                                     <div style="height: 5px;"></div>
+                                    <!-- 分步填表 -->
+                                    <div class="checkbox_label">
+                                        <input type="checkbox" id="table_read_switch"><span data-i18n="AI read table switch">AI读表开关</span>
+                                    </div>
+                                    <div class="checkbox_label">
+                                        <input type="checkbox" id="table_edit_switch"><span data-i18n="AI edit table switch">AI改表开关</span>
+                                    </div>
                                     <!-- 高级设置选项 -->
                                     <div style="padding-left: 5px;">
                                         <div style=" display: flex;">
@@ -139,11 +143,7 @@
                                                 <input class="text_pole wideMax100px margin0" type="number" id="dataTable_deep">
                                         </div>
                                     </div>
-                                    <div style="padding-left: 5px;">
-                                        <label for="dataTable_message_template" data-i18n="Message template">消息模板</label>
-                                        <small class="toggle-description justifyLeft" data-i18n="Message template description">(用于给AI说明怎么使用表格以及怎么修改表格，使用<code>{{tableData}}</code>宏指令来选择表格数据的插入位置)</small>
-                                        <textarea id="dataTable_message_template" class="wide100p" rows="8"></textarea>
-                                    </div>
+                                    
                                 </div>
 
                                 <!-- 分步填表 -->
@@ -154,34 +154,17 @@
                                             <i class="fa-solid fa-play"></i><a data-i18n="Fill now">立即填表</a>
                                         </div>
                                     </div>
-                                    <div class="table_set_div" style="padding-left: 5px; margin-top: 5px;">
-                                        <label for="table_step_by_step_history_count" style="vertical-align: middle;" data-i18n="settings.label.historyCountForFillNow">立即填表时读取的历史数：</label>
-                                        <input type="number" id="table_step_by_step_history_count" class="text_pole" style="width: 60px; vertical-align: middle;" placeholder="默认值">
-                                    </div>
-                                    <div class="flex-container slider-container" style="margin: 5px; padding-bottom: 10px">
-                                        <label><span data-i18n="Trigger threshold characters">触发阈值字数：</span><code id="step_by_step_threshold_value">900</code><small class="toggle-description" data-i18n="Trigger threshold description">（回复字数大于该值触发分步填表）</small></label>
-                                        <input type="range" id="step_by_step_threshold" min="20" max="10000" step="20" value="20" style="width: calc(100% - 20px);">
-                                    </div>
-                                    <div style="padding-left: 5px; margin-bottom: 10px;">
-                                        <label for="step_by_step_breaking_limit_words" data-i18n="settings.label.stepByStepBreakingLimitWords">分步总结破限词</label>
-                                        <small class="toggle-description justifyLeft" data-i18n="settings.hint.stepByStepBreakingLimitWords">(分步总结时，此内容会附加在普通表格系统预设之前，一同发送给AI。)</small>
-                                        <textarea id="step_by_step_breaking_limit_words" class="text_pole settings_textarea wide100p" rows="3" placeholder="输入破限词"></textarea>
-                                    </div>
                                     <div style="padding-left: 5px; margin-bottom: 10px;">
                                         <div style="display: flex; align-items: center; gap: 10px;">
-                                            <label for="step_by_step_user_prompt" data-i18n="settings.label.stepByStepUserPrompt">分步填表提示词</label>
+                                            <label for="step_by_step_user_prompt" data-i18n="settings.label.stepByStepUserPrompt">独立填表整体结构</label>
                                             <div class="menu_button button-square-icon fa-solid fa-undo" id="reset_step_by_step_user_prompt" title="重置为默认" data-i18n="[title]Reset to default"></div>
                                         </div>
-                                        <small class="toggle-description justifyLeft" data-i18n="settings.hint.stepByStepUserPrompt">(分步填表时，此内容将作为用户提示词发送给AI。)</small>
-                                        <textarea id="step_by_step_user_prompt" class="text_pole settings_textarea wide100p" rows="8" placeholder="输入分步填表提示词"></textarea>
-                                    </div>
-                                    <div class="checkbox_label range-block justifyLeft">
-                                        <input type="checkbox" id="sum_multiple_rounds" checked><span data-i18n="Accumulate character count">字数累加</span>
-                                        <small class="toggle-description justifyLeft" data-i18n="Accumulate character count description">(累计多轮未触发字数参与阈值比较)</small>
+                                        <small class="toggle-description justifyLeft" data-i18n="settings.hint.stepByStepUserPrompt">(独立填表时，请求将以此结构发送，请保持可被json解析)</small>
+                                        <textarea id="step_by_step_user_prompt" class="text_pole settings_textarea wide100p" rows="8" placeholder="输入独立填表提示词"></textarea>
                                     </div>
                                     <div class="checkbox_label range-block justifyLeft">
                                         <input type="checkbox" id="confirm_before_execution" checked><span data-i18n="Confirm before execution">执行时确认</span>
-                                        <small class="toggle-description justifyLeft" data-i18n="Confirm before execution description">(分步流程遇到检查节点时会弹出确认框)</small>
+                                        <small class="toggle-description justifyLeft" data-i18n="Confirm before execution description">(独立填表流程遇到检查节点时会弹出确认框)</small>
                                     </div>
                                 </div>
 
@@ -194,7 +177,7 @@
                             <!-- 重新整理表格 -->
                             <div  class="inline-drawer wide100p">
                                 <div class="standoutHeader inline-drawer-toggle inline-drawer-header">
-                                    <b><span data-i18n="Reorganize tables">重新整理表格</span></b>
+                                    <b><span data-i18n="Reorganize tables">表格总结/整理</span></b>
                                     <div class="fa-solid fa-circle-chevron-down inline-drawer-icon down"></div>
                                 </div>
                                 <div class="inline-drawer-content" style="display: none; ">
@@ -218,24 +201,19 @@
                                     <div class="checkbox_label">
                                         <input type="checkbox" id="ignore_user_sent" checked><span data-i18n="Only reference AI replies">只参考AI回复的消息</span>
                                     </div>
-                                    <!-- 先屏蔽refresh相关，等后面确认没有用了就删了 -->
-                                    <!-- <div class="checkbox_label range-block justifyLeft">
-                                        <input type="checkbox" id="ignore_del" checked><span data-i18n="When reorganizing, don't delete, only modify and add">整理时不删除，只修改和添加</span>
-                                        <small class="toggle-description justifyLeft" data-i18n="When reorganizing, don't delete description">(仅标记为<code>**旧**</code>的整理类型生效)</small>
-                                    </div> -->
                                     <div class="checkbox_label">
-                                        <input type="checkbox" id="bool_silent_refresh"><span data-i18n="Skip confirmation dialog after reorganizing">跳过整理后的确认弹窗</span>
+                                        <input type="checkbox" id="bool_silent_refresh"><span data-i18n="Skip confirmation dialog after reorganizing">跳过总结后的确认弹窗</span>
                                     </div>
 
                                     <div class="flex-container" style="flex-wrap: nowrap; padding-top: 10px;">
-                                        <b style="width: 170px;">重整理模板</b>
+                                        <b style="width: 170px;">总结模板</b>
                                         <select id="rebuild--select">
                                         </select>
-                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-pencil" id="rebuild--set-rename" title="编辑重整理模板"></div>
-                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-plus" id="rebuild--set-new" title="创建重整理模板"></div>
-                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-file-import" id="rebuild--set-import" title="导入重整理模板"></div>
+                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-pencil" id="rebuild--set-rename" title="编辑总结模板"></div>
+                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-plus" id="rebuild--set-new" title="创建总结模板"></div>
+                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-file-import" id="rebuild--set-import" title="导入总结模板"></div>
                                         <input type="file" id="rebuild--set-importFile" accept=".json" hidden>
-                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-file-export" id="rebuild--set-export" title="导出重整理模板"></div>
+                                        <div class="rebuild--add menu_button menu_button_icon fa-solid fa-file-export" id="rebuild--set-export" title="导出总结模板"></div>
                                         <div class="rebuild--del menu_button menu_button_icon fa-solid fa-trash redWarningBG" id="rebuild--set-delete" title="删除此模板"></div>
                                     </div>
 

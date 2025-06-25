@@ -1,6 +1,7 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
 import { SheetBase } from "./base.js";
 import { cellStyle, filterSavingData } from "./utils.js";
+import {Cell} from "./cell.js";
 
 /**
  * 表格类，用于管理表格数据
@@ -50,7 +51,14 @@ export class Sheet extends SheetBase {
         targetHashSheet.forEach((rowUids, rowIndex) => {
             const rowElement = document.createElement('tr');
             rowUids.forEach((cellUid, colIndex) => {
-                const cell = this.cells.get(cellUid)
+                let cell = this.cells.get(cellUid)
+                if(!cell) {
+                    console.warn(`Cell not found: ${cellUid}`);
+                    cell = new Cell(this); // 如果没有找到对应的单元格，则创建一个新的 Cell 实例
+                    cell.uid = cellUid; // 设置 uid
+                    cell.data = { value: '' }; // 初始化数据
+                    this.cells.set(cellUid, cell); // 将新创建的单元格添加到 cells 中
+                }
                 const cellElement = cell.initCellRender(rowIndex, colIndex);
                 rowElement.appendChild(cellElement);    // 调用 Cell 的 initCellRender 方法，仍然需要传递 rowIndex, colIndex 用于渲染单元格内容
                 if (cellEventHandler) {
@@ -66,7 +74,7 @@ export class Sheet extends SheetBase {
      * 保存表格数据
      * @returns {Sheet|boolean}
      */
-    save(targetPiece = USER.getChatPiece(), manualSave = false) {
+    save(targetPiece = USER.getChatPiece()?.piece, manualSave = false) {
         const sheetDataToSave = this.filterSavingData()
         sheetDataToSave.template = this.template?.uid;
 
@@ -133,7 +141,7 @@ export class Sheet extends SheetBase {
             rows = rowsArray.join('\n');
         }
         let result = '';
-
+        console.log('测试获取表格内容提示词', customParts, result, this);
         if (customParts.includes('title')) {
             result += title;
         }

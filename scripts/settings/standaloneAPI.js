@@ -174,13 +174,11 @@ export async function handleMainAPIRequest(systemPrompt, userPrompt, isSilent = 
         if (loadingToast) {
             loadingToast.frameUpdate(() => {
                 if (loadingToast) {
-                    loadingToast.text = `正在使用【主API】(旧逻辑)重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
+                    loadingToast.text = `正在使用【主API】重新生成完整表格: ${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
                 }
             });
         }
 
-        console.log('主API请求的数据part1 (旧逻辑)， systemPrompt：', finalSystemPrompt);
-        console.log('主API请求的数据part2 (旧逻辑)， userPrompt：', finalUserPrompt);
         // Use EDITOR.generateRaw for non-array input
         const response = await EDITOR.generateRaw(
             finalUserPrompt,

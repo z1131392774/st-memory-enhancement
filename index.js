@@ -2,8 +2,6 @@ import { APP, BASE, DERIVED, EDITOR, SYSTEM, USER } from './core/manager.js';
 import { openTableRendererPopup, updateSystemMessageTableStatus } from "./scripts/renderer/tablePushToChat.js";
 import { loadSettings } from "./scripts/settings/userExtensionSetting.js";
 import { ext_getAllTables, ext_exportAllTablesAsJson } from './scripts/settings/standaloneAPI.js';
-// 移除旧表格系统引用
-// import {initAllTable, TableEditAction} from "./scripts/oldTableActions.js";
 import { openTableDebugLogPopup } from "./scripts/settings/devConsole.js";
 import { TableTwoStepSummary } from "./scripts/runtime/separateTableUpdate.js";
 import { initTest } from "./components/_fotTest.js";
@@ -18,11 +16,30 @@ import {executeTranslation} from "./services/translate.js";
 
 console.log("______________________记忆插件：开始加载______________________")
 
-const VERSION = '2.0.5'
+const VERSION = '2.1.1'
 
 const editErrorInfo = {
     forgotCommentTag: false,
     functionNameError: false,
+}
+
+/**
+ * 修复值中不正确的转义单引号
+ * @param {*} value
+ * @returns
+ */
+function fixUnescapedSingleQuotes(value) {
+    if (typeof value === 'string') {
+        return value.replace(/\\'/g, "'");
+    }
+    if (typeof value === 'object' && value !== null) {
+        for (const key in value) {
+            if (Object.prototype.hasOwnProperty.call(value, key)) {
+                value[key] = fixUnescapedSingleQuotes(value[key]);
+            }
+        }
+    }
+    return value;
 }
 
 /**
@@ -73,7 +90,7 @@ export function buildSheetsByTemplates(targetPiece) {
  * @param {DERIVED.Table[]} oldTableList 旧表格数据
  */
 export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
-    targetPiece.hash_sheets = {}; // 在转换前清空旧的表格数据
+    //USER.getChatPiece().hash_sheets = {};
     const sheets = []
     for (const oldTable of oldTableList) {
         const valueSheet = [oldTable.columns, ...oldTable.content].map(row => ['', ...row])
@@ -159,17 +176,10 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
  * @returns 生成的完整提示词
  */
 export function initTableData(eventData) {
-    const promptContent = replaceUserTag(getAllPrompt(eventData))  //替换所有的<user>标签
+    const allPrompt = USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt(eventData))
+    const promptContent = replaceUserTag(allPrompt)  //替换所有的<user>标签
     console.log("完整提示", promptContent)
     return promptContent
-}
-
-/**
- * 获取所有的完整提示词
- * @returns 完整提示词
- */
-function getAllPrompt(eventData) {
-    return USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt(eventData))
 }
 
 /**
@@ -177,29 +187,26 @@ function getAllPrompt(eventData) {
  * @returns {string} 表格相关提示词
  */
 export function getTablePrompt(eventData, isPureData = false) {
-    const swipeInfo = isSwipe()
-    const {piece:lastSheetsPiece} = swipeInfo.isSwipe?swipeInfo.deep===0?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
+    const lastSheetsPiece = BASE.getReferencePiece()
     if(!lastSheetsPiece) return ''
-    const hash_sheets = lastSheetsPiece.hash_sheets
-    const sheets = BASE.hashSheetsToSheets(hash_sheets)
-        .filter(sheet => sheet.enable)
-        .filter(sheet => sheet.sendToContext !== false); // 新增过滤器：只包含sendToContext不为false的表格
-    console.log("构建提示词时的信息 (已过滤)", hash_sheets, sheets)
-    const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, eventData)).join('\n')
-    return sheetDataPrompt
+    console.log("获取到的参考表格数据", lastSheetsPiece)
+    return getTablePromptByPiece(lastSheetsPiece, isPureData)
 }
 
 /**
- * 判断是否在切换swipe
+ * 通过piece获取表格相关提示词
+ * @param {Object} piece 聊天片段
+ * @returns {string} 表格相关提示词
  */
-export function isSwipe() {
-    const chats = USER.getContext().chat
-    const lastChat = chats[chats.length - 1];
-    const isIncludeEndIndex = (!lastChat) || lastChat.is_user === true;
-    if(isIncludeEndIndex) return {isSwipe: false}
-    const {deep} = BASE.getLastSheetsPiece()
-    return {isSwipe: true, deep}
+export function getTablePromptByPiece(piece, isPureData = false) {
+    const {hash_sheets} = piece
+    const sheets = BASE.hashSheetsToSheets(hash_sheets)
+        .filter(sheet => sheet.enable)
+        .filter(sheet => sheet.sendToContext !== false);
+    console.log("构建提示词时的信息 (已过滤)", hash_sheets, sheets)
+    const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, piece)).join('\n')
+    return sheetDataPrompt
 }
 
 /**
@@ -310,39 +317,66 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
 }
 
 /**
+ * 直接通过编辑指令字符串执行操作
+ * @param {string[]} matches 编辑指令字符串
+ */
+export function executeTableEditActions(matches, referencePiece) {
+    const tableEditActions = handleTableEditTag(matches)
+    tableEditActions.forEach((action, index) => tableEditActions[index].action = classifyParams(formatParams(action.param)))
+    console.log("解析到的表格编辑指令", tableEditActions)
+
+    const sheets = BASE.hashSheetsToSheets(referencePiece.hash_sheets).filter(sheet => sheet.enable)
+    console.log("执行指令时的信息", sheets)
+    for (const EditAction of sortActions(tableEditActions)) {
+        executeAction(EditAction, sheets)
+    }
+    sheets.forEach(sheet => sheet.save(referencePiece, true))
+    console.log("聊天模板：", BASE.sheetsData.context)
+    console.log("测试总chat", USER.getContext().chat)
+    return false
+}
+
+/**
  * 执行单个action指令
  */
 function executeAction(EditAction, sheets) {
-    const action = EditAction.action
-    const sheet = sheets[action.tableIndex]
+    const action = EditAction.action;
+    const sheet = sheets[action.tableIndex];
     if (!sheet) {
-        console.error("表格不存在，无法执行编辑操作", EditAction)
-        return -1
+        console.error("表格不存在，无法执行编辑操作", EditAction);
+        return -1;
     }
+
+    // 在所有操作前，深度清理一次action.data
+    if (action.data) {
+        action.data = fixUnescapedSingleQuotes(action.data);
+    }
+
     switch (EditAction.type) {
         case 'update':
             // 执行更新操作
-            const rowIndex = action.rowIndex ? parseInt(action.rowIndex):0
-            if(rowIndex >= sheet.getRowCount()-1) return executeAction({...EditAction, type:'insert'}, sheets)
+            const rowIndex = action.rowIndex ? parseInt(action.rowIndex) : 0;
+            if (rowIndex >= sheet.getRowCount() - 1) return executeAction({ ...EditAction, type: 'insert' }, sheets);
+            if (!action.data) return;
             Object.entries(action.data).forEach(([key, value]) => {
-                const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1)
-                if (!cell) return -1
-                cell.newAction(cell.CellAction.editCell, { value }, false)
-            })
-            break
+                const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1);
+                if (!cell) return -1;
+                cell.newAction(cell.CellAction.editCell, { value: value }, false);
+            });
+            break;
         case 'insert': {
             // 执行插入操作
-            const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0)
-            cell.newAction(cell.CellAction.insertDownRow, {}, false)
-            const lastestRow = sheet.getRowCount() - 1
-            const cells = sheet.getCellsByRowIndex(lastestRow)
-            if(!cells || !action.data) return
+            const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0);
+            cell.newAction(cell.CellAction.insertDownRow, {}, false);
+            const lastestRow = sheet.getRowCount() - 1;
+            const cells = sheet.getCellsByRowIndex(lastestRow);
+            if (!cells || !action.data) return;
             cells.forEach((cell, index) => {
-                if (index === 0) return -1 
-                cell.data.value = action.data[index - 1]
-            })
+                if (index === 0) return;
+                cell.data.value = action.data[index - 1];
+            });
         }
-            break
+            break;
         case 'delete':
             // 执行删除操作
             const deleteRow = parseInt(action.rowIndex) + 1
@@ -528,7 +562,11 @@ async function onChatCompletionPromptReady(eventData) {
   */
 function getMacroPrompt() {
     try {
-        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false || USER.tableBaseSetting.step_by_step === true) return ""
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return ""
+        if (USER.tableBaseSetting.step_by_step === true) {
+            const promptContent = replaceUserTag(getTablePrompt(undefined, true))
+            return `以下是通过表格记录的当前场景信息以及历史记录信息，你需要以此为参考进行思考：\n${promptContent}`
+        }
         const promptContent = initTableData()
         return promptContent
     }catch (error) {
@@ -542,7 +580,11 @@ function getMacroPrompt() {
   */
 function getMacroTablePrompt() {
     try {
-        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false || USER.tableBaseSetting.step_by_step === true) return ""
+        if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiReadTable === false) return ""
+        if(USER.tableBaseSetting.step_by_step === true){
+            const promptContent = replaceUserTag(getTablePrompt(undefined, true))
+            return promptContent
+        }
         const promptContent = replaceUserTag(getTablePrompt())
         return promptContent
     }catch (error) {
@@ -572,7 +614,7 @@ function trimString(str) {
  * @returns {matches} 匹配到的内容数组
  */
 
-function getTableEditTag(mes) {
+export function getTableEditTag(mes) {
     const regex = /<tableEdit>(.*?)<\/tableEdit>/gs;
     const matches = [];
     let match;
@@ -606,7 +648,7 @@ async function onMessageEdited(this_edit_mes_id) {
 async function onMessageReceived(chat_id) {
     if (USER.tableBaseSetting.isExtensionAble === false) return
     if (USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
-        TableTwoStepSummary();  // 请勿使用await，否则会导致主进程阻塞引起的连锁bug
+        TableTwoStepSummary("auto");  // 请勿使用await，否则会导致主进程阻塞引起的连锁bug
     } else {
         if (USER.tableBaseSetting.isAiWriteTable === false) return
         const chat = USER.getContext().chat[chat_id];

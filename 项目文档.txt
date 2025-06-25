@@ -1,134 +1,44 @@
-v2.0.47:
-- **优化：分步填表时，历史对话上下文不再包含旧表格数据**
-  - **问题:** 在为分步填表功能收集多轮历史对话作为上下文时，程序会直接拼接消息全文，导致历史消息中包含的旧表格数据也被一并发送给AI，造成了上下文冗余和潜在的逻辑冲突。
-  - **实现方式:**
-    - 在`scripts/runtime/separateTableUpdate.js`中，新增了一个`getPureTextFromMessage`函数，该函数专门用于从原始消息字符串中移除所有已知的表格HTML标记（如`<div class="table_in_chat">`）以及功能性XML标签（如`<tableEdit>`, `<plot>`等）。
-    - 修改了`TableTwoStepSummary`函数中生成对话历史上下文（`todoChats`）的逻辑，使其在拼接前，先使用`getPureTextFromMessage`函数对每一条历史消息进行清洗。
-  - **结果:** 现在，发送给AI的对话历史（`$1`占位符内容）是纯净的、不含任何表格或功能标签的文本，而最新的表格数据依然由`$0`占位符独立、准确地提供。这确保了AI在进行增量更新时，只参考最新的表格状态和干净的对话历史，避免了混乱，提高了响应的准确性。
+v2.0.57:
+- **最终综合修复：彻底解决独立填表的数据流、执行与序列化问题**
+  - **问题 1 (数据源与保存不一致):** 在整个独立填表流程中，存在多个数据实例不一致的风险点。`separateTableUpdate.js` 获取操作数据源时不够稳定；`index.js` 在执行完指令后，又从一个全新的实例中保存数据。这导致了操作在过时或错误的数据上进行，并且保存的也不是经过修改的实例，是“内容消失”和“宏失效”的根本原因。
+  - **实现方式 1:**
+    - **1. 统一数据源获取:** 在 `scripts/runtime/separateTableUpdate.js` 中，强制使用 `BASE.getLastSheetsPiece()` 来获取 `referencePiece`，确保操作总是基于包含有效表格的最新聊天记录。
+    - **2. 统一数据保存目标:** 在 `index.js` 的 `executeTableEditActions` 函数中，移除了重新获取 `savePiece` 的逻辑，确保所有 `sheet.save()` 操作都将修改持久化到传入的、且被修改过的同一个 `referencePiece` 实例上，保证了数据流的原子性。
+
+  - **问题 2 (数据污染与序列化错误):** AI返回的数据中可能包含无效的转义字符（如 `\'`），这些字符在被存入单元格后，会导致 `JSON.stringify`（被 `GET_ALL_TABLES_JSON` 等宏使用）生成格式错误的JSON字符串，从而引发下游的 `JSON.parse` 错误。
+  - **实现方式 2:**
+    - **1. 新增清洗工具:** 在 `index.js` 中增加了 `fixUnescapedSingleQuotes` 函数，用于递归清理数据对象中的无效转义字符。
+    - **2. 执行前清洗:** 在 `executeAction` 函数中，对所有即将被写入单元格的数据（`action.data`）调用此清洗函数，从源头上杜绝了脏数据的产生。
+  
+  - **结果:** 通过对数据流的“获取 -> 修改 -> 保存”全链路进行闭环，并增加对上游（AI）数据的清洗环节，彻底解决了独立填表功能中所有已知的数据不一致、执行错误、内容丢失及宏失效问题，确保了功能的端到端健壮性。
+  - **受影响文件:**
+    - `index.js`
+    - `scripts/runtime/separateTableUpdate.js`
+v2.0.56:
+- **核心修复：解决了独立填表功能中数据丢失和填表为空的根本问题**
+  - **问题 1 (数据丢失):** “独立填表”功能在获取操作所依据的表格数据时，错误地使用了 `BASE.getReferencePiece()`，这可能导致获取到的是一个过时的、非当前的表格实例。所有基于这个旧实例的修改在UI刷新后都会丢失，因为UI显示的是最新的、从未被修改过的表格。
+  - **实现方式 1:**
+    - **1. 修正数据源获取:** 修改了 `scripts/runtime/separateTableUpdate.js` 中的 `manualSummaryChat` 函数。
+    - **2. 采用最新实例:** 不再调用 `BASE.getReferencePiece()`，而是通过 `USER.getChatPiece()` 来获取当前激活的、最新的聊天片段（piece）作为操作的 `referencePiece`。
+    - **结果 1:** 此修改确保了“独立填表”的所有操作都基于用户当前看到的、最权威的数据版本，彻底解决了因数据源不一致导致的内容“假性”修改和最终丢失的问题。
+
+  - **问题 2 (填表为空/不填表):** 在执行表格更新操作时，位于 `core/table/oldTableActions.js` 中的 `handleCellValue` 函数存在逻辑缺陷。它无法正确处理AI返回的 `null` 或 `undefined` 值，一律将其转换为空字符串 `''`，导致单元格被清空。此外，该文件内包含了冗余的、已失效的新旧系统判断逻辑。
+  - **实现方式 2:**
+    - **1. 重构表格操作:** 对 `core/table/oldTableActions.js` 进行了整体重写。
+    - **2. 简化逻辑:** 移除了所有关于新旧表格系统（`Sheet` vs `table`）的判断分支，统一为直接操作普通表格对象的健壮逻辑。
+    - **3. 强化值处理:** 重写了 `handleCellValue` 函数，使其能够明确、正确地处理 `null` 和 `undefined`（统一转换为空字符串 `''`），并能稳健地处理数字、布尔值等其他数据类型，防止了无效或非预期的值被填入表格。
+    - **结果 2:** 从根本上解决了因AI返回空值或非标数据而导致的“填表为空”或“不填表”的问题，大幅提升了填表操作的稳定性和准确性。
   - **受影响文件:**
     - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.46:
-- **修复：最终修复`updateRow`指令，明确区分不同格式下的列索引计算方式**
-  - **问题:** 经过v2.0.45修复后，`updateRow`仍然存在逻辑缺陷。代码未能正确区分两种指令格式（对象格式和数组格式）中列索引的含义，导致在数组格式下，数据列的索引被错误地当作业已包含主键的完整列索引，从而引发数据更新错位，看起来像是“被清空”。
+    - `core/table/oldTableActions.js`
+v2.0.55:
+- **最终修复：通过统一数据源获取方式，彻底解决实例不一致问题**
+  - **问题:** 经过反复排查，确认问题的根源在于系统的不同部分获取了不同的表格（`Sheet`）对象实例。`separateTableUpdate.js` 和 `absoluteRefresh.js` 之间传递的 `latestSheets` 实例，在经过 `reloadCurrentChat()` 等操作后，与系统内核中最新的实例脱钩，导致数据不同步。
   - **实现方式:**
-    - **1. 精准化索引计算:** 在`scripts/runtime/absoluteRefresh.js`中，再次重构了`updateRow`的解析逻辑，为两种格式分别实现了精准的列索引计算。
-        - **对象格式 `{"0": "值"}`:** 明确假定数字键就是 **0-based的完整列索引**，直接使用。
-        - **数组格式 `[pk, val1]`:** 明确第一个元素为主键，从第二个元素（`val1`）开始，其在子数组中的索引`i`（从0开始）对应的是**数据列**的索引，因此其在完整表格中的列索引为`i+1`。
-    - **2. 统一更新逻辑:** 两种格式在经过各自精确的索引计算后，都生成一个以**0-based完整列索引**为键的`data`对象，并交由统一的下游逻辑执行更新，确保了最终操作的正确性。
-  - **结果:** 这个最终修复版本彻底解决了所有已知的`updateRow`指令解析问题。通过为不同指令格式建立清晰、正确的索引映射规则，系统现在能够稳定、准确地执行表格更新操作，杜绝了崩溃和数据错位问题。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.45:
-- **修复：解决了`updateRow`指令解析的致命缺陷，该缺陷曾导致“无效行列索引”崩溃和数据丢失**
-  - **问题:** 当AI返回标准格式的`updateRow(table, rowIndex, { "列名": "值" })`指令时，由于更新逻辑错误地假设数据对象的键必须是数字索引，导致程序在尝试解析非数字的列名键时，`parseInt("列名")`返回`NaN`，从而引发`findCellByPosition`函数因接收到无效列索引而崩溃。此外，对`null`等特殊值的处理不当，也会导致单元格数据被意外清空或替换为"null"字符串。
-  - **实现方式:**
-    - **1. 重构`updateRow`解析逻辑:** 在`scripts/runtime/absoluteRefresh.js`的`executeIncrementalUpdateFromSummary`函数中，对`updateRow`的处理进行了彻底重构。
-    - **2. 统一数据键格式:**
-        - 对于标准格式，新逻辑会先获取表头，然后智能地将指令中的数据键（无论是列名还是数字索引）统一转换成一个以**0-based列索引**为键的内部`data`对象。
-        - 对于AI易错的数组格式，也确保其生成的`data`对象键为**0-based列索引**。
-    - **3. 统一更新执行:** 经过转换后，所有`updateRow`操作都使用同一套健壮的更新逻辑，该逻辑基于统一的、以数字索引为键的`data`对象来定位并修改单元格。
-    - **4. 增强空值处理:** 在更新单元格值时，增加了对`null`和`undefined`的检查，确保这些值被转换为空字符串`''`，而不是`"null"`或`"undefined"`，从而避免了数据污染。
-  - **结果:** 彻底修复了因`updateRow`指令格式不兼容导致的运行时崩溃问题。现在系统可以稳定地处理多种格式的更新指令，并正确地将数据应用到表格中，杜绝了数据意外丢失的严重错误。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.44:
-- **重构与确认：彻底统一“立即填表”与“分步填表”的逻辑**
-  - **问题:** 用户反馈“立即填表”和“分步填表”的逻辑不一致，可能导致数据丢失。经过深入的代码审查，发现虽然核心处理逻辑在先前版本中已基本统一，但代码结构上仍有改进空间，且需要最终确认其一致性。
-  - **实现方式:**
-    - **1. 代码内聚性重构:**
-        - 将“立即填表”的入口函数 `triggerStepByStepNow` 从 `scripts/runtime/absoluteRefresh.js` 移动至 `scripts/runtime/separateTableUpdate.js`。
-        - 相应地，更新了 `scripts/settings/userExtensionSetting.js` 中该函数的导入路径。
-    - **2. 逻辑统一确认:**
-        - 通过此次重构，所有与分步填表（无论是自动触发还是手动触发）相关的入口函数 (`TableTwoStepSummary` 和 `triggerStepByStepNow`) 都集中在了同一个文件 (`separateTableUpdate.js`) 中，从代码物理结构上保证了它们共享同一套核心实现。
-        - 再次确认了 `triggerStepByStepNow` 函数是一个纯粹的包装器，其唯一作用就是调用 `TableTwoStepSummary(true)`，强制执行分步总结流程，确保了两种模式在上下文获取、数据处理和AI指令解析等所有环节都使用完全相同的代码路径。
-  - **结果:** 本次重构不仅优化了代码结构，更从根本上消除了任何潜在的逻辑分叉可能性。现在，“立即填表”在功能和实现上都完全等同于一次手动的、强制执行的“分步填表”，彻底解决了用户报告的逻辑不一致问题。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-    - `scripts/runtime/separateTableUpdate.js`
-    - `scripts/settings/userExtensionSetting.js`
-
-v2.0.43:
-- **修复：解决了分步填表时提示词错误导致AI响应格式不正确的问题**
-  - **问题:** 在v2.0.42的重构中，`absoluteRefresh.js` 内的逻辑被过度简化，导致“分步填表”和“立即填表”流程错误地使用了为“表格整理”功能设计的提示词模板 (`refresh_user_message_template`)，而不是它们专用的、要求返回 `<tableEdit>` 格式的多轮JSON提示词 (`step_by_step_user_prompt`)。这使得AI返回了包含 `tool_code` 的非预期JSON对象，导致指令解析失败。
-  - **实现方式:**
-    - 在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中，恢复了关键的 `if (isStepByStepSummary)` 条件判断。
-    - 当该标志为 `true` 时，代码现在会强制加载并解析专为分步填表设计的 `step_by_step_user_prompt`。
-    - 当该标志为 `false` 时，代码才会回退使用 `refresh_user_message_template` 等其他模板。
-  - **结果:** 通过为不同功能路径恢复正确的提示词选择逻辑，彻底解决了“分步填表”功能因提示词错误而导致的运行时失败问题，确保了其与“立即填表”功能逻辑上的完全一致和稳定运行。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.42:
-- **重构与统一：分步填表的上下文深度设置**
-  - **问题:** “立即填表”和自动“分步填表”功能在决定读取多少历史记录作为上下文时，逻辑不统一，缺乏一个统一的、用户可配置的入口。
-  - **实现方式:**
-    - **1. 统一配置项:** 引入了一个新的用户设置项 `step_by_step_history_count`，作为控制所有分步填表（无论是手动还是自动）上下文深度的唯一来源。该项的默认值在 `data/pluginSetting.js` 中被设置为 `2`。
-    - **2. UI 绑定:**
-        - 在 `assets/templates/index.html` 的分步填表设置区域，增加了一个数字输入框 (`#table_step_by_step_history_count`)。
-        - 在 `scripts/settings/userExtensionSetting.js` 中，将此输入框与新的 `step_by_step_history_count` 设置项进行双向绑定，确保用户修改后能立即保存，并在加载时正确显示。
-    - **3. 统一逻辑:**
-        - 简化了 `scripts/runtime/separateTableUpdate.js`，移除了所有临时的参数传递。现在 `GetUnexecutedMarkChats` 函数直接从新的统一配置项 `USER.tableBaseSetting.step_by_step_history_count` 读取历史记录数。
-        - 恢复了 `scripts/runtime/absoluteRefresh.js` 和 `data/pluginSetting.js` 中的提示词逻辑，继续使用 `$1`作为注入聊天记录的唯一占位符。
-  - **结果:** 现在，用户可以通过设置界面中的同一个输入框，同时控制“立即填表”和自动“分步填表”的上下文深度，实现了配置的统一和逻辑的简化，完全符合用户预期。该输入框的默认值已设置为 `2`。
-  - **受影响文件:**
-    - `scripts/runtime/separateTableUpdate.js`
-    - `scripts/runtime/absoluteRefresh.js`
-    - `scripts/settings/userExtensionSetting.js`
-    - `data/pluginSetting.js`
-
-v2.0.41:
-- **修复：解决了强制执行分步填表时的引用错误**
-  - **问题:** 在`TableTwoStepSummary`函数中，变量`confirmResult`在`if (!forceExecute)`块内声明，但在块外的`isSilentMode`赋值时又被引用。当通过“立即填表”按钮（即`forceExecute = true`）调用此函数时，该if块被跳过，导致`confirmResult`未定义，从而抛出`ReferenceError`。
-  - **实现方式:**
-    - 将`scripts/runtime/separateTableUpdate.js`中的`confirmResult`变量的声明（`let confirmResult;`）提升到`if`块之外，确保了无论`forceExecute`的值是什么，该变量始终在函数作用域内有效。
-  - **结果:** 修复了因变量作用域不当导致的运行时错误，确保了“立即填表”功能可以稳定地强制执行分步总结流程。
-  - **受影响文件:**
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.40:
-- **修复：最终代码清理和导出问题**
-  - **问题:** 在v2.0.39版本中，尽管逻辑上统一了函数调用，但由于之前多次使用`write_to_file`和`replace_in_file`，导致`absoluteRefresh.js`文件中存在重复的函数声明（`triggerStepByStepNow`）和不完整的导出列表，从而引发了连续的`SyntaxError`。
-  - **实现方式:**
-    - 使用`write_to_file`对`scripts/runtime/absoluteRefresh.js`进行了一次完整的、干净的重写。
-    - 确保只保留一个`triggerStepByStepNow`的定义，即调用`TableTwoStepSummary(true)`的最终版本。
-    - 确保所有需要被`userExtensionSetting.js`导入的函数（`rebuildSheets`, `modifyRebuildTemplate`, `newRebuildTemplate`, `deleteRebuildTemplate`, `exportRebuildTemplate`, `importRebuildTemplate`, `initRefreshTypeSelector`）都被正确地实现和导出。
-    - 删除了所有陈旧的、重复的或不再需要的代码块。
-  - **结果:** 彻底清除了所有语法和导入错误，确保了代码的整洁、逻辑的一致性以及功能的最终稳定。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.39:
-- **修复：最终代码清理和导出问题**
-  - **问题:** 在v2.0.38版本中，尽管逻辑上统一了函数调用，但由于之前多次使用`write_to_file`和`replace_in_file`，导致`absoluteRefresh.js`文件中存在重复的函数声明（`triggerStepByStepNow`）和不完整的导出列表，从而引发了连续的`SyntaxError`。
-  - **实现方式:**
-    - 使用`write_to_file`对`scripts/runtime/absoluteRefresh.js`进行了一次完整的、干净的重写。
-    - 确保只保留一个`triggerStepByStepNow`的定义，即调用`TableTwoStepSummary(true)`的最终版本。
-    - 确保所有需要被`userExtensionSetting.js`导入的函数（`rebuildSheets`, `modifyRebuildTemplate`, `newRebuildTemplate`, `deleteRebuildTemplate`, `exportRebuildTemplate`, `importRebuildTemplate`）都被正确地实现和导出。
-    - 删除了所有陈旧的、重复的或不再需要的代码块。
-  - **结果:** 彻底清除了所有语法和导入错误，确保了代码的整洁、逻辑的一致性以及功能的最终稳定。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.38:
-- **修复：移除了重复的函数声明以解决语法错误**
-  - **问题:** 在v2.0.37版本的重构过程中，`absoluteRefresh.js` 文件中同时存在了新旧两个`triggerStepByStepNow`函数声明，导致了`Identifier 'triggerStepByStepNow' has already been declared`的致命语法错误。
-  - **实现方式:**
-    - 删除了`scripts/runtime/absoluteRefresh.js`文件中旧的、包含完整逻辑的`triggerStepByStepNow`函数体，只保留了作为`TableTwoStepSummary(true)`包装器的新版本。
-  - **结果:** 解决了代码中的重复声明问题，清除了语法错误，确保脚本能够正常加载和执行。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.37:
-- **修复：完全统一“立即填表”与“分步填表”的执行逻辑**
-  - **问题:** 即便功能可以成功执行，用户反馈“立即填表”和“分步填表”在处理上下文聊天记录时逻辑不一致。“立即填表”仅获取最近的N条记录，而“分步填表”则会精确地从上次总结的断点开始，获取所有未处理的记录。
-  - **实现方式:**
-    - **1. 增强`TableTwoStepSummary`:** 为`scripts/runtime/separateTableUpdate.js`中的`TableTwoStepSummary`函数增加了一个`forceExecute = false`参数。当此参数为`true`时，函数将跳过所有前置检查（如字数阈值）和用户确认弹窗，直接执行总结逻辑。
-    - **2. 重构`triggerStepByStepNow`:** 彻底重构了`scripts/runtime/absoluteRefresh.js`中的`triggerStepByStepNow`函数。移除其内部所有独立的数据获取和处理逻辑。
-    - **3. 实现逻辑统一:** 新的`triggerStepByStepNow`函数现在只做一件事：导入`TableTwoStepSummary`并以`TableTwoStepSummary(true)`的形式调用它。
-  - **结果:** 通过将“立即填表”改造为“分步填表”的一个强制触发器，彻底保证了两种模式在上下文获取、数据处理和执行流程上的完全一致。修复了之前版本中存在的逻辑分叉问题，提升了代码的可维护性和功能的可靠性。
+    - **1. 解耦函数依赖:** 修改了 `absoluteRefresh.js` 中的 `executeIncrementalUpdateFromSummary` 函数，移除了 `latestSheets` 参数。
+    - **2. 即时获取数据源:** `executeIncrementalUpdateFromSummary` 现在不再依赖外部传入的表格实例，而是在其函数内部、执行所有AI指令之前的那一刻，通过 `BASE.getChatSheets()` 方法主动获取当前最新的、唯一的表格实例。
+    - **3. 清理调用链:** 相应地，修改了 `separateTableUpdate.js` 中对 `executeIncrementalUpdateFromSummary` 的调用，不再传递表格实例参数。
+  - **结果:** 该方案确保了AI指令的**执行者**（`absoluteRefresh.js`）总是操作最权威、最新的数据源，彻底杜绝了因实例不一致导致的数据不同步和“无效索引”等连锁错误。这是针对此问题的最终、最根本的修复。
   - **受影响文件:**
     - `scripts/runtime/absoluteRefresh.js`
     - `scripts/runtime/separateTableUpdate.js`

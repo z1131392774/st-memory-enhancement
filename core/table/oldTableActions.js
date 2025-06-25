@@ -1,22 +1,34 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../manager.js';
 
 /**
- * 将单元格中的逗号替换为/符号
- * @param {string | number} cell
- * @returns 处理后的单元格值
+ * 统一处理要写入单元格的值，确保健壮性。
+ * - 字符串：直接返回（移除逗号替换逻辑）。
+ * - 数字：转换为字符串返回。
+ * - null/undefined：返回空字符串 ''。
+ * - 其他类型（如对象、布尔值）：转换为其JSON字符串表示，或返回空字符串。
+ * @param {*} cell - 任何类型的单元格数据
+ * @returns {string} - 处理后的字符串值
  */
 function handleCellValue(cell) {
-    if (typeof cell === 'string') {
-        return cell.replace(/,/g, "/")
-    } else if (typeof cell === 'number') {
-        return cell
+    if (cell === null || cell === undefined) {
+        return ''; // 明确处理 null 和 undefined 为空字符串
     }
-    return ''
+    if (typeof cell === 'string') {
+        return cell; // 直接返回字符串，不再替换逗号
+    }
+    if (typeof cell === 'number' || typeof cell === 'boolean') {
+        return String(cell); // 数字和布尔值转为字符串
+    }
+    if (typeof cell === 'object') {
+        // 对于对象，可以选择返回其JSON字符串表示或空字符串，这里选择后者以避免复杂结构
+        return JSON.stringify(cell) === '{}' ? '' : JSON.stringify(cell);
+    }
+    return ''; // 其他所有情况都返回空字符串
 }
 
+
 /**
- * 在表格末尾插入行
- * @deprecated
+ * 在表格末尾插入行 (已废弃，但为保持兼容性而保留)
  * @param {number} tableIndex 表格索引
  * @param {object} data 插入的数据
  * @returns 新插入行的索引
@@ -25,60 +37,35 @@ export function insertRow(tableIndex, data) {
     if (tableIndex == null) return EDITOR.error('insert函数，tableIndex函数为空');
     if (data == null) return EDITOR.error('insert函数，data函数为空');
 
-    // 获取表格对象，支持新旧系统
     const table = DERIVED.any.waitingTable[tableIndex];
-
-    // 检查是否为新系统的Sheet对象
-    if (table.uid && table.hashSheet) {
-        // 新系统：使用Sheet类API
-        try {
-            // 获取当前行数（不包括表头）
-            const rowCount = table.hashSheet.length - 1;
-
-            // 在最后一行后面插入新行
-            const cell = table.findCellByPosition(0, 0); // 获取表格源单元格
-            cell.newAction('insertDownRow'); // 在最后一行后插入新行
-
-            // 填充数据
-            Object.entries(data).forEach(([key, value]) => {
-                const colIndex = parseInt(key) + 1; // +1 因为第一列是行索引
-                if (colIndex < table.hashSheet[0].length) {
-                    const cell = table.findCellByPosition(rowCount + 1, colIndex);
-                    if (cell) {
-                        cell.data.value = handleCellValue(value);
-                    }
-                }
-            });
-
-            console.log(`插入成功: table ${tableIndex}, row ${rowCount + 1}`);
-            return rowCount + 1;
-        } catch (error) {
-            console.error('插入行失败:', error);
-            return -1;
-        }
-    } else {
-        // 旧系统：保持原有逻辑
-        const newRowArray = new Array(table.columns.length).fill("");
-        Object.entries(data).forEach(([key, value]) => {
-            newRowArray[parseInt(key)] = handleCellValue(value);
-        });
-
-        const dataStr = JSON.stringify(newRowArray);
-        // 检查是否已存在相同行
-        if (table.content.some(row => JSON.stringify(row) === dataStr)) {
-            console.log(`跳过重复插入: table ${tableIndex}, data ${dataStr}`);
-            return -1; // 返回-1表示未插入
-        }
-        table.content.push(newRowArray);
-        const newRowIndex = table.content.length - 1;
-        console.log(`插入成功 (旧系统): table ${tableIndex}, row ${newRowIndex}`);
-        return newRowIndex;
+    if (!table || !table.columns) {
+        console.error(`插入失败: 表格索引 ${tableIndex} 无效或表格结构不完整。`);
+        return -1;
     }
+
+    const newRowArray = new Array(table.columns.length).fill("");
+    Object.entries(data).forEach(([key, value]) => {
+        const colIndex = parseInt(key);
+        if (!isNaN(colIndex) && colIndex >= 0 && colIndex < newRowArray.length) {
+            newRowArray[colIndex] = handleCellValue(value);
+        }
+    });
+
+    // 可选：检查是否重复插入
+    // const dataStr = JSON.stringify(newRowArray);
+    // if (table.content.some(row => JSON.stringify(row) === dataStr)) {
+    //     console.log(`跳过重复插入: table ${tableIndex}, data ${dataStr}`);
+    //     return -1;
+    // }
+
+    table.content.push(newRowArray);
+    const newRowIndex = table.content.length - 1;
+    console.log(`插入成功: table ${tableIndex}, row ${newRowIndex}`);
+    return newRowIndex;
 }
 
 /**
- * 删除行
- * @deprecated
+ * 删除行 (已废弃，但为保持兼容性而保留)
  * @param {number} tableIndex 表格索引
  * @param {number} rowIndex 行索引
  */
@@ -86,47 +73,18 @@ export function deleteRow(tableIndex, rowIndex) {
     if (tableIndex == null) return EDITOR.error('delete函数，tableIndex函数为空');
     if (rowIndex == null) return EDITOR.error('delete函数，rowIndex函数为空');
 
-    // 获取表格对象，支持新旧系统
     const table = DERIVED.any.waitingTable[tableIndex];
 
-    // 检查是否为新系统的Sheet对象
-    if (table.uid && table.hashSheet) {
-        // 新系统：使用Sheet类API
-        try {
-            // 确保行索引有效（考虑表头行）
-            const actualRowIndex = rowIndex + 1; // +1 因为第一行是表头
-
-            // 检查行索引是否有效
-            if (actualRowIndex >= table.hashSheet.length || actualRowIndex <= 0) {
-                console.error(`无效的行索引: ${rowIndex}`);
-                return;
-            }
-
-            // 获取要删除行的单元格并触发删除操作
-            const cell = table.findCellByPosition(actualRowIndex, 0);
-            if (cell) {
-                cell.newAction('deleteSelfRow');
-                console.log(`删除成功: table ${tableIndex}, row ${rowIndex}`);
-            } else {
-                console.error(`未找到行: ${rowIndex}`);
-            }
-        } catch (error) {
-            console.error('删除行失败:', error);
-        }
+    if (table && table.content && rowIndex >= 0 && rowIndex < table.content.length) {
+        table.content.splice(rowIndex, 1);
+        console.log(`删除成功: table ${tableIndex}, row ${rowIndex}`);
     } else {
-        // 旧系统：保持原有逻辑
-        if (table.content && rowIndex >= 0 && rowIndex < table.content.length) {
-            table.content.splice(rowIndex, 1);
-            console.log(`删除成功 (旧系统): table ${tableIndex}, row ${rowIndex}`);
-        } else {
-            console.error(`删除失败 (旧系统): table ${tableIndex}, 无效的行索引 ${rowIndex} 或 content 不存在`);
-        }
+        console.error(`删除失败: table ${tableIndex}, 无效的行索引 ${rowIndex} 或 content 不存在`);
     }
 }
 
 /**
- * 更新单个行的信息
- * @deprecated
+ * 更新单个行的信息 (已废弃，但为保持兼容性而保留)
  * @param {number} tableIndex 表格索引
  * @param {number} rowIndex 行索引
  * @param {object} data 更新的数据
@@ -136,48 +94,17 @@ export function updateRow(tableIndex, rowIndex, data) {
     if (rowIndex == null) return EDITOR.error('update函数，rowIndex函数为空');
     if (data == null) return EDITOR.error('update函数，data函数为空');
 
-    // 获取表格对象，支持新旧系统
     const table = DERIVED.any.waitingTable[tableIndex];
 
-    // 检查是否为新系统的Sheet对象
-    if (table.uid && table.hashSheet) {
-        // 新系统：使用Sheet类API
-        try {
-            // 确保行索引有效（考虑表头行）
-            const actualRowIndex = rowIndex + 1; // +1 因为第一行是表头
-
-            // 检查行索引是否有效
-            if (actualRowIndex >= table.hashSheet.length || actualRowIndex <= 0) {
-                console.error(`无效的行索引: ${rowIndex}`);
-                return;
+    if (table && table.content && table.content[rowIndex]) {
+        Object.entries(data).forEach(([key, value]) => {
+            const colIndex = parseInt(key);
+            if (!isNaN(colIndex) && colIndex >= 0 && colIndex < table.content[rowIndex].length) {
+                 table.content[rowIndex][colIndex] = handleCellValue(value);
             }
-
-            // 更新行数据
-            Object.entries(data).forEach(([key, value]) => {
-                const colIndex = parseInt(key) + 1; // +1 因为第一列是行索引
-                if (colIndex < table.hashSheet[0].length) {
-                    const cell = table.findCellByPosition(actualRowIndex, colIndex);
-                    if (cell) {
-                        cell.data.value = handleCellValue(value);
-                    }
-                }
-            });
-
-            // 保存更改
-            table.save();
-            console.log(`更新成功: table ${tableIndex}, row ${rowIndex}`);
-        } catch (error) {
-            console.error('更新行失败:', error);
-        }
+        });
+        console.log(`更新成功: table ${tableIndex}, row ${rowIndex}`);
     } else {
-        // 旧系统：保持原有逻辑
-        if (table.content && table.content[rowIndex]) {
-            Object.entries(data).forEach(([key, value]) => {
-                table.content[rowIndex][parseInt(key)] = handleCellValue(value);
-            });
-            console.log(`更新成功 (旧系统): table ${tableIndex}, row ${rowIndex}`);
-        } else {
-            console.error(`更新失败 (旧系统): table ${tableIndex}, row ${rowIndex} 不存在或 content 不存在`);
-        }
+        console.error(`更新失败: table ${tableIndex}, row ${rowIndex} 不存在或 content 不存在`);
     }
 }
