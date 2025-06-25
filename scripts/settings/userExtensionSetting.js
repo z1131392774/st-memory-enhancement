@@ -412,6 +412,10 @@ function InitBinging() {
     $('#step_by_step_user_prompt').on('input', function() {
         USER.tableBaseSetting.step_by_step_user_prompt = $(this).val();
     });
+    // 分步填表读取的上下文层数
+    $('#separateReadContextLayers').on('input', function() {
+        USER.tableBaseSetting.separateReadContextLayers = Number($(this).val());
+    });
     // 重置分步填表提示词为默认值
     $('#reset_step_by_step_user_prompt').on('click', function() {
         const defaultValue = USER.tableBaseDefaultSettings.step_by_step_user_prompt;

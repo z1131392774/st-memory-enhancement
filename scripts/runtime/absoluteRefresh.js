@@ -228,11 +228,27 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
     const isUseMainAPI = $('#use_main_api').prop('checked');
 
     try {
-        const { piece } = BASE.getLastSheetsPiece();
-        if (!piece) {
-            throw new Error('findLastestTableData 未返回有效的表格数据');
+        // 核心逻辑同步：与“独立填表”保持一致，使用“上一层”的表格作为操作基础。
+        const { deep: currentIndex } = USER.getChatPiece();
+        if (currentIndex === -1) {
+            EDITOR.error("无法定位当前聊天片段，操作中止。");
+            return;
         }
-        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets).filter(sheet=>sheet.enable);
+        const { piece: lastPiece, deep: lastPieceIndex } = BASE.getLastSheetsPiece(currentIndex, 1000, false);
+        let referencePiece;
+        if (lastPieceIndex === -1) {
+            console.log("[Memory Enhancement] rebuildTableActions: 未找到上一层表格，将初始化新表。");
+            const initData = BASE.initHashSheet();
+            referencePiece = initData;
+        } else {
+            console.log(`[Memory Enhancement] rebuildTableActions: 找到上一层表格作为基础，位于索引 ${lastPieceIndex}。`);
+            referencePiece = lastPiece;
+        }
+        if (!referencePiece) {
+            throw new Error('未能获取或初始化有效的表格数据。');
+        }
+
+        const latestTables = BASE.hashSheetsToSheets(referencePiece.hash_sheets).filter(sheet => sheet.enable);
         DERIVED.any.waitingTable = latestTables;
 
         const oldTable = sheetsToTables(latestTables)
@@ -1528,7 +1544,9 @@ export async function executeIncrementalUpdateFromSummary(
 
     try {
         DERIVED.any.waitingPiece = referencePiece;
-        const lastChats = chatToBeUsed;
+        const separateReadContextLayers = Number($('#separateReadContextLayers').val());
+        const contextChats = await getRecentChatHistory(USER.getContext().chat, separateReadContextLayers, true);
+        const summaryChats = chatToBeUsed;
 
         let systemPromptForApi;
         let userPromptForApi;
@@ -1551,7 +1569,8 @@ export async function executeIncrementalUpdateFromSummary(
         const replacePlaceholders = (text) => {
             if (typeof text !== 'string') return '';
             text = text.replace(/(?<!\\)\$0/g, () => originTableText);
-            text = text.replace(/(?<!\\)\$1/g, () => lastChats);
+            text = text.replace(/(?<!\\)\$1/g, () => contextChats);
+            text = text.replace(/(?<!\\)\$2/g, () => summaryChats);
             text = text.replace(/(?<!\\)\$3/g, () => finalPrompt);
             return text;
         };

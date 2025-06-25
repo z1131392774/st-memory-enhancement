@@ -1,3 +1,33 @@
+v2.0.59:
+- **核心逻辑重构与最终修复：统一所有填表功能的数据源逻辑**
+  - **问题:** 在解决了“独立填表”的数据流问题后，发现“立即填表”（完整重建）功能仍在使用旧的逻辑（直接获取最新表格），导致两个功能行为不一致。
+  - **根本原因:** 对“独立填表”的修复没有同步应用到“立即填表”(`rebuildTableActions`)上。
+  - **实现方式 (最终修复方案):**
+    - **1. 统一数据源逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `rebuildTableActions` 函数中，完全替换了旧的数据获取方式，采用了与“独立填表”相同的“查找上一层”逻辑。现在，所有填表功能都以“上一层”的表格作为操作基础。
+    - **2. 修复初始化崩溃:** 在同步逻辑的过程中，一并修复了“立即填表”在首次使用（找不到上层表格）时因错误解构 `BASE.initHashSheet()` 返回值而可能导致的崩溃问题。
+    - **3. 保留宏优化与整页刷新:** 保留了之前版本中对宏（直接读取底层数据）和UI（整页刷新）的优化和可靠性修复。
+  - **结果:** 通过对所有填表相关功能的数据源逻辑进行统一，确保了插件在各种使用场景下行为的一致性、可预测性和健壮性。至此，所有已知问题均已解决。
+  - **受影响文件:**
+    - `scripts/runtime/absoluteRefresh.js`
+    - `scripts/runtime/separateTableUpdate.js`
+    - `scripts/settings/standaloneAPI.js`
+
+v2.0.58:
+- **功能增强：独立填表（原分步填表）上下文选择**
+  - **问题:** “独立填表”功能原先默认使用最新的AI回复作为上下文（`$1`），缺乏灵活性。
+  - **实现方式:**
+    - **1. 新增UI控件:** 在 `assets/templates/index.html` 的“立即填表”按钮旁，增加了一个数字输入框 `separateReadContextLayers`，允许用户自定义作为上下文的最新AI回复数量。
+    - **2. 修改核心逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中，修改了占位符的处理逻辑：
+        - 从新的输入框中读取用户设定的层数。
+        - 调用 `getRecentChatHistory` 函数，根据设定的层数获取相应数量的最新AI回复，并将其赋值给 `$1` 占位符作为上下文。
+        - 将原先需要处理的聊天记录（`chatToBeUsed`）改由 `$2` 占位符传递。
+    - **3. 持久化设置:** 在 `scripts/settings/userExtensionSetting.js` 中，为新的输入框添加了事件监听，确保用户设置的层数值能够被正确保存和加载。
+  - **结果:** 用户现在可以灵活地控制“独立填表”时使用的上下文范围，提升了该功能的可用性和精确度。
+  - **受影响文件:**
+    - `assets/templates/index.html`
+    - `scripts/runtime/absoluteRefresh.js`
+    - `scripts/settings/userExtensionSetting.js`
+
 v2.0.57:
 - **最终综合修复：彻底解决独立填表的数据流、执行与序列化问题**
   - **问题 1 (数据源与保存不一致):** 在整个独立填表流程中，存在多个数据实例不一致的风险点。`separateTableUpdate.js` 获取操作数据源时不够稳定；`index.js` 在执行完指令后，又从一个全新的实例中保存数据。这导致了操作在过时或错误的数据上进行，并且保存的也不是经过修改的实例，是“内容消失”和“宏失效”的根本原因。
