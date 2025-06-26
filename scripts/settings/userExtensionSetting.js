@@ -420,6 +420,11 @@ function InitBinging() {
     $('#separateReadContextLayers').on('input', function() {
         USER.tableBaseSetting.separateReadContextLayers = Number($(this).val());
     });
+    // 分步填表是否读取世界书
+    $('#separateReadLorebook').change(function() {
+        USER.tableBaseSetting.separateReadLorebook = this.checked;
+        USER.saveSettings && USER.saveSettings();
+    });
     // 重置分步填表提示词为默认值
     $('#reset_step_by_step_user_prompt').on('click', function() {
         const defaultValue = USER.tableBaseDefaultSettings.step_by_step_user_prompt;
@@ -520,6 +525,8 @@ export function renderSetting() {
     $('#step_by_step_user_prompt').val(USER.tableBaseSetting.step_by_step_user_prompt || '');
     // 分步填表读取的上下文层数
     $('#separateReadContextLayers').val(USER.tableBaseSetting.separateReadContextLayers);
+    // 分步填表是否读取世界书
+    updateSwitch('#separateReadLorebook', USER.tableBaseSetting.separateReadLorebook);
     $("#fill_table_time").val(USER.tableBaseSetting.step_by_step ? 'after' : 'chat');
     refreshRebuildTemplate()
 

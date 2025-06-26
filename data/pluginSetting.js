@@ -341,6 +341,8 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     bool_silent_refresh: false,
     // 分步填表读取的上下文层数
     separateReadContextLayers: 1,
+    // 分步填表是否读取世界书
+    separateReadLorebook: false,
     /**
      * ===========================
      * 表格结构

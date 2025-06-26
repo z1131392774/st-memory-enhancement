@@ -1548,6 +1548,32 @@ export async function executeIncrementalUpdateFromSummary(
         const contextChats = await getRecentChatHistory(USER.getContext().chat, separateReadContextLayers, true);
         const summaryChats = chatToBeUsed;
 
+        // 获取角色世界书内容
+        let lorebookContent = '';
+        if (USER.tableBaseSetting.separateReadLorebook && window.TavernHelper) {
+            try {
+                const charLorebooks = await window.TavernHelper.getCharLorebooks({ type: 'all' });
+                const bookNames = [];
+                if (charLorebooks.primary) {
+                    bookNames.push(charLorebooks.primary);
+                }
+                if (charLorebooks.additional && charLorebooks.additional.length > 0) {
+                    bookNames.push(...charLorebooks.additional);
+                }
+
+                for (const bookName of bookNames) {
+                    if (bookName) {
+                        const entries = await window.TavernHelper.getLorebookEntries(bookName);
+                        if (entries && entries.length > 0) {
+                            lorebookContent += entries.map(entry => entry.content).join('\n');
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('[Memory Enhancement] Error fetching lorebook content:', e);
+            }
+        }
+
         let systemPromptForApi;
         let userPromptForApi;
 
@@ -1572,6 +1598,7 @@ export async function executeIncrementalUpdateFromSummary(
             text = text.replace(/(?<!\\)\$1/g, () => contextChats);
             text = text.replace(/(?<!\\)\$2/g, () => summaryChats);
             text = text.replace(/(?<!\\)\$3/g, () => finalPrompt);
+            text = text.replace(/(?<!\\)\$4/g, () => lorebookContent);
             return text;
         };
 

@@ -1,3 +1,30 @@
+v2.0.64:
+- **功能增强：为独立填表功能增加读取世界书的选项**
+  - **问题:** 用户希望在独立填表时，可以选择性地将角色绑定的世界书内容作为上下文，以提高填表的灵活性。
+  - **实现方式:**
+    - **1. 新增UI控件:** 在 `assets/templates/index.html` 文件中，于“独立填表”的上下文层数输入框旁边，增加了一个名为“读取世界书”的复选框（ID: `separateReadLorebook`），并附带了“不建议大Token卡使用”的提示。
+    - **2. 增加设置项:** 在 `data/pluginSetting.js` 的 `defaultSettings` 中，为 `separateReadLorebook` 增加了默认值 `false`。
+    - **3. 持久化设置:** 在 `scripts/settings/userExtensionSetting.js` 中，为新的复选框添加了事件监听器，确保其状态能够被保存。同时，更新了 `renderSetting` 函数，使其在加载时能够正确显示已保存的状态。
+    - **4. 修改核心逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中，修改了获取世界书内容的逻辑。现在，只有当 `separateReadLorebook` 复选框被勾选时，程序才会执行获取世界书内容的代码，否则 `lorebookContent` 将保持为空字符串。
+  - **结果:** 用户现在可以在独立填表时，通过一个简单的勾选项来决定是否将角色绑定的世界书内容包含在上下文中，从而更精细地控制输入给AI的信息。
+  - **受影响文件:**
+    - `assets/templates/index.html`
+    - `data/pluginSetting.js`
+    - `scripts/settings/userExtensionSetting.js`
+    - `scripts/runtime/absoluteRefresh.js`
+
+v2.0.63:
+- **功能增强：新增$4占位符以引用角色世界书内容**
+  - **问题:** 用户需要在提示词中动态引用当前角色卡绑定的世界书（Lorebook）内容，但缺少相应的占位符。
+  - **实现方式:**
+    - **1. 修改核心刷新逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中增加了新的处理逻辑。
+    - **2. 集成TavernHelper API:** 在函数执行的早期阶段，调用 `TavernHelper.getCharLorebooks` 来获取当前角色所有绑定的世界书（包括主要和附加的）。
+    - **3. 提取并合并内容:** 遍历获取到的世界书列表，使用 `TavernHelper.getLorebookEntries` 提取每个世界书内所有条目的`content`字段，并将它们合并成一个单一的字符串。
+    - **4. 新增占位符替换:** 在 `replacePlaceholders` 辅助函数中，增加了对 `$4` 占位符的处理，将其替换为前面步骤中合并好的世界书内容字符串。
+  - **结果:** 用户现在可以在提示词模板中使用 `$4` 占位符，从而方便地将角色专属的世界观、背景设定等信息动态注入到提示中，极大地增强了提示词的灵活性和场景适应性。
+  - **受影响文件:**
+    - `scripts/runtime/absoluteRefresh.js`
+
 v2.0.62:
 - **核心修复：解决自定义API设置刷新后失效的问题**
   - **问题:** 用户在自定义API设置页面输入的URL、密钥、模型名称、代理地址和代理密钥等信息，在页面刷新后会全部丢失。
