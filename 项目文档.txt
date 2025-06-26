@@ -1,3 +1,35 @@
+v2.0.71:
+- **最终核心修复：在指令执行层统一数据源，彻底解决实例不一致问题**
+  - **问题:** 经过多轮修复后，所有表格操作依然报错“表格不存在”。这表明问题的根源在于最核心的指令执行函数 `executeTableEditActions` (位于 `index.js`)，它错误地信任了从上游调用链传递下来的 `referencePiece` 对象。该对象在传递过程中，其内部的表格（`Sheet`）类实例被破坏（如通过`JSON.stringify`），导致执行层收到的是没有方法的纯数据对象，从而引发崩溃。
+  - **实现方式:**
+    - **1. 修改核心执行函数:** 对 `index.js` 中的 `executeTableEditActions` 函数进行了根本性修改。
+    - **2. 强制使用权威数据源:** 该函数现在完全忽略传入的 `referencePiece` 中的表格数据。取而代之，它在执行任何操作前，都通过 `BASE.getChatSheets()` 直接从系统核心获取当前激活的、具有完整类方法的 `Sheet` 实例数组。
+    - **3. 确保保存到正确位置:** 保存操作也被修改，确保所有更改都通过 `USER.getChatPiece()` 保存到当前最新的聊天片段中，而不是过时的 `referencePiece`。
+  - **结果:** 此修复在整个系统的“最后一道防线”——指令执行层——强制实现了数据源的统一。无论上游代码如何传递数据，执行层始终操作最权威、最新的表格实例。这从根本上杜绝了所有因数据实例不一致而引发的连锁错误，彻底解决了该BUG。
+  - **受影响文件:**
+    - `index.js`
+
+v2.0.70:
+- **核心修复：通过移除深拷贝彻底解决“立即填表”的数据实例丢失问题**
+  - **问题:** v2.0.69的修复解决了空表撤销的问题，但“表格不存在”的错误依然发生。根本原因是在 `manualSummaryChat` 函数中使用了 `JSON.parse(JSON.stringify())` 来创建聊天片段（piece）的副本。这个操作虽然隔离了数据，但也破坏了表格（`Sheet`）对象的类实例，将其降级为纯粹的JSON对象，导致所有依赖类方法的下游函数（如 `executeAction`）因找不到方法而崩溃。
+  - **实现方式:**
+    - **1. 移除不安全的拷贝:** 在 `scripts/runtime/separateTableUpdate.js` 的 `manualSummaryChat` 函数中，完全移除了 `JSON.parse(JSON.stringify(referencePiece))` 这段代码。
+    - **2. 采用直接引用传递:** 现在，从 `USER.getChatPiece()` 获取的原始 `referencePiece` 对象（包含完整的 `Sheet` 类实例和方法）被直接传递给 `executeIncrementalUpdateFromSummary` 函数。
+    - **3. 简化数据同步:** 由于所有操作现在都直接在权威的 `referencePiece` 实例上进行，修改会自动反映到主数据流中，因此移除了之前用于手动同步 `hash_sheets` 的冗余代码。
+  - **结果:** 该修复确保了从数据获取到执行的整个链路中，表格对象始终保持其完整的类实例。这从根本上解决了因实例丢失而导致的“表格不存在”或“方法未定义”的崩溃问题，使“立即填表”功能在所有场景下（包括空表和已有数据的表）都能稳定、正确地运行。
+  - **受影响文件:**
+    - `scripts/runtime/separateTableUpdate.js`
+
+v2.0.69:
+- **核心修复：修复了“立即填表”在空表上执行时导致崩溃的BUG**
+  - **问题:** “立即填表”功能被设计为“撤销并重做”的原子操作。在执行时，它会首先尝试恢复到上一个表格状态（`undoSheets`）。然而，当用户在一个全新的、空的表格上触发此功能时，不存在“上一个状态”，导致恢复操作错误地清除了当前的空表结构，后续的填表指令因找不到目标表格而失败，最终导致内容消失和程序崩溃。
+  - **实现方式:**
+    - **1. 增加前置检查:** 在 `scripts/runtime/separateTableUpdate.js` 的 `manualSummaryChat` 函数中，于执行 `undoSheets` 之前，增加了一个判断逻辑。
+    - **2. 条件性撤销:** 现在，只有当 `initialPiece.hash_sheets` 存在且包含至少一个表格时，程序才会执行“撤销”操作。如果检测到当前是一个空表，则会跳过撤销步骤，直接进入后续的填表流程。
+  - **结果:** 此修复确保了“立即填表”功能在处理新创建的空表格时行为正确，避免了因错误的“撤销”操作而引发的崩溃。现在，用户可以安全地对任何状态下的表格（无论是空的还是已填充的）使用此功能，而不会丢失数据或遇到错误。
+  - **受影响文件:**
+    - `scripts/runtime/separateTableUpdate.js`
+
 v2.0.68:
 - **核心重构：将“立即填表”改造为“撤销并重做”的原子操作**
   - **问题:** “立即填表”功能缺乏明确的“撤销重填”机制。如果用户对本轮自动填表的结果不满意，无法一键恢复到填表前的状态并立刻重新执行，操作流程繁琐且不直观。
@@ -185,3 +217,30 @@ v2.0.55:
   - **受影响文件:**
     - `scripts/runtime/absoluteRefresh.js`
     - `scripts/runtime/separateTableUpdate.js`
+<environment_details>
+# VSCode Visible Files
+index.js
+
+# VSCode Open Tabs
+assets/templates/setting.html
+assets/templates/manager.html
+scripts/settings/standaloneAPI.js
+components/popupConfirm.js
+assets/templates/index.html
+scripts/settings/userExtensionSetting.js
+services/llmApi.js
+data/pluginSetting.js
+scripts/runtime/absoluteRefresh.js
+scripts/runtime/separateTableUpdate.js
+项目文档.txt
+index.js
+
+# Current Time
+2025/6/26 下午11:23:41 (Asia/Shanghai, UTC+8:00)
+
+# Context Window Usage
+0 / 128K tokens used (0%)
+
+# Current Mode
+ACT MODE
+</environment_details>
