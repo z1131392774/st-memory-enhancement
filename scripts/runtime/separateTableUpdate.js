@@ -2,7 +2,7 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import { executeIncrementalUpdateFromSummary, sheetsToTables } from "./absoluteRefresh.js";
 import { newPopupConfirm } from '../../components/popupConfirm.js';
 import { reloadCurrentChat } from "/script.js"
-import {getTablePrompt,initTableData} from "../../index.js"
+import {getTablePrompt,initTableData, undoSheets} from "../../index.js"
 import { refreshContextView } from '../editor/chatSheetsDataView.js';
 import { updateSystemMessageTableStatus } from '../renderer/tablePushToChat.js';
 
@@ -123,40 +123,39 @@ export async function TableTwoStepSummary(mode) {
 }
 
 /**
- * 手动总结聊天
- * @param {} chat 
+ * 手动总结聊天（立即填表）
+ * 重构逻辑：
+ * 1. 恢复：首先调用内建的 `undoSheets` 函数，将表格状态恢复到上一版本。
+ * 2. 执行：以恢复后的干净状态为基础，调用标准增量更新流程，向AI请求新的操作并执行。
+ * @param {Array} todoChats - 需要用于填表的聊天记录。
+ * @param {string|boolean} confirmResult - 用户的确认结果。
  */
 export async function manualSummaryChat(todoChats, confirmResult) {
-
-    // 核心逻辑：确定作为填表基础的 referencePiece
-    // 1. 获取当前 piece 的索引，作为寻找“上一层”的起点
-    const { deep: currentIndex } = USER.getChatPiece();
-    if (currentIndex === -1) {
-        EDITOR.error("无法定位当前聊天片段，操作中止。");
+    // 步骤一：直接调用内建的恢复功能
+    console.log('[Memory Enhancement] 立即填表：正在执行恢复操作...');
+    try {
+        await undoSheets(0);
+        EDITOR.success('表格已恢复到上一版本。');
+        console.log('[Memory Enhancement] 表格恢复成功，准备执行填表。');
+    } catch (e) {
+        EDITOR.error('恢复表格失败，操作中止。');
+        console.error('[Memory Enhancement] 调用 undoSheets 失败:', e);
         return;
     }
 
-    // 2. 从当前 piece 的前一个开始，向前寻找最近的带表格的 piece
-    const { piece: lastPiece, deep: lastPieceIndex } = BASE.getLastSheetsPiece(currentIndex, 1000, false);
-
-    let referencePiece;
-    if (lastPieceIndex === -1) {
-        // 3a. 如果没找到，说明这是第一次填表，需要使用模板初始化一个空的表格结构
-        console.log("[Memory Enhancement] 未找到上一层的表格数据，将使用模板进行初始化。");
-        // 直接获取initHashSheet的返回结果，它可能是piece对象或包含hash_sheets的对象
-        const initData = BASE.initHashSheet();
-        referencePiece = initData;
-    } else {
-        // 3b. 如果找到了，就用这个“上一层”的 piece 作为基础
-        console.log(`[Memory Enhancement] 找到上一层表格数据作为基础，位于索引 ${lastPieceIndex}。`);
-        referencePiece = lastPiece;
+    // 步骤二：以恢复后的状态为基础，继续执行填表
+    // 获取刚刚被恢复的、最新的 piece 作为操作基础
+    const { piece: referencePiece } = USER.getChatPiece();
+    if (!referencePiece) {
+        EDITOR.error("无法获取恢复后的聊天片段，操作中止。");
+        return;
     }
     
-    // 4. 对最终确定的 referencePiece 进行净化（深拷贝），彻底杜绝任何可能的内存污染
+    // 对 referencePiece 进行净化（深拷贝），以作为操作的干净基础
     const cleanReferencePiece = JSON.parse(JSON.stringify(referencePiece));
 
     // 表格数据
-    const originText = getTablePrompt(cleanReferencePiece)
+    const originText = getTablePrompt(cleanReferencePiece);
 
     // 表格总体提示词
     const finalPrompt = initTableData(); // 获取表格相关提示词
