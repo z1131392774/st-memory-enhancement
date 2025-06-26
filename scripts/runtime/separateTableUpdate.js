@@ -101,7 +101,8 @@ export async function TableTwoStepSummary(mode) {
         "取消",
         "执行填表",
         popupId,
-        "一直选是" // <--- 修改按钮文本
+        "不再提示", // dontRemindText: Permanently disables the popup
+        "一直选是"  // alwaysConfirmText: Confirms for the session
     );
 
     console.log('newPopupConfirm result for stepwise summary:', confirmResult);

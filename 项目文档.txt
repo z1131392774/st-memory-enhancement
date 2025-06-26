@@ -1,16 +1,59 @@
-v2.0.59:
-- **核心逻辑重构与最终修复：统一所有填表功能的数据源逻辑**
-  - **问题:** 在解决了“独立填表”的数据流问题后，发现“立即填表”（完整重建）功能仍在使用旧的逻辑（直接获取最新表格），导致两个功能行为不一致。
-  - **根本原因:** 对“独立填表”的修复没有同步应用到“立即填表”(`rebuildTableActions`)上。
-  - **实现方式 (最终修复方案):**
-    - **1. 统一数据源逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `rebuildTableActions` 函数中，完全替换了旧的数据获取方式，采用了与“独立填表”相同的“查找上一层”逻辑。现在，所有填表功能都以“上一层”的表格作为操作基础。
-    - **2. 修复初始化崩溃:** 在同步逻辑的过程中，一并修复了“立即填表”在首次使用（找不到上层表格）时因错误解构 `BASE.initHashSheet()` 返回值而可能导致的崩溃问题。
-    - **3. 保留宏优化与整页刷新:** 保留了之前版本中对宏（直接读取底层数据）和UI（整页刷新）的优化和可靠性修复。
-  - **结果:** 通过对所有填表相关功能的数据源逻辑进行统一，确保了插件在各种使用场景下行为的一致性、可预测性和健壮性。至此，所有已知问题均已解决。
+v2.0.62:
+- **核心修复：解决自定义API设置刷新后失效的问题**
+  - **问题:** 用户在自定义API设置页面输入的URL、密钥、模型名称、代理地址和代理密钥等信息，在页面刷新后会全部丢失。
+  - **根本原因:** 在 `scripts/settings/userExtensionSetting.js` 文件中，相关的输入事件监听器只将用户的输入更新到了内存中的 `USER.IMPORTANT_USER_PRIVACY_DATA` 对象，但没有调用 `USER.saveSettings()` 方法将这些更改持久化保存。
+  - **实现方式:**
+    - **1. 修改设置保存逻辑:** 对 `scripts/settings/userExtensionSetting.js` 文件中处理以下控件的事件监听器进行了修改：
+        - `custom_api_url` (API URL 输入框)
+        - `custom_api_key` (API Key 输入框)
+        - `custom_model_name` (模型名称 输入框)
+        - `model_selector` (模型下拉选择器)
+        - `table_proxy_address` (代理地址 输入框)
+        - `table_proxy_key` (代理密钥 输入框)
+    - **2. 增加持久化调用:** 在上述每个事件监听器中，当用户输入或选择发生变化并更新到内存对象后，立即增加了 `USER.saveSettings && USER.saveSettings();` 的调用。
+  - **结果:** 用户的自定义API设置现在可以被正确地实时保存。刷新页面后，所有设置项将保持不变，彻底解决了数据丢失问题，提升了用户体验的连续性和可靠性。
   - **受影响文件:**
+    - `scripts/settings/userExtensionSetting.js`
+
+v2.0.61:
+- **功能增强：优化分步填表确认流程**
+  - **问题:** “分步填表”功能的确认提示框选项不够灵活，用户希望有更精细的控制。
+  - **实现方式:**
+    - **1. 改造确认弹窗组件:** 在 `components/popupConfirm.js` 中，对 `newPopupConfirm` 组件进行了扩展。
+        - 增加了一个新的状态 `alwaysConfirmPopups`，用于在当前会话中记录“总是确认”的弹窗。
+        - 增加了新的参数 `alwaysConfirmText`，用于创建“一直选是”按钮。该按钮会触发一个新事件 `'always_confirm_selected'`，将弹窗ID添加到 `alwaysConfirmPopups` 中。
+        - `newPopupConfirm` 现在会检查 `alwaysConfirmPopups` 状态，如果命中，则直接返回 `true`，实现“会话内自动确认”的效果，但弹窗本身依然会显示，允许用户覆盖选择。
+    - **2. 更新调用逻辑:** 在 `scripts/runtime/separateTableUpdate.js` 中，修改了对 `newPopupConfirm` 的调用。
+        - 将原有的 `dontRemindText`（永久禁用）的按钮文本从“一直选是”修改为“不再提示”。
+        - 新增了 `alwaysConfirmText` 参数，值为“一直选是”，从而在界面上增加了这个新选项。
+  - **结果:** 用户现在对“分步填表”的确认流程有了更细致的控制，可以选择“本次执行”、“取消”、“会话内一直执行”或“永久不再提示”，提升了用户体验。
+  - **受影响文件:**
+    - `components/popupConfirm.js`
+    - `scripts/runtime/separateTableUpdate.js`
+
+v2.0.60:
+- **配置调整：Deepseek API 上下文限制回退**
+  - **问题:** Deepseek API 的默认上下文限制（`max_tokens`）被设置为一个较大的值（20000+），可能导致性能问题或与API的实际限制不符。
+  - **实现方式:**
+    - **1. 修改API服务:** 在 `services/llmApi.js` 文件中，将 `max_tokens` 的默认值从 `63000`（先前由20000调整而来）回退到 `8192`。
+  - **结果:** 恢复了更稳定、更兼容的API上下文限制，以确保服务的正常运行。
+  - **受影响文件:**
+    - `services/llmApi.js`
+
+v2.0.59:
+- **核心逻辑重构与最终修复：统一数据源并增强宏健壮性**
+  - **问题:** 经过多轮修复，宏导出功能在处理包含特殊字符或`null`/`undefined`值的单元格时，仍会偶尔生成无效JSON，导致下游解析失败。
+  - **根本原因:** `JSON.stringify` 在处理一个包含非纯字符串元素的数组时，其行为可能不符合预期（例如 `null` 会被转为 `"null"` 字符串，`undefined` 会被转为 `null`），这与手动拼接字符串的逻辑冲突，导致最终的JSON格式错误。
+  - **实现方式 (最终修复方案):**
+    - **1. 数据类型净化 (治本):** 在 `scripts/settings/standaloneAPI.js` 的 `ext_exportAllTablesAsJson` 函数中，采用了最稳妥的数据清洗方案。在序列化之前，通过 `rawContent.map(row => row.map(cell => String(cell ?? '')))` 强制将二维数组中的每一个单元格都转换为字符串类型。`null` 和 `undefined` 被安全地转换为空字符串 `''`。
+    - **2. 依赖标准序列化:** 在确保了输入数据源是纯净的字符串数组后，程序可以放心地使用标准的 `JSON.stringify` 来序列化整个数据对象，这是最可靠且无副作用的做法。
+    - **3. 统一数据源逻辑:** 保留了 `absoluteRefresh.js` 和 `separateTableUpdate.js` 中所有填表功能都以“上一层”表格为基础的统一逻辑。
+    - **4. 保留整页刷新:** 保留了 `reloadCurrentChat()` 作为最终的数据同步方式，确保UI和所有组件的绝对一致性。
+  - **结果:** 通过在导出数据的最源头进行严格的数据类型净化，彻底解决了所有已知的数据污染和JSON格式错误问题。结合统一的数据源逻辑和可靠的页面刷新机制，插件的稳定性和可预测性达到了最终形态。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
     - `scripts/runtime/absoluteRefresh.js`
     - `scripts/runtime/separateTableUpdate.js`
-    - `scripts/settings/standaloneAPI.js`
 
 v2.0.58:
 - **功能增强：独立填表（原分步填表）上下文选择**

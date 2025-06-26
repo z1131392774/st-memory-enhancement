@@ -330,6 +330,7 @@ function InitBinging() {
     $('#model_selector').change(function(event) {
         $('#custom_model_name').val(event.target.value);
         USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = event.target.value;
+        USER.saveSettings && USER.saveSettings(); // 保存设置
     });
     // 表格推送至对话开关
     $('#table_to_chat').change(function () {
@@ -377,6 +378,7 @@ function InitBinging() {
     // API URL
     $('#custom_api_url').on('input', function() {
         USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url = $(this).val();
+        USER.saveSettings && USER.saveSettings(); // 保存设置
     });
     // API KEY
     let apiKeyDebounceTimer;
@@ -387,6 +389,7 @@ function InitBinging() {
                 const rawKey = $(this).val();
                 const result = processApiKey(rawKey, generateDeviceId());
                 USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_key = result.encryptedResult.encrypted || result.encryptedResult;
+                USER.saveSettings && USER.saveSettings(); // 保存设置
                 EDITOR.success(result.message);
             } catch (error) {
                 console.error('API Key 处理失败:', error);
@@ -397,6 +400,7 @@ function InitBinging() {
     // 模型名称
     $('#custom_model_name').on('input', function() {
         USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = $(this).val();
+        USER.saveSettings && USER.saveSettings(); // 保存设置
     });
     // 表格消息模板
     $('#dataTable_message_template').on("input", function () {
@@ -446,10 +450,12 @@ function InitBinging() {
     // 代理地址
     $('#table_proxy_address').on('input', function() {
         USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address = $(this).val();
+        USER.saveSettings && USER.saveSettings(); // 保存设置
     });
     // 代理密钥
     $('#table_proxy_key').on('input', function() {
         USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key = $(this).val();
+        USER.saveSettings && USER.saveSettings(); // 保存设置
     });
 
     // 获取模型列表

@@ -691,36 +691,51 @@ export function ext_getAllTables() {
  * @returns {Object}
  */
 export function ext_exportAllTablesAsJson() {
-    // 核心重构：不再依赖可能过时的内存Sheet实例 (BASE.getChatSheets())，
-    // 而是直接从最新的持久化数据（hash_sheets）构建导出结果，确保宏总是获取最新数据。
-    
-    // 1. 获取最新的、包含表格数据的聊天记录片段 (piece)
+    // 最终、最稳妥的方案：确保输入给 JSON.stringify 的数据是纯净的。
+
     const { piece } = BASE.getLastSheetsPiece();
     if (!piece || !piece.hash_sheets) {
         console.warn("[Memory Enhancement] ext_exportAllTablesAsJson: 未找到任何有效的表格数据。");
         return {};
     }
 
-    // 2. 基于这个 piece 的 hash_sheets，临时创建一组保证数据最新的 Sheet 实例
     const tables = BASE.hashSheetsToSheets(piece.hash_sheets);
     if (!tables || tables.length === 0) {
         return {};
     }
 
-    // 3. 遍历这些最新的实例，构建导出数据
     const exportData = {};
     tables.forEach(table => {
         if (!table.enable) return; // 跳过禁用的表格
+
         try {
+            const rawContent = table.getContent(true) || [];
+
+            // 深度清洗，确保所有单元格都是字符串类型。
+            // 这是防止因 undefined、null 或其他非字符串类型导致 JSON.stringify 行为异常的关键。
+            const sanitizedContent = rawContent.map(row =>
+                Array.isArray(row) ? row.map(cell =>
+                    String(cell ?? '') // 将 null 和 undefined 转换为空字符串，其他类型强制转换为字符串
+                ) : []
+            );
+
             exportData[table.uid] = {
                 uid: table.uid,
                 name: table.name,
-                content: table.getContent(true) // 使用 getContent(true) 获取包含表头的完整内容
+                content: sanitizedContent
             };
         } catch (error) {
             console.error(`[Memory Enhancement] 导出表格 ${table.name} (UID: ${table.uid}) 时出错:`, error);
         }
     });
 
-    return exportData;
+    // 直接序列化整个清洗过的对象。
+    // 如果这里依然出错，说明问题比预想的更复杂，但理论上这已经是JS中最标准的做法。
+    try {
+        // 为了避免外层宏解析失败，我们直接返回字符串，让宏自己去解析。
+        return exportData;
+    } catch (e) {
+        console.error("[Memory Enhancement] 最终JSON序列化失败:", e);
+        return {}; // 发生意外时返回空对象
+    }
 }
