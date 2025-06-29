@@ -129,6 +129,9 @@ export async function TableTwoStepSummary(mode) {
  * @param {string|boolean} confirmResult - 用户的确认结果。
  */
 export async function manualSummaryChat(todoChats, confirmResult) {
+
+    // 设置一个旗标，用于在onChatCompletionPromptReady中判断是否为填表请求
+    DERIVED.any.isAITableFillingRequest = true;
     // 步骤一：检查是否需要执行“撤销”操作
     // 首先获取当前的聊天片段，以判断表格状态
     const { piece: initialPiece } = USER.getChatPiece();
