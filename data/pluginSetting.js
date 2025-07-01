@@ -344,6 +344,8 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     separateReadContextLayers: 1,
     // 分步填表是否读取世界书
     separateReadLorebook: false,
+    // 独立填表时，是否等待填表完成后再发送到酒馆
+    wait_for_fill_then_send: false,
     /**
      * ===========================
      * 表格结构

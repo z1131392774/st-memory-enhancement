@@ -354,8 +354,8 @@ export function executeTableEditActions(matches, referencePiece) {
  * 执行单个action指令
  */
 function executeAction(EditAction, sheets) {
-    const action = EditAction.action;
-    const sheet = sheets[action.tableIndex];
+    const action = EditAction.action
+    const sheet = sheets[action.tableIndex]
     if (!sheet) {
         console.error("表格不存在，无法执行编辑操作", EditAction);
         return -1;
@@ -365,32 +365,31 @@ function executeAction(EditAction, sheets) {
     if (action.data) {
         action.data = fixUnescapedSingleQuotes(action.data);
     }
-
     switch (EditAction.type) {
         case 'update':
             // 执行更新操作
-            const rowIndex = action.rowIndex ? parseInt(action.rowIndex) : 0;
-            if (rowIndex >= sheet.getRowCount() - 1) return executeAction({ ...EditAction, type: 'insert' }, sheets);
-            if (!action.data) return;
+            const rowIndex = action.rowIndex ? parseInt(action.rowIndex):0
+            if(rowIndex >= sheet.getRowCount()-1) return executeAction({...EditAction, type:'insert'}, sheets)
+            if(!action?.data) return
             Object.entries(action.data).forEach(([key, value]) => {
-                const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1);
-                if (!cell) return -1;
-                cell.newAction(cell.CellAction.editCell, { value: value }, false);
-            });
-            break;
+                const cell = sheet.findCellByPosition(rowIndex + 1, parseInt(key) + 1)
+                if (!cell) return -1
+                cell.newAction(cell.CellAction.editCell, { value }, false)
+            })
+            break
         case 'insert': {
             // 执行插入操作
-            const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0);
-            cell.newAction(cell.CellAction.insertDownRow, {}, false);
-            const lastestRow = sheet.getRowCount() - 1;
-            const cells = sheet.getCellsByRowIndex(lastestRow);
-            if (!cells || !action.data) return;
+            const cell = sheet.findCellByPosition(sheet.getRowCount() - 1, 0)
+            cell.newAction(cell.CellAction.insertDownRow, {}, false)
+            const lastestRow = sheet.getRowCount() - 1
+            const cells = sheet.getCellsByRowIndex(lastestRow)
+            if(!cells || !action.data) return
             cells.forEach((cell, index) => {
-                if (index === 0) return;
-                cell.data.value = action.data[index - 1];
-            });
+                if (index === 0) return 
+                cell.data.value = action.data[index - 1]
+            })
         }
-            break;
+            break
         case 'delete':
             // 执行删除操作
             const deleteRow = parseInt(action.rowIndex) + 1
@@ -416,7 +415,7 @@ function sortActions(actions) {
         insert: 1,
         delete: 2
     };
-    return actions.sort((a, b) => priority[a.type] - priority[b.type]);
+    return actions.sort((a, b) => (priority[a.type] === 2 && priority[b.type] === 2) ? (b.action.rowIndex - a.action.rowIndex) : (priority[a.type] - priority[b.type]));
 }
 
 /**
@@ -660,21 +659,47 @@ async function onMessageEdited(this_edit_mes_id) {
  * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
-    if (USER.tableBaseSetting.isExtensionAble === false) return
-    if (USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
-        TableTwoStepSummary("auto");  // 请勿使用await，否则会导致主进程阻塞引起的连锁bug
-    } else {
-        if (USER.tableBaseSetting.isAiWriteTable === false) return
+    if (USER.tableBaseSetting.isExtensionAble === false) return;
+
+    // 新增：等待填表完成后再发送
+    if (USER.tableBaseSetting.wait_for_fill_then_send === true && USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
         const chat = USER.getContext().chat[chat_id];
-        console.log("收到消息", chat_id)
+        const originalMessage = chat.mes;
+
+        // 1. 直接操作DOM，清空消息并显示'thinking'状态，避免因message为空刷新导致的错误
+        const messageElement = TavernHelper.retrieveDisplayedMessage(chat_id);
+        if (messageElement) {
+            messageElement.find('.mes_text').html('').addClass('thinking');
+        }
+
+        // 2. 以新模式执行分步填表，并等待其完成
+        const success = await TableTwoStepSummary("auto_wait", originalMessage);
+
+        // 3. 恢复原始消息内容并更新UI
+        // 重新渲染会自动移除 'thinking' class
+        chat.mes = originalMessage;
+        USER.getContext().updateMessageBlock(chat_id, chat, { rerenderMessage: true });
+        await USER.getContext().saveChat(); // 确保所有更改都已保存
+
+        if (!success) {
+            EDITOR.error("分步填表执行失败，但已将原始消息恢复到聊天界面。");
+        }
+    }
+    // 原始逻辑
+    else if (USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
+        TableTwoStepSummary("auto");  // 非阻塞调用
+    } else {
+        if (USER.tableBaseSetting.isAiWriteTable === false) return;
+        const chat = USER.getContext().chat[chat_id];
+        console.log("收到消息", chat_id);
         try {
-            handleEditStrInMessage(chat)
+            handleEditStrInMessage(chat);
         } catch (error) {
-            EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message, error)
+            EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message, error);
         }
     }
 
-    updateSheetsView()
+    updateSheetsView();
 }
 
 /**

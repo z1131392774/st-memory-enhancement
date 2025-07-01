@@ -331,25 +331,58 @@ async function confirmAction(event, text = '是否继续该操作？') {
  * 单元格高亮
  */
 export function cellHighlight(sheet) {
-    if (sheet.hashSheet.length < 2) return;    //表格内容为空的时候不执行后续函数,提高健壮性
     const lastHashSheet = lastCellsHashSheet[sheet.uid] || []
+    if ((sheet.hashSheet.length < 2) && (lastHashSheet.length < 2)) return;    //表格内容为空的时候不执行后续函数,提高健壮性
+    const hashSheetFlat = sheet.hashSheet.flat()
+    const lastHashSheetFlat = lastHashSheet.flat()
+    let deleteRow = []
+    lastHashSheet.forEach((row, index) => {
+        if (!hashSheetFlat.includes(row[0])) {
+            deleteRow.push(row[0])
+            sheet.hashSheet.splice(index,0,lastHashSheet[index])
+        }
+    })
+
     const changeSheet = sheet.hashSheet.map((row) => {
-        const isNewRow = lastHashSheet.includes(row[0])
+        const isNewRow = !lastHashSheetFlat.includes(row[0])
+        const isDeletedRow = deleteRow.includes(row[0])
         return row.map((hash) => {
-            if (!isNewRow) return { hash, type: "newRow" }
-            if (!lastHashSheet.includes(hash)) return { hash, type: "update" }
+            if (isNewRow) return { hash, type: "newRow" }
+            if (isDeletedRow) return { hash, type: "deletedRow" }
+            if (!lastHashSheetFlat.includes(hash)) return { hash, type: "update" }
             return { hash, type: "keep" }
         })
     })
-    changeSheet.forEach((row) => {
+    changeSheet.forEach((row, index) => {
+        if (index === 0)
+            return
+        let isKeepAll = true
         row.forEach((cell) => {
-            const cellElement = sheet.cells.get(cell.hash).element
+            let sheetCell = sheet.cells.get(cell.hash)
+            const cellElement = sheetCell.element
             if (cell.type === "newRow") {
                 cellElement.classList.add('insert-item')
+                isKeepAll = false
             } else if (cell.type === "update") {
                 cellElement.classList.add('update-item')
+                isKeepAll = false
+            } else if (cell.type === "deletedRow") {
+                sheetCell.isDeleted = true
+                cellElement.classList.add('delete-item')
+                isKeepAll = false
+            } else if (sheetCell.isDeleted === true) {
+                cellElement.classList.add('delete-item')
+                isKeepAll = false
+            } else {
+                cellElement.classList.add('keep-item')
             }
         })
+        if (isKeepAll) {
+            row.forEach((cell) => {
+                const cellElement = sheet.cells.get(cell.hash).element
+                cellElement.classList.add('keep-all-item')
+            })
+        }
     })
 }
 
@@ -530,6 +563,14 @@ async function renderSheetsDOM() {
     if (!piece || !piece.hash_sheets) return;
 
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
+    sheets.forEach((sheet) => {
+        sheet.hashSheet = sheet.hashSheet.filter((row) => {
+            return (sheet.cells.get(row[0]).isDeleted !== true);
+        })
+        sheet.cells.forEach((cell) => {
+            cell.isDeleted = false;
+        })
+    })
     console.log('renderSheetsDOM:', piece, sheets)
     DERIVED.any.renderingSheets = sheets
     task.log()
@@ -538,9 +579,9 @@ async function renderSheetsDOM() {
     // console.log("找到的diff前项", lastCellsHashSheet)
     if (lastCellsHashSheet) {
         lastCellsHashSheet = BASE.copyHashSheets(lastCellsHashSheet)
-        for (const sheetUid in lastCellsHashSheet) {
-            lastCellsHashSheet[sheetUid] = lastCellsHashSheet[sheetUid].flat()
-        }
+        //for (const sheetUid in lastCellsHashSheet) {
+        //    lastCellsHashSheet[sheetUid] = lastCellsHashSheet[sheetUid].flat()
+        //}
     }
     task.log()
     $(viewSheetsContainer).empty()

@@ -3,8 +3,6 @@ import { executeIncrementalUpdateFromSummary, sheetsToTables } from "./absoluteR
 import { newPopupConfirm } from '../../components/popupConfirm.js';
 import { reloadCurrentChat } from "/script.js"
 import {getTablePrompt,initTableData, undoSheets} from "../../index.js"
-import { refreshContextView } from '../editor/chatSheetsDataView.js';
-import { updateSystemMessageTableStatus } from '../renderer/tablePushToChat.js';
 
 let toBeExecuted = [];
 
@@ -76,51 +74,58 @@ function MarkChatAsWaiting(chat, swipeUid) {
 /**
  * 执行两步总结
  * */
-export async function TableTwoStepSummary(mode) {
-    if (mode!=="manual" && (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === false)) return
+export async function TableTwoStepSummary(mode, messageContent = null) {
+    if (mode !== "manual" && (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === false)) return;
 
-    // 获取需要执行的两步总结
-    const {piece: todoPiece} = USER.getChatPiece()
+    let todoChats;
 
-    if (todoPiece === undefined) {
-        console.log('未找到待填表的对话片段');
-        EDITOR.error('未找到待填表的对话片段，请检查当前对话是否正确。');
-        return;
+    if (messageContent) {
+        todoChats = messageContent;
+        console.log('使用提供的消息内容进行填表:', todoChats);
+    } else {
+        const { piece: todoPiece } = USER.getChatPiece();
+        if (!todoPiece || !todoPiece.mes) {
+            EDITOR.error('未找到待填表的对话片段，请检查当前对话是否正确。');
+            return;
+        }
+        todoChats = todoPiece.mes;
     }
-    let todoChats = todoPiece.mes;
 
     console.log('待填表的对话片段:', todoChats);
 
-    // 检查是否开启执行前确认
-    const popupContentHtml = `<p>累计 ${todoChats.length} 长度的文本，是否开始独立填表？</p>`;
-    // 移除了模板选择相关的HTML和逻辑
+    // 模式判断：自动模式下跳过确认弹窗
+    if (mode === 'auto' || mode === 'auto_wait') {
+        console.log(`自动执行填表，模式: ${mode}`);
+        const shouldReload = mode !== 'auto_wait'; // auto_wait模式不刷新
+        return await manualSummaryChat(todoChats, true, shouldReload);
+    }
 
+    // 手动模式：显示确认弹窗
+    const popupContentHtml = `<p>累计 ${todoChats.length} 长度的文本，是否开始独立填表？</p>`;
     const popupId = 'stepwiseSummaryConfirm';
     const confirmResult = await newPopupConfirm(
         popupContentHtml,
         "取消",
         "执行填表",
         popupId,
-        "不再提示", // dontRemindText: Permanently disables the popup
-        "一直选是"  // alwaysConfirmText: Confirms for the session
+        "不再提示",
+        "一直选是"
     );
 
     console.log('newPopupConfirm result for stepwise summary:', confirmResult);
 
     if (confirmResult === false) {
         console.log('用户取消执行独立填表: ', `(${todoChats.length}) `, toBeExecuted);
-        MarkChatAsWaiting(currentPiece, swipeUid);
+        // MarkChatAsWaiting is not fully implemented, commenting out for now
+        // MarkChatAsWaiting(currentPiece, swipeUid); 
     } else {
-        // This block executes if confirmResult is true OR 'dont_remind_active'
         if (confirmResult === 'dont_remind_active') {
-            console.log('独立填表弹窗已被禁止，自动执行。');
-            EDITOR.info('已选择“一直选是”，操作将在后台自动执行...'); // <--- 增加后台执行提示
-        } else { // confirmResult === true
-            console.log('用户确认执行独立填表 (或首次选择了“一直选是”并确认)');
+            EDITOR.info('已选择“一直选是”，操作将在后台自动执行...');
         }
-        manualSummaryChat(todoChats, confirmResult);
+        manualSummaryChat(todoChats, confirmResult, true); // 手动模式总是刷新
     }
 }
+
 
 /**
  * 手动总结聊天（立即填表）
@@ -129,8 +134,9 @@ export async function TableTwoStepSummary(mode) {
  * 2. 执行：以恢复后的干净状态为基础，调用标准增量更新流程，向AI请求新的操作并执行。
  * @param {Array} todoChats - 需要用于填表的聊天记录。
  * @param {string|boolean} confirmResult - 用户的确认结果。
+ * @param {boolean} shouldReload - 是否在完成后刷新页面。
  */
-export async function manualSummaryChat(todoChats, confirmResult) {
+export async function manualSummaryChat(todoChats, confirmResult, shouldReload = true) {
     // 步骤一：检查是否需要执行“撤销”操作
     // 首先获取当前的聊天片段，以判断表格状态
     const { piece: initialPiece } = USER.getChatPiece();
@@ -192,14 +198,18 @@ export async function manualSummaryChat(todoChats, confirmResult) {
         });
         toBeExecuted = [];
 
-        // 保存并刷新UI
+        // 保存
         await USER.saveChat();
-        // 根据用户要求，使用整页刷新来确保包括宏在内的所有数据都得到更新。
-        reloadCurrentChat();
-        return true;
+
+        // 根据调用者要求决定是否刷新页面
+        if (shouldReload) {
+            reloadCurrentChat();
+        }
+        return 'success'; // 返回成功状态
+        
     } else if (r === 'suspended' || r === 'error' || !r) {
         console.log('执行增量独立填表失败或取消: ', `(${todoChats.length}) `, toBeExecuted);
-        return false;
+        return r || 'error'; // 返回失败状态
     }
     
 }

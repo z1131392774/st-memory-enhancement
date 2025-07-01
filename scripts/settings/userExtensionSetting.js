@@ -425,6 +425,16 @@ function InitBinging() {
         USER.tableBaseSetting.separateReadLorebook = this.checked;
         USER.saveSettings && USER.saveSettings();
     });
+    // 独立填表时，是否等待填表完成后再发送到酒馆
+    $('#wait_for_fill_then_send').change(function() {
+        USER.tableBaseSetting.wait_for_fill_then_send = this.checked;
+        USER.saveSettings && USER.saveSettings();
+    });
+    // 独立填表时，是否等待填表完成后再发送到酒馆
+    $('#wait_for_fill_then_send').change(function() {
+        USER.tableBaseSetting.wait_for_fill_then_send = this.checked;
+        USER.saveSettings && USER.saveSettings();
+    });
     // 重置分步填表提示词为默认值
     $('#reset_step_by_step_user_prompt').on('click', function() {
         const defaultValue = USER.tableBaseDefaultSettings.step_by_step_user_prompt;
@@ -527,6 +537,10 @@ export function renderSetting() {
     $('#separateReadContextLayers').val(USER.tableBaseSetting.separateReadContextLayers);
     // 分步填表是否读取世界书
     updateSwitch('#separateReadLorebook', USER.tableBaseSetting.separateReadLorebook);
+    // 独立填表时，是否等待填表完成后再发送到酒馆
+    updateSwitch('#wait_for_fill_then_send', USER.tableBaseSetting.wait_for_fill_then_send);
+    // 独立填表时，是否等待填表完成后再发送到酒馆
+    updateSwitch('#wait_for_fill_then_send', USER.tableBaseSetting.wait_for_fill_then_send);
     $("#fill_table_time").val(USER.tableBaseSetting.step_by_step ? 'after' : 'chat');
     refreshRebuildTemplate()
 

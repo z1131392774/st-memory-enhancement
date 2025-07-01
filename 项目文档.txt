@@ -1,3 +1,126 @@
+v2.e.m-final-ui:
+- **UI优化：移除“填完再发”选项旁的多余提示文本**
+  - **问题:** 在“收到消息后再单独填表”的设置界面中，“填完再发”复选框旁边有一段提示“（不建议大Token卡使用）”，该提示已过时且造成界面混乱。
+  - **实现方式:**
+    - **1. 修改UI模板:** 在 `assets/templates/index.html` 文件中，定位到 `wait_for_fill_then_send` 复选框所在的行。
+    - **2. 移除提示:** 删除了包含提示文本的 `<small>` 标签。
+  - **结果:** 界面变得更加整洁，移除了不必要的旧提示。
+  - **受影响文件:**
+    - `assets/templates/index.html`
+
+v2.e.m-final:
+- **最终修复：重构填表流程，彻底解决非流式模式下的所有已知问题**
+  - **问题:** 此前的修复解决了数据流和渲染报错，但引入了新问题：在非流式模式下，AI的回复会先被完整显示，然后才开始填表，破坏了“先占位、后填充”的核心体验。原因是`TableTwoStepSummary`的流程（弹窗确认 -> `manualSummaryChat` -> 强制刷新页面）与`onMessageReceived`的异步等待逻辑冲突。
+  - **实现方式:**
+    - **1. 重构`TableTwoStepSummary` (位于`scripts/runtime/separateTableUpdate.js`):**
+        - **增加模式判断:** 函数现在能识别`'auto_wait'`模式（由`onMessageReceived`在非流式下触发）。
+        - **跳过确认弹窗:** 在`'auto_wait'`和`'auto'`模式下，将不再弹出确认框，实现自动化处理。
+        - **受控的页面刷新:** 只有在`'manual'`（手动点击）或`'auto'`模式下，才会在填表结束后强制刷新页面。`'auto_wait'`模式则不会刷新，将控制权交还给`onMessageReceived`。
+    - **2. 重构`manualSummaryChat` (位于`scripts/runtime/separateTableUpdate.js`):**
+        - **增加`shouldReload`参数:** 允许调用者决定执行后是否需要刷新页面。
+        - **返回执行结果:** 函数现在会返回一个表示成功或失败的状态，使`onMessageReceived`可以`await`并根据结果决定后续操作。
+  - **结果:** 
+    - **非流式、等待模式:** 流程完美统一。`onMessageReceived`隐藏消息 -> `TableTwoStepSummary`在`auto_wait`模式下无弹窗、无刷新地执行填表 -> `onMessageReceived`收到成功返回后，将完整消息填入占位符。
+    - **流式、等待模式:** 不受影响。
+    - **手动点击“立即填表”:** 保持原有行为，弹出确认框并刷新页面。
+  - **此修复彻底解决了非流式模式下的数据流、渲染和用户体验问题，是该功能的最终形态。**
+  - **受影响文件:**
+    - `scripts/runtime/separateTableUpdate.js`
+    - `index.js` (虽然未再次修改，但其逻辑依赖于本次重构)
+>>>>>>>
+v2.e.m-fix:
+- **核心修复：解决非流式模式下因DOM操作引发的渲染错误**
+  - **问题:** 在v2.e.m修复的基础上，发现在等待填表时，通过 `updateMessageBlock` 清空消息内容会导致酒馆核心的 `reasoning.js` 模块因找不到预期的DOM元素而报错（`Cannot read properties of undefined (reading 'getAttribute')`）。
+  - **实现方式:**
+    - **1. 优化`onMessageReceived` (位于`index.js`):**
+        - 不再通过修改 `chat.mes` 并调用 `updateMessageBlock` 来清空消息。
+        - 改为使用 `TavernHelper.retrieveDisplayedMessage(chat_id)` 直接获取消息的jQuery DOM对象。
+        - 使用 `.html('').addClass('thinking')` 直接在DOM层面清空消息内容并添加等待动画，从而绕过了会引发错误的完整渲染流程。
+        - 填表结束后，依然通过 `updateMessageBlock` 将完整的 `originalMessage` 恢复并渲染，确保最终显示正确。
+  - **结果:** 此修复方案更加稳健，通过精细的DOM操作，在不触发酒馆核心渲染逻辑错误的前提下，实现了“等待填表”的视觉效果。彻底解决了 `reasoning.js` 报错的问题，同时保留了先前修复的所有功能。
+  - **受影响文件:**
+    - `index.js`
+
+v2.e.m:
+- **核心修复：解决非流式传输模式下填表功能失效的问题**
+  - **问题:** 在启用“等待填表后发送”功能时，非流式传输模式下的AI回复无法触发后续的填表流程。原因是`onMessageReceived`函数为了显示“正在输入”动画，会先将收到的消息清空，而后续的`TableTwoStepSummary`函数依然试图从被清空的消息中读取内容，导致填表失败。
+  - **实现方式:**
+    - **1. 修改`onMessageReceived` (位于`index.js`):** 在调用`TableTwoStepSummary`时，将预先保存的`originalMessage`（原始AI回复）作为新参数传递进去。
+    - **2. 修改`TableTwoStepSummary` (位于`scripts/runtime/separateTableUpdate.js`):**
+        - 函数签名增加了一个可选参数`messageContent`。
+        - 增加逻辑判断：如果`messageContent`参数存在，则直接使用它作为待处理的文本内容；如果不存在（兼容手动触发等旧场景），则继续沿用从当前聊天记录（`USER.getChatPiece()`）获取内容的旧逻辑。
+  - **结果:** 此修复确保了无论在哪种模式下，`TableTwoStepSummary`都能获取到完整、未经修改的AI回复进行处理。非流式传输下的填表功能恢复正常，同时保留了“等待时显示动画”的良好体验，且完全不影响流式传输和手动触发模式。
+  - **受影响文件:**
+    - `index.js`
+    - `scripts/runtime/separateTableUpdate.js`
+
+v2.0.76:
+- **新功能：等待分步填表完成后再发送消息**
+  - **问题:** 在分步填表模式下，AI的回复会立即显示在主界面，而表格的更新在后台异步进行。这导致用户看到的是未经处理的原始回复，可能会包含不应显示的指令或格式标签，影响了沉浸感。
+  - **实现方式:**
+    - **1. 新增UI选项:** 在 `assets/templates/index.html` 中，于“读取世界书”旁边增加了一个新的复选框，名为“等待填表后发送”（ID: `wait_for_fill_then_send`）。
+    - **2. 增加设置项:** 在 `data/pluginSetting.js` 中，为 `wait_for_fill_then_send` 增加了默认值 `false`。
+    - **3. 持久化设置:** 在 `scripts/settings/userExtensionSetting.js` 中，为新复选框添加了事件监听器以保存其状态，并更新了 `renderSetting` 函数以正确显示。
+    - **4. 改造消息接收逻辑:** 在 `index.js` 的 `onMessageReceived` 事件处理器中，增加了新的逻辑分支。
+        - 当“等待填表后发送”被勾选时，程序会拦截新收到的消息。
+        - **a. 隐藏原始消息:** 立即将消息内容设置为空，并添加 `thinking` CSS类，在UI上显示为“正在输入”的动画效果。
+        - **b. 同步执行填表:** 调用 `TableTwoStepSummary` 函数，并使用新的 `"auto_wait"` 模式。此模式会**阻塞**并等待整个分步填表流程执行完毕。
+        - **c. 恢复并显示消息:** 填表流程结束后，将原始的、完整的消息内容恢复到消息体中，并更新UI。
+    - **5. 适配执行函数:** 在 `scripts/runtime/separateTableUpdate.js` 中，对 `TableTwoStepSummary` 函数进行了适配，使其能够处理 `"auto_wait"` 模式，该模式会跳过确认弹窗并返回一个Promise，以便 `onMessageReceived` 可以 `await` 它。
+  - **结果:** 此功能彻底解决了分步填表时原始指令暴露给用户的问题。现在，当用户启用此选项后，AI的回复会先在后台完成所有表格处理，然后才将最终的、干净的文本内容一次性展示给用户，极大地优化了流程的无缝性和最终的阅读体验。
+  - **受影响文件:**
+    - `assets/templates/index.html`
+    - `data/pluginSetting.js`
+    - `scripts/settings/userExtensionSetting.js`
+    - `index.js`
+    - `scripts/runtime/separateTableUpdate.js`
+
+v2.0.75:
+- **功能增强与体验优化：为“等待填表后发送”增加流式回复效果**
+  - **问题:** “等待填表后发送”功能在处理期间，会将消息内容临时替换为“正在处理表格，请稍候...”，这种静态提示较为生硬，缺乏即时交互感。
+  - **实现方式:**
+    - **1. 改造UI提示:** 在 `index.js` 的 `onMessageReceived` 函数中，修改了等待期间的UI行为。
+    - **2. 模拟流式输入:** 不再显示静态文字，而是先将消息内容设置为空字符串，并立即为该消息的DOM元素添加 `thinking` CSS类。这会在界面上触发一个类似AI正在打字的动画效果。
+    - **3. 动画与逻辑解耦:** 使用 `setTimeout` 来确保DOM更新完成后再添加CSS类，保证了动画的可靠触发。
+    - **4. 自动清理:** 填表流程结束后，通过 `updateMessageBlock` 重新渲染消息，这会自动移除 `thinking` 类并显示最终内容，无需手动清理。
+  - **结果:** 此项优化将原有的静态等待提示升级为了动态的、类似流式回复的“正在输入”动画，为用户提供了更直观、更流畅的交互反馈，显著提升了功能的整体体验。
+  - **受影响文件:**
+    - `index.js`
+
+v2.0.74:
+- **最终修复：统一所有数据修改路径的广播机制**
+  - **问题:** 经过v2.0.72的重构后，前端页面依然存在需要手动刷新才能看到更新的问题。经排查，原因是数据广播调用 `ext_broadcastTableData()` 只被添加到了手动触发的 `executeTableEditActions` 函数中，而由AI回复触发的常规、自动的表格更新流程（`parseTableEditTag` 函数）在修改数据后并未调用广播，导致事件丢失。
+  - **实现方式:**
+    - **1. 补充广播调用:** 在 `index.js` 的 `parseTableEditTag` 函数中，于 `sheets.forEach(sheet => sheet.save(piece, true))` 保存数据之后，同样增加了对 `ext_broadcastTableData()` 的调用。
+    - **2. 强化前端初始化:** 在 `地图表格美化.html` 中，实现了更稳健的初始化逻辑。脚本会通过轮询等待 `TavernHelper` 和插件API完全加载后，再注册事件监听器并获取初始数据，避免了因加载顺序问题导致的监听失败。
+  - **结果:** 此修复确保了无论是手动还是自动（AI驱动）的表格数据修改，在保存后都会立即触发一次数据广播。结合前端稳健的初始化逻辑，彻底解决了数据更新延迟和需要手动刷新的问题，实现了真正意义上的动态实时刷新。
+  - **受影响文件:**
+    - `index.js`
+    - `地图表格美化.html`
+
+v2.0.73:
+- **优化：移除填表后的强制页面刷新**
+  - **问题:** 在实现了动态数据推送（v2.0.72）后，原有的 `reloadCurrentChat()` 强制刷新页面的功能已变得多余，甚至会因为打断用户操作而降低体验。
+  - **实现方式:**
+    - **1. 移除刷新调用:** 在 `scripts/runtime/separateTableUpdate.js` 文件中，定位到 `manualSummaryChat` 函数末尾的 `reloadCurrentChat()` 调用，并将其移除。
+    - **2. 清理无用导入:** 删除了该文件中对 `reloadCurrentChat` 的 `import` 语句。
+  - **结果:** 现在，填表操作完成后，应用将完全依赖新建的事件广播机制来更新前端UI，不再触发强制性的页面刷新，使得用户体验更加流畅和无缝。
+  - **受影响文件:**
+    - `scripts/runtime/separateTableUpdate.js`
+
+v2.0.72:
+- **核心功能重构：实现表格数据的动态实时推送**
+  - **问题:** 原有的表格导出宏 `{{GET_ALL_TABLES_JSON}}` 和 API 函数 `ext_exportAllTablesAsJson` 均为静态调用，外部应用（如 `地图表格美化.html`）只有在重新加载或手动刷新时才能获取最新数据，用户体验不佳。
+  - **实现方式:**
+    - **1. 新增数据广播模块:** 在 `scripts/settings/standaloneAPI.js` 文件中，新增了 `ext_broadcastTableData` 函数。此函数负责获取最新的全量表格数据，并通过 `TavernHelper.eventEmit` API，以 `'table_data_updated'` 为事件名，将数据实时广播出去。
+    - **2. 集成到核心执行流:** 在 `index.js` 文件的核心数据处理函数 `executeTableEditActions` 中，于所有表格修改和保存操作完成之后，立即调用 `ext_broadcastTableData()`。这确保了任何数据的变更都会被即时推送。
+    - **3. 改造前端模板:** 对 `地图表格美化.html` 进行了彻底改造。移除了原有的静态宏 `{{GET_ALL_TABLES_JSON}}`，转而使用 `TavernHelper.eventOn('table_data_updated', ...)` 来监听数据更新事件。在 `init` 函数中，通过直接调用API获取初版数据并渲染，同时设置监听器，一旦接收到新的数据推送，就会调用 `updateFullInterface` 函数来无缝刷新整个前端界面。
+  - **结果:** 成功将插件的数据导出机制从“被动拉取”升级为“主动推送”。现在，任何对表格数据的修改都会被实时、自动地反映到所有监听该事件的前端应用中，极大地提升了数据的同步性和用户体验的流畅性，为未来更多需要实时数据交互的功能奠定了坚实基础。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `index.js`
+    - `地图表格美化.html`
+
 v2.0.71:
 - **最终核心修复：在指令执行层统一数据源，彻底解决实例不一致问题**
   - **问题:** 经过多轮修复后，所有表格操作依然报错“表格不存在”。这表明问题的根源在于最核心的指令执行函数 `executeTableEditActions` (位于 `index.js`)，它错误地信任了从上游调用链传递下来的 `referencePiece` 对象。该对象在传递过程中，其内部的表格（`Sheet`）类实例被破坏（如通过`JSON.stringify`），导致执行层收到的是没有方法的纯数据对象，从而引发崩溃。
@@ -217,30 +340,3 @@ v2.0.55:
   - **受影响文件:**
     - `scripts/runtime/absoluteRefresh.js`
     - `scripts/runtime/separateTableUpdate.js`
-<environment_details>
-# VSCode Visible Files
-index.js
-
-# VSCode Open Tabs
-assets/templates/setting.html
-assets/templates/manager.html
-scripts/settings/standaloneAPI.js
-components/popupConfirm.js
-assets/templates/index.html
-scripts/settings/userExtensionSetting.js
-services/llmApi.js
-data/pluginSetting.js
-scripts/runtime/absoluteRefresh.js
-scripts/runtime/separateTableUpdate.js
-项目文档.txt
-index.js
-
-# Current Time
-2025/6/26 下午11:23:41 (Asia/Shanghai, UTC+8:00)
-
-# Context Window Usage
-0 / 128K tokens used (0%)
-
-# Current Mode
-ACT MODE
-</environment_details>

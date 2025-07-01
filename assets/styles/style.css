@@ -364,7 +364,7 @@ td.selected {
 }
 
 .delete-item {
-    background-color: rgb(173, 55, 55);
+    background-color: #ff000011;
 }
 
 .error-item {
