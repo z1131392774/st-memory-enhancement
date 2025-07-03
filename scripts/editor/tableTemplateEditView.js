@@ -263,15 +263,15 @@ function bindSheetSetting(sheet, index) {
     // 新增：发送到上下文的复选框
     const sendToContextCheckbox = $(`
         <label class="checkbox_label" style="margin-left: 10px; font-weight: normal; color: var(--text_primary);">
-            <input type="checkbox" class="send_to_context_switch" ${sheet.sendToContext !== false ? 'checked' : ''} />
+            <input type="checkbox" class="send_to_context_switch" ${sheet.config.toChat !== false ? 'checked' : ''} />
             <span data-i18n="Send to context">发送到上下文</span>
         </label>
     `);
 
     sendToContextCheckbox.find('.send_to_context_switch').on('change', function() {
-        sheet.sendToContext = $(this).prop('checked');
+        sheet.config.toChat = $(this).prop('checked');
         sheet.save();
-        console.log(`表格 "${sheet.name}" 的 sendToContext 状态已更新为: ${sheet.sendToContext}`);
+        console.log(`表格 "${sheet.name}" 的 config.toChat 状态已更新为: ${sheet.config.toChat}`);
     });
 
     titleBar.appendChild(settingButton[0]);

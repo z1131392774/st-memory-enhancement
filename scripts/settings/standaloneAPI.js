@@ -739,3 +739,36 @@ export function ext_exportAllTablesAsJson() {
         return {}; // 发生意外时返回空对象
     }
 }
+
+/**
+ * 将表格数据暂存到浏览器本地存储 (localStorage)
+ * @param {string} key - 存储的键名
+ * @param {string} content - 要存储的内容 (JSON字符串)
+ * @returns {Promise<boolean>} - 是否成功
+ */
+export async function saveDataToLocalStorage(key, content) {
+    try {
+        localStorage.setItem(key, content);
+        console.log(`[Memory Enhancement] 成功将数据暂存到 localStorage (key: ${key})`);
+        return true;
+    } catch (e) {
+        console.error(`[Memory Enhancement] 写入 localStorage 失败:`, e);
+        return false;
+    }
+}
+
+/**
+ * 从浏览器本地存储 (localStorage) 读取暂存的表格数据
+ * @param {string} key - 存储的键名
+ * @returns {Promise<string|null>} - 存储的内容或null
+ */
+export async function readDataFromLocalStorage(key) {
+    try {
+        const content = localStorage.getItem(key);
+        console.log(`[Memory Enhancement] 从 localStorage 读取数据 (key: ${key}):`, content ? '找到内容' : '未找到内容');
+        return content;
+    } catch (e) {
+        console.error(`[Memory Enhancement] 从 localStorage 读取失败:`, e);
+        return null;
+    }
+}

@@ -170,7 +170,7 @@ export async function manualSummaryChat(todoChats, confirmResult, shouldReload =
     }
     
     // 表格数据
-    const originText = getTablePrompt(referencePiece);
+    const originText = getTablePrompt(referencePiece, false, true);
 
     // 表格总体提示词
     const finalPrompt = initTableData(); // 获取表格相关提示词

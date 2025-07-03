@@ -118,8 +118,9 @@ export class Sheet extends SheetBase {
      * 获取表格内容的提示词，可以通过指定['title', 'node', 'headers', 'rows', 'editRules']中的部分，只获取部分内容
      * @returns 表格内容提示词
      */
-    getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules'], eventData) {
-        console.log('获取表格内容提示词', this)
+    getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules'], eventData, ignoreToChatFilter = false) {
+        console.log('获取表格内容提示词', this, `ignoreToChatFilter: ${ignoreToChatFilter}`)
+        if (ignoreToChatFilter === false && this.config.toChat === false) return ''; // 如果配置为不发送到聊天，则直接返回空
         if (this.triggerSend && this.triggerSendDeep < 1) return ''; // 如果触发深度=0，则不发送，可以用作信息一览表
         const title = `* ${index}:${this.name}\n`;
         const node = this.source.data.note && this.source.data.note !== '' ? '【说明】' + this.source.data.note + '\n' : '';
@@ -182,7 +183,7 @@ export class Sheet extends SheetBase {
     }
 
     getJson() {
-        const sheetDataToSave = this.filterSavingData(["uid", "name", "domain", "type", "enable", "required", "tochat", "triggerSend", "triggerSendDeep", "config", "sourceData", "content"])
+        const sheetDataToSave = this.filterSavingData(["uid", "name", "domain", "type", "enable", "required", "toChat", "triggerSend", "triggerSendDeep", "config", "sourceData", "content"])
         delete sheetDataToSave.cellHistory
         delete sheetDataToSave.hashSheet
         sheetDataToSave.sourceData = this.source.data

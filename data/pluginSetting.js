@@ -24,6 +24,9 @@ const tableInitPopupDom = `
 <div class="checkbox flex-container">
     <input type="checkbox" id="table_init_structure"><span>表格结构</span>
 </div>
+<div class="checkbox flex-container">
+    <input type="checkbox" id="table_init_stash"><span>暂存数据</span>
+</div>
 <!--<div class="checkbox flex-container">-->
 <!--    <input type="checkbox" id="table_init_data2"><span>2.0表格数据（用于调试）</span>-->
 <!--</div>-->
@@ -96,6 +99,7 @@ export async function filterTableDataPopup(originalData, title, warning) {
     waitingRegister.step_by_step = '#table_init_step';
     waitingRegister.step_by_step_use_main_api = '#table_init_step';
     waitingRegister.bool_silent_refresh = '#table_init_step';
+    waitingRegister.step_by_step_user_prompt = '#table_init_step';
     // 前端表格
     waitingRegister.isTableToChat = '#table_init_to_chat';
     waitingRegister.show_settings_in_extension_menu = '#table_init_to_chat';
@@ -106,6 +110,8 @@ export async function filterTableDataPopup(originalData, title, warning) {
     waitingRegister.to_chat_container = '#table_init_to_chat';
     // 所有表格结构数据
     waitingRegister.tableStructure = '#table_init_structure';
+    // 暂存数据
+    waitingRegister.stashData = '#table_init_stash';
 
 
 
@@ -114,13 +120,27 @@ export async function filterTableDataPopup(originalData, title, warning) {
     if (!confirmation.result) return { filterData: null, confirmation: false };
 
     // 过滤出用户选择的数据
-    const filterData = Object.keys(waitingBoolean).filter(key => waitingBoolean[key]).reduce((acc, key) => {
+    const filterData = Object.keys(waitingBoolean).filter(key => waitingBoolean[key] && key !== 'stashData').reduce((acc, key) => {
         acc[key] = originalData[key];
         return acc;
     }, {})
 
+    // 如果用户选择导出暂存数据，则从 localStorage 读取并添加到 filterData
+    if (waitingBoolean.stashData) {
+        const stashData = localStorage.getItem('table_stash_data');
+        if (stashData) {
+            try {
+                // 将暂存数据添加到要导出的数据中，使用一个特殊的键
+                filterData['__stashData'] = JSON.parse(stashData);
+            } catch(e) {
+                console.error("解析暂存数据失败:", e);
+                // 可以在这里给用户一个提示，或者 просто忽略错误的暂存数据
+            }
+        }
+    }
+
     // 返回过滤后的数据和确认结果
-    return { filterData, confirmation };
+    return { filterData, confirmation: confirmation.result };
 }
 
 /**

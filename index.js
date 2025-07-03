@@ -8,14 +8,16 @@ import { initTest } from "./components/_fotTest.js";
 import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./scripts/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './scripts/runtime/absoluteRefresh.js';
 import {refreshTempView, updateTableContainerPosition} from "./scripts/editor/tableTemplateEditView.js";
-import { refreshContextView } from "./scripts/editor/chatSheetsDataView.js";
+import { refreshContextView, autoImportFromStash } from "./scripts/editor/chatSheetsDataView.js";
 import { functionToBeRegistered } from "./services/debugs.js";
 import { parseLooseDict, replaceUserTag } from "./utils/stringUtil.js";
+import { reloadCurrentChat } from "/script.js";
 import {executeTranslation} from "./services/translate.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
 
+let reloadDebounceTimer;
 const VERSION = '2.1.1'
 
 const editErrorInfo = {
@@ -62,7 +64,20 @@ function checkPrototype(dataTable) {
     return dataTable;
 }
 
-export function buildSheetsByTemplates(targetPiece) {
+export async function buildSheetsByTemplates(targetPiece) {
+    // [最终方案] 在构建新表前，尝试从暂存区自动加载
+    const loadedFromStash = await autoImportFromStash();
+    if (loadedFromStash) {
+        // 使用防抖机制确保只在所有表格加载流程结束后刷新一次
+        clearTimeout(reloadDebounceTimer);
+        reloadDebounceTimer = setTimeout(() => {
+            console.log('[Memory Enhancement] index.js: 暂存恢复流程完成，执行刷新。');
+            reloadCurrentChat();
+        }, 1000); // 1秒的防抖延迟
+        return; // 如果加载成功，则终止后续的模板创建流程
+    }
+
+    // 如果没有从暂存区加载，则按原计划从模板创建
     BASE.sheetsData.context = [];
     // USER.getChatPiece().hash_sheets = {};
     const templates = BASE.templates
@@ -114,7 +129,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         newSheet.type = newSheet.SheetType.dynamic
         newSheet.enable = oldTable.enable
         newSheet.required = oldTable.Required
-        newSheet.tochat = true
+        newSheet.config.toChat = true
         newSheet.triggerSend = false
         newSheet.triggerSendDeep = 1
 
@@ -186,11 +201,12 @@ export function initTableData(eventData) {
  * 获取表格相关提示词
  * @returns {string} 表格相关提示词
  */
-export function getTablePrompt(eventData, isPureData = false) {
-    const lastSheetsPiece = BASE.getReferencePiece()
+export function getTablePrompt(eventData, isPureData = false, ignoreToChatFilter = false) {
+    // 优先使用传入的 piece (eventData)，如果不是有效的 piece，则回退到 getReferencePiece
+    const lastSheetsPiece = (eventData && eventData.hash_sheets) ? eventData : BASE.getReferencePiece();
     if(!lastSheetsPiece) return ''
     console.log("获取到的参考表格数据", lastSheetsPiece)
-    return getTablePromptByPiece(lastSheetsPiece, isPureData)
+    return getTablePromptByPiece(lastSheetsPiece, isPureData, ignoreToChatFilter)
 }
 
 /**
@@ -198,14 +214,13 @@ export function getTablePrompt(eventData, isPureData = false) {
  * @param {Object} piece 聊天片段
  * @returns {string} 表格相关提示词
  */
-export function getTablePromptByPiece(piece, isPureData = false) {
+export function getTablePromptByPiece(piece, isPureData = false, ignoreToChatFilter = false) {
     const {hash_sheets} = piece
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
-        .filter(sheet => sheet.enable)
-        .filter(sheet => sheet.sendToContext !== false);
+        .filter(sheet => sheet.enable);
     console.log("构建提示词时的信息 (已过滤)", hash_sheets, sheets)
     const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
-    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, piece)).join('\n')
+    const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, piece, ignoreToChatFilter)).join('\n')
     return sheetDataPrompt
 }
 

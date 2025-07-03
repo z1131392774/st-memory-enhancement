@@ -32,7 +32,6 @@ export class SheetBase {
         this.type = SheetType.dynamic;
         this.enable = true;                     // 用于标记是否启用
         this.required = false;                  // 用于标记是否必填
-        this.tochat = true;                     // 用于标记是否发送到聊天
         this.triggerSend = false;               // 用于标记是否触发发送给AI
         this.triggerSendDeep = 1;               // 用于记录触发发送的深度
 

@@ -1,8 +1,10 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
+import { ext_exportAllTablesAsJson, saveDataToLocalStorage, readDataFromLocalStorage } from '../settings/standaloneAPI.js';
 import { updateSystemMessageTableStatus } from "../renderer/tablePushToChat.js";
 import { findNextChatWhitTableData,undoSheets } from "../../index.js";
 import { rebuildSheets } from "../runtime/absoluteRefresh.js";
 import { openTableHistoryPopup } from "./tableHistory.js";
+import { reloadCurrentChat } from "/script.js";
 import { PopupMenu } from "../../components/popupMenu.js";
 import { openTableStatisticsPopup } from "./tableStatistics.js";
 import { openCellHistoryPopup } from "./cellHistory.js";
@@ -70,53 +72,111 @@ async function pasteTable() {
  * 导入表格
  * @param {number} mesId 需要导入表格的消息id
  */
+/**
+ * [重构] 核心导入逻辑，用于处理JSON字符串
+ * @param {string} jsonString - 包含表格数据的JSON字符串
+ * @param {boolean} isAuto - 是否为自动导入，为true则跳过确认弹窗
+ */
+async function processImportedData(jsonString, isAuto = false) {
+    try {
+        const tables = JSON.parse(jsonString);
+        if (!(tables.mate?.type === 'chatSheets')) {
+            EDITOR.error("导入失败：文件格式不正确", "请检查导入的是否是表格数据");
+            return false;
+        }
+
+        let result = true; // 自动导入时，默认为true
+        if (!isAuto) {
+            const button = { text: '导入模板及数据', result: 3 };
+            const popup = new EDITOR.Popup("请选择导入的部分", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "导入模板及数据", cancelButton: "取消" });
+            result = await popup.show();
+        }
+
+        if (result) {
+            // 自动导入和手动导入默认都只应用数据，除非用户手动选择
+            if (result === 3) {
+                BASE.applyJsonToChatSheets(tables, "data");
+            } else {
+                BASE.applyJsonToChatSheets(tables);
+            }
+            await renderSheetsDOM();
+            // 移除内部的成功提示，统一由调用方处理
+            if (!isAuto) {
+                EDITOR.success('表格数据导入成功');
+            }
+            return true;
+        }
+    } catch (e) {
+        EDITOR.error("导入失败：解析JSON数据时出错。", e);
+    }
+    return false;
+}
+
+
 async function importTable(mesId, viewSheetsContainer) {
     if (mesId === -1) {
         EDITOR.error("请至少让ai回复一条消息作为表格载体")
         return
     }
 
-    // 1. 创建一个 input 元素，类型设置为 'file'，用于文件选择
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    // 设置 accept 属性，限制只能选择 JSON 文件，提高用户体验
     fileInput.accept = '.json';
 
-    // 2. 添加事件监听器，监听文件选择的变化 (change 事件)
     fileInput.addEventListener('change', function (event) {
-        // 获取用户选择的文件列表 (FileList 对象)
         const files = event.target.files;
-
-        // 检查是否选择了文件
         if (files && files.length > 0) {
-            // 获取用户选择的第一个文件 (这里假设只选择一个 JSON 文件)
             const file = files[0];
-
-            // 3. 创建 FileReader 对象，用于读取文件内容
             const reader = new FileReader();
-
-            // 4. 定义 FileReader 的 onload 事件处理函数
-            // 当文件读取成功后，会触发 onload 事件
             reader.onload = async function (loadEvent) {
-                const button = { text: '导入模板及数据', result: 3 }
-                const popup = new EDITOR.Popup("请选择导入的部分", EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "导入模板及数据", cancelButton: "取消"});
-                const result = await popup.show()
-                if (result) {
-                        const tables = JSON.parse(loadEvent.target.result)
-                        console.log("导入内容", tables, tables.mate, !(tables.mate === 'chatSheets'))
-                        if(!(tables.mate?.type === 'chatSheets'))  return EDITOR.error("导入失败：文件格式不正确", "请检查你导入的是否是表格数据")
-                        if(result === 3)
-                            BASE.applyJsonToChatSheets(tables, "data")
-                        else
-                            BASE.applyJsonToChatSheets(tables)
-                        await renderSheetsDOM()
-                        EDITOR.success('导入成功')
-                }
+                // 手动导入时，isAuto为false
+                await processImportedData(loadEvent.target.result, false);
             };
-            reader.readAsText(file, 'UTF-8'); // 建议指定 UTF-8 编码，确保中文等字符正常读取
+            reader.readAsText(file, 'UTF-8');
         }
     });
     fileInput.click();
+}
+
+/**
+ * 导出表格
+ * @param {Array} tables 所有表格数据
+ */
+/**
+ * 暂存表格数据
+ */
+async function stashTableData() {
+    // 核心修复：调用与“导出”功能完全相同的 getTableJson 函数，以确保数据格式正确且完整。
+    const jsonTables = getTableJson({ type: 'chatSheets', version: 1 });
+    if (!jsonTables || Object.keys(jsonTables).length <= 1) { // 小于等于1是因为它总会包含一个mate对象
+        EDITOR.warning('当前没有可暂存的表格数据。');
+        return;
+    }
+
+    const content = JSON.stringify(jsonTables);
+    const success = await saveDataToLocalStorage('table_stash_data', content);
+
+    if (success) {
+        EDITOR.success('表格数据已成功暂存到浏览器缓存，下次开启新对话将自动加载。');
+    } else {
+        EDITOR.error('暂存表格数据失败。');
+    }
+}
+
+/**
+ * 清空暂存的表格数据
+ */
+async function clearStashData() {
+    const confirmation = await EDITOR.callGenericPopup('此操作将清空浏览器中缓存的表格数据，且无法恢复。是否继续？', EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "清空", cancelButton: "取消" });
+    if (confirmation) {
+        // 通过保存空字符串来间接实现清除
+        const success = await saveDataToLocalStorage('table_stash_data', '');
+        if (success) {
+            EDITOR.success('已清空暂存数据。');
+        } else {
+            EDITOR.error('清空暂存数据失败。');
+        }
+    }
 }
 
 /**
@@ -145,11 +205,16 @@ async function exportTable() {
  * 获取表格Json数据
  */
 function getTableJson(mate) {
-    if (!DERIVED.any.renderingSheets || DERIVED.any.renderingSheets.length === 0) {
+    const { piece } = BASE.getLastSheetsPiece();
+    if (!piece || !piece.hash_sheets) {
         EDITOR.warning('当前表格没有数据，无法导出');
-        return;
+        return null;
     }
-    const sheets = DERIVED.any.renderingSheets.filter(sheet => sheet.enable)
+    const sheets = BASE.hashSheetsToSheets(piece.hash_sheets).filter(sheet => sheet.enable);
+    if (sheets.length === 0) {
+        EDITOR.warning('当前没有启用的表格，无法导出');
+        return null;
+    }
     // const csvTables = sheets.map(sheet => "SHEET-START" + sheet.uid + "\n" + sheet.getSheetCSV(false) + "SHEET-END").join('\n')
     const jsonTables = {}
     sheets.forEach(sheet => {
@@ -633,6 +698,14 @@ async function initTableView(mesId) {
     $(document).on('click', '#export_table_button', function () {
         EDITOR.tryBlock(exportTable, "导出表格失败");
     })
+    // 点击暂存表格按钮
+    $(document).on('click', '#stash_table_data_button', function () {
+        EDITOR.tryBlock(stashTableData, "暂存表格失败");
+    })
+    // 点击清空暂存按钮
+    $(document).on('click', '#clear_stash_button', function () {
+        EDITOR.tryBlock(clearStashData, "清空暂存数据失败");
+    })
 
     return initializedTableView;
 }
@@ -645,6 +718,26 @@ export async function refreshContextView() {
     BASE.contextViewRefreshing = false
 }
 
+/**
+ * [新] 自动从暂存中导入数据
+ * @returns {Promise<boolean>} 是否成功加载数据
+ */
+export async function autoImportFromStash() {
+    const content = await readDataFromLocalStorage('table_stash_data');
+    if (content && content.length > 2) { // 检查内容是否为一个有效的json object
+        console.log('[Memory Enhancement] 检测到暂存数据，将在5秒后尝试自动恢复...');
+        return new Promise(resolve => {
+            setTimeout(async () => {
+                // 自动导入时，isAuto为true，跳过弹窗
+                const success = await processImportedData(content, true);
+                // 移除内部的成功提示，统一由调用方处理
+                resolve(success);
+            }, 1500);
+        });
+    }
+    return false;
+}
+
 export async function getChatSheetsView(mesId = -1) {
     // 如果已经初始化过，直接返回缓存的容器，避免重复创建
     if (initializedTableView) {
@@ -652,5 +745,7 @@ export async function getChatSheetsView(mesId = -1) {
         await renderSheetsDOM();
         return initializedTableView;
     }
+    
+    // 自动加载逻辑已移至 buildSheetsByTemplates
     return await initTableView(mesId);
 }

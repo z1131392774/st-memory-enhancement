@@ -1,3 +1,163 @@
+v2.e.m-final-independent-structure-export-fix:
+- **功能增强：实现独立填表结构（提示词）的导入导出**
+  - **问题:** 用户在导出设置时，无法将“收到消息后填表”策略下的“独立填表整体结构”（即`step_by_step_user_prompt`）一并导出，导致在不同环境下导入预设后需要手动重新配置。
+  - **实现方式:**
+    - **1. 修正导出逻辑:** 在 `data/pluginSetting.js` 文件的 `filterTableDataPopup` 函数中，为导出项注册逻辑（`waitingRegister`）增加了 `step_by_step_user_prompt`。通过将其与“独立填表设置”（`#table_init_step`）复选框关联，确保了当用户勾选该项导出时，相关的提示词内容也会被包含在最终的JSON文件中。
+    - **2. 确认导入逻辑:** 检查了 `scripts/settings/userExtensionSetting.js` 中的 `importTableSet` 函数，确认其现有的通用导入逻辑可以自动处理新加入的 `step_by_step_user_prompt` 键，无需进行修改。
+  - **结果:** 现在，用户可以在导出设置时完整地打包“独立填表”的配置，包括其核心的结构化提示词。在导入该预设后，该配置能够被完整恢复，实现了填表策略的无缝迁移。
+  - **受影响文件:**
+    - `data/pluginSetting.js`
+
+v2.e.m-final-context-setting-export-fix:
+- **UI修复：确保导入/重置设置后模板视图能立即刷新**
+  - **问题:** 根据用户反馈，通过导入预设或重置功能更新表格结构后，模板管理界面的视图（如下拉列表和编辑器）不会自动更新，需要手动刷新页面才能看到变化，影响了操作的流畅性。
+  - **实现方式:**
+    - **1. 修正刷新逻辑:** 在 `scripts/settings/userExtensionSetting.js` 文件中，定位到 `importTableSet` 和 `resetSettings` 两个函数。
+    - **2. 移除限制参数:** 在这两个函数中，都存在对 `BASE.refreshTempView(true)` 的调用。其中的 `true` 参数（`ignoreGlobal`）原本用于阻止在全局作用域下进行不必要的刷新，但错误地抑制了设置界面的UI更新。通过移除这个参数，即改为调用 `BASE.refreshTempView()`，确保了刷新操作能在所有作用域下无差别地执行。
+  - **结果:** 现在，当用户导入或重置表格设置后，模板管理界面会立即、自动地反映出最新的表格结构和配置，无需再手动刷新页面，提升了用户体验。
+  - **受影响文件:**
+    - `scripts/settings/userExtensionSetting.js`
+
+v2.e.m-final-context-setting-export:
+- **功能增强：实现表格“是否发送至上下文”配置的导入导出**
+  - **问题:** 用户希望在导入导出表格预设时，能够包含每个表格“是否发送至上下文”的设置。
+  - **实现方式:**
+    - **1. 简化需求:** 根据用户反馈，取消了为此功能设置独立UI（复选框）的计划，而是将此设置直接绑定到表格结构数据中。
+    - **2. 修改导出逻辑:** 在 `scripts/settings/userExtensionSetting.js` 的 `templateToTableStructure` 函数中，增加了对 `isSendToContext` 属性的读取。在导出 `tableStructure` 时，该属性会和 `tochat`、`enable` 等其他配置一同被保存。
+    - **3. 修改导入逻辑:** 在 `scripts/settings/userExtensionSetting.js` 的 `initTableStructureToTemplate` 函数中，增加了对 `isSendToContext` 属性的应用。当从预设文件创建新模板时，该属性会被正确地赋值给新模板。
+  - **结果:** 用户现在导出表格预设时，会自动保存每个表格的上下文发送设置。在另一环境下导入该预设后，这些设置能被完整地恢复，无需手动重新配置。
+  - **受影响文件:**
+    - `scripts/settings/userExtensionSetting.js`
+
+v2.e.m-final-stash-rework-11:
+- **功能增强：实现预设与暂存数据的协同导入导出**
+  - **问题:** 用户希望在导出全局表格预设时，能选择性地将浏览器中的暂存数据（Stash）一并打包，并在导入预设时恢复这些暂存数据，以实现完整的状态迁移。
+  - **实现方式:**
+    - **1. UI增强:**
+      - 在 `data/pluginSetting.js` 的 `tableInitPopupDom` 中，为全局设置的导入/导出弹窗增加了一个新的复选框：“暂存数据”。
+    - **2. 导出逻辑改造:**
+      - 在 `data/pluginSetting.js` 的 `filterTableDataPopup` 函数中，修改了逻辑。当用户勾选“暂存数据”复选框后，函数会从 `localStorage` 读取 `table_stash_data` 的值，并将其以一个特殊的键 `__stashData` 添加到最终要导出的JSON对象中。
+    - **3. 导入逻辑改造:**
+      - 在 `scripts/settings/userExtensionSetting.js` 的 `importTableSet` 函数中，增加了对导入数据的检查。
+      - 如果解析后的JSON对象包含 `__stashData` 键，系统会弹出一个确认框，询问用户是否希望用导入的暂存数据覆盖本地的暂存数据。
+      - 如果用户同意，则将 `__stashData` 的内容写回 `localStorage`，然后将其从导入对象中删除，以确保只有预设配置被正常写入常规设置。
+  - **结果:** 用户现在可以在不同的浏览器或设备间无缝迁移完整的表格工作环境，包括所有的表格结构预设和最后一次的暂存数据，极大地提升了工作的连续性和便利性。
+  - **受影响文件:**
+    - `data/pluginSetting.js`
+    - `scripts/settings/userExtensionSetting.js`
+
+v2.e.m-final-stash-rework-10:
+- **功能调整与UI优化**
+  - **问题:** 根据用户需求，需要调整自动加载延迟并改进暂存管理的用户界面。
+  - **实现方式:**
+    - **1. 调整加载延迟:** 在 `scripts/editor/chatSheetsDataView.js` 的 `autoImportFromStash` 函数中，将 `setTimeout` 的延迟从10秒（10000ms）缩短为5秒（5000ms），以加快自动恢复速度。
+    - **2. 替换调试按钮为清空功能:**
+        - **UI层面:** 在 `assets/templates/manager.html` 中，移除了原有的“检查暂存”按钮。取而代之的是一个ID为 `clear_stash_button` 的新按钮，该按钮使用了一个小的“撤销”图标 (`fa-rotate-left`)，专门用于清空暂存数据。
+        - **逻辑层面:** 在 `scripts/editor/chatSheetsDataView.js` 中，删除了不再需要的 `checkStashData` 函数，并创建了新的 `clearStashData` 函数。此函数会弹出确认框，在用户同意后，通过向 `localStorage` 的 `table_stash_data` 键写入空字符串来安全地清除暂存。同时，更新了事件监听器以将新按钮与新函数关联。
+  - **结果:** 自动加载体验更加快捷。同时，通过将一个临时的调试功能替换为一个永久性的、符合用户操作直觉的“清空暂存”功能，提升了界面的整洁度和功能的实用性。
+  - **受影响文件:**
+    - `scripts/editor/chatSheetsDataView.js`
+    - `assets/templates/manager.html`
+
+v2.e.m-final-stash-rework-9:
+- **最终修复：统一自动与手动导入流程，解决多余弹窗问题**
+  - **问题:** 根据用户反馈，自动恢复功能虽然成功，但会为每个表格都弹出一个确认框，严重影响体验。
+  - **实现方式:**
+    - **1. 逻辑抽象:** 将手动导入功能中，解析和应用数据的核心逻辑提取到一个新的、可复用的 `processImportedData(jsonString, isAuto)` 函数中。
+    - **2. 增加模式参数:** 为 `processImportedData` 增加了一个 `isAuto` 参数。当 `isAuto` 为 `true` 时，函数会跳过所有用户确认弹窗，实现静默导入。
+    - **3. 统一调用:**
+        - **手动导入 (`importTable`)** 现在调用 `processImportedData(..., false)`，保留原有的确认弹窗。
+        - **自动恢复 (`autoImportFromStash`)** 现在调用 `processImportedData(..., true)`，实现无弹窗的后台恢复。
+  - **结果:** 通过让自动恢复与手动导入共享同一套核心逻辑，并增加模式判断，彻底解决了多次弹窗的问题，同时保证了数据处理的一致性和稳定性。这是该功能的最终形态。
+  - **受影响文件:**
+    - `scripts/editor/chatSheetsDataView.js`
+
+v2.e.m-final-stash-rework-8:
+- **体验优化：为自动加载增加10秒延迟**
+  - **问题:** 根据用户反馈，自动加载功能触发得过早，在页面刷新后立即弹出提示，影响了初始加载体验。
+  - **实现方式:**
+    - **1. 增加延迟:** 在 `scripts/editor/chatSheetsDataView.js` 的 `autoImportFromStash` 函数中，使用 `new Promise` 和 `setTimeout` 将整个加载和渲染逻辑包裹起来，并设置了10秒的延迟。
+  - **结果:** 现在，当检测到暂存数据时，系统会先等待10秒，然后再执行自动恢复并弹出提示，避免了对用户初始操作的干扰，优化了整体体验。
+  - **受影响文件:**
+    - `scripts/editor/chatSheetsDataView.js`
+
+v2.e.m-final-stash-rework-7:
+- **最终修复：修正自动加载的触发时机**
+  - **问题:** 根据用户反馈，在新对话（new reply）时，自动恢复功能没有被触发。原因是自动加载逻辑被错误地放在了仅执行一次的UI初始化函数 `getChatSheetsView` 中，而不是在每次需要创建新表时都调用的业务逻辑函数中。
+  - **实现方式:**
+    - **1. 逻辑回源:** 将自动加载的触发点从 `scripts/editor/chatSheetsDataView.js` 的 `getChatSheetsView` 移回到了它本应在的地方：`index.js` 的 `buildSheetsByTemplates` 函数。此函数是每次需要从头创建表格（如新对话）时的必经之路。
+    - **2. 桥接UI与逻辑:** 为了解决之前遇到的UI不刷新问题，`chatSheetsDataView.js` 中的 `autoImportFromStash` 函数被改造为会返回一个布尔值（`true`代表加载成功）。
+    - **3. 条件执行:** `index.js` 中的 `buildSheetsByTemplates` 现在会 `await` `autoImportFromStash()` 的结果。如果返回 `true`，则直接 `return`，跳过后续从模板创建空表的操作；如果返回 `false`，则继续执行原有的创建流程。
+  - **结果:** 此修复确保了自动加载功能在每次需要新建表格时都能被正确地检查和触发，同时通过返回状态和UI层渲染的结合，彻底解决了数据加载与界面显示的所有已知问题。
+  - **受影响文件:**
+    - `scripts/editor/chatSheetsDataView.js`
+    - `index.js`
+
+v2.e.m-final-stash-rework-6:
+- **最终修复：重构自动加载逻辑以确保UI同步**
+  - **问题:** 即便暂存的数据格式和内容都正确，自动加载后UI仍不显示数据。根本原因在于 `index.js` 中的加载逻辑与 `chatSheetsDataView.js` 中的UI渲染环境是分离的，导致数据更新后无法有效触发UI刷新。
+  - **实现方式:**
+    - **1. 转移并重构加载逻辑:** 将自动加载的逻辑从 `index.js` 的 `buildSheetsByTemplates` 函数中完全移除。
+    - **2. 创建 `autoImportFromStash`:** 在 `scripts/editor/chatSheetsDataView.js` 中创建了一个新的 `autoImportFromStash` 函数。此函数负责读取和解析 `localStorage` 中的暂存数据。
+    - **3. 复用渲染管线:** 在 `autoImportFromStash` 内部，数据应用 (`BASE.applyJsonToChatSheets`) 成功后，立即调用与手动导入功能完全相同的 `await renderSheetsDOM()` 函数来强制刷新表格视图。
+    - **4. 调整调用时机:** 在 `getChatSheetsView` 函数中，判断如果是首次加载表格视图，则在初始化后调用 `autoImportFromStash`，确保了加载和渲染在同一个上下文中顺序执行。
+  - **结果:** 通过将自动加载逻辑移到UI渲染层，并复用其核心渲染函数，彻底解决了数据与UI不同步的问题。现在，自动加载功能与手动导入功能使用相同的代码路径，确保了其稳定性和正确性。
+  - **受影响文件:**
+    - `scripts/editor/chatSheetsDataView.js`
+    - `index.js` (移除了旧逻辑)
+
+v2.e.m-final-stash-rework-5:
+- **核心修复：统一暂存与导出的数据格式**
+  - **问题:** 根据用户反馈和检查发现，点击“暂存数据”按钮保存的JSON数据格式不正确，缺少了表格的详细配置信息（如`domain`, `type`, `config`等），只包含了`uid`, `name`, `content`，与“导出表格”生成的完整格式不一致，导致数据无法被正确解析和加载。
+  - **实现方式:**
+    - **1. 统一数据获取函数:** 在 `scripts/editor/chatSheetsDataView.js` 的 `stashTableData` 函数中，将数据源从不完整的 `ext_exportAllTablesAsJson` 更换为与“导出表格”功能完全一致的 `getTableJson` 函数。
+  - **结果:** 此修复确保了暂存到浏览器的数据与手动导出的数据具有完全相同的、完整的结构。这从根本上解决了因数据格式错误而导致的加载失败问题，确保了暂存和恢复功能的正确性。
+  - **受影响文件:**
+    - `scripts/editor/chatSheetsDataView.js`
+
+v2.e.m-final-stash-rework-4:
+- **调试功能：增加暂存数据检查功能**
+  - **问题:** 为了排查数据未能正确加载的问题，需要一种方法来直接验证数据是否已成功保存到浏览器缓存中。
+  - **实现方式:**
+    - **1. 新增“检查暂存”按钮:** 在 `assets/templates/manager.html` 中，增加了一个临时的“检查暂存”调试按钮。
+    - **2. 实现检查逻辑:** 在 `scripts/editor/chatSheetsDataView.js` 中，创建了 `checkStashData` 函数。该函数会读取 `localStorage` 中的暂存数据，并将其格式化后在一个弹窗中显示给用户，以便直接验证数据内容。
+  - **结果:** 提供了一个直接的调试工具，可以快速验证暂存的“保存”步骤是否成功，从而将问题定位到“加载/渲染”阶段。
+  - **受影响文件:**
+    - `assets/templates/manager.html`
+    - `scripts/editor/chatSheetsDataView.js`
+
+v2.e.m-final-stash-rework-3:
+- **UI渲染修复：确保自动加载的数据能够正确显示**
+  - **问题:** 根据用户反馈和日志，虽然暂存的数据被成功读取并传递给了应用层，但UI界面并未刷新以显示这些新加载的数据。
+  - **实现方式:**
+    - **1. 强制UI刷新:** 在 `index.js` 的 `buildSheetsByTemplates` 函数中，在成功从 `localStorage` 加载并应用数据后，立即增加了一行 `await refreshContextView()` 调用。
+  - **结果:** 此修复确保了在自动加载暂存数据后，会强制触发一次UI渲染，从而将加载的表格数据正确地显示在用户界面上，解决了数据已加载但视图未更新的问题。
+  - **受影响文件:**
+    - `index.js`
+
+v2.e.m-final-stash-rework-2:
+- **核心逻辑修复：实现真正的持久化暂存**
+  - **问题:** 根据用户反馈，之前版本的暂存功能在浏览器刷新后会失效。原因是数据在被自动加载一次后，就会被立即从浏览器缓存中清除，导致其成为“一次性”恢复，不符合持久化暂存的预期。
+  - **实现方式:**
+    - **1. 移除自动清除逻辑:** 在 `index.js` 的 `buildSheetsByTemplates` 函数中，在从 `localStorage` 读取并成功恢复数据后，移除了调用 `saveDataToLocalStorage` 来清除暂存数据的代码行。
+  - **结果:** 现在，暂存的数据会一直保留在浏览器缓存中，直到用户下一次手动点击“暂存数据”按钮来覆盖它。这意味着用户可以安全地刷新页面、关闭并重新打开浏览器，或开启多个新对话，每次需要创建新表时，都会从上一次暂存的状态恢复，实现了真正的、可靠的持久化暂存。
+  - **受影响文件:**
+    - `index.js`
+
+v2.e.m-final-stash-rework:
+- **功能重构：基于浏览器本地存储（LocalStorage）实现全自动数据暂存**
+  - **问题:** 用户在不同对话间切换或意外关闭页面时，当前编辑的表格数据会丢失。最初的方案因无法直接写入物理文件而未达预期。
+  - **实现方式 (替代方案):**
+    - **1. 明确存储机制:** 放弃了模拟文件的方案，转而使用浏览器提供的 `localStorage` API，实现一个对用户完全透明的、无需文件操作的自动暂存和恢复机制。
+    - **2. 更新API层:** 在 `scripts/settings/standaloneAPI.js` 中，将原先模拟文件操作的 `ext_writeFile`/`ext_readFile` 函数重构为意图明确的 `saveDataToLocalStorage` 和 `readDataFromLocalStorage`。
+    - **3. 更新暂存逻辑:** 在 `scripts/editor/chatSheetsDataView.js` 的 `stashTableData` 函数中，现在调用 `saveDataToLocalStorage` 将数据以键值对（`key: 'table_stash_data'`）的形式存入浏览器缓存，并提供更清晰的用户提示。
+    - **4. 更新自动加载逻辑:** 在 `index.js` 的 `buildSheetsByTemplates` 函数中，现在调用 `readDataFromLocalStorage` 从浏览器缓存中读取数据。
+  - **结果:** 用户现在可以通过点击“暂存数据”按钮，将表格状态无缝、自动地保存到浏览器缓存中。当开启新对话或重载页面时，系统会自动检测并恢复暂存的数据，全程无需用户进行任何文件保存或导入操作。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `scripts/editor/chatSheetsDataView.js`
+    - `index.js`
+
 v2.e.m-final-ui:
 - **UI优化：移除“填完再发”选项旁的多余提示文本**
   - **问题:** 在“收到消息后再单独填表”的设置界面中，“填完再发”复选框旁边有一段提示“（不建议大Token卡使用）”，该提示已过时且造成界面混乱。
@@ -20,323 +180,10 @@ v2.e.m-final:
         - **增加`shouldReload`参数:** 允许调用者决定执行后是否需要刷新页面。
         - **返回执行结果:** 函数现在会返回一个表示成功或失败的状态，使`onMessageReceived`可以`await`并根据结果决定后续操作。
   - **结果:** 
-    - **非流式、等待模式:** 流程完美统一。`onMessageReceived`隐藏消息 -> `TableTwoStepSummary`在`auto_wait`模式下无弹窗、无刷新地执行填表 -> `onMessageReceived`收到成功返回后，将完整消息填入占位符。
+    - **非流式、等待模式:** 流程完美统一。`onMessage-received`隐藏消息 -> `TableTwoStepSummary`在`auto_wait`模式下无弹窗、无刷新地执行填表 -> `onMessageReceived`收到成功返回后，将完整消息填入占位符。
     - **流式、等待模式:** 不受影响。
     - **手动点击“立即填表”:** 保持原有行为，弹出确认框并刷新页面。
   - **此修复彻底解决了非流式模式下的数据流、渲染和用户体验问题，是该功能的最终形态。**
   - **受影响文件:**
     - `scripts/runtime/separateTableUpdate.js`
     - `index.js` (虽然未再次修改，但其逻辑依赖于本次重构)
->>>>>>>
-v2.e.m-fix:
-- **核心修复：解决非流式模式下因DOM操作引发的渲染错误**
-  - **问题:** 在v2.e.m修复的基础上，发现在等待填表时，通过 `updateMessageBlock` 清空消息内容会导致酒馆核心的 `reasoning.js` 模块因找不到预期的DOM元素而报错（`Cannot read properties of undefined (reading 'getAttribute')`）。
-  - **实现方式:**
-    - **1. 优化`onMessageReceived` (位于`index.js`):**
-        - 不再通过修改 `chat.mes` 并调用 `updateMessageBlock` 来清空消息。
-        - 改为使用 `TavernHelper.retrieveDisplayedMessage(chat_id)` 直接获取消息的jQuery DOM对象。
-        - 使用 `.html('').addClass('thinking')` 直接在DOM层面清空消息内容并添加等待动画，从而绕过了会引发错误的完整渲染流程。
-        - 填表结束后，依然通过 `updateMessageBlock` 将完整的 `originalMessage` 恢复并渲染，确保最终显示正确。
-  - **结果:** 此修复方案更加稳健，通过精细的DOM操作，在不触发酒馆核心渲染逻辑错误的前提下，实现了“等待填表”的视觉效果。彻底解决了 `reasoning.js` 报错的问题，同时保留了先前修复的所有功能。
-  - **受影响文件:**
-    - `index.js`
-
-v2.e.m:
-- **核心修复：解决非流式传输模式下填表功能失效的问题**
-  - **问题:** 在启用“等待填表后发送”功能时，非流式传输模式下的AI回复无法触发后续的填表流程。原因是`onMessageReceived`函数为了显示“正在输入”动画，会先将收到的消息清空，而后续的`TableTwoStepSummary`函数依然试图从被清空的消息中读取内容，导致填表失败。
-  - **实现方式:**
-    - **1. 修改`onMessageReceived` (位于`index.js`):** 在调用`TableTwoStepSummary`时，将预先保存的`originalMessage`（原始AI回复）作为新参数传递进去。
-    - **2. 修改`TableTwoStepSummary` (位于`scripts/runtime/separateTableUpdate.js`):**
-        - 函数签名增加了一个可选参数`messageContent`。
-        - 增加逻辑判断：如果`messageContent`参数存在，则直接使用它作为待处理的文本内容；如果不存在（兼容手动触发等旧场景），则继续沿用从当前聊天记录（`USER.getChatPiece()`）获取内容的旧逻辑。
-  - **结果:** 此修复确保了无论在哪种模式下，`TableTwoStepSummary`都能获取到完整、未经修改的AI回复进行处理。非流式传输下的填表功能恢复正常，同时保留了“等待时显示动画”的良好体验，且完全不影响流式传输和手动触发模式。
-  - **受影响文件:**
-    - `index.js`
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.76:
-- **新功能：等待分步填表完成后再发送消息**
-  - **问题:** 在分步填表模式下，AI的回复会立即显示在主界面，而表格的更新在后台异步进行。这导致用户看到的是未经处理的原始回复，可能会包含不应显示的指令或格式标签，影响了沉浸感。
-  - **实现方式:**
-    - **1. 新增UI选项:** 在 `assets/templates/index.html` 中，于“读取世界书”旁边增加了一个新的复选框，名为“等待填表后发送”（ID: `wait_for_fill_then_send`）。
-    - **2. 增加设置项:** 在 `data/pluginSetting.js` 中，为 `wait_for_fill_then_send` 增加了默认值 `false`。
-    - **3. 持久化设置:** 在 `scripts/settings/userExtensionSetting.js` 中，为新复选框添加了事件监听器以保存其状态，并更新了 `renderSetting` 函数以正确显示。
-    - **4. 改造消息接收逻辑:** 在 `index.js` 的 `onMessageReceived` 事件处理器中，增加了新的逻辑分支。
-        - 当“等待填表后发送”被勾选时，程序会拦截新收到的消息。
-        - **a. 隐藏原始消息:** 立即将消息内容设置为空，并添加 `thinking` CSS类，在UI上显示为“正在输入”的动画效果。
-        - **b. 同步执行填表:** 调用 `TableTwoStepSummary` 函数，并使用新的 `"auto_wait"` 模式。此模式会**阻塞**并等待整个分步填表流程执行完毕。
-        - **c. 恢复并显示消息:** 填表流程结束后，将原始的、完整的消息内容恢复到消息体中，并更新UI。
-    - **5. 适配执行函数:** 在 `scripts/runtime/separateTableUpdate.js` 中，对 `TableTwoStepSummary` 函数进行了适配，使其能够处理 `"auto_wait"` 模式，该模式会跳过确认弹窗并返回一个Promise，以便 `onMessageReceived` 可以 `await` 它。
-  - **结果:** 此功能彻底解决了分步填表时原始指令暴露给用户的问题。现在，当用户启用此选项后，AI的回复会先在后台完成所有表格处理，然后才将最终的、干净的文本内容一次性展示给用户，极大地优化了流程的无缝性和最终的阅读体验。
-  - **受影响文件:**
-    - `assets/templates/index.html`
-    - `data/pluginSetting.js`
-    - `scripts/settings/userExtensionSetting.js`
-    - `index.js`
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.75:
-- **功能增强与体验优化：为“等待填表后发送”增加流式回复效果**
-  - **问题:** “等待填表后发送”功能在处理期间，会将消息内容临时替换为“正在处理表格，请稍候...”，这种静态提示较为生硬，缺乏即时交互感。
-  - **实现方式:**
-    - **1. 改造UI提示:** 在 `index.js` 的 `onMessageReceived` 函数中，修改了等待期间的UI行为。
-    - **2. 模拟流式输入:** 不再显示静态文字，而是先将消息内容设置为空字符串，并立即为该消息的DOM元素添加 `thinking` CSS类。这会在界面上触发一个类似AI正在打字的动画效果。
-    - **3. 动画与逻辑解耦:** 使用 `setTimeout` 来确保DOM更新完成后再添加CSS类，保证了动画的可靠触发。
-    - **4. 自动清理:** 填表流程结束后，通过 `updateMessageBlock` 重新渲染消息，这会自动移除 `thinking` 类并显示最终内容，无需手动清理。
-  - **结果:** 此项优化将原有的静态等待提示升级为了动态的、类似流式回复的“正在输入”动画，为用户提供了更直观、更流畅的交互反馈，显著提升了功能的整体体验。
-  - **受影响文件:**
-    - `index.js`
-
-v2.0.74:
-- **最终修复：统一所有数据修改路径的广播机制**
-  - **问题:** 经过v2.0.72的重构后，前端页面依然存在需要手动刷新才能看到更新的问题。经排查，原因是数据广播调用 `ext_broadcastTableData()` 只被添加到了手动触发的 `executeTableEditActions` 函数中，而由AI回复触发的常规、自动的表格更新流程（`parseTableEditTag` 函数）在修改数据后并未调用广播，导致事件丢失。
-  - **实现方式:**
-    - **1. 补充广播调用:** 在 `index.js` 的 `parseTableEditTag` 函数中，于 `sheets.forEach(sheet => sheet.save(piece, true))` 保存数据之后，同样增加了对 `ext_broadcastTableData()` 的调用。
-    - **2. 强化前端初始化:** 在 `地图表格美化.html` 中，实现了更稳健的初始化逻辑。脚本会通过轮询等待 `TavernHelper` 和插件API完全加载后，再注册事件监听器并获取初始数据，避免了因加载顺序问题导致的监听失败。
-  - **结果:** 此修复确保了无论是手动还是自动（AI驱动）的表格数据修改，在保存后都会立即触发一次数据广播。结合前端稳健的初始化逻辑，彻底解决了数据更新延迟和需要手动刷新的问题，实现了真正意义上的动态实时刷新。
-  - **受影响文件:**
-    - `index.js`
-    - `地图表格美化.html`
-
-v2.0.73:
-- **优化：移除填表后的强制页面刷新**
-  - **问题:** 在实现了动态数据推送（v2.0.72）后，原有的 `reloadCurrentChat()` 强制刷新页面的功能已变得多余，甚至会因为打断用户操作而降低体验。
-  - **实现方式:**
-    - **1. 移除刷新调用:** 在 `scripts/runtime/separateTableUpdate.js` 文件中，定位到 `manualSummaryChat` 函数末尾的 `reloadCurrentChat()` 调用，并将其移除。
-    - **2. 清理无用导入:** 删除了该文件中对 `reloadCurrentChat` 的 `import` 语句。
-  - **结果:** 现在，填表操作完成后，应用将完全依赖新建的事件广播机制来更新前端UI，不再触发强制性的页面刷新，使得用户体验更加流畅和无缝。
-  - **受影响文件:**
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.72:
-- **核心功能重构：实现表格数据的动态实时推送**
-  - **问题:** 原有的表格导出宏 `{{GET_ALL_TABLES_JSON}}` 和 API 函数 `ext_exportAllTablesAsJson` 均为静态调用，外部应用（如 `地图表格美化.html`）只有在重新加载或手动刷新时才能获取最新数据，用户体验不佳。
-  - **实现方式:**
-    - **1. 新增数据广播模块:** 在 `scripts/settings/standaloneAPI.js` 文件中，新增了 `ext_broadcastTableData` 函数。此函数负责获取最新的全量表格数据，并通过 `TavernHelper.eventEmit` API，以 `'table_data_updated'` 为事件名，将数据实时广播出去。
-    - **2. 集成到核心执行流:** 在 `index.js` 文件的核心数据处理函数 `executeTableEditActions` 中，于所有表格修改和保存操作完成之后，立即调用 `ext_broadcastTableData()`。这确保了任何数据的变更都会被即时推送。
-    - **3. 改造前端模板:** 对 `地图表格美化.html` 进行了彻底改造。移除了原有的静态宏 `{{GET_ALL_TABLES_JSON}}`，转而使用 `TavernHelper.eventOn('table_data_updated', ...)` 来监听数据更新事件。在 `init` 函数中，通过直接调用API获取初版数据并渲染，同时设置监听器，一旦接收到新的数据推送，就会调用 `updateFullInterface` 函数来无缝刷新整个前端界面。
-  - **结果:** 成功将插件的数据导出机制从“被动拉取”升级为“主动推送”。现在，任何对表格数据的修改都会被实时、自动地反映到所有监听该事件的前端应用中，极大地提升了数据的同步性和用户体验的流畅性，为未来更多需要实时数据交互的功能奠定了坚实基础。
-  - **受影响文件:**
-    - `scripts/settings/standaloneAPI.js`
-    - `index.js`
-    - `地图表格美化.html`
-
-v2.0.71:
-- **最终核心修复：在指令执行层统一数据源，彻底解决实例不一致问题**
-  - **问题:** 经过多轮修复后，所有表格操作依然报错“表格不存在”。这表明问题的根源在于最核心的指令执行函数 `executeTableEditActions` (位于 `index.js`)，它错误地信任了从上游调用链传递下来的 `referencePiece` 对象。该对象在传递过程中，其内部的表格（`Sheet`）类实例被破坏（如通过`JSON.stringify`），导致执行层收到的是没有方法的纯数据对象，从而引发崩溃。
-  - **实现方式:**
-    - **1. 修改核心执行函数:** 对 `index.js` 中的 `executeTableEditActions` 函数进行了根本性修改。
-    - **2. 强制使用权威数据源:** 该函数现在完全忽略传入的 `referencePiece` 中的表格数据。取而代之，它在执行任何操作前，都通过 `BASE.getChatSheets()` 直接从系统核心获取当前激活的、具有完整类方法的 `Sheet` 实例数组。
-    - **3. 确保保存到正确位置:** 保存操作也被修改，确保所有更改都通过 `USER.getChatPiece()` 保存到当前最新的聊天片段中，而不是过时的 `referencePiece`。
-  - **结果:** 此修复在整个系统的“最后一道防线”——指令执行层——强制实现了数据源的统一。无论上游代码如何传递数据，执行层始终操作最权威、最新的表格实例。这从根本上杜绝了所有因数据实例不一致而引发的连锁错误，彻底解决了该BUG。
-  - **受影响文件:**
-    - `index.js`
-
-v2.0.70:
-- **核心修复：通过移除深拷贝彻底解决“立即填表”的数据实例丢失问题**
-  - **问题:** v2.0.69的修复解决了空表撤销的问题，但“表格不存在”的错误依然发生。根本原因是在 `manualSummaryChat` 函数中使用了 `JSON.parse(JSON.stringify())` 来创建聊天片段（piece）的副本。这个操作虽然隔离了数据，但也破坏了表格（`Sheet`）对象的类实例，将其降级为纯粹的JSON对象，导致所有依赖类方法的下游函数（如 `executeAction`）因找不到方法而崩溃。
-  - **实现方式:**
-    - **1. 移除不安全的拷贝:** 在 `scripts/runtime/separateTableUpdate.js` 的 `manualSummaryChat` 函数中，完全移除了 `JSON.parse(JSON.stringify(referencePiece))` 这段代码。
-    - **2. 采用直接引用传递:** 现在，从 `USER.getChatPiece()` 获取的原始 `referencePiece` 对象（包含完整的 `Sheet` 类实例和方法）被直接传递给 `executeIncrementalUpdateFromSummary` 函数。
-    - **3. 简化数据同步:** 由于所有操作现在都直接在权威的 `referencePiece` 实例上进行，修改会自动反映到主数据流中，因此移除了之前用于手动同步 `hash_sheets` 的冗余代码。
-  - **结果:** 该修复确保了从数据获取到执行的整个链路中，表格对象始终保持其完整的类实例。这从根本上解决了因实例丢失而导致的“表格不存在”或“方法未定义”的崩溃问题，使“立即填表”功能在所有场景下（包括空表和已有数据的表）都能稳定、正确地运行。
-  - **受影响文件:**
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.69:
-- **核心修复：修复了“立即填表”在空表上执行时导致崩溃的BUG**
-  - **问题:** “立即填表”功能被设计为“撤销并重做”的原子操作。在执行时，它会首先尝试恢复到上一个表格状态（`undoSheets`）。然而，当用户在一个全新的、空的表格上触发此功能时，不存在“上一个状态”，导致恢复操作错误地清除了当前的空表结构，后续的填表指令因找不到目标表格而失败，最终导致内容消失和程序崩溃。
-  - **实现方式:**
-    - **1. 增加前置检查:** 在 `scripts/runtime/separateTableUpdate.js` 的 `manualSummaryChat` 函数中，于执行 `undoSheets` 之前，增加了一个判断逻辑。
-    - **2. 条件性撤销:** 现在，只有当 `initialPiece.hash_sheets` 存在且包含至少一个表格时，程序才会执行“撤销”操作。如果检测到当前是一个空表，则会跳过撤销步骤，直接进入后续的填表流程。
-  - **结果:** 此修复确保了“立即填表”功能在处理新创建的空表格时行为正确，避免了因错误的“撤销”操作而引发的崩溃。现在，用户可以安全地对任何状态下的表格（无论是空的还是已填充的）使用此功能，而不会丢失数据或遇到错误。
-  - **受影响文件:**
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.68:
-- **核心重构：将“立即填表”改造为“撤销并重做”的原子操作**
-  - **问题:** “立即填表”功能缺乏明确的“撤销重填”机制。如果用户对本轮自动填表的结果不满意，无法一键恢复到填表前的状态并立刻重新执行，操作流程繁琐且不直观。
-  - **实现方式:**
-    - **1. 重构核心函数:** 对 `scripts/runtime/separateTableUpdate.js` 文件中的 `manualSummaryChat` 函数进行了彻底的逻辑重构。
-    - **2. 增加恢复步骤:** 在函数执行的初始阶段，强制从“上一轮”包含表格的聊天记录中获取表格数据 (`hash_sheets`)，并用它完全覆盖当前聊天记录的表格。这确保了每次执行都是从一个干净、已知的状态开始，等同于“撤销”了本轮的所有更改。
-    - **3. 复用标准流程:** 在完成“恢复”之后，程序会以此为基础，继续调用标准的 `executeIncrementalUpdateFromSummary` 函数，向AI发起请求并处理返回的指令。
-  - **结果:** “立即填表”功能现在的行为变得高度可预测和健壮。它不再是简单的“继续填”，而是变成了一个统一的“撤销本轮修改并重新填表”的原子操作，极大地优化了用户在需要反复调整表格时的体验。
-  - **受影响文件:**
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.67:
-- **核心修复：统一分步填表的响应处理逻辑**
-  - **问题:** “分步填表”功能在处理AI返回的指令时，使用了一套自定义的、复杂的清洗逻辑来提取`<tableEdit>`标签中的内容。这套逻辑与插件在接收常规消息后自动更新表格时所使用的标准解析流程不一致，导致行为不稳定和潜在的解析错误。
-  - **实现方式:**
-    - **1. 重构响应处理部分:** 修改了 `scripts/runtime/absoluteRefresh.js` 文件中的 `executeIncrementalUpdateFromSummary` 函数。
-    - **2. 废除自定义清洗逻辑:** 完全移除了该函数中用于手动查找、截取和移除注释的复杂代码。
-    - **3. 采用标准提取函数:** 现在，该函数直接调用 `index.js` 中导出的标准函数 `getTableEditTag` 来提取AI响应中的指令。这确保了它与常规的、由新消息触发的表格更新流程使用完全相同的原始数据进行处理。
-  - **结果:** 通过统一AI响应的清洗和提取步骤，彻底解决了因处理流程不一致而导致的错误。现在，“分步填表”功能在处理AI指令时，与常规填表流程完全保持一致，显著提升了其稳定性和可预测性。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.66:
-- **核心重构：统一分步填表的实现策略**
-  - **问题:** “分步填表”（又称“独立填表”）功能使用了一套与插件内标准增量更新完全不同的、基于私有XML标签（`<tableEdit>`）的陈旧机制。这种不一致的实现导致其行为不可预测、难以维护，且经常出错。
-  - **实现方式:**
-    - **1. 重写核心执行函数:** 对 `scripts/runtime/absoluteRefresh.js` 文件中的 `executeIncrementalUpdateFromSummary` 函数进行了完全重构。
-    - **2. 统一AI交互模型:** 新的实现废除了原有的私有XML格式，现在要求AI返回标准的JSON指令数组（例如 `[{ "action": "insert", "tableIndex": 0, ... }]`），与插件的常规“增量更新”功能保持完全一致。
-    - **3. 统一提示词策略:** 不再使用复杂的、特定于分步填表的提示词模板。现在该功能将复用常规增量更新的 `refresh_system_message_template` 和 `refresh_user_message_template` 提示词，简化了配置并确保了AI交互的稳定性。
-    - **4. 标准化处理流程:** 整个从API接收响应到执行操作的流程，包括响应清洗、JSON解析、操作验证和指令执行，都已替换为与常规增量更新完全相同的健壮逻辑。
-  - **结果:** “分步填表”功能现在已经完全融入了插件的标准数据处理流程中。这次重构从根本上解决了由双重标准和陈旧代码引起的不稳定和错误，大幅提升了功能的可靠性和可维护性。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.65:
-- **配置调整：恢复API上下文限制**
-  - **问题:** 根据v2.0.60的更新，API的`max_tokens`默认值被回退到了`8192`，这可能限制了长文本任务的性能。为了提供更大的灵活性，需要将其恢复到之前较高的值。
-  - **实现方式:**
-    - **1. 修改API服务配置:** 在 `services/llmApi.js` 文件中，将 `max_tokens` 的默认值从 `8192` 修改回 `63000`。
-  - **结果:** 恢复了更大的API上下文限制，以支持需要处理更长文本的场景，同时为用户提供了更高的灵活性。
-  - **受影响文件:**
-    - `services/llmApi.js`
-
-v2.0.64:
-- **功能增强：为独立填表功能增加读取世界书的选项**
-  - **问题:** 用户希望在独立填表时，可以选择性地将角色绑定的世界书内容作为上下文，以提高填表的灵活性。
-  - **实现方式:**
-    - **1. 新增UI控件:** 在 `assets/templates/index.html` 文件中，于“独立填表”的上下文层数输入框旁边，增加了一个名为“读取世界书”的复选框（ID: `separateReadLorebook`），并附带了“不建议大Token卡使用”的提示。
-    - **2. 增加设置项:** 在 `data/pluginSetting.js` 的 `defaultSettings` 中，为 `separateReadLorebook` 增加了默认值 `false`。
-    - **3. 持久化设置:** 在 `scripts/settings/userExtensionSetting.js` 中，为新的复选框添加了事件监听器，确保其状态能够被保存。同时，更新了 `renderSetting` 函数，使其在加载时能够正确显示已保存的状态。
-    - **4. 修改核心逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中，修改了获取世界书内容的逻辑。现在，只有当 `separateReadLorebook` 复选框被勾选时，程序才会执行获取世界书内容的代码，否则 `lorebookContent` 将保持为空字符串。
-  - **结果:** 用户现在可以在独立填表时，通过一个简单的勾选项来决定是否将角色绑定的世界书内容包含在上下文中，从而更精细地控制输入给AI的信息。
-  - **受影响文件:**
-    - `assets/templates/index.html`
-    - `data/pluginSetting.js`
-    - `scripts/settings/userExtensionSetting.js`
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.63:
-- **功能增强：新增$4占位符以引用角色世界书内容**
-  - **问题:** 用户需要在提示词中动态引用当前角色卡绑定的世界书（Lorebook）内容，但缺少相应的占位符。
-  - **实现方式:**
-    - **1. 修改核心刷新逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中增加了新的处理逻辑。
-    - **2. 集成TavernHelper API:** 在函数执行的早期阶段，调用 `TavernHelper.getCharLorebooks` 来获取当前角色所有绑定的世界书（包括主要和附加的）。
-    - **3. 提取并合并内容:** 遍历获取到的世界书列表，使用 `TavernHelper.getLorebookEntries` 提取每个世界书内所有条目的`content`字段，并将它们合并成一个单一的字符串。
-    - **4. 新增占位符替换:** 在 `replacePlaceholders` 辅助函数中，增加了对 `$4` 占位符的处理，将其替换为前面步骤中合并好的世界书内容字符串。
-  - **结果:** 用户现在可以在提示词模板中使用 `$4` 占位符，从而方便地将角色专属的世界观、背景设定等信息动态注入到提示中，极大地增强了提示词的灵活性和场景适应性。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-
-v2.0.62:
-- **核心修复：解决自定义API设置刷新后失效的问题**
-  - **问题:** 用户在自定义API设置页面输入的URL、密钥、模型名称、代理地址和代理密钥等信息，在页面刷新后会全部丢失。
-  - **根本原因:** 在 `scripts/settings/userExtensionSetting.js` 文件中，相关的输入事件监听器只将用户的输入更新到了内存中的 `USER.IMPORTANT_USER_PRIVACY_DATA` 对象，但没有调用 `USER.saveSettings()` 方法将这些更改持久化保存。
-  - **实现方式:**
-    - **1. 修改设置保存逻辑:** 对 `scripts/settings/userExtensionSetting.js` 文件中处理以下控件的事件监听器进行了修改：
-        - `custom_api_url` (API URL 输入框)
-        - `custom_api_key` (API Key 输入框)
-        - `custom_model_name` (模型名称 输入框)
-        - `model_selector` (模型下拉选择器)
-        - `table_proxy_address` (代理地址 输入框)
-        - `table_proxy_key` (代理密钥 输入框)
-    - **2. 增加持久化调用:** 在上述每个事件监听器中，当用户输入或选择发生变化并更新到内存对象后，立即增加了 `USER.saveSettings && USER.saveSettings();` 的调用。
-  - **结果:** 用户的自定义API设置现在可以被正确地实时保存。刷新页面后，所有设置项将保持不变，彻底解决了数据丢失问题，提升了用户体验的连续性和可靠性。
-  - **受影响文件:**
-    - `scripts/settings/userExtensionSetting.js`
-
-v2.0.61:
-- **功能增强：优化分步填表确认流程**
-  - **问题:** “分步填表”功能的确认提示框选项不够灵活，用户希望有更精细的控制。
-  - **实现方式:**
-    - **1. 改造确认弹窗组件:** 在 `components/popupConfirm.js` 中，对 `newPopupConfirm` 组件进行了扩展。
-        - 增加了一个新的状态 `alwaysConfirmPopups`，用于在当前会话中记录“总是确认”的弹窗。
-        - 增加了新的参数 `alwaysConfirmText`，用于创建“一直选是”按钮。该按钮会触发一个新事件 `'always_confirm_selected'`，将弹窗ID添加到 `alwaysConfirmPopups` 中。
-        - `newPopupConfirm` 现在会检查 `alwaysConfirmPopups` 状态，如果命中，则直接返回 `true`，实现“会话内自动确认”的效果，但弹窗本身依然会显示，允许用户覆盖选择。
-    - **2. 更新调用逻辑:** 在 `scripts/runtime/separateTableUpdate.js` 中，修改了对 `newPopupConfirm` 的调用。
-        - 将原有的 `dontRemindText`（永久禁用）的按钮文本从“一直选是”修改为“不再提示”。
-        - 新增了 `alwaysConfirmText` 参数，值为“一直选是”，从而在界面上增加了这个新选项。
-  - **结果:** 用户现在对“分步填表”的确认流程有了更细致的控制，可以选择“本次执行”、“取消”、“会话内一直执行”或“永久不再提示”，提升了用户体验。
-  - **受影响文件:**
-    - `components/popupConfirm.js`
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.60:
-- **配置调整：Deepseek API 上下文限制回退**
-  - **问题:** Deepseek API 的默认上下文限制（`max_tokens`）被设置为一个较大的值（20000+），可能导致性能问题或与API的实际限制不符。
-  - **实现方式:**
-    - **1. 修改API服务:** 在 `services/llmApi.js` 文件中，将 `max_tokens` 的默认值从 `63000`（先前由20000调整而来）回退到 `8192`。
-  - **结果:** 恢复了更稳定、更兼容的API上下文限制，以确保服务的正常运行。
-  - **受影响文件:**
-    - `services/llmApi.js`
-
-v2.0.59:
-- **核心逻辑重构与最终修复：统一数据源并增强宏健壮性**
-  - **问题:** 经过多轮修复，宏导出功能在处理包含特殊字符或`null`/`undefined`值的单元格时，仍会偶尔生成无效JSON，导致下游解析失败。
-  - **根本原因:** `JSON.stringify` 在处理一个包含非纯字符串元素的数组时，其行为可能不符合预期（例如 `null` 会被转为 `"null"` 字符串，`undefined` 会被转为 `null`），这与手动拼接字符串的逻辑冲突，导致最终的JSON格式错误。
-  - **实现方式 (最终修复方案):**
-    - **1. 数据类型净化 (治本):** 在 `scripts/settings/standaloneAPI.js` 的 `ext_exportAllTablesAsJson` 函数中，采用了最稳妥的数据清洗方案。在序列化之前，通过 `rawContent.map(row => row.map(cell => String(cell ?? '')))` 强制将二维数组中的每一个单元格都转换为字符串类型。`null` 和 `undefined` 被安全地转换为空字符串 `''`。
-    - **2. 依赖标准序列化:** 在确保了输入数据源是纯净的字符串数组后，程序可以放心地使用标准的 `JSON.stringify` 来序列化整个数据对象，这是最可靠且无副作用的做法。
-    - **3. 统一数据源逻辑:** 保留了 `absoluteRefresh.js` 和 `separateTableUpdate.js` 中所有填表功能都以“上一层”表格为基础的统一逻辑。
-    - **4. 保留整页刷新:** 保留了 `reloadCurrentChat()` 作为最终的数据同步方式，确保UI和所有组件的绝对一致性。
-  - **结果:** 通过在导出数据的最源头进行严格的数据类型净化，彻底解决了所有已知的数据污染和JSON格式错误问题。结合统一的数据源逻辑和可靠的页面刷新机制，插件的稳定性和可预测性达到了最终形态。
-  - **受影响文件:**
-    - `scripts/settings/standaloneAPI.js`
-    - `scripts/runtime/absoluteRefresh.js`
-    - `scripts/runtime/separateTableUpdate.js`
-
-v2.0.58:
-- **功能增强：独立填表（原分步填表）上下文选择**
-  - **问题:** “独立填表”功能原先默认使用最新的AI回复作为上下文（`$1`），缺乏灵活性。
-  - **实现方式:**
-    - **1. 新增UI控件:** 在 `assets/templates/index.html` 的“立即填表”按钮旁，增加了一个数字输入框 `separateReadContextLayers`，允许用户自定义作为上下文的最新AI回复数量。
-    - **2. 修改核心逻辑:** 在 `scripts/runtime/absoluteRefresh.js` 的 `executeIncrementalUpdateFromSummary` 函数中，修改了占位符的处理逻辑：
-        - 从新的输入框中读取用户设定的层数。
-        - 调用 `getRecentChatHistory` 函数，根据设定的层数获取相应数量的最新AI回复，并将其赋值给 `$1` 占位符作为上下文。
-        - 将原先需要处理的聊天记录（`chatToBeUsed`）改由 `$2` 占位符传递。
-    - **3. 持久化设置:** 在 `scripts/settings/userExtensionSetting.js` 中，为新的输入框添加了事件监听，确保用户设置的层数值能够被正确保存和加载。
-  - **结果:** 用户现在可以灵活地控制“独立填表”时使用的上下文范围，提升了该功能的可用性和精确度。
-  - **受影响文件:**
-    - `assets/templates/index.html`
-    - `scripts/runtime/absoluteRefresh.js`
-    - `scripts/settings/userExtensionSetting.js`
-
-v2.0.57:
-- **最终综合修复：彻底解决独立填表的数据流、执行与序列化问题**
-  - **问题 1 (数据源与保存不一致):** 在整个独立填表流程中，存在多个数据实例不一致的风险点。`separateTableUpdate.js` 获取操作数据源时不够稳定；`index.js` 在执行完指令后，又从一个全新的实例中保存数据。这导致了操作在过时或错误的数据上进行，并且保存的也不是经过修改的实例，是“内容消失”和“宏失效”的根本原因。
-  - **实现方式 1:**
-    - **1. 统一数据源获取:** 在 `scripts/runtime/separateTableUpdate.js` 中，强制使用 `BASE.getLastSheetsPiece()` 来获取 `referencePiece`，确保操作总是基于包含有效表格的最新聊天记录。
-    - **2. 统一数据保存目标:** 在 `index.js` 的 `executeTableEditActions` 函数中，移除了重新获取 `savePiece` 的逻辑，确保所有 `sheet.save()` 操作都将修改持久化到传入的、且被修改过的同一个 `referencePiece` 实例上，保证了数据流的原子性。
-
-  - **问题 2 (数据污染与序列化错误):** AI返回的数据中可能包含无效的转义字符（如 `\'`），这些字符在被存入单元格后，会导致 `JSON.stringify`（被 `GET_ALL_TABLES_JSON` 等宏使用）生成格式错误的JSON字符串，从而引发下游的 `JSON.parse` 错误。
-  - **实现方式 2:**
-    - **1. 新增清洗工具:** 在 `index.js` 中增加了 `fixUnescapedSingleQuotes` 函数，用于递归清理数据对象中的无效转义字符。
-    - **2. 执行前清洗:** 在 `executeAction` 函数中，对所有即将被写入单元格的数据（`action.data`）调用此清洗函数，从源头上杜绝了脏数据的产生。
-  
-  - **结果:** 通过对数据流的“获取 -> 修改 -> 保存”全链路进行闭环，并增加对上游（AI）数据的清洗环节，彻底解决了独立填表功能中所有已知的数据不一致、执行错误、内容丢失及宏失效问题，确保了功能的端到端健壮性。
-  - **受影响文件:**
-    - `index.js`
-    - `scripts/runtime/separateTableUpdate.js`
-v2.0.56:
-- **核心修复：解决了独立填表功能中数据丢失和填表为空的根本问题**
-  - **问题 1 (数据丢失):** “独立填表”功能在获取操作所依据的表格数据时，错误地使用了 `BASE.getReferencePiece()`，这可能导致获取到的是一个过时的、非当前的表格实例。所有基于这个旧实例的修改在UI刷新后都会丢失，因为UI显示的是最新的、从未被修改过的表格。
-  - **实现方式 1:**
-    - **1. 修正数据源获取:** 修改了 `scripts/runtime/separateTableUpdate.js` 中的 `manualSummaryChat` 函数。
-    - **2. 采用最新实例:** 不再调用 `BASE.getReferencePiece()`，而是通过 `USER.getChatPiece()` 来获取当前激活的、最新的聊天片段（piece）作为操作的 `referencePiece`。
-    - **结果 1:** 此修改确保了“独立填表”的所有操作都基于用户当前看到的、最权威的数据版本，彻底解决了因数据源不一致导致的内容“假性”修改和最终丢失的问题。
-
-  - **问题 2 (填表为空/不填表):** 在执行表格更新操作时，位于 `core/table/oldTableActions.js` 中的 `handleCellValue` 函数存在逻辑缺陷。它无法正确处理AI返回的 `null` 或 `undefined` 值，一律将其转换为空字符串 `''`，导致单元格被清空。此外，该文件内包含了冗余的、已失效的新旧系统判断逻辑。
-  - **实现方式 2:**
-    - **1. 重构表格操作:** 对 `core/table/oldTableActions.js` 进行了整体重写。
-    - **2. 简化逻辑:** 移除了所有关于新旧表格系统（`Sheet` vs `table`）的判断分支，统一为直接操作普通表格对象的健壮逻辑。
-    - **3. 强化值处理:** 重写了 `handleCellValue` 函数，使其能够明确、正确地处理 `null` 和 `undefined`（统一转换为空字符串 `''`），并能稳健地处理数字、布尔值等其他数据类型，防止了无效或非预期的值被填入表格。
-    - **结果 2:** 从根本上解决了因AI返回空值或非标数据而导致的“填表为空”或“不填表”的问题，大幅提升了填表操作的稳定性和准确性。
-  - **受影响文件:**
-    - `scripts/runtime/separateTableUpdate.js`
-    - `core/table/oldTableActions.js`
-v2.0.55:
-- **最终修复：通过统一数据源获取方式，彻底解决实例不一致问题**
-  - **问题:** 经过反复排查，确认问题的根源在于系统的不同部分获取了不同的表格（`Sheet`）对象实例。`separateTableUpdate.js` 和 `absoluteRefresh.js` 之间传递的 `latestSheets` 实例，在经过 `reloadCurrentChat()` 等操作后，与系统内核中最新的实例脱钩，导致数据不同步。
-  - **实现方式:**
-    - **1. 解耦函数依赖:** 修改了 `absoluteRefresh.js` 中的 `executeIncrementalUpdateFromSummary` 函数，移除了 `latestSheets` 参数。
-    - **2. 即时获取数据源:** `executeIncrementalUpdateFromSummary` 现在不再依赖外部传入的表格实例，而是在其函数内部、执行所有AI指令之前的那一刻，通过 `BASE.getChatSheets()` 方法主动获取当前最新的、唯一的表格实例。
-    - **3. 清理调用链:** 相应地，修改了 `separateTableUpdate.js` 中对 `executeIncrementalUpdateFromSummary` 的调用，不再传递表格实例参数。
-  - **结果:** 该方案确保了AI指令的**执行者**（`absoluteRefresh.js`）总是操作最权威、最新的数据源，彻底杜绝了因实例不一致导致的数据不同步和“无效索引”等连锁错误。这是针对此问题的最终、最根本的修复。
-  - **受影响文件:**
-    - `scripts/runtime/absoluteRefresh.js`
-    - `scripts/runtime/separateTableUpdate.js`

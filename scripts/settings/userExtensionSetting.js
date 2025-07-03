@@ -146,6 +146,22 @@ async function importTableSet() {
             try {
                 const importedData = JSON.parse(e.target.result); // 解析 JSON 文件内容
 
+                // 检查并处理暂存数据
+                if (importedData.__stashData) {
+                    const stashConfirm = await EDITOR.callGenericPopup(
+                        '此预设文件包含暂存数据。是否要用它覆盖当前的暂存数据？',
+                        EDITOR.POPUP_TYPE.CONFIRM,
+                        '导入暂存数据确认',
+                        { okButton: "覆盖", cancelButton: "跳过" }
+                    );
+                    if (stashConfirm) {
+                        localStorage.setItem('table_stash_data', JSON.stringify(importedData.__stashData));
+                        EDITOR.success('暂存数据已导入并覆盖。');
+                    }
+                    // 从导入数据中移除暂存数据，以防它被错误地写入设置
+                    delete importedData.__stashData;
+                }
+
                 // 获取导入 JSON 的第一级 key
                 const firstLevelKeys = Object.keys(importedData);
 
@@ -175,7 +191,7 @@ async function importTableSet() {
                 renderSetting(); // 重新渲染设置界面，应用新的设置
                 // 重新转换模板
                 initTableStructureToTemplate()
-                BASE.refreshTempView(true) // 刷新模板视图
+                BASE.refreshTempView() // 刷新模板视图
                 EDITOR.success('导入成功并已重置所选设置'); // 提示用户导入成功
 
             } catch (error) {
@@ -231,7 +247,7 @@ async function resetSettings() {
         renderSetting()
         if('tableStructure' in filterData){
             initTableStructureToTemplate()
-            BASE.refreshTempView(true)
+            BASE.refreshTempView()
         }
         EDITOR.success('已重置所选设置');
     } catch (error) {
@@ -627,6 +643,7 @@ export function initTableStructureToTemplate() {
         newTemplate.required = defaultTemplate.Required
         newTemplate.triggerSend = defaultTemplate.triggerSend
         newTemplate.triggerSendDeep = defaultTemplate.triggerSendDeep
+        newTemplate.isSendToContext = defaultTemplate.isSendToContext
         if(defaultTemplate.config)
             newTemplate.config = JSON.parse(JSON.stringify(defaultTemplate.config))
         newTemplate.source.data.note = defaultTemplate.note
@@ -658,6 +675,7 @@ function templateToTableStructure() {
             enable: template.enable,
             triggerSend: template.triggerSend,
             triggerSendDeep: template.triggerSendDeep,
+            isSendToContext:template.isSendToContext,
         }
     })
     USER.tableBaseSetting.tableStructure = tableTemplates
