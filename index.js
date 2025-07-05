@@ -802,6 +802,7 @@ jQuery(async () => {
     window.stMemoryEnhancement = {
         ext_getAllTables,
         ext_exportAllTablesAsJson,
+        VERSION,
     };
 
     // 版本检查

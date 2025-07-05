@@ -9,7 +9,7 @@ import { estimateTokenCount, handleCustomAPIRequest, handleMainAPIRequest } from
 import { profile_prompts } from "../../data/profile_prompts.js";
 import { refreshContextView } from "../editor/chatSheetsDataView.js";
 import { Form } from '../../components/formManager.js';
-import {refreshRebuildTemplate} from "../settings/userExtensionSetting.js"
+import { refreshRebuildTemplate } from "../settings/userExtensionSetting.js"
 
 // 在解析响应后添加验证
 function validateActions(actions) {
@@ -191,8 +191,8 @@ export function initRefreshTypeSelector() {
  * @param {string} chatToBeUsed 要使用的聊天记录,为空则使用最近的聊天记录
  * @returns {Promise<void>}
  */
-export async function getPromptAndRebuildTable(templateName = '', additionalPrompt ,force, isSilentUpdate = USER.tableBaseSetting.bool_silent_refresh, chatToBeUsed = '') {
-    let r='';
+export async function getPromptAndRebuildTable(templateName = '', additionalPrompt, force, isSilentUpdate = USER.tableBaseSetting.bool_silent_refresh, chatToBeUsed = '') {
+    let r = '';
     try {
         // 根据提示模板类型选择不同的表格处理函数
         // const force = $('#bool_force_refresh').prop('checked');
@@ -232,7 +232,7 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
         if (!piece) {
             throw new Error('findLastestTableData 未返回有效的表格数据');
         }
-        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets).filter(sheet=>sheet.enable);
+        const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets).filter(sheet => sheet.enable);
         DERIVED.any.waitingTable = latestTables;
 
         const oldTable = sheetsToTables(latestTables)
@@ -271,13 +271,13 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
 
         // 构建AI提示
         const select = USER.tableBaseSetting.lastSelectedTemplate ?? "rebuild_base"
-        const template = select === "rebuild_base"? {
+        const template = select === "rebuild_base" ? {
             name: "rebuild_base",
             system_prompt: USER.tableBaseSetting.rebuild_default_system_message_template,
             user_prompt_begin: USER.tableBaseSetting.rebuild_default_message_template,
         } : USER.tableBaseSetting.rebuild_message_template_list[select]
-        if(!template) {
-            console.error('未找到对应的提示模板，请检查配置',select, template);
+        if (!template) {
+            console.error('未找到对应的提示模板，请检查配置', select, template);
             EDITOR.error('未找到对应的提示模板，请检查配置');
             return;
         }
@@ -294,7 +294,7 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
             parsedSystemPrompt = systemPrompt
         }
 
-        const replacePrompt = (input)=>{
+        const replacePrompt = (input) => {
             let output = input
             output = output.replace(/\$0/g, originText);
             output = output.replace(/\$1/g, lastChats);
@@ -303,14 +303,14 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
             return output
         }
 
-        if(typeof parsedSystemPrompt === 'string') {
+        if (typeof parsedSystemPrompt === 'string') {
             // 搜索systemPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats
             parsedSystemPrompt = replacePrompt(parsedSystemPrompt);
-        }else{
-            parsedSystemPrompt = parsedSystemPrompt.map(mes => ({...mes, content: replacePrompt(mes.content)}))
+        } else {
+            parsedSystemPrompt = parsedSystemPrompt.map(mes => ({ ...mes, content: replacePrompt(mes.content) }))
         }
 
-        
+
         // 搜索userPrompt中的$0和$1字段，将$0替换成originText，将$1替换成lastChats，将$2替换成空表头
         userPrompt = userPrompt.replace(/\$0/g, originText);
         userPrompt = userPrompt.replace(/\$1/g, lastChats);
@@ -320,7 +320,7 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
         console.log('systemPrompt:', parsedSystemPrompt);
         // console.log('userPrompt:', userPrompt);
 
-        
+
 
         // 生成响应内容
         let rawContent;
@@ -368,7 +368,7 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
         }
 
         const temp = USER.tableBaseSetting.rebuild_message_template_list[USER.tableBaseSetting.lastSelectedTemplate];
-        if(temp && temp.parseType === 'text'){
+        if (temp && temp.parseType === 'text') {
             const previewHtml = `
                 <div>
                     <div style="margin-bottom: 10px; display: flex; align-items: center;">
@@ -376,7 +376,7 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
                     </div>
                     <textarea id="rebuild_text_preview" rows="10" style="width: 100%">${rawContent}</textarea>
                 </div>`;
-            
+
             const popup = new EDITOR.Popup(previewHtml, EDITOR.POPUP_TYPE.TEXT, '', { wide: true });
             await popup.show()
             return
@@ -422,7 +422,7 @@ export async function rebuildTableActions(force = false, silentUpdate = USER.tab
 
                 // 更新聊天记录
                 const chat = USER.getContext().chat;
-                const {piece} = USER.getChatPiece()
+                const { piece } = USER.getChatPiece()
                 if (piece) {
                     convertOldTablesToNewSheets(clonedTables, piece)
                     await USER.getContext().saveChat(); // 等待保存完成
@@ -480,12 +480,12 @@ export async function refreshTableActions(force = false, silentUpdate = false, c
         const latestTables = BASE.hashSheetsToSheets(piece.hash_sheets);
         DERIVED.any.waitingTable = latestTables;
 
+        let chat = USER.getContext().chat;
         let originText = '<表格内容>\n' + latestTables
             .map((table, index) => table.getTableText(index, ['title', 'node', 'headers', 'rows']))
             .join("\n");
 
         // 获取最近clear_up_stairs条聊天记录
-        let chat = USER.getContext().chat;
         const lastChats = chatToBeUsed === '' ? await getRecentChatHistory(chat, USER.tableBaseSetting.clear_up_stairs, USER.tableBaseSetting.ignore_user_sent) : chatToBeUsed;
 
         // 构建AI提示
@@ -779,13 +779,13 @@ export async function rebuildSheets() {
     const defaultTemplate = USER.tableBaseSetting?.lastSelectedTemplate || 'rebuild_base';
     $selector.val(defaultTemplate);
     // 更新模板信息显示
-    if(defaultTemplate === 'rebuild_base') {
+    if (defaultTemplate === 'rebuild_base') {
         $templateInfo.text("默认模板，适用于Gemini，Grok，DeepSeek，使用聊天记录和表格信息重建表格，应用于初次填表、表格优化等场景。破限来源于TT老师。");
-    }else{
+    } else {
         const templateInfo = temps[defaultTemplate]?.info || '无模板信息';
         $templateInfo.text(templateInfo);
     }
-    
+
 
     // 监听选择器变化
     $selector.on('change', function () {
@@ -794,8 +794,8 @@ export async function rebuildSheets() {
         $templateInfo.text(template.info || '无模板信息');
     })
 
-    
-    
+
+
     const confirmation = new EDITOR.Popup(container, EDITOR.POPUP_TYPE.CONFIRM, '', {
         okButton: "继续",
         cancelButton: "取消"
@@ -958,7 +958,7 @@ async function getRecentChatHistory(chat, chatStairs, ignoreUserSent = false, to
 }
 
 // 测试清理效果
-window.testFuncClean = function(strTest) {
+window.testFuncClean = function (strTest) {
     strTest = ``
     cleanApiResponse(strTest)
 };
@@ -1016,7 +1016,7 @@ function cleanApiResponse(rawContent, options = {}) {
     if (normalizeTableStructure) {
         // 标准化表格结构，处理tablename到columns部分，中文引号改为英文引号
         const regex = /([\"“”])tableName\1\s*:\s*([\"“”])(.+?)\2\s*,\s*([\"“”])tableIndex\4\s*:\s*(\d+)\s*,\s*([\"“”])columns(?:[\"“”]?)/g;
-        content =  content.replace(regex, (match, g1QuoteKeyTable, g2QuoteValueTable, g3TableName, g4QuoteKeyIndex, g5TableIndex, g6QuoteKeyColumns) => {
+        content = content.replace(regex, (match, g1QuoteKeyTable, g2QuoteValueTable, g3TableName, g4QuoteKeyIndex, g5TableIndex, g6QuoteKeyColumns) => {
             return `"tableName":"${g3TableName}","tableIndex":${g5TableIndex},"columns"`;
         });
         console.log("normalizeTableStructure", content)
@@ -1044,26 +1044,26 @@ function cleanApiResponse(rawContent, options = {}) {
 
             let columns;
             try {
-              columns = JSON.parse(normalizedColumnsArrayStr);
-              if (!Array.isArray(columns) || !columns.every(col => typeof col === 'string')) {
-                console.warn("警告: 'columns' 部分解析后不是一个有效的字符串数组。原始片段:", columnsArrayStr, "处理后尝试解析:", normalizedColumnsArrayStr, "解析结果:", columns);
-                return match;
-              }
+                columns = JSON.parse(normalizedColumnsArrayStr);
+                if (!Array.isArray(columns) || !columns.every(col => typeof col === 'string')) {
+                    console.warn("警告: 'columns' 部分解析后不是一个有效的字符串数组。原始片段:", columnsArrayStr, "处理后尝试解析:", normalizedColumnsArrayStr, "解析结果:", columns);
+                    return match;
+                }
             } catch (e) {
-              console.warn("警告: 解析 'columns' 数组失败。错误:", e, "原始片段:", columnsArrayStr, "处理后尝试解析:", normalizedColumnsArrayStr);
-              return match;
+                console.warn("警告: 解析 'columns' 数组失败。错误:", e, "原始片段:", columnsArrayStr, "处理后尝试解析:", normalizedColumnsArrayStr);
+                return match;
             }
 
             let contentRows;
             try {
-              contentRows = JSON.parse(normalizedContentArrayStr);
-              if (!Array.isArray(contentRows)) {
-                console.warn("警告: 'content' 部分解析后不是一个有效的数组。原始片段:", contentArrayStr, "处理后尝试解析:", normalizedContentArrayStr, "解析结果:", contentRows);
-                return match;
-              }
+                contentRows = JSON.parse(normalizedContentArrayStr);
+                if (!Array.isArray(contentRows)) {
+                    console.warn("警告: 'content' 部分解析后不是一个有效的数组。原始片段:", contentArrayStr, "处理后尝试解析:", normalizedContentArrayStr, "解析结果:", contentRows);
+                    return match;
+                }
             } catch (e) {
-              console.warn("警告: 解析 'content' 数组失败。错误:", e, "原始片段:", contentArrayStr, "处理后尝试解析:", normalizedContentArrayStr);
-              return match;
+                console.warn("警告: 解析 'content' 数组失败。错误:", e, "原始片段:", contentArrayStr, "处理后尝试解析:", normalizedContentArrayStr);
+                return match;
             }
 
             const numColumns = columns.length;
@@ -1071,30 +1071,30 @@ function cleanApiResponse(rawContent, options = {}) {
             let allRowsValid = true;
 
             for (const row of contentRows) {
-              if (!Array.isArray(row) || row.length !== numColumns) {
-                console.warn(`警告: 内容行与列数 (${numColumns}) 不匹配或行本身不是数组。行数据:`, row);
-                allRowsValid = false;
-                break;
-              }
-              if (!row.every(cell => typeof cell === 'string')) {
-                console.warn("警告: 内容行中并非所有单元格都是字符串。行数据:", row);
-                allRowsValid = false;
-                break;
-              }
-              validatedContentRows.push(row);
+                if (!Array.isArray(row) || row.length !== numColumns) {
+                    console.warn(`警告: 内容行与列数 (${numColumns}) 不匹配或行本身不是数组。行数据:`, row);
+                    allRowsValid = false;
+                    break;
+                }
+                if (!row.every(cell => typeof cell === 'string')) {
+                    console.warn("警告: 内容行中并非所有单元格都是字符串。行数据:", row);
+                    allRowsValid = false;
+                    break;
+                }
+                validatedContentRows.push(row);
             }
 
             if (!allRowsValid) {
-              console.warn("警告: 'content' 数组的某些行未通过验证，该 'columns'-'content' 片段将不会被修改。");
-              return match;
+                console.warn("警告: 'content' 数组的某些行未通过验证，该 'columns'-'content' 片段将不会被修改。");
+                return match;
             }
 
             const finalColumnsStr = JSON.stringify(columns);
             const finalContentStr = JSON.stringify(validatedContentRows);
 
             return `"columns":${finalColumnsStr},"content":${finalContentStr}`;
-          });
-          console.log("normalizeAndValidateColumnsContentPairs", content)
+        });
+        console.log("normalizeAndValidateColumnsContentPairs", content)
     }
     if (removeBlockComments) {
         // 移除 /* ... */ 形式的块注释
@@ -1176,11 +1176,11 @@ function fixTableFormat(inputText) {
             const regex = /\[(?:[^\[\]"]|"(?:\\.|[^"\\])*"|\{[^{}]*?\})*?\]/g;
             let match;
             const candidates = [];
-            while((match = regex.exec(text)) !== null) {
+            while ((match = regex.exec(text)) !== null) {
                 try {
                     JSON5.parse(match[0]);
                     candidates.push(match[0]);
-                } catch(e) { /* 忽略无效的JSON */ }
+                } catch (e) { /* 忽略无效的JSON */ }
             }
             if (candidates.length > 0) return candidates.sort((a, b) => b.length - a.length)[0];
             const simpleCandidates = text.match(/\[[^\[\]]*\]/g) || [];
@@ -1329,7 +1329,7 @@ function fixTableFormat(inputText) {
  */
 export async function modifyRebuildTemplate() {
     const selectedTemplate = USER.tableBaseSetting.lastSelectedTemplate;
-    const sheetConfig= {
+    const sheetConfig = {
         formTitle: "编辑表格总结模板",
         formDescription: "设置总结时的提示词结构，$0为当前表格数据，$1为上下文聊天记录，$2为表格模板[表头]数据，$3为用户输入的附加提示",
         fields: [
@@ -1339,9 +1339,9 @@ export async function modifyRebuildTemplate() {
         ],
     }
     let initialData = null
-    if(selectedTemplate === 'rebuild_base') 
+    if (selectedTemplate === 'rebuild_base')
         return EDITOR.warning('默认模板不能修改，请新建模板');
-    else 
+    else
         initialData = USER.tableBaseSetting.rebuild_message_template_list[selectedTemplate]
     const formInstance = new Form(sheetConfig, initialData);
     const popup = new EDITOR.Popup(formInstance.renderForm(), EDITOR.POPUP_TYPE.CONFIRM, '', { okButton: "保存", allowVerticalScrolling: true, cancelButton: "取消" });
@@ -1364,7 +1364,7 @@ export async function modifyRebuildTemplate() {
  * 新建重整理模板
  */
 export async function newRebuildTemplate() {
-    const sheetConfig= {
+    const sheetConfig = {
         formTitle: "新建表格总结模板",
         formDescription: "设置表格总结时的提示词结构，$0为当前表格数据，$1为上下文聊天记录，$2为表格模板[表头]数据，$3为用户输入的附加提示",
         fields: [
@@ -1383,9 +1383,9 @@ export async function newRebuildTemplate() {
     await popup.show();
     if (popup.result) {
         const result = formInstance.result();
-        const name  = createUniqueName(result.name)
+        const name = createUniqueName(result.name)
         result.name = name;
-        USER.tableBaseSetting.rebuild_message_template_list={
+        USER.tableBaseSetting.rebuild_message_template_list = {
             ...USER.tableBaseSetting.rebuild_message_template_list,
             [name]: result
         }
@@ -1613,7 +1613,7 @@ export async function executeIncrementalUpdateFromSummary(
             console.log('User Prompt for API:', userPromptForApi);
             console.log('Estimated token count:', estimateTokenCount(systemPromptForApi + (userPromptForApi || '')));
         }
-        
+
         let rawContent;
         if (useMainAPI) { // Using Main API
             try {
@@ -1631,7 +1631,7 @@ export async function executeIncrementalUpdateFromSummary(
                 }
             } catch (error) {
                 console.error('主API请求错误:', error);
-                EDITOR.error('主API请求错误: ' + error.message,error);
+                EDITOR.error('主API请求错误: ' + error.message, error);
                 return 'error';
             }
         } else { // Using Custom API
@@ -1651,7 +1651,7 @@ export async function executeIncrementalUpdateFromSummary(
             EDITOR.error('API响应内容无效或为空。');
             return 'error';
         }
-        
+
         // **核心修复**: 使用与常规填表完全一致的 getTableEditTag 函数来提取指令
         const { matches } = getTableEditTag(rawContent);
 
@@ -1660,11 +1660,11 @@ export async function executeIncrementalUpdateFromSummary(
             return 'success';
         }
 
-        try{
+        try {
             // 将提取到的、未经修改的原始指令数组传递给执行器
             executeTableEditActions(matches, referencePiece)
-        }catch(e){
-            EDITOR.error("执行表格操作指令时出错: " , e.message, e);
+        } catch (e) {
+            EDITOR.error("执行表格操作指令时出错: ", e.message, e);
             console.error("错误原文: ", matches.join('\n'));
         }
         USER.saveChat()
