@@ -629,13 +629,15 @@ async function renderSheetsDOM() {
 
     const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
     sheets.forEach((sheet) => {
+        // [二次修复] 增加对单元格是否存在的检查，防止因数据不一致导致渲染失败
         sheet.hashSheet = sheet.hashSheet.filter((row) => {
-            return (sheet.cells.get(row[0]).isDeleted !== true);
-        })
+            const cell = sheet.cells.get(row[0]);
+            return cell && cell.isDeleted !== true;
+        });
         sheet.cells.forEach((cell) => {
             cell.isDeleted = false;
-        })
-    })
+        });
+    });
     console.log('renderSheetsDOM:', piece, sheets)
     DERIVED.any.renderingSheets = sheets
     task.log()

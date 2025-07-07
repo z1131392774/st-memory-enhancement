@@ -204,7 +204,10 @@ export function initTableData(eventData) {
 export function getTablePrompt(eventData, isPureData = false, ignoreToChatFilter = false) {
     // 优先使用传入的 piece (eventData)，如果不是有效的 piece，则回退到 getReferencePiece
     const lastSheetsPiece = (eventData && eventData.hash_sheets) ? eventData : BASE.getReferencePiece();
-    if(!lastSheetsPiece) return ''
+    // [二次修复] 增加对 lastSheetsPiece 的有效性检查，防止在没有有效数据时继续执行
+    if (!lastSheetsPiece || !lastSheetsPiece.hash_sheets) {
+        return '';
+    }
     console.log("获取到的参考表格数据", lastSheetsPiece)
     return getTablePromptByPiece(lastSheetsPiece, isPureData, ignoreToChatFilter)
 }
@@ -681,18 +684,18 @@ async function onMessageReceived(chat_id) {
         const chat = USER.getContext().chat[chat_id];
         const originalMessage = chat.mes;
 
-        // 1. 直接操作DOM，清空消息并显示'thinking'状态，避免因message为空刷新导致的错误
+        // 1. [已修复] 使用非破坏性的CSS visibility来隐藏消息，而不是修改内容
         const messageElement = TavernHelper.retrieveDisplayedMessage(chat_id);
         if (messageElement) {
-            messageElement.find('.mes_text').html('').addClass('thinking');
+            messageElement.find('.mes_text').css('visibility', 'hidden').addClass('thinking');
         }
 
         // 2. 以新模式执行分步填表，并等待其完成
         const success = await TableTwoStepSummary("auto_wait", originalMessage);
 
         // 3. 恢复原始消息内容并更新UI
-        // 重新渲染会自动移除 'thinking' class
         chat.mes = originalMessage;
+        // 最终的updateMessageBlock会重绘整个消息，自动恢复visibility
         USER.getContext().updateMessageBlock(chat_id, chat, { rerenderMessage: true });
         await USER.getContext().saveChat(); // 确保所有更改都已保存
 

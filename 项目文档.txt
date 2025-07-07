@@ -1,3 +1,18 @@
+v2.1.1-runtime-error-hotfix
+- **稳定性修复：集中修复三个关联的运行时错误**
+  - **问题:** 用户报告了三个在特定操作流程下依次出现的运行时错误，这些错误共同导致了插件功能中断和UI渲染失败。
+    - 1. `TypeError: Cannot read properties of undefined (reading 'getAttribute')`: 在`onMessageReceived`事件中，不安全地直接操作操作D导致状态崩溃。崩溃
+    - 2. `TypeError: Cannot read properties of undefined (reading 'isDeleted')`: 在渲染表格视图时，由于hashSheet`中存在已删除的单元格引用），导致访问`un导致in`undefined`的
+    - 3. `TypeError: Cannot read properties of undefined (reading 'data')`: 在生成提示词时，由于聊天记录为空或试从`un导致efined`对象中读取数据。
+  - **实现方式 (关联修复):**
+    - **1. 修复DOMM操作 (`index.js`):** 在 `onMessageReceived` 函数a将直接(DOM操作'(t.html('').addClasn(')替ink换Tg')a)v替换为调用MessageB官方APIocUSER.getContext().k()`。通过该API安全地切换消息()的。通过该思考中安全地切换破坏。“思考中”和最终内容状态避免对破坏
+    - **2. 增强渲染健壮性 (`scripts/editor/chatSheetsDataView.js`):** rSheetsDOM` 函数的 `filter` 逻辑中，增加了对单元格存在性的检查。在访问 `.isDeleted` 属性前，先确认 `sheet.cells.get(row[0])` 能否返回有效对象，从而过滤掉无效的行引用，防止渲染崩溃。渲染崩溃
+    - **3. 增强提示词生成健壮性 (`index.js`):** blePrompt` 函数中，增加了对 `lastSheetsPiece` 对象的有效性检查。如果该对象或其 `hash_sheets` 属性不存在，则立即返回空字符串，中断后续流程，防止因数据缺失而引发错误。
+  - **结果:** 通过从根源上修复不安全的DOMM操作，并为后续的数据处理和渲染流程增加健壮性检查，彻底解决了这一连锁错误。插件现在能够更稳定地处理异常数据和边界情况，提升了整体的可靠性。
+  - **受影响文件:**
+    - `index.js`
+    - `scripts/editor/chatSheetsDataView.js`
+
 v2.e.m-final-independent-structure-export-fix:
 - **功能增强：实现独立填表结构（提示词）的导入导出**
   - **问题:** 用户在导出设置时，无法将“收到消息后填表”策略下的“独立填表整体结构”（即`step_by_step_user_prompt`）一并导出，导致在不同环境下导入预设后需要手动重新配置。
@@ -187,3 +202,31 @@ v2.e.m-final:
   - **受影响文件:**
     - `scripts/runtime/separateTableUpdate.js`
     - `index.js` (虽然未再次修改，但其逻辑依赖于本次重构)
+
+analysis-20250705-1111:
+- **分析任务：探查记忆插件图标在主界面的实现方式**
+  - **目标:** 找出插件代码如何实现在酒馆主界面顶部添加其功能图标。
+  - **分析过程:**
+    - **1. 入口点分析 (`index.js`):** 检查插件主文件，发现 `jQuery(async () => { ... });` 代码块是插件UI初始化的起点。其中，以下代码是关键：
+      ```javascript
+      // 添加顶部表格管理工具弹窗
+      $('#extensions-settings-button').after(await SYSTEM.getTemplate('appHeaderTableDrawer'));
+      ```
+      这行代码明确定位了酒馆右上角的“扩展设置”按钮 (`#extensions-settings-button`)，并利用 `.after()` 方法在其后方注入了一个名为 `appHeaderTableDrawer` 的HTML模板。
+
+    - **2. UI模板分析 (`assets/templates/appHeaderTableDrawer.html`):** 查看该HTML文件，找到了图标的定义：
+      ```html
+      <div id="table_drawer_icon" class="drawer-icon fa-solid fa-bars-progress fa-fw closedIcon interactable" ...></div>
+      ```
+      该 `div` 使用了 Font Awesome 图标库的 `fa-bars-progress` 类来显示一个具体的图标。`id="table_drawer_icon"` 则为后续的JavaScript交互提供了钩子。
+
+    - **3. 交互逻辑分析 (`scripts/renderer/appHeaderTableBaseDrawer.js`):**
+      - **事件绑定:** 在 `index.js` 中，通过 `$(document).on('click', '#table_drawer_icon', ...)` 将图标的点击事件与 `openAppHeaderTableDrawer` 函数关联起来。
+      - **功能实现:** `openAppHeaderTableDrawer` 函数负责实现抽屉的展开与折叠。它通过动态切换CSS类 (`openIcon`/`closedIcon`, `openDrawer`/`closedDrawer`) 并调用 `EDITOR.slideToggle` 动画，实现了平滑的视觉效果。
+
+  - **结论:**
+    插件通过**动态HTML注入**的方式，在酒馆主界面的一个已知元素（扩展设置按钮）旁边创建了它的图标。图标的交互功能（点击后展开抽屉菜单）则是通过**事件委托和JavaScript逻辑**实现的，该逻辑负责处理动画和状态切换。
+  - **涉及文件:**
+    - `index.js`
+    - `assets/templates/appHeaderTableDrawer.html`
+    - `scripts/renderer/appHeaderTableBaseDrawer.js`
