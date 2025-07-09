@@ -917,14 +917,18 @@ jQuery(async () => {
 
     executeTranslation(); // 执行翻译函数
 
-    // 监听主程序事件
-    APP.eventSource.on(APP.event_types.MESSAGE_RECEIVED, onMessageReceived);
-    APP.eventSource.on(APP.event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
-    APP.eventSource.on(APP.event_types.CHAT_CHANGED, onChatChanged);
-    APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
-    APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
-    APP.eventSource.on(APP.event_types.MESSAGE_DELETED, onChatChanged);
+    // 增加延迟，确保主程序完全加载后再绑定事件，防止竞态条件
+    setTimeout(() => {
+        // 监听主程序事件
+        APP.eventSource.on(APP.event_types.MESSAGE_RECEIVED, onMessageReceived);
+        APP.eventSource.on(APP.event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
+        APP.eventSource.on(APP.event_types.CHAT_CHANGED, onChatChanged);
+        APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
+        APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
+        APP.eventSource.on(APP.event_types.MESSAGE_DELETED, onChatChanged);
+        console.log("______________________记忆插件：事件监听器已激活______________________");
+    }, 500); // 500毫秒延迟
 
-    
+
     console.log("______________________记忆插件：加载完成______________________")
 });
