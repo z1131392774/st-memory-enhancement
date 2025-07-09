@@ -65,19 +65,18 @@ function checkPrototype(dataTable) {
 }
 
 export async function buildSheetsByTemplates(targetPiece) {
-    // [最终方案] 在构建新表前，尝试从暂存区自动加载
-    const loadedFromStash = await autoImportFromStash();
-    if (loadedFromStash) {
-        // 使用防抖机制确保只在所有表格加载流程结束后刷新一次
-        clearTimeout(reloadDebounceTimer);
-        reloadDebounceTimer = setTimeout(() => {
-            console.log('[Memory Enhancement] index.js: 暂存恢复流程完成，执行刷新。');
-            reloadCurrentChat();
-        }, 1000); // 1秒的防抖延迟
-        return; // 如果加载成功，则终止后续的模板创建流程
+    // [修复] 仅在开始新对话时（通过消息数量判断）才尝试从暂存区自动加载
+    if (USER.getContext().chat.length < 3) {
+        const loadedFromStash = await autoImportFromStash();
+        if (loadedFromStash) {
+            // 如果从暂存区加载成功，则直接返回。
+            // `autoImportFromStash` 内部的 `processImportedData` 已经处理了数据应用和UI渲染。
+            // 移除原有的 `reloadCurrentChat()`，因为它会导致不必要的全局刷新，造成“覆盖”的错觉。
+            return;
+        }
     }
 
-    // 如果没有从暂存区加载，则按原计划从模板创建
+    // 如果不是新对话，或者暂存区为空，则按原计划从模板创建
     BASE.sheetsData.context = [];
     // USER.getChatPiece().hash_sheets = {};
     const templates = BASE.templates

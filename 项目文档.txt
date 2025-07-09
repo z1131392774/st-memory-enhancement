@@ -1,3 +1,13 @@
+v2.1.3-stash-import-logic-fix
+- **逻辑修复：修正暂存（Stash）数据的自动恢复时机**
+  - **问题:** 用户报告，每次刷新页面时，暂存的数据都会无条件覆盖当前对话中的表格，而预期的行为是只在开始一个全新的对话时才进行恢复。
+  - **实现方式:**
+    - **1. 修正调用时机:** 在 `index.js` 的 `buildSheetsByTemplates` 函数中，增加了对当前对话消息数量的判断。只有当消息数量小于3（即判定为新对话时），才会触发 `autoImportFromStash` 自动恢复逻辑。
+    - **2. 移除冗余刷新:** 从 `buildSheetsByTemplates` 函数中移除了从暂存恢复成功后不必要的 `reloadCurrentChat()` 调用。因为 `autoImportFromStash` 内部已经处理了UI渲染，全局刷新不仅多余，还会给用户造成“表格被覆盖”的错觉。
+  - **结果:** 此修复确保了自动恢复功能只在用户真正需要的场景（开始新对话）下被激活，而在刷新现有对话时会正确加载当前对话的表格数据，符合用户预期。
+  - **受影响文件:**
+    - `index.js`
+
 v2.1.2-race-condition-hotfix
 - **稳定性修复：解决页面刷新时因竞态条件引发的运行时错误**
   - **问题:** 用户在刷新页面后立即遇到 `TypeError: Cannot read properties of undefined (reading 'avatar')` 错误。经分析，这是由于插件在主程序（SillyTavern）数据（尤其是用户信息）完全加载前，过早地执行了依赖这些数据的操作，从而引发了典型的竞态条件（Race Condition）问题。
