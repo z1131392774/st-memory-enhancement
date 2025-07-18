@@ -3,6 +3,16 @@ import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import LLMApiService from "../../services/llmApi.js";
 import {PopupConfirm} from "../../components/popupConfirm.js";
 
+// @ts-ignore
+let ChatCompletionService = undefined;
+try {
+    // 动态导入，兼容模块不存在的情况
+    const module = await import('/scripts/custom-request.js');
+    ChatCompletionService = module.ChatCompletionService;
+} catch (e) {
+    console.warn("未检测到 /scripts/custom-request.js 或未正确导出 ChatCompletionService，将禁用代理相关功能。", e);
+}
+
 let loadingToast = null;
 let currentApiKeyIndex = 0;// 用于记录当前使用的API Key的索引
 
@@ -513,14 +523,32 @@ function maskApiKey(key) {
  */
 export async function updateModelList() {
     const apiUrl = $('#custom_api_url').val().trim();
-    const decryptedApiKeysString = await getDecryptedApiKey(); // 使用 getDecryptedApiKey 函数解密
+    const $selector = $('#model_selector');
+
+    if (!apiUrl) {
+        EDITOR.error('请输入API URL');
+        return;
+    }
+
+    const isCustomApi = apiUrl && !apiUrl.includes("api.openai.com");
+
+    if (isCustomApi) {
+        // 对于自定义API，由于环境兼容性问题，我们不再尝试自动获取模型列表
+        // 而是提示用户手动输入
+        console.log("检测到自定义API，跳过模型列表自动获取。");
+        EDITOR.info("对于自定义API，请在下方的“模型名称”字段中手动输入您的模型ID。");
+        $selector.empty()
+            .append($('<option>', { value: '', text: '请手动输入模型名称' }))
+            .prop('disabled', true);
+        return;
+    }
+
+    // --- 以下逻辑仅适用于官方或兼容的、非自定义API ---
+    $selector.prop('disabled', false);
+    const decryptedApiKeysString = await getDecryptedApiKey();
 
     if (!decryptedApiKeysString) {
         EDITOR.error('API key解密失败或未设置，请检查API key设置！');
-        return;
-    }
-    if (!apiUrl) {
-        EDITOR.error('请输入API URL');
         return;
     }
 
@@ -531,12 +559,6 @@ export async function updateModelList() {
         return;
     }
 
-    let foundValidKey = false;
-    const invalidKeysInfo = [];
-    let modelCount = 0; // 用于记录获取到的模型数量
-    const $selector = $('#model_selector');
-
-    // 规范化URL路径
     let modelsUrl;
     try {
         const normalizedUrl = new URL(apiUrl);
@@ -544,83 +566,66 @@ export async function updateModelList() {
         modelsUrl = normalizedUrl.href;
     } catch (e) {
         EDITOR.error(`无效的API URL: ${apiUrl}`);
-        console.error('URL解析失败:', e);
         return;
     }
 
+    let firstSuccessfulKeyIndex = -1;
+    let modelCount = 0;
+    const invalidKeysInfo = [];
+
     for (let i = 0; i < apiKeys.length; i++) {
+        if (firstSuccessfulKeyIndex !== -1) break; // Stop if we've succeeded
+
         const currentApiKey = apiKeys[i];
         try {
+            console.log(`[Fetch] 使用第 ${i + 1} 个 Key 直接获取模型...`);
             const response = await fetch(modelsUrl, {
-                headers: {
-                    'Authorization': `Bearer ${currentApiKey}`,
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Authorization': `Bearer ${currentApiKey}` }
             });
 
             if (!response.ok) {
-                let errorMsg = `请求失败: ${response.status}`;
-                try {
-                    const errorBody = await response.text();
-                    errorMsg += ` - ${errorBody}`;
-                } catch {}
-                throw new Error(errorMsg);
+                const errorText = await response.text();
+                throw new Error(`请求失败: ${response.status} ${response.statusText} - ${errorText}`);
             }
-
             const data = await response.json();
 
-            // 只有在第一次成功获取时才更新下拉框
-            if (!foundValidKey && data?.data?.length > 0) {
-                $selector.empty(); // 清空现有选项
+            if (data?.data?.length > 0) {
+                firstSuccessfulKeyIndex = i;
+                modelCount = data.data.length;
+
+                $selector.empty();
                 const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
                 let hasMatchedModel = false;
-
                 data.data.forEach(model => {
-                    $selector.append($('<option>', {
-                        value: model.id,
-                        text: model.id
-                    }));
-
-                    // 检查是否有模型名称与custom_model_name匹配
-                    if (model.id === customModelName) {
-                        hasMatchedModel = true;
-                    }
+                    $selector.append($('<option>', { value: model.id, text: model.id }));
+                    if (model.id === customModelName) hasMatchedModel = true;
                 });
-
-                // 如果有匹配的模型，则选中它
                 if (hasMatchedModel) {
                     $selector.val(customModelName);
                 }
-
-                foundValidKey = true;
-                modelCount = data.data.length; // 记录模型数量
-                // 不在此处显示成功消息，统一在最后处理
-            } else if (!foundValidKey && (!data?.data || data.data.length === 0)) {
-                 // 即使请求成功，但没有模型数据，也视为一种失败情况，记录下来
-                 throw new Error('请求成功但未返回有效模型列表');
+            } else {
+                throw new Error('请求成功但未返回有效模型列表');
             }
-            // 如果已经找到有效key并更新了列表，后续的key只做有效性检查，不再更新UI
-
         } catch (error) {
             console.error(`使用第 ${i + 1} 个 Key 获取模型失败:`, error);
             invalidKeysInfo.push({ index: i + 1, key: currentApiKey, error: error.message });
         }
     }
 
-    // 处理最终结果和错误提示
-    if (foundValidKey) {
-        EDITOR.success(`成功获取 ${modelCount} 个模型并更新列表 (共检查 ${apiKeys.length} 个Key)`);
+    // Final user feedback
+    if (firstSuccessfulKeyIndex !== -1) {
+        EDITOR.success(`成功获取 ${modelCount} 个模型 (使用第 ${firstSuccessfulKeyIndex + 1} 个 Key)`);
     } else {
         EDITOR.error('未能使用任何提供的API Key获取模型列表');
-        $selector.empty(); // 确保在所有key都无效时清空列表
-        $selector.append($('<option>', { value: '', text: '未能获取模型列表' }));
+        $selector.empty().append($('<option>', { value: '', text: '未能获取模型列表' }));
     }
 
-    if (invalidKeysInfo.length > 0) {
-        const errorDetails = invalidKeysInfo.map(item =>
-            `第${item.index}个Key (${maskApiKey(item.key)}) 无效: ${item.error}`
-        ).join('\n');
-        EDITOR.error(`以下API Key无效:\n${errorDetails}`);
+    if (invalidKeysInfo.length > 0 && firstSuccessfulKeyIndex !== -1) {
+        const errorDetails = invalidKeysInfo.map(item => `第${item.index}个Key`).join(', ');
+        EDITOR.info(`另外, ${errorDetails} 无效`);
+    } else if (invalidKeysInfo.length > 0 && firstSuccessfulKeyIndex === -1) {
+        const errorDetails = invalidKeysInfo.map(item => `第${item.index}个Key (${maskApiKey(item.key)}) 无效: ${item.error}`).join('\n');
+        EDITOR.error(`所有Key均无效:\n${errorDetails}`);
     }
 }
 /**
@@ -691,53 +696,69 @@ export function ext_getAllTables() {
  * @returns {Object}
  */
 export function ext_exportAllTablesAsJson() {
-    // 最终、最稳妥的方案：确保输入给 JSON.stringify 的数据是纯净的。
+    let exportData = {};
 
-    const { piece } = BASE.getLastSheetsPiece();
-    if (!piece || !piece.hash_sheets) {
-        console.warn("[Memory Enhancement] ext_exportAllTablesAsJson: 未找到任何有效的表格数据。");
-        return {};
-    }
-
-    const tables = BASE.hashSheetsToSheets(piece.hash_sheets);
-    if (!tables || tables.length === 0) {
-        return {};
-    }
-
-    const exportData = {};
-    tables.forEach(table => {
-        if (!table.enable) return; // 跳过禁用的表格
-
-        try {
-            const rawContent = table.getContent(true) || [];
-
-            // 深度清洗，确保所有单元格都是字符串类型。
-            // 这是防止因 undefined、null 或其他非字符串类型导致 JSON.stringify 行为异常的关键。
-            const sanitizedContent = rawContent.map(row =>
-                Array.isArray(row) ? row.map(cell =>
-                    String(cell ?? '') // 将 null 和 undefined 转换为空字符串，其他类型强制转换为字符串
-                ) : []
-            );
-
-            exportData[table.uid] = {
-                uid: table.uid,
-                name: table.name,
-                content: sanitizedContent
-            };
-        } catch (error) {
-            console.error(`[Memory Enhancement] 导出表格 ${table.name} (UID: ${table.uid}) 时出错:`, error);
-        }
-    });
-
-    // 直接序列化整个清洗过的对象。
-    // 如果这里依然出错，说明问题比预想的更复杂，但理论上这已经是JS中最标准的做法。
     try {
-        // 为了避免外层宏解析失败，我们直接返回字符串，让宏自己去解析。
-        return exportData;
-    } catch (e) {
-        console.error("[Memory Enhancement] 最终JSON序列化失败:", e);
-        return {}; // 发生意外时返回空对象
+        // [健壮性改造] 增加前置检查，防止在插件未完全加载或无聊天记录时崩溃。
+        const context = USER.getContext();
+        if (context && context.chat && context.chat.length > 0) {
+            // [数据源一致性] 调用已经过重构的函数链，确保从最新的本地数据生成实例。
+            const { piece } = BASE.getLastSheetsPiece();
+            if (piece && piece.hash_sheets) {
+                const tables = BASE.hashSheetsToSheets(piece.hash_sheets);
+                if (tables && tables.length > 0) {
+                    tables.forEach(table => {
+                        if (!table.enable) return; // 跳过禁用的表格
+
+                        try {
+                            // 注意：由于 hashSheetsToSheets 已确保实例是全新的，这里的 getContent 总是能获取到最新数据。
+                            const rawContent = table.getContent(true) || [];
+
+                            // 深度清洗，确保所有单元格都是字符串类型。
+                            const sanitizedContent = rawContent.map(row =>
+                                Array.isArray(row) ? row.map(cell =>
+                                    String(cell ?? '') // 将 null 和 undefined 转换为空字符串
+                                ) : []
+                            );
+
+                            exportData[table.uid] = {
+                                uid: table.uid,
+                                name: table.name,
+                                content: sanitizedContent
+                            };
+                        } catch (error) {
+                            console.error(`[Memory Enhancement] 导出表格 ${table.name} (UID: ${table.uid}) 时出错:`, error);
+                        }
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        console.error("[Memory Enhancement] 从聊天记录导出表格时发生意外错误:", error);
     }
+
+    try {
+        // [新增功能] 尝试从 localStorage 读取暂存的数据并合并
+        const stashedDataString = localStorage.getItem('table_stash_data');
+        if (stashedDataString) {
+            try {
+                const stashedData = JSON.parse(stashedDataString);
+                // 合并数据，当前聊天中的数据会覆盖暂存的数据
+                exportData = { ...stashedData, ...exportData };
+            } catch (parseError) {
+                console.warn("[Memory Enhancement] 解析 localStorage 中的暂存数据失败:", parseError);
+            }
+        }
+    } catch (error) {
+        console.error("[Memory Enhancement] 从 localStorage 读取暂存数据时发生意外错误:", error);
+    }
+
+    // 即使发生错误，也返回当前已成功导出的部分，确保函数不会崩溃
+    if (Object.keys(exportData).length === 0) {
+        console.warn("[Memory Enhancement] ext_exportAllTablesAsJson: 未能从任何来源导出有效数据。");
+    }
+    
+    return exportData;
 }
 
 /**
