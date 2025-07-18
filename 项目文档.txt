@@ -1,3 +1,32 @@
+v3.3.0-custom-api-proxy-toggle
+- **核心功能修复：为自定义API增加代理切换选项，解决非轮询API的授权问题**
+  - **问题:** 当用户使用非轮询（即不支持SillyTavern内部路由）的自定义API端点时，插件的API请求会因通过SillyTavern代理而导致`Unauthorized` (401) 或 `Bad Request` (400) 错误，因为这些API需要直接调用。
+  - **实现方式:**
+    - **1. 新增UI选项 (`assets/templates/index.html`):**
+        - 在“自定义独立API”设置区域，增加了一个新的复选框：“**通过酒馆代理API**”。
+        - 此复选框允许用户明确选择API请求的路径。
+    - **2. 增加配置项 (`data/pluginSetting.js`):**
+        - 在 `defaultSettings` 中新增了 `use_tavern_proxy` 配置项，默认为 `true`，以保持现有用户的行为不变（默认使用代理）。
+    - **3. 改造API请求逻辑 (`scripts/settings/standaloneAPI.js`):**
+        - 重构了 `handleCustomAPIRequest` (实际API调用) 和 `testApiConnection` (连接测试) 函数。
+        - **代理模式 (勾选):** 如果 `use_tavern_proxy` 为 `true`，则维持现有逻辑，通过 `LLMApiService` 发送请求，这能确保轮询和流式API的正常工作。
+        - **直接模式 (不勾选):** 如果为 `false`，则函数会切换到使用标准的 `fetch` API，直接向用户提供的 `apiUrl` 发送请求。请求的 `body` 和 `headers` 会被构造成符合OpenAI格式的标准，从而绕过SillyTavern代理，解决授权问题。
+    - **4. 绑定设置 (`scripts/settings/userExtensionSetting.js`):**
+        - 在 `InitBinging` 和 `renderSetting` 函数中增加了对新复选框的事件绑定和状态渲染，确保用户的选择能够被正确保存和加载。
+  - **结果:**
+    - **兼容性大幅提升:** 用户现在可以根据自己的API类型，自由选择是否通过SillyTavern的代理。
+    - **问题解决:** 对于需要直接调用的API（如本地部署的、不兼容酒馆路由的模型），取消勾选即可解决恼人的授权和请求错误，并且可以**正常获取模型列表**。
+    - **保留原有功能:** 对于需要轮询或流式传输的API，保持勾选即可继续使用原有功能。
+  - **给用户的建议:**
+    - 如果你的自定义API支持轮询或流式传输，请**勾选**此项。
+    - 如果你使用的是本地模型、或者任何不需要/不支持SillyTavern代理的API，并遇到了“Unauthorized”之类的错误，请**取消勾选**此项。**（获取模型列表功能也需要在此模式下使用）**
+  - **受影响文件:**
+    - `assets/templates/index.html`
+    - `data/pluginSetting.js`
+    - `scripts/settings/standaloneAPI.js`
+    - `scripts/settings/userExtensionSetting.js`
+    - `项目文档.txt` (新增此条目)
+
 v3.2.0-export-api-robustness
 - **功能增强与稳定性修复：优化 `ext_exportAllTablesAsJson` 接口并解决跨环境调用崩溃问题**
   - **问题 1:** `ext_exportAllTablesAsJson` 函数仅导出当前聊天记录中的表格，无法导出浏览器 `localStorage` 中的“暂存(Stash)”数据。

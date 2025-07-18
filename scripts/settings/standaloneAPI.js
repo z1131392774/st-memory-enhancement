@@ -292,21 +292,50 @@ export async function handleApiTestRequest(apiUrl, encryptedApiKeys, modelName) 
 export async function testApiConnection(apiUrl, apiKeys, modelName) {
     const results = [];
     const testPrompt = "Say 'test'"; // 测试用例
+    const useProxy = USER.tableBaseSetting.use_tavern_proxy;
 
     for (let i = 0; i < apiKeys.length; i++) {
         const apiKey = apiKeys[i];
-        console.log(`Testing API Key index: ${i}`);
+        console.log(`Testing API Key index: ${i} (Proxy: ${useProxy})`);
         try {
-            const llmService = new LLMApiService({
-                api_url: apiUrl,
-                api_key: apiKey,
-                model_name: modelName || 'gpt-3.5-turbo', // 使用用户设置的模型名称
-                system_prompt: 'You are a test assistant.',
-                temperature: 0.1 // 使用用户设置的温度
-            });
+            let response;
+            if (useProxy) {
+                // 使用SillyTavern代理 (现有逻辑)
+                const llmService = new LLMApiService({
+                    api_url: apiUrl,
+                    api_key: apiKey,
+                    model_name: modelName || 'gpt-3.5-turbo',
+                    system_prompt: 'You are a test assistant.',
+                    temperature: 0.1
+                });
+                response = await llmService.callLLM(testPrompt);
+            } else {
+                // 不使用代理，直接fetch
+                const directUrl = new URL(apiUrl);
+                if (!directUrl.pathname.endsWith('/chat/completions')) {
+                     directUrl.pathname = directUrl.pathname.replace(/\/$/, '') + '/chat/completions';
+                }
+                const responseFetch = await fetch(directUrl.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: modelName || 'gpt-3.5-turbo',
+                        messages: [{ role: 'user', content: testPrompt }],
+                        temperature: 0.1,
+                        stream: false
+                    })
+                });
 
-            // 调用API
-            const response = await llmService.callLLM(testPrompt);
+                if (!responseFetch.ok) {
+                    const errorBody = await responseFetch.text();
+                    throw new Error(`Request failed with status ${responseFetch.status}: ${errorBody}`);
+                }
+                const result = await responseFetch.json();
+                response = result?.choices?.[0]?.message?.content;
+            }
 
             if (response && typeof response === 'string') {
                 console.log(`API Key index ${i} test successful. Response: ${response}`);
@@ -339,10 +368,10 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
  */
 export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByStepSummary = false, isSilent = false) {
     const USER_API_URL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
-    const decryptedApiKeysString = await getDecryptedApiKey(); // 获取逗号分隔的密钥字符串
+    const decryptedApiKeysString = await getDecryptedApiKey();
     const USER_API_MODEL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-    // const MAX_RETRIES = USER.tableBaseSetting.custom_api_retries ?? 0; // 从设置中获取重试次数，默认为 0
-    const MAX_RETRIES = 0; // 从设置中获取重试次数，默认为 0
+    const MAX_RETRIES = 0;
+    const USE_TAVERN_PROXY = USER.tableBaseSetting.use_tavern_proxy;
 
     if (!USER_API_URL || !USER_API_MODEL) {
         EDITOR.error('请填写完整的自定义API配置 (URL 和模型)');
@@ -365,71 +394,97 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
     createLoadingToast(false, isSilent).then((r) => {
         if (loadingToast) loadingToast.close();
         suspended = r;
-    })
+    });
 
     const totalKeys = apiKeys.length;
     const attempts = MAX_RETRIES === 0 ? totalKeys : Math.min(MAX_RETRIES, totalKeys);
     let lastError = null;
 
     for (let i = 0; i < attempts; i++) {
-        if (suspended) break; // 检查用户是否中止了操作
+        if (suspended) break;
 
         const keyIndexToTry = currentApiKeyIndex % totalKeys;
         const currentApiKey = apiKeys[keyIndexToTry];
-        currentApiKeyIndex++; // 移动到下一个密钥，用于下一次整体请求
+        currentApiKeyIndex++;
 
-        console.log(`尝试使用API密钥索引进行API调用: ${keyIndexToTry}`);
+        console.log(`尝试使用API密钥索引进行API调用: ${keyIndexToTry} (代理: ${USE_TAVERN_PROXY})`);
         if (loadingToast) {
             loadingToast.text = `尝试使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key...`;
         }
 
-        try { // Outer try for the whole attempt with the current key
+        try {
+            let response;
             const promptData = Array.isArray(systemPrompt) ? systemPrompt : userPrompt;
-            let response; // Declare response variable
 
-            // --- ALWAYS Use llmService ---
-            console.log(`自定义API: 使用 llmService.callLLM (输入类型: ${Array.isArray(promptData) ? '多消息数组' : '单条消息'})`);
-            if (loadingToast) {
-                loadingToast.text = `正在使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key (llmService)...`;
-            }
-
-            const llmService = new LLMApiService({
-                api_url: USER_API_URL,
-                api_key: currentApiKey,
-                model_name: USER_API_MODEL,
-                // Pass empty system_prompt if promptData is array, otherwise pass the original systemPrompt string
-                system_prompt: Array.isArray(promptData) ? "" : systemPrompt,
-                temperature: USER.tableBaseSetting.custom_temperature,
-                table_proxy_address: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address,
-                table_proxy_key: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key
-            });
-
-            const streamCallback = (chunk) => {
-                if (loadingToast) {
-                    const modeText = isStepByStepSummary ? "(分步)" : ""; // isStepByStepSummary might be useful here still
-                    loadingToast.text = `正在使用第 ${keyIndexToTry + 1} 个Key生成${modeText}: ${chunk}`;
-                }
-            };
-
-            try {
-                // Pass promptData (which could be string or array) to callLLM
+            if (USE_TAVERN_PROXY) {
+                // ### 通过SillyTavern代理API (轮询/流式) ###
+                console.log(`自定义API: 使用 llmService.callLLM`);
+                const llmService = new LLMApiService({
+                    api_url: USER_API_URL,
+                    api_key: currentApiKey,
+                    model_name: USER_API_MODEL,
+                    system_prompt: Array.isArray(promptData) ? "" : systemPrompt,
+                    temperature: USER.tableBaseSetting.custom_temperature,
+                    table_proxy_address: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address,
+                    table_proxy_key: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key
+                });
+                const streamCallback = (chunk) => {
+                    if (loadingToast) {
+                        const modeText = isStepByStepSummary ? "(分步)" : "";
+                        loadingToast.text = `正在使用第 ${keyIndexToTry + 1} 个Key生成${modeText}: ${chunk}`;
+                    }
+                };
                 response = await llmService.callLLM(promptData, streamCallback);
-                console.log(`请求成功 (llmService, 密钥索引: ${keyIndexToTry}):`, response);
-                loadingToast?.close();
-                return suspended ? 'suspended' : response; // Success, return immediately
-            } catch (llmServiceError) {
-                // llmService failed, log error and continue loop
-                console.error(`API调用失败 (llmService)，密钥索引 ${keyIndexToTry}:`, llmServiceError);
-                lastError = llmServiceError;
-                EDITOR.error(`使用第 ${keyIndexToTry + 1} 个 Key 调用 (llmService) 失败: ${llmServiceError.message || '未知错误'}`);
-                // Let the loop continue to the next key
-            }
-            // If code reaches here, the llmService call failed for this key
 
-        } catch (error) { // This catch should ideally not be reached due to inner try/catch
-            console.error(`处理密钥索引 ${keyIndexToTry} 时发生意外错误:`, error);
+            } else {
+                // ### 直接调用API (无代理) ###
+                console.log(`自定义API: 使用 direct fetch`);
+                const directUrl = new URL(USER_API_URL);
+                 if (!directUrl.pathname.endsWith('/chat/completions')) {
+                     directUrl.pathname = directUrl.pathname.replace(/\/$/, '') + '/chat/completions';
+                }
+
+                let messages;
+                if (Array.isArray(promptData)) {
+                    messages = promptData;
+                } else {
+                    messages = [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userPrompt }
+                    ];
+                }
+
+                const responseFetch = await fetch(directUrl.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentApiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: USER_API_MODEL,
+                        messages: messages,
+                        temperature: USER.tableBaseSetting.custom_temperature,
+                        stream: false // 直接调用时，流式处理更复杂，暂不支持
+                    })
+                });
+
+                if (!responseFetch.ok) {
+                    const errorBody = await responseFetch.text();
+                    throw new Error(`请求失败，状态码 ${responseFetch.status}: ${errorBody}`);
+                }
+                const result = await responseFetch.json();
+                response = result?.choices?.[0]?.message?.content;
+            }
+
+            // --- 通用成功处理 ---
+            console.log(`请求成功 (密钥索引: ${keyIndexToTry}):`, response);
+            loadingToast?.close();
+            return suspended ? 'suspended' : response;
+
+        } catch (error) {
+            console.error(`API调用失败，密钥索引 ${keyIndexToTry}:`, error);
             lastError = error;
-            EDITOR.error(`处理第 ${keyIndexToTry + 1} 个 Key 时发生意外错误: ${error.message || '未知错误'}`);
+            EDITOR.error(`使用第 ${keyIndexToTry + 1} 个 Key 调用失败: ${error.message || '未知错误'}`);
         }
     }
 
@@ -443,60 +498,7 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
     const errorMessage = `所有 ${attempts} 次尝试均失败。最后错误: ${lastError?.message || '未知错误'}`;
     EDITOR.error(errorMessage);
     console.error('所有API调用尝试均失败。', lastError);
-    return `错误: ${errorMessage}`; // 返回一个明确的错误字符串
-
-    // // 公共请求配置 (Commented out original code remains unchanged)
-    // const requestConfig = {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json',
-    //         'Authorization': `Bearer ${USER_API_KEY}`
-    //     },
-    //     body: JSON.stringify({
-    //         model: USER_API_MODEL,
-    //         messages: [
-    //             { role: "system", content: systemPrompt },
-    //             { role: "user", content: userPrompt }
-    //         ],
-    //         temperature: USER.tableBaseSetting.custom_temperature
-    //     })
-    // };
-    //
-    // // 通用请求函数
-    // const makeRequest = async (url) => {
-    //     const response = await fetch(url, requestConfig);
-    //     if (!response.ok) {
-    //         const errorBody = await response.text();
-    //         throw { status: response.status, message: errorBody };
-    //     }
-    //     return response.json();
-    // };
-    // let firstError;
-    // try {
-    //     // 第一次尝试补全/chat/completions
-    //     const modifiedUrl = new URL(USER_API_URL);
-    //     modifiedUrl.pathname = modifiedUrl.pathname.replace(/\/$/, '') + '/chat/completions';
-    //     const result = await makeRequest(modifiedUrl.href);
-    //     if (result?.choices?.[0]?.message?.content) {
-    //         console.log('请求成功:', result.choices[0].message.content)
-    //         return result.choices[0].message.content;
-    //     }
-    // } catch (error) {
-    //     firstError = error;
-    // }
-    //
-    // try {
-    //     // 第二次尝试原始URL
-    //     const result = await makeRequest(USER_API_URL);
-    //     return result.choices[0].message.content;
-    // } catch (secondError) {
-    //     const combinedError = new Error('API请求失败');
-    //     combinedError.details = {
-    //         firstAttempt: firstError?.message || '第一次请求无错误信息',
-    //         secondAttempt: secondError.message
-    //     };
-    //     throw combinedError;
-    // }
+    return `错误: ${errorMessage}`;
 }
 
 /**请求模型列表
@@ -524,48 +526,41 @@ function maskApiKey(key) {
 export async function updateModelList() {
     const apiUrl = $('#custom_api_url').val().trim();
     const $selector = $('#model_selector');
+    const useProxy = USER.tableBaseSetting.use_tavern_proxy;
 
     if (!apiUrl) {
         EDITOR.error('请输入API URL');
         return;
     }
+    
+    // 启用选择器
+    $selector.prop('disabled', false).empty().append($('<option>', { value: '', text: '正在获取模型...' }));
 
-    const isCustomApi = apiUrl && !apiUrl.includes("api.openai.com");
-
-    if (isCustomApi) {
-        // 对于自定义API，由于环境兼容性问题，我们不再尝试自动获取模型列表
-        // 而是提示用户手动输入
-        console.log("检测到自定义API，跳过模型列表自动获取。");
-        EDITOR.info("对于自定义API，请在下方的“模型名称”字段中手动输入您的模型ID。");
-        $selector.empty()
-            .append($('<option>', { value: '', text: '请手动输入模型名称' }))
-            .prop('disabled', true);
-        return;
-    }
-
-    // --- 以下逻辑仅适用于官方或兼容的、非自定义API ---
-    $selector.prop('disabled', false);
     const decryptedApiKeysString = await getDecryptedApiKey();
-
     if (!decryptedApiKeysString) {
         EDITOR.error('API key解密失败或未设置，请检查API key设置！');
+        $selector.empty().append($('<option>', { value: '', text: 'API Key未设置' })).prop('disabled', true);
         return;
     }
 
     const apiKeys = decryptedApiKeysString.split(',').map(k => k.trim()).filter(k => k.length > 0);
-
     if (apiKeys.length === 0) {
         EDITOR.error('未找到有效的API Key，请检查输入。');
+        $selector.empty().append($('<option>', { value: '', text: '无有效API Key' })).prop('disabled', true);
         return;
     }
 
     let modelsUrl;
     try {
         const normalizedUrl = new URL(apiUrl);
-        normalizedUrl.pathname = normalizedUrl.pathname.replace(/\/$/, '') + '/models';
+        // 确保路径指向 /models
+        if (!normalizedUrl.pathname.endsWith('/models')) {
+            normalizedUrl.pathname = normalizedUrl.pathname.replace(/\/v1\/?$/, '') + '/v1/models';
+        }
         modelsUrl = normalizedUrl.href;
     } catch (e) {
         EDITOR.error(`无效的API URL: ${apiUrl}`);
+        $selector.empty().append($('<option>', { value: '', text: 'URL无效' })).prop('disabled', true);
         return;
     }
 
@@ -573,59 +568,78 @@ export async function updateModelList() {
     let modelCount = 0;
     const invalidKeysInfo = [];
 
-    for (let i = 0; i < apiKeys.length; i++) {
-        if (firstSuccessfulKeyIndex !== -1) break; // Stop if we've succeeded
+    // 尝试使用第一个key获取模型列表
+    const apiKeyToTry = apiKeys[0];
+    
+    try {
+        console.log(`[Fetch] 使用第一个 Key 获取模型 (代理: ${useProxy})...`);
+        let data;
 
-        const currentApiKey = apiKeys[i];
-        try {
-            console.log(`[Fetch] 使用第 ${i + 1} 个 Key 直接获取模型...`);
+        if (useProxy) {
+            // 通过酒馆代理获取
+            const llmService = new LLMApiService({
+                api_url: apiUrl,
+                api_key: apiKeyToTry,
+                model_name: '' // 不需要模型名称
+            });
+            // 注意：llmService中没有直接获取模型列表的方法，这里模拟一个错误，提示用户直接调用
+            throw new Error("模型列表获取不支持代理模式，请取消勾选“通过酒馆代理API”后重试。");
+            
+        } else {
+            // 直接获取
             const response = await fetch(modelsUrl, {
-                headers: { 'Authorization': `Bearer ${currentApiKey}` }
+                headers: { 'Authorization': `Bearer ${apiKeyToTry}` }
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`请求失败: ${response.status} ${response.statusText} - ${errorText}`);
             }
-            const data = await response.json();
-
-            if (data?.data?.length > 0) {
-                firstSuccessfulKeyIndex = i;
-                modelCount = data.data.length;
-
-                $selector.empty();
-                const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-                let hasMatchedModel = false;
-                data.data.forEach(model => {
-                    $selector.append($('<option>', { value: model.id, text: model.id }));
-                    if (model.id === customModelName) hasMatchedModel = true;
-                });
-                if (hasMatchedModel) {
-                    $selector.val(customModelName);
-                }
-            } else {
-                throw new Error('请求成功但未返回有效模型列表');
-            }
-        } catch (error) {
-            console.error(`使用第 ${i + 1} 个 Key 获取模型失败:`, error);
-            invalidKeysInfo.push({ index: i + 1, key: currentApiKey, error: error.message });
+            data = await response.json();
         }
+
+        if (data?.data?.length > 0) {
+            firstSuccessfulKeyIndex = 0; // 成功
+            modelCount = data.data.length;
+
+            $selector.empty();
+            const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
+            let hasMatchedModel = false;
+            
+            // 对模型列表进行排序
+            const sortedModels = data.data.sort((a, b) => a.id.localeCompare(b.id));
+
+            sortedModels.forEach(model => {
+                $selector.append($('<option>', { value: model.id, text: model.id }));
+                if (model.id === customModelName) hasMatchedModel = true;
+            });
+
+            if (hasMatchedModel) {
+                $selector.val(customModelName);
+            } else if (sortedModels.length > 0) {
+                // 如果没有匹配的模型，但列表不为空，则自动选择第一个
+                 $('#custom_model_name').val(sortedModels[0].id);
+                 USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = sortedModels[0].id;
+            }
+        } else {
+            throw new Error('请求成功但未返回有效模型列表');
+        }
+    } catch (error) {
+        console.error(`使用第一个 Key 获取模型失败:`, error);
+        invalidKeysInfo.push({ index: 1, key: apiKeyToTry, error: error.message });
     }
 
     // Final user feedback
     if (firstSuccessfulKeyIndex !== -1) {
-        EDITOR.success(`成功获取 ${modelCount} 个模型 (使用第 ${firstSuccessfulKeyIndex + 1} 个 Key)`);
+        EDITOR.success(`成功获取 ${modelCount} 个模型 (使用第一个 Key)`);
     } else {
-        EDITOR.error('未能使用任何提供的API Key获取模型列表');
-        $selector.empty().append($('<option>', { value: '', text: '未能获取模型列表' }));
+        EDITOR.error('获取模型列表失败。');
+        $selector.empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
     }
-
-    if (invalidKeysInfo.length > 0 && firstSuccessfulKeyIndex !== -1) {
-        const errorDetails = invalidKeysInfo.map(item => `第${item.index}个Key`).join(', ');
-        EDITOR.info(`另外, ${errorDetails} 无效`);
-    } else if (invalidKeysInfo.length > 0 && firstSuccessfulKeyIndex === -1) {
-        const errorDetails = invalidKeysInfo.map(item => `第${item.index}个Key (${maskApiKey(item.key)}) 无效: ${item.error}`).join('\n');
-        EDITOR.error(`所有Key均无效:\n${errorDetails}`);
+    
+    if (invalidKeysInfo.length > 0) {
+        const errorDetails = invalidKeysInfo.map(item => `第一个 Key (${maskApiKey(item.key)}) 无效: ${item.error}`).join('\n');
+        EDITOR.error(errorDetails);
     }
 }
 /**
