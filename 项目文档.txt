@@ -1,3 +1,157 @@
+v3.3.0-custom-api-proxy-toggle
+- **核心功能修复：为自定义API增加代理切换选项，解决非轮询API的授权问题**
+  - **问题:** 当用户使用非轮询（即不支持SillyTavern内部路由）的自定义API端点时，插件的API请求会因通过SillyTavern代理而导致`Unauthorized` (401) 或 `Bad Request` (400) 错误，因为这些API需要直接调用。
+  - **实现方式:**
+    - **1. 新增UI选项 (`assets/templates/index.html`):**
+        - 在“自定义独立API”设置区域，增加了一个新的复选框：“**通过酒馆代理API**”。
+        - 此复选框允许用户明确选择API请求的路径。
+    - **2. 增加配置项 (`data/pluginSetting.js`):**
+        - 在 `defaultSettings` 中新增了 `use_tavern_proxy` 配置项，默认为 `true`，以保持现有用户的行为不变（默认使用代理）。
+    - **3. 改造API请求逻辑 (`scripts/settings/standaloneAPI.js`):**
+        - 重构了 `handleCustomAPIRequest` (实际API调用) 和 `testApiConnection` (连接测试) 函数。
+        - **代理模式 (勾选):** 如果 `use_tavern_proxy` 为 `true`，则维持现有逻辑，通过 `LLMApiService` 发送请求，这能确保轮询和流式API的正常工作。
+        - **直接模式 (不勾选):** 如果为 `false`，则函数会切换到使用标准的 `fetch` API，直接向用户提供的 `apiUrl` 发送请求。请求的 `body` 和 `headers` 会被构造成符合OpenAI格式的标准，从而绕过SillyTavern代理，解决授权问题。
+    - **4. 绑定设置 (`scripts/settings/userExtensionSetting.js`):**
+        - 在 `InitBinging` 和 `renderSetting` 函数中增加了对新复选框的事件绑定和状态渲染，确保用户的选择能够被正确保存和加载。
+  - **结果:**
+    - **兼容性大幅提升:** 用户现在可以根据自己的API类型，自由选择是否通过SillyTavern的代理。
+    - **问题解决:** 对于需要直接调用的API（如本地部署的、不兼容酒馆路由的模型），取消勾选即可解决恼人的授权和请求错误，并且可以**正常获取模型列表**。
+    - **保留原有功能:** 对于需要轮询或流式传输的API，保持勾选即可继续使用原有功能。
+  - **给用户的建议:**
+    - 如果你的自定义API支持轮询或流式传输，请**勾选**此项。
+    - 如果你使用的是本地模型、或者任何不需要/不支持SillyTavern代理的API，并遇到了“Unauthorized”之类的错误，请**取消勾选**此项。**（获取模型列表功能也需要在此模式下使用）**
+  - **受影响文件:**
+    - `assets/templates/index.html`
+    - `data/pluginSetting.js`
+    - `scripts/settings/standaloneAPI.js`
+    - `scripts/settings/userExtensionSetting.js`
+    - `项目文档.txt` (新增此条目)
+
+v3.2.0-export-api-robustness
+- **功能增强与稳定性修复：优化 `ext_exportAllTablesAsJson` 接口并解决跨环境调用崩溃问题**
+  - **问题 1:** `ext_exportAllTablesAsJson` 函数仅导出当前聊天记录中的表格，无法导出浏览器 `localStorage` 中的“暂存(Stash)”数据。
+  - **问题 2 (核心):** 当其他插件或宏在记忆插件未加载的环境（如酒馆的欢迎界面）中调用此API时，由于 `globalThis.stMemoryEnhancement` 对象本身为 `undefined`，导致调用方程序崩溃。
+  - **实现方式:**
+    - **1. 增强导出功能 (`scripts/settings/standaloneAPI.js`):**
+        - 重构了 `ext_exportAllTablesAsJson` 函数。
+        - 新逻辑会**优先**从 `localStorage` 中读取并解析暂存数据。
+        - 随后，它会尝试从当前聊天记录中读取表格数据。
+        - 最后，使用 `...` 扩展运算符将两者合并，**当前聊天的数据会覆盖暂存区中的同名表格**，确保了数据的时效性。
+        - 整个过程被包裹在 `try...catch` 块中，确保即使一部分数据源（如 `localStorage`）损坏或不存在，函数也能返回另一部分有效数据，而不是崩溃。
+    - **2. 诊断并明确根本原因 (`index.js` / 文档):**
+        - 经过排查，确认了在欢迎页等场景下，记忆插件的JS文件根本不会被加载，因此 `globalThis.stMemoryEnhancement` 必然是 `undefined`。
+        - **结论:** 这个问题**无法在记忆插件内部解决**。任何时序调整都无效，因为代码执行权不在本插件。
+        - **解决方案:** 将 `index.js` 中关于API注册的代码恢复原状，并在项目文档中明确指出，**调用方必须采取防御性编程**。
+  - **结果:**
+    - **功能更完整:** `ext_exportAllTablesAsJson` 现在能提供一个包含暂存数据和当前聊天数据的完整数据快照。
+    - **接口更健壮:** 函数内部的错误处理能力得到增强。
+    - **问题根源明确:** 为其他开发者提供了清晰的崩溃原因分析和正确的、健壮的API调用指导，从根本上防止了因环境不同而导致的崩溃。
+  - **给调用者的建议 (健壮的调用方式):**
+    ```javascript
+    // 推荐的、安全的API调用方式
+    const memoryApi = globalThis.stMemoryEnhancement;
+    const allTablesJson = memoryApi ? memoryApi.ext_exportAllTablesAsJson() : {};
+    
+    // 或者使用可选链（Optional Chaining）和空值合并（Nullish Coalescing）
+    // const allTablesJson = globalThis.stMemoryEnhancement?.ext_exportAllTablesAsJson() ?? {};
+    ```
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `index.js` (已恢复原状)
+    - `项目文档.txt` (新增此条目)
+
+v3.1.0-step-by-step-persistence
+- **核心重构：实现分步填表（收到消息后填表）任务的持久化**
+  - **问题:** “收到消息后填表”功能在执行过程中，如果用户刷新或关闭页面，正在处理的填表任务会丢失，因为其状态仅存在于内存中。
+  - **实现方式:**
+    - **1. 新增持久化存储服务 (`services/stepByStepStorage.js`):**
+        - 创建了一个新的、专用的 `stepByStepStorage` 模块，用于处理分步填表任务的持久化。
+        - 该模块提供了三个核心函数：`saveStepData`、`readStepData` 和 `clearStepData`，它们利用浏览器的 `localStorage` 来写入、读取和清除待办任务。这确保了逻辑与现有的“暂存(Stash)”功能完全分离。
+    - **2. 修改任务触发逻辑 (`index.js`):**
+        - 在 `performWaitThenSend` 函数（处理分步填表的核心流程）的开头，增加了对 `saveStepData` 的调用。
+        - 这确保了在对消息进行任何处理（如隐藏DOM元素）之前，该任务（包含 `chatId` 和 `content`）已经被安全地序列化并存储到 `localStorage` 中。
+    - **3. 修改任务完成逻辑 (`scripts/runtime/separateTableUpdate.js`):**
+        - 在 `manualSummaryChat` 函数中，当填表流程成功完成（返回 `'success'`）后，立即调用 `clearStepData` 函数。
+        - 这会从 `localStorage` 中移除已成功处理的任务，防止其被重复执行。
+    - **4. 增加启动时恢复机制 (`index.js`):**
+        - 在插件主入口的 `jQuery(async () => { ... })` 中，新增了一个 `checkForPendingStepUpdate` 函数。
+        - 此函数在插件加载后被调用，它会检查 `localStorage` 中是否存在待办任务。
+        - 如果存在，它会验证任务的 `chatId` 是否与当前聊天上下文匹配，如果匹配，则自动调用 `performWaitThenSend` 恢复执行该中断的任务，从而实现了无缝恢复。
+    - **5. 改造核心数据显示逻辑 (`core/manager.js`):**
+        - 重构了 `BASE.hashSheetsToSheets` 函数，该函数是所有表格视图渲染的数据源头。
+        - 旧逻辑会复用一个全局缓存的表格实例（`Sheet`对象），这可能导致在某些边界情况下，实例的状态与最新的聊天记录不一致。
+        - 新逻辑则彻底废弃了实例缓存机制。现在，每次需要渲染表格时，该函数都会根据当前聊天记录中的 `hash_sheets` 数据，动态地创建全新的、干净的表格实例。这从根本上保证了视图的每一次渲染都是基于最权威、最新的本地数据，消除了任何缓存污染的可能性。
+  - **结果:**
+    - **数据不丢失:** 即使用户在填表过程中意外刷新或关闭页面，待处理的任务也会被安全保存。
+    - **自动恢复:** 当用户返回到正确的聊天上下文时，中断的任务会自动恢复执行，用户几乎不会察觉到中断。
+    - **显示一致性:** 通过重构核心数据转换逻辑，确保了表格视图在任何时候都直接基于最新的、持久化的聊天记录进行渲染，彻底杜绝了因缓存不一致而导致的旧数据或错误数据显示问题。
+    - **健壮性提升:** 整个分步填表流程现在对页面生命周期变化具有更强的抵抗力，显著提升了功能的稳定性和用户体验。
+  - **受影响文件:**
+    - `index.js`
+    - `core/manager.js`
+    - `scripts/runtime/separateTableUpdate.js`
+    - `services/stepByStepStorage.js` (新增)
+
+v3.0.0-navbar-click-refactor
+- **前端重构：跟进酒馆新版 `doNavbarIconClick` 接口，优化插件图标弹出逻辑**
+  - **问题:** 酒馆（SillyTavern）更新了其前端API，引入了统一的 `doNavbarIconClick` 函数来处理顶部导航栏图标的点击事件，以取代旧有的、插件各自为政的 `slideToggle` 实现。旧的实现方式在新版酒馆中可能导致UI行为不一致或与主程序冲突。
+  - **实现方式:**
+    - **1. 引入应用功能管理器 (`services/appFuncManager.js`):**
+        - 新建了一个 `applicationFunctionManager` 模块，其核心职责是在插件初始化时，通过 `try-catch` 安全地从酒馆的 `/script.js` 动态导入 `doNavbarIconClick` 函数。
+        - 如果导入成功，则存储该函数；如果失败（例如在旧版酒馆中），则保留一个兼容的 `null` 值或警告函数，确保插件不会崩溃。
+    - **2. 重构主逻辑 (`index.js`):**
+        - 在 `jQuery` 初始化块中，移除了旧的、直接针对 `#table_drawer_icon` 的 `click` 事件绑定和 `openAppHeaderTableDrawer` 的直接调用。
+        - 新增 `isDrawerNewVersion()` 函数，通过检查 `applicationFunctionManager.doNavbarIconClick` 是否成功导入，来判断当前运行环境是新版还是旧版酒馆。
+        - 根据判断结果，动态绑定事件：
+            - **新版:** 将点击事件委托给 `applicationFunctionManager.doNavbarIconClick` 处理。
+            - **旧版:** 保持原有的 `openAppHeaderTableDrawer` 调用逻辑，确保向后兼容。
+    - **3. 简化HTML模板 (`assets/templates/appHeaderTableDrawer.html`):**
+        - 移除了抽屉内容元素 (`#table_drawer_content`) 上用于旧式 `slideToggle` 的 `data-slide-toggle` 和内联 `style` 属性。
+        - 删除了不再需要的粘性定位和自定义滚动条的CSS样式，使模板更简洁，并将UI控制权完全交给酒馆的 `doNavbarIconClick` 函数。
+  - **结果:**
+    - **现代化与兼容性:** 插件现在能够主动适应新版酒馆的API，实现更流畅、更统一的UI交互，同时通过回退机制保留了对旧版酒馆的完全兼容。
+    - **代码解耦与健壮性:** 通过将环境探测和功能导入集中到 `appFuncManager`，主逻辑 (`index.js`) 变得更加清晰和健壮，降低了因酒馆未来更新而导致插件崩溃的风险。
+  - **受影响文件:**
+    - `index.js`
+    - `services/appFuncManager.js` (新增)
+    - `assets/templates/appHeaderTableDrawer.html`
+
+v2.9.0-final-data-flow-fix
+- **最终数据流修复：确保使用优化后的文本进行填表和显示**
+  - **问题:** 根据用户最终反馈，之前的方案虽然能刷新UI，但因为数据模型未及时同步，导致填表和最终显示用的仍然是**优化前**的文本。
+  - **实现方式 (`index.js`):**
+    - **1. 从DOM捕获最新文本:** 修改了 `MutationObserver` 的回调逻辑。现在，当它检测到消息被优化插件修改后，会直接从被修改的DOM元素中提取其 `textContent`，这确保了获取到的是**优化后**的最新文本。
+    - **2. 同步数据模型:** 修改了 `performWaitThenSend` 函数。在调用 `reloadCurrentChat()` 之前，增加了一个关键步骤：将从DOM捕获到的 `optimizedContent` 写回到SillyTavern的内存数据模型中 (`chat[chat_id].mes = optimizedContent`)。
+    - **3. 基于新数据刷新:** `TableTwoStepSummary` 会使用这个最新的文本进行填表，并且 `reloadCurrentChat()` 现在是基于已更新的、包含优化后文本的数据模型来重绘UI。
+  - **结果:** 此修复彻底解决了数据流的根本问题。现在，整个流程（AI回复 -> 优化插件修改DOM -> 记忆插件从DOM捕获新文本 -> 更新数据模型 -> 用新文本填表 -> 基于新模型刷新UI）完美闭环，确保了最终显示和处理的都是优化后的内容。
+  - **受影响文件:**
+    - `index.js`
+
+v2.4.0-final-runtime-hotfix
+- **稳定性修复：彻底解决因竞态条件引发的运行时崩溃**
+  - **问题:** 用户报告，在收到新消息后，插件偶发 `TypeError: Cannot read properties of undefined (reading 'getAttribute')` 错误，导致程序崩溃。经分析，这是典型的**竞态条件（Race Condition）**：插件的 `onMessageReceived` 事件处理逻辑与SillyTavern主程序的内部渲染流程发生冲突，插件过早地修改了UI状态，破坏了主程序预期的执行环境。
+  - **实现方式:**
+    - **1. 延迟执行（Deferred Execution）:** 在 `index.js` 的 `onMessageReceived` 函数中，将**所有**的业务逻辑都包裹在一个 `setTimeout(async () => { ... }, 0)` 调用中。
+    - **2. 解耦事件循环:** `setTimeout` 将插件的代码放入JavaScript事件队列的末尾执行。这确保了SillyTavern能够首先完成其所有同步的、高优先级的内部事件处理和DOM渲染。在主程序完全处理完新消息后，插件的逻辑才会被安全地触发。
+    - **3. 增加健壮性检查:** 在 `setTimeout` 的回调中，增加了对聊天对象存在性的检查，以防止在延迟的间隙中用户删除消息而引发新的错误。
+  - **结果:** 此修复从根本上解决了因执行时机冲突而导致的运行时崩溃问题，确保了插件在各种复杂场景下的稳定性和可靠性。
+
+v2.3.0-final-cors-hotfix
+- **功能修复与最终方案：彻底解决自定义API的CORS及兼容性问题**
+  - **问题:** 经过多次迭代修复，自定义API功能仍存在两个根本性问题：1) 向SillyTavern后端发送代理请求时，由于错误的源标记（`chat_completion_source`）导致了 `400 Bad Request` 错误。2) 尝试通过代理自动获取模型列表时，因目标函数在用户的酒馆环境中不存在，导致兼容性崩溃。
+  - **最终实现方式 (综合修复):**
+    - **1. 修正API源标记 (`services/llmApi.js`):** 在 `callLLM` 和 `testConnection` 函数中，增加了关键判断。当检测到用户使用的是自定义API地址时，传递给SillyTavern后端代理的 `chat_completion_source` 参数被动态设置为 `'custom'`。这告知后端应使用通用代理模式，而不是特定于OpenAI的模式，从而彻底解决了 `400` 错误。
+    - **2. 放弃模型自动获取，改为手动输入 (`scripts/settings/standaloneAPI.js`):**
+        - 彻底重构了 `updateModelList` 函数。
+        - 新逻辑会首先判断用户配置的API地址是否为自定义地址。
+        - 如果是，则完全跳过所有网络请求，直接禁用模型下拉列表，并明确提示用户“对于自定义API，请在下方的‘模型名称’字段中手动输入您的模型ID”。
+  - **结果:**
+    - **API调用成功:** 自定义API的测试和实际调用功能现在可以正确工作。
+    - **兼容性与易用性提升:** 通过让用户手动输入模型名称，我们绕过了不兼容的自动获取功能，确保了插件在各种SillyTavern环境下的稳定性和可用性。这是在当前环境下最稳妥、最可靠的解决方案。
+  - **受影响文件:**
+    - `services/llmApi.js`
+    - `scripts/settings/standaloneAPI.js`
+
 v2.1.3-stash-import-logic-fix
 - **逻辑修复：修正暂存（Stash）数据的自动恢复时机**
   - **问题:** 用户报告，每次刷新页面时，暂存的数据都会无条件覆盖当前对话中的表格，而预期的行为是只在开始一个全新的对话时才进行恢复。
@@ -25,7 +179,7 @@ v2.1.1-runtime-error-hotfix
     - 2. `TypeError: Cannot read properties of undefined (reading 'isDeleted')`: 在渲染表格视图时，由于hashSheet`中存在已删除的单元格引用），导致访问`un导致in`undefined`的
     - 3. `TypeError: Cannot read properties of undefined (reading 'data')`: 在生成提示词时，由于聊天记录为空或试从`un导致efined`对象中读取数据。
   - **实现方式 (关联修复):**
-    - **1. 修复DOMM操作 (`index.js`):** 在 `onMessageReceived` 函数a将直接(DOM操作'(t.html('').addClasn(')替ink换Tg')a)v替换为调用MessageB官方APIocUSER.getContext().k()`。通过该API安全地切换消息()的。通过该思考中安全地切换破坏。“思考中”和最终内容状态避免对破坏
+    - **1. 修复DOMM操作 (`index.js`):** 在 `onMessageReceived` 函数a将直接(DOM操作'(t.html('').addClasn(')替inkTg')a)v替换为调用MessageB官方APIocUSER.getContext().k()`。通过该API安全地切换消息()的。通过该思考中安全地切换破坏。“思考中”和最终内容状态避免对破坏
     - **2. 增强渲染健壮性 (`scripts/editor/chatSheetsDataView.js`):** rSheetsDOM` 函数的 `filter` 逻辑中，增加了对单元格存在性的检查。在访问 `.isDeleted` 属性前，先确认 `sheet.cells.get(row[0])` 能否返回有效对象，从而过滤掉无效的行引用，防止渲染崩溃。渲染崩溃
     - **3. 增强提示词生成健壮性 (`index.js`):** blePrompt` 函数中，增加了对 `lastSheetsPiece` 对象的有效性检查。如果该对象或其 `hash_sheets` 属性不存在，则立即返回空字符串，中断后续流程，防止因数据缺失而引发错误。
   - **结果:** 通过从根源上修复不安全的DOMM操作，并为后续的数据处理和渲染流程增加健壮性检查，彻底解决了这一连锁错误。插件现在能够更稳定地处理异常数据和边界情况，提升了整体的可靠性。
@@ -250,3 +404,29 @@ analysis-20250705-1111:
     - `index.js`
     - `assets/templates/appHeaderTableDrawer.html`
     - `scripts/renderer/appHeaderTableBaseDrawer.js`
+<environment_details>
+# VSCode Visible Files
+D:/Tool/cursor/scripts/settings/standaloneAPI.js
+D:/Tool/cursor/scripts/settings/standaloneAPI.js
+index.js
+
+# VSCode Open Tabs
+services/appFuncManager.js
+assets/templates/appHeaderTableDrawer.html
+services/stepByStepStorage.js
+scripts/runtime/separateTableUpdate.js
+scripts/editor/chatSheetsDataView.js
+core/manager.js
+scripts/settings/standaloneAPI.js
+项目文档.txt
+index.js
+
+# Current Time
+2025/7/18 下午11:17:07 (Asia/Shanghai, UTC+8:00)
+
+# Context Window Usage
+0 / 128K tokens used (0%)
+
+# Current Mode
+ACT MODE
+</environment_details>

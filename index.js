@@ -4,6 +4,7 @@ import { loadSettings } from "./scripts/settings/userExtensionSetting.js";
 import { ext_getAllTables, ext_exportAllTablesAsJson } from './scripts/settings/standaloneAPI.js';
 import { openTableDebugLogPopup } from "./scripts/settings/devConsole.js";
 import { TableTwoStepSummary } from "./scripts/runtime/separateTableUpdate.js";
+import { saveStepData, readStepData, clearStepData } from './services/stepByStepStorage.js';
 import { initTest } from "./components/_fotTest.js";
 import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./scripts/renderer/appHeaderTableBaseDrawer.js";
 import { initRefreshTypeSelector } from './scripts/runtime/absoluteRefresh.js';
@@ -13,6 +14,7 @@ import { functionToBeRegistered } from "./services/debugs.js";
 import { parseLooseDict, replaceUserTag } from "./utils/stringUtil.js";
 import { reloadCurrentChat } from "/script.js";
 import {executeTranslation} from "./services/translate.js";
+import applicationFunctionManager from "./services/appFuncManager.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
@@ -679,15 +681,81 @@ export function getTableEditTag(mes) {
  * @param this_edit_mes_id 此消息的ID
  */
 async function onMessageEdited(this_edit_mes_id) {
-    if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === true) return
-    const chat = USER.getContext().chat[this_edit_mes_id]
-    if (chat.is_user === true || USER.tableBaseSetting.isAiWriteTable === false) return
+    // “二次拦截”逻辑已通过 MutationObserver 实现，此处不再需要。
+    // 保留原有的、处理手动编辑的逻辑。
+    const chat_message = USER.getContext().chat[this_edit_mes_id];
+    if (!chat_message || USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === true) return;
+    if (chat_message.is_user === true || USER.tableBaseSetting.isAiWriteTable === false) return;
     try {
-        handleEditStrInMessage(chat, parseInt(this_edit_mes_id))
+        handleEditStrInMessage(chat_message, parseInt(this_edit_mes_id));
     } catch (error) {
-        EDITOR.error("记忆插件：表格编辑失败\n原因：", error.message, error)
+        EDITOR.error("记忆插件：表格编辑失败\n原因：", error.message, error);
     }
-    updateSheetsView()
+    updateSheetsView();
+}
+
+/**
+ * 检查“填完再发”功能是否已启用
+ * @returns {boolean}
+ */
+function isWaitThenSendEnabled() {
+    return USER.tableBaseSetting.isExtensionAble === true &&
+           USER.tableBaseSetting.wait_for_fill_then_send === true &&
+           USER.tableBaseSetting.step_by_step === true &&
+           USER.getContext().chat.length > 2;
+}
+
+/**
+ * 执行“填完再发”流程，确保数据模型同步
+ * @param {number} chat_id 消息ID
+ * @param {string} messageContent 用于填表的、最新的（可能已优化）文本内容
+ */
+async function performWaitThenSend(chat_id, messageContent) {
+    // [持久化改造] 在执行任何操作前，先将待办任务存入localStorage
+    saveStepData({ chatId: chat_id, content: messageContent });
+
+    let messageElement;
+    const maxAttempts = 20; // 最多尝试20次（2秒）
+    let attempts = 0;
+
+    // 轮询等待DOM元素出现
+    while (attempts < maxAttempts) {
+        messageElement = $(`div.mes[mesid="${chat_id}"]`);
+        if (messageElement.length > 0) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+
+    if (!messageElement || messageElement.length === 0) {
+        console.error(`[Memory Enhancement] 轮询2秒后，仍无法找到消息元素 (ID: ${chat_id})。`);
+        await TableTwoStepSummary("auto_wait", messageContent);
+        await USER.getContext().saveChat();
+        return;
+    }
+
+    try {
+        // 1. 拦截
+        messageElement.hide();
+
+        // 2. 处理
+        const success = await TableTwoStepSummary("auto_wait", messageContent);
+
+        if (success) {
+            // 3. 核心修复：用最新的内容更新数据模型，然后再保存并刷新UI
+            const chat = USER.getContext().chat;
+            if (chat[chat_id]) {
+                chat[chat_id].mes = messageContent;
+            }
+            await USER.getContext().saveChat();
+            await reloadCurrentChat();
+        } else {
+            EDITOR.error("后台分步填表执行失败。");
+            messageElement.show();
+        }
+    } catch(e) {
+        EDITOR.error("“填完再发”流程发生错误: ", e.message, e);
+        messageElement.show();
+    }
 }
 
 /**
@@ -695,47 +763,46 @@ async function onMessageEdited(this_edit_mes_id) {
  * @param {number} chat_id 此消息的ID
  */
 async function onMessageReceived(chat_id) {
-    if (USER.tableBaseSetting.isExtensionAble === false) return;
-
-    // 新增：等待填表完成后再发送
-    if (USER.tableBaseSetting.wait_for_fill_then_send === true && USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
-        const chat = USER.getContext().chat[chat_id];
-        const originalMessage = chat.mes;
-
-        // 1. [已修复] 使用非破坏性的CSS visibility来隐藏消息，而不是修改内容
-        const messageElement = TavernHelper.retrieveDisplayedMessage(chat_id);
-        if (messageElement) {
-            messageElement.find('.mes_text').css('visibility', 'hidden').addClass('thinking');
-        }
-
-        // 2. 以新模式执行分步填表，并等待其完成
-        const success = await TableTwoStepSummary("auto_wait", originalMessage);
-
-        // 3. 恢复原始消息内容并更新UI
-        chat.mes = originalMessage;
-        // 最终的updateMessageBlock会重绘整个消息，自动恢复visibility
-        USER.getContext().updateMessageBlock(chat_id, chat, { rerenderMessage: true });
-        await USER.getContext().saveChat(); // 确保所有更改都已保存
-
-        if (!success) {
-            EDITOR.error("分步填表执行失败，但已将原始消息恢复到聊天界面。");
-        }
-    }
-    // 原始逻辑
-    else if (USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
-        TableTwoStepSummary("auto");  // 非阻塞调用
-    } else {
-        if (USER.tableBaseSetting.isAiWriteTable === false) return;
-        const chat = USER.getContext().chat[chat_id];
-        console.log("收到消息", chat_id);
+    setTimeout(async () => {
         try {
-            handleEditStrInMessage(chat);
-        } catch (error) {
-            EDITOR.error("记忆插件：表格自动更改失败\n原因：", error.message, error);
-        }
-    }
+            if (USER.tableBaseSetting.isExtensionAble === false) return;
+            
+            // "填完再发" 的首次拦截（即无优化插件时）或常规流程
+            if (isWaitThenSendEnabled()) {
+                // 检查优化插件是否存在，如果不存在，则执行首次拦截
+                if (!window.Amily2ChatOptimisation) {
+                    console.log('[Memory Enhancement] 未检测到优化插件，执行首次拦截-填完再发流程。');
+                    const chat = USER.getContext().chat[chat_id];
+                    if (chat) {
+                        await performWaitThenSend(chat_id, chat.mes);
+                    }
+                }
+                // 如果优化插件存在，则不做任何事，等待 MutationObserver 进行二次拦截
+                else {
+                    console.log('[Memory Enhancement] “填完再发”已激活，等待二次拦截。');
+                }
+                return;
+            }
 
-    updateSheetsView();
+            const chat = USER.getContext().chat[chat_id];
+            if (!chat) {
+                console.warn(`[Memory Enhancement] onMessageReceived: 在延迟后未找到 chat_id ${chat_id} 对应的聊天对象。`);
+                return;
+            }
+
+            // 其他模式的原始逻辑
+            if (USER.tableBaseSetting.step_by_step === true && USER.getContext().chat.length > 2) {
+                TableTwoStepSummary("auto");
+            } else {
+                if (USER.tableBaseSetting.isAiWriteTable === false) return;
+                handleEditStrInMessage(chat);
+            }
+
+            updateSheetsView();
+        } catch (error) {
+            EDITOR.error("记忆插件：onMessageReceived 处理失败\n原因：", error.message, error);
+        }
+    }, 0);
 }
 
 /**
@@ -843,6 +910,101 @@ async function updateSheetsView() {
     }
 }
 
+/**
+ * 打开表格drawer
+ */
+export function openDrawer() {
+    const drawer = $('#table_database_settings_drawer .drawer-toggle')
+    if (isDrawerNewVersion()) {
+        applicationFunctionManager.doNavbarIconClick.call(drawer)
+    }else{
+        return openAppHeaderTableDrawer()
+    }
+}
+
+/**
+ * 获取是新版还是旧版drawer
+ */
+export function isDrawerNewVersion() {
+    return !!applicationFunctionManager.doNavbarIconClick
+}
+
+/**
+ * 设置并启动用于二次拦截的 MutationObserver
+ */
+/**
+ * [持久化改造] 检查并执行因页面刷新而中断的待办填表任务
+ */
+async function checkForPendingStepUpdate() {
+    const pendingData = readStepData();
+    if (pendingData && pendingData.chatId && pendingData.content) {
+        console.log('[Memory Enhancement / StepByStep] 检测到待处理的填表任务。', pendingData);
+
+        const context = USER.getContext();
+        const lastMessageIndex = context.chat.length - 1;
+
+        // 确保在正确的上下文中执行
+        if (lastMessageIndex === pendingData.chatId) {
+            EDITOR.info("正在恢复上次中断的填表任务...");
+            await performWaitThenSend(pendingData.chatId, pendingData.content);
+        } else {
+            console.warn(`[Memory Enhancement / StepByStep] 待处理任务的chatId (${pendingData.chatId}) 与当前上下文 (${lastMessageIndex}) 不匹配，已跳过。`);
+            // 在不匹配的情况下也清除，避免在错误的对话中意外触发
+            clearStepData();
+        }
+    }
+}
+
+/**
+ * 设置并启动用于二次拦截的 MutationObserver
+ */
+function observeChatForSecondaryInterception() {
+    const targetNode = document.getElementById('chat-scroll-container');
+    if (!targetNode) {
+        console.error('[Memory Enhancement] 无法找到 #chat-scroll-container，二次拦截功能启动失败。');
+        return;
+    }
+
+    let isProcessing = false; // 添加一个锁，防止重复触发
+
+    const observer = new MutationObserver(async (mutationsList) => {
+        if (!isWaitThenSendEnabled() || isProcessing) {
+            return;
+        }
+
+        const chat = USER.getContext().chat;
+        const lastMessageIndex = chat.length - 1;
+        const lastMessage = chat[lastMessageIndex];
+
+        // 寻找针对最新AI消息内容的修改
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'childList' && mutation.target.nodeName === 'DIV' && mutation.target.classList.contains('mes_text')) {
+                const mesDiv = mutation.target.closest('.mes');
+                if (mesDiv && parseInt(mesDiv.getAttribute('mesid')) === lastMessageIndex && !lastMessage.is_user) {
+                    isProcessing = true;
+                    
+                    // 核心修复：直接从被修改的DOM中提取最新文本，而不是从旧的数据模型中读取
+                    const optimizedContent = mutation.target.textContent;
+                    
+                    console.log('[Memory Enhancement] MutationObserver检测到内容变化，触发二次拦截。');
+                    
+                    // 使用优化后的文本执行流程
+                    await performWaitThenSend(lastMessageIndex, optimizedContent);
+
+                    // 短暂延迟后释放锁
+                    setTimeout(() => { isProcessing = false; }, 100); 
+                    break; 
+                }
+            }
+        }
+    });
+
+    const config = { childList: true, subtree: true };
+    observer.observe(targetNode, config);
+    console.log('[Memory Enhancement] “二次拦截哨兵” (MutationObserver) 已启动。');
+}
+
+
 jQuery(async () => {
     // 注册API
     window.stMemoryEnhancement = {
@@ -901,10 +1063,18 @@ jQuery(async () => {
     });
 
     // 设置表格编辑按钮
-    $(document).on('click', '#table_drawer_icon', function () {
-        openAppHeaderTableDrawer();
-        // updateTableContainerPosition();
-    })
+    console.log("设置表格编辑按钮", applicationFunctionManager.doNavbarIconClick)
+    if (isDrawerNewVersion()) {
+        $('#table_database_settings_drawer .drawer-toggle').on('click', applicationFunctionManager.doNavbarIconClick);
+    }else{
+        $('#table_drawer_content').attr('data-slide-toggle', 'hidden').css('display', 'none');
+        $('#table_database_settings_drawer .drawer-toggle').on('click', openAppHeaderTableDrawer);
+    }
+    // // 设置表格编辑按钮
+    // $(document).on('click', '.tableEditor_editButton', function () {
+    //     let index = $(this).data('index'); // 获取当前点击的索引
+    //     openTableSettingPopup(index);
+    // })
     // // 设置表格编辑按钮
     // $(document).on('click', '.tableEditor_editButton', function () {
     //     let index = $(this).data('index'); // 获取当前点击的索引
@@ -945,6 +1115,12 @@ jQuery(async () => {
         APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
         APP.eventSource.on(APP.event_types.MESSAGE_DELETED, onChatChanged);
         console.log("______________________记忆插件：事件监听器已激活______________________");
+        
+        // 启动二次拦截的哨兵
+        observeChatForSecondaryInterception();
+
+        // [持久化改造] 检查是否有中断的待办任务需要恢复
+        checkForPendingStepUpdate();
     }, 500); // 500毫秒延迟
 
 

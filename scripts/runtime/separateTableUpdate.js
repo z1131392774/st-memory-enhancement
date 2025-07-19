@@ -1,6 +1,7 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import { executeIncrementalUpdateFromSummary, sheetsToTables } from "./absoluteRefresh.js";
 import { newPopupConfirm } from '../../components/popupConfirm.js';
+import { clearStepData } from '../../services/stepByStepStorage.js';
 import { reloadCurrentChat } from "/script.js"
 import {getTablePrompt,initTableData, undoSheets} from "../../index.js"
 
@@ -193,6 +194,9 @@ export async function manualSummaryChat(todoChats, confirmResult, shouldReload =
 
     console.log('执行独立填表（增量更新）结果:', r);
     if (r === 'success') {
+        // [持久化改造] 任务成功后，清除localStorage中的待办任务
+        clearStepData();
+
         // 由于直接在 referencePiece 引用上操作，修改已自动同步，无需手动回写 hash_sheets。
         toBeExecuted.forEach(chat => {
             const chatSwipeUid = getSwipeUid(chat);

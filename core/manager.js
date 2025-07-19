@@ -221,22 +221,31 @@ export const BASE = {
     },
     getLastSheetsPiece(deep = 0, cutoff = 1000, startAtLastest = true) {
         console.log("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
-        // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
-        const chat = APP.getContext().chat
+        const chat = APP.getContext()?.chat; // 安全地访问 chat
         if (!chat || chat.length === 0 || chat.length <= deep) {
             return { deep: -1, piece: BASE.initHashSheet() }
         }
         const startIndex = startAtLastest ? chat.length - deep - 1 : deep;
         for (let i = startIndex; i >= 0 && i >= startIndex - cutoff; i--) {
-            if (chat[i].is_user === true) continue; // 跳过用户消息
+            // [健壮性修复] 增加对 chat[i] 存在的检查
+            if (!chat[i]) continue;
+            
+            // 跳过用户消息
+            if (chat[i].is_user === true) continue;
+
+            // [核心数据安全修复] 如果一个消息连 hash_sheets 属性都没有（例如欢迎消息），
+            // 就直接跳过它，而不是尝试处理或让上游函数崩溃。
+            if (typeof chat[i].hash_sheets === 'undefined' && typeof chat[i].dataTable === 'undefined') {
+                continue;
+            }
+
             if (chat[i].hash_sheets) {
                 console.log("向上查询表格数据，找到表格数据", chat[i])
                 return { deep: i, piece: chat[i] }
             }
-            // 如果没有找到新系统的表格数据，则尝试查找旧系统的表格数据（兼容模式）
-            // 请注意不再使用旧的Table类
+            
+            // 兼容旧的 dataTable
             if (chat[i].dataTable) {
-                // 为了兼容旧系统，将旧数据转换为新的Sheet格式
                 console.log("找到旧表格数据", chat[i])
                 convertOldTablesToNewSheets(chat[i].dataTable, chat[i])
                 return { deep: i, piece: chat[i] }
@@ -254,11 +263,37 @@ export const BASE = {
         if (!hashSheets) {
             return [];
         }
-        return BASE.getChatSheets((sheet)=>{
-            if (hashSheets[sheet.uid]) {
-                sheet.hashSheet = hashSheets[sheet.uid].map(row => row.map(hash => hash));
-            }else sheet.initHashSheet()
-        })
+        
+        // [持久化改造] 核心修复：确保每次都从最权威的数据源（hashSheets）创建全新的、干净的Sheet实例，
+        // 而不是复用可能被污染的缓存实例（DERIVED.any.chatSheetMap）。
+        const newSheets = [];
+        for (const sheetUid in hashSheets) {
+            // 1. 从 context 中找到原始的、持久化的 sheet 模板数据
+            const sheetTemplate = BASE.sheetsData.context.find(s => s.uid === sheetUid);
+            if (!sheetTemplate) {
+                console.warn(`[hashSheetsToSheets] 未在 context 中找到 UID 为 ${sheetUid} 的 sheet 模板，已跳过。`);
+                continue;
+            }
+
+            // 2. 使用模板创建一个全新的、干净的 Sheet 实例
+            const newSheet = new BASE.Sheet(sheetTemplate);
+
+            // 3. 将当前 piece 中的 hash_sheets 状态应用到这个新实例上
+            newSheet.hashSheet = hashSheets[sheetUid].map(row => [...row]); // 使用深拷贝确保数据隔离
+
+            // 4. 重新加载 cells，确保内部状态与 cellHistory 同步
+            //    loadJson 已经包含了 loadCells 的逻辑
+            newSheet.loadCells();
+
+            newSheets.push(newSheet);
+        }
+        
+        // 用新创建的、干净的实例列表，覆盖掉缓存中的旧实例
+        const newSheetMap = {};
+        newSheets.forEach(s => newSheetMap[s.uid] = s);
+        DERIVED.any.chatSheetMap = newSheetMap;
+
+        return newSheets;
     },
     getLastestSheets(){
         const { piece, deep } = BASE.getLastSheetsPiece();
