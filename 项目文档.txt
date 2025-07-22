@@ -42,6 +42,28 @@ v3.4.1-hotfix-import-path
     - `scripts/settings/standaloneAPI.js`
     - `项目文档.txt` (新增此条目)
 
+v3.4.6-hotfix-streaming-removal
+- **功能简化：移除未实现的流式传输选项**
+  - **问题:** v3.4.0重构引入了一个“流式传输”的UI选项，但其后端逻辑并未完全实现，导致用户勾选后程序报错。
+  - **实现方式:**
+    - **1. 移除UI元素 (`assets/templates/index.html`):**
+        - **删除了** “流式传输”复选框及其相关描述。
+    - **2. 移除配置项 (`data/pluginSetting.js`):**
+        - **删除了** `custom_api_stream` 默认设置。
+    - **3. 移除UI绑定 (`scripts/settings/userExtensionSetting.js`):**
+        - **删除了** 对已不存在的复选框的事件监听和状态更新逻辑。
+    - **4. 硬编码非流式 (`scripts/settings/standaloneAPI.js`):**
+        - 在 `handleCustomAPIRequest` 函数中，**移除了**对 `custom_api_stream` 的检查，并将发送给后端的请求数据中的 `stream` 参数**硬编码为 `false`**。
+  - **结果:**
+    - **逻辑统一:** 插件的自定义API功能现在统一为非流式请求，符合当前已实现的功能，消除了用户的困惑和潜在的运行时错误。
+    - **代码更清晰:** 移除了与未实现功能相关的代码，提高了可维护性。
+  - **受影响文件:**
+    - `assets/templates/index.html`
+    - `data/pluginSetting.js`
+    - `scripts/settings/userExtensionSetting.js`
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
 v3.4.5-hotfix-test-logic
 - **紧急修复：修正API测试时的逻辑错误**
   - **问题:** API测试函数 (`testApiConnection`) 虽然能正确发送请求，但在构造请求时，没有将用户在UI中输入的`modelName`和`apiUrl`临时应用到全局设置中，导致测试时使用的仍然是旧的、已保存的模型和URL配置，与用户预期不符。

@@ -264,8 +264,6 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     confirm_before_execution: true,
     // 是否使用主API
     use_main_api: true,
-    // 是否通过酒馆代理API
-    custom_api_stream: false,
     // 重整理自定义温度
     custom_temperature: 1.0,
     // 重整理自定义最大token数

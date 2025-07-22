@@ -367,14 +367,8 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
             messages: messages,
             model: USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name,
             temperature: USER.tableBaseSetting.custom_temperature,
-            stream: USER.tableBaseSetting.custom_api_stream,
+            stream: false,
         };
-
-        // TODO: 手动处理流式响应
-        if (requestData.stream) {
-             EDITOR.error("流式传输尚未在此重构中完全实现。");
-             throw new Error("流式传输未实现");
-        }
 
         const response = await $.ajax({
             url: '/api/backends/chat-completions/generate',
