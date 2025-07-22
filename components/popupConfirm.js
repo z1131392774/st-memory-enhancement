@@ -1,9 +1,24 @@
 import {SYSTEM, USER} from "../core/manager.js";
 
 // Static map to track temporarily disabled popups by ID
-const disabledPopups = {};
+let disabledPopups = {};
 // Static map to track popups that should always be confirmed for the current session
-const alwaysConfirmPopups = {};
+export let alwaysConfirmPopups = {};
+
+/**
+ * Resets the state of "don't remind" and "always confirm" popups.
+ * This is intended to be called on a page refresh or similar event.
+ */
+export function resetPopupConfirmations() {
+    // 使用 for...in 循环来清空对象，因为它们是 let 声明的
+    for (const key in disabledPopups) {
+        delete disabledPopups[key];
+    }
+    for (const key in alwaysConfirmPopups) {
+        delete alwaysConfirmPopups[key];
+    }
+    console.log('[Memory Enhancement] Popup confirmation states have been reset.');
+}
 
 const bgc = '#3736bb'
 const bgcg = '#de81f1'
@@ -13,11 +28,14 @@ const tc = '#fff'
 
 export async function newPopupConfirm(text, cancelText = 'Cancel', confirmText = 'Confirm', id = '', dontRemindText = null, alwaysConfirmText = null) {
     if (id && disabledPopups[id]) {
-        return Promise.resolve('dont_remind_active'); // Permanently disabled, don't show
+        // 如果“不再提醒”已激活，则返回特殊值，不显示弹窗
+        return Promise.resolve('dont_remind_active'); 
     }
     if (id && alwaysConfirmPopups[id]) {
-        return Promise.resolve(true); // Session-only always confirm, resolve as true but still show popup
+        // 如果“一直选是”已激活，则返回 true，不显示弹窗
+        return Promise.resolve(true); 
     }
+    // 否则，正常显示弹窗让用户选择
     return await new PopupConfirm().show(text, cancelText, confirmText, id, dontRemindText, alwaysConfirmText);
 }
 

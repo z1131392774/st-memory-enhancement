@@ -1,9 +1,10 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
 import { executeIncrementalUpdateFromSummary, sheetsToTables } from "./absoluteRefresh.js";
-import { newPopupConfirm } from '../../components/popupConfirm.js';
+import { newPopupConfirm, alwaysConfirmPopups } from '../../components/popupConfirm.js';
 import { clearStepData } from '../../services/stepByStepStorage.js';
 import { reloadCurrentChat } from "/script.js"
 import {getTablePrompt,initTableData, undoSheets} from "../../index.js"
+import { ext_hashSheetsToJson } from '../settings/standaloneAPI.js';
 
 let toBeExecuted = [];
 
@@ -94,36 +95,77 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
 
     console.log('待填表的对话片段:', todoChats);
 
-    // 模式判断：自动模式下跳过确认弹窗
-    if (mode === 'auto' || mode === 'auto_wait') {
-        console.log(`自动执行填表，模式: ${mode}`);
-        const shouldReload = mode !== 'auto_wait'; // auto_wait模式不刷新
-        return await manualSummaryChat(todoChats, true, shouldReload);
-    }
-
-    // 手动模式：显示确认弹窗
-    const popupContentHtml = `<p>累计 ${todoChats.length} 长度的文本，是否开始独立填表？</p>`;
     const popupId = 'stepwiseSummaryConfirm';
-    const confirmResult = await newPopupConfirm(
-        popupContentHtml,
-        "取消",
-        "执行填表",
-        popupId,
-        "不再提示",
-        "一直选是"
-    );
+    let confirmResult;
 
-    console.log('newPopupConfirm result for stepwise summary:', confirmResult);
+    // 核心修复：在调用弹窗前，先检查 "一直选是" 的状态
+    const alwaysConfirm = alwaysConfirmPopups[popupId];
+
+    if (alwaysConfirm) {
+        // 如果用户已经选择“一直选是”，则跳过弹窗，直接设置为 true
+        confirmResult = true;
+        console.log(`[Memory Enhancement] 检测到 “${popupId}” 已设置为 '一直选是'，跳过弹窗。`);
+    } else {
+        // 否则，正常显示弹窗
+        const popupContentHtml = `<p>累计 ${todoChats.length} 长度的文本，是否开始独立填表？</p>`;
+        confirmResult = await newPopupConfirm(
+            popupContentHtml,
+            "取消",
+            "执行填表",
+            popupId,
+            "不再提示",
+            "一直选是"
+        );
+        console.log('newPopupConfirm result for stepwise summary:', confirmResult);
+    }
 
     if (confirmResult === false) {
         console.log('用户取消执行独立填表: ', `(${todoChats.length}) `, toBeExecuted);
         // MarkChatAsWaiting is not fully implemented, commenting out for now
-        // MarkChatAsWaiting(currentPiece, swipeUid); 
+        // MarkChatAsWaiting(currentPiece, swipeUid);
+        return 'cancelled'; // 返回取消状态
     } else {
-        if (confirmResult === 'dont_remind_active') {
-            EDITOR.info('已选择“一直选是”，操作将在后台自动执行...');
+        // [新增功能] 在确认填表后，如果“填完再发”未开启，则自动跳转
+        if (USER.tableBaseSetting.wait_for_fill_then_send === false) {
+            // [修复] 采用轮询+延迟的方式，确保跳转时目标消息已渲染，解决竞态条件
+            (async () => {
+                try {
+                    if (typeof globalThis.TavernHelper?.triggerSlash !== 'function' || typeof globalThis.TavernHelper?.getLastMessageId !== 'function') {
+                        return;
+                    }
+
+                    const lastMessageId = globalThis.TavernHelper.getLastMessageId();
+                    let messageElement;
+                    const maxAttempts = 30; // 最多尝试30次 (3秒)
+                    let attempts = 0;
+
+                    // 轮询等待DOM元素出现
+                    while (attempts < maxAttempts) {
+                        messageElement = document.querySelector(`div.mes[mesid="${lastMessageId}"]`);
+                        if (messageElement) break;
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        attempts++;
+                    }
+
+                    if (messageElement) {
+                        // 找到元素后，再短暂延迟，确保渲染稳定
+                        await new Promise(resolve => setTimeout(resolve, 150));
+                        console.log(`[Memory Enhancement] 分步填表开始，执行跳转: /chat-jump ${lastMessageId}`);
+                        globalThis.TavernHelper.triggerSlash(`/chat-jump ${lastMessageId}`);
+                    } else {
+                        console.warn(`[Memory Enhancement] 轮询3秒后，仍无法找到目标消息 (ID: ${lastMessageId})，跳转取消。`);
+                    }
+                } catch (e) {
+                    console.error('[Memory Enhancement] 执行 /chat-jump 失败:', e);
+                }
+            })();
         }
-        manualSummaryChat(todoChats, confirmResult, true); // 手动模式总是刷新
+
+        // 根据模式决定是否刷新页面
+        const shouldReload = mode !== 'auto_wait';
+        // 移除 “检测到自动确认设置...” 的提示
+        // 核心修复：返回 manualSummaryChat 的执行结果
+        return manualSummaryChat(todoChats, confirmResult, shouldReload);
     }
 }
 
@@ -144,8 +186,9 @@ export async function manualSummaryChat(todoChats, confirmResult, shouldReload =
     // 首先获取当前的聊天片段，以判断表格状态
     const { piece: initialPiece } = USER.getChatPiece();
     if (!initialPiece) {
-        EDITOR.error("无法获取当前的聊天片段，操作中止。");
-        return;
+        // EDITOR.error("无法获取当前的聊天片段，操作中止。");
+        console.log('[Memory Enhancement] 无法获取当前的聊天片段，自动填充已中止。');
+        return 'no_carrier'; // 返回一个特定状态，表示没有载体
     }
 
     // 只有当表格中已经有内容时，才执行“撤销并重做”
@@ -208,9 +251,24 @@ export async function manualSummaryChat(todoChats, confirmResult, shouldReload =
         await USER.saveChat();
 
         // 根据调用者要求决定是否刷新页面
-        if (shouldReload) {
-            reloadCurrentChat();
+        // if (shouldReload) {
+        //     reloadCurrentChat();
+        // }
+
+        // 新增：通过回调函数管理器通知监听器数据已更新
+        try {
+            // 关键修复：不再调用全局API，而是直接使用函数作用域内最新的 referencePiece.hash_sheets
+            // 这确保了派发的数据绝对是刚刚更新完成的状态
+            const latestTableData = ext_hashSheetsToJson(referencePiece.hash_sheets);
+            if (globalThis.stMemoryEnhancement && typeof globalThis.stMemoryEnhancement._notifyTableUpdate === 'function') {
+                globalThis.stMemoryEnhancement._notifyTableUpdate(latestTableData);
+            } else {
+                 console.warn('[Memory Enhancement] _notifyTableUpdate function not found on global object.');
+            }
+        } catch (e) {
+            console.error('[Memory Enhancement] Failed to notify table update:', e);
         }
+
         return 'success'; // 返回成功状态
         
     } else if (r === 'suspended' || r === 'error' || !r) {
