@@ -8,6 +8,36 @@ let currentApiKeyIndex = 0;// 用于记录当前使用的API Key的索引
 
 
 /**
+ * 统一处理和规范化API响应数据。
+ * - 自动解析JSON字符串。
+ * - 自动处理嵌套的 'data' 对象。
+ * @param {*} responseData - 从API收到的原始响应数据
+ * @returns {object} 规范化后的数据对象
+ */
+function normalizeApiResponse(responseData) {
+    let data = responseData;
+    // 1. 如果响应是字符串，尝试解析为JSON
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch (e) {
+            console.error("API响应JSON解析失败:", e);
+            // 返回一个错误结构，以便下游可以一致地处理
+            return { error: { message: 'Invalid JSON response' } };
+        }
+    }
+    // 2. 检查并解开嵌套的 'data' 属性
+    // 这种情况经常出现在一些代理服务中，例如 { "data": { "data": [...] } }
+    if (data && typeof data.data === 'object' && data.data !== null && !Array.isArray(data.data)) {
+        if (Object.hasOwn(data.data, 'data')) {
+            data = data.data;
+        }
+    }
+    return data;
+}
+
+
+/**
  * 加密
  * @param {*} rawKey - 原始密钥
  * @param {*} deviceId - 设备ID
@@ -284,13 +314,15 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
     const testPrompt = "Say 'test'";
     const apiKey = apiKeys[0];
 
-    const processResponse = (responseData) => {
+    const processResponse = (rawResponseData) => {
+        const responseData = normalizeApiResponse(rawResponseData);
         // 测试连接时，我们不关心返回的具体内容，只关心是否成功收到一个有效的JSON响应。
         // 即使 content 为空，只要 choices 数组存在，就代表API调用是通的。
         if (responseData && Array.isArray(responseData.choices)) {
             results.push({ keyIndex: 0, success: true });
         } else {
-            throw new Error(`收到的响应无效或为空。 响应: ${JSON.stringify(responseData)}`);
+            const errorMessage = responseData?.error?.message || `收到的响应无效或为空。`;
+            throw new Error(`${errorMessage} 响应: ${JSON.stringify(rawResponseData)}`);
         }
     };
 
@@ -301,6 +333,9 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
             url: '/api/backends/chat-completions/generate',
             type: 'POST',
             contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`
+            },
             data: JSON.stringify({
                 chat_completion_source: 'custom',
                 custom_url: apiUrl,
@@ -397,12 +432,13 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
         ];
     }
 
-    const processResponse = (responseData) => {
+    const processResponse = (rawResponseData) => {
+        const responseData = normalizeApiResponse(rawResponseData);
         const responseText = responseData?.choices?.[0]?.message?.content;
         if (suspended) return 'suspended';
         if (!responseText) {
-            const errorMessage = `响应中未找到有效内容。响应: ${JSON.stringify(responseData)}`;
-            throw new Error(errorMessage);
+            const errorMessage = responseData?.error?.message || `响应中未找到有效内容。`;
+            throw new Error(`${errorMessage} 响应: ${JSON.stringify(rawResponseData)}`);
         }
         return responseText;
     };
@@ -423,6 +459,9 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
             url: '/api/backends/chat-completions/generate',
             type: 'POST',
             contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${currentApiKey}`
+            },
             data: JSON.stringify(requestData),
         });
         const result = processResponse(response);
@@ -513,28 +552,41 @@ export async function updateModelList() {
     
     $selector.prop('disabled', true).empty().append($('<option>', { value: '', text: '正在获取...' }));
 
-    const processResponse = (responseData) => {
-        const models = (Array.isArray(responseData.data) ? responseData.data : (responseData.data && Array.isArray(responseData.data.data)) ? responseData.data.data : []);
+    const processResponse = (rawResponseData) => {
+        const responseData = normalizeApiResponse(rawResponseData);
+        const models = responseData.data || []; // 经过 normalizeApiResponse 处理后，models 就在 .data 中
 
-        if (responseData.error || models.length === 0) {
-            throw new Error(`未返回有效模型列表。 响应: ${JSON.stringify(responseData)}`);
+        if (responseData.error || !Array.isArray(models) || models.length === 0) {
+            const errorMessage = responseData?.error?.message || '未返回有效模型列表。';
+            throw new Error(`${errorMessage} 响应: ${JSON.stringify(rawResponseData)}`);
         }
 
         $selector.prop('disabled', false).empty();
         const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
         let hasMatchedModel = false;
+        
+        const getModelId = (model) => model.id || model.model;
 
-        const sortedModels = models.sort((a, b) => a.id.localeCompare(b.id));
+        const sortedModels = models.sort((a, b) => {
+            const idA = getModelId(a) || '';
+            const idB = getModelId(b) || '';
+            return idA.localeCompare(idB);
+        });
+
         sortedModels.forEach(model => {
-            $selector.append($('<option>', { value: model.id, text: model.id }));
-            if (model.id === customModelName) hasMatchedModel = true;
+            const modelId = getModelId(model);
+            if (!modelId) return; // 跳过没有标识符的模型
+
+            $selector.append($('<option>', { value: modelId, text: modelId }));
+            if (modelId === customModelName) hasMatchedModel = true;
         });
 
         if (hasMatchedModel) {
             $selector.val(customModelName);
         } else if (sortedModels.length > 0) {
-            $('#custom_model_name').val(sortedModels[0].id);
-            USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = sortedModels[0].id;
+            const firstModelId = getModelId(sortedModels[0]);
+            $('#custom_model_name').val(firstModelId);
+            USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = firstModelId;
         }
 
         EDITOR.success(`成功获取 ${sortedModels.length} 个模型`);
@@ -547,6 +599,9 @@ export async function updateModelList() {
             url: '/api/backends/chat-completions/status',
             type: 'POST',
             contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${apiKeys[0]}`
+            },
             data: JSON.stringify({
                 chat_completion_source: 'custom',
                 custom_url: apiUrl,
