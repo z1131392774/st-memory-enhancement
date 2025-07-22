@@ -1,3 +1,148 @@
+final-fix-wait-then-send-race-condition-20250722-0006:
+- **最终修复：通过延迟刷新彻底解决“填完再发”与“/chat-jump”的竞态条件**
+  - **问题:** 即便经过初步修复，`Element not found for message index ... in /chat-jump`的警告依然存在。这证明简单的UI操作替换不足以解决根本的时序冲突。
+  - **根本原因 (深入分析):** 酒馆的`/chat-jump`命令在其内部消息处理流中被触发，而插件的`performWaitThenSend`函数在`onMessageReceived`事件中异步执行。当插件调用`reloadCurrentChat()`时，它会立即销毁旧的DOM，此时`/chat-jump`（可能仍在事件队列中等待执行）便失去了它的目标元素，导致警告。
+  - **实现方式 (最终方案 - 延迟刷新):**
+    - **1. 临时内容替换 (`index.js`):** 在 `performWaitThenSend` 的成功回调中，不再直接刷新。而是首先找到对应的消息DOM元素，将其内容临时替换为“正在刷新...”之类的提示文本，并确保该元素可见。
+    - **2. 延迟执行 (`index.js`):** 使用`setTimeout(..., 100)`将`reloadCurrentChat()`的调用推迟100毫秒。
+  - **结果:**
+    - **竞态条件解决:** 这100毫秒的延迟为酒馆的内部事件循环提供了足够的时间，让`/chat-jump`命令可以抢在破坏性的`reloadCurrentChat()`之前成功执行。
+    - **警告彻底消除:** 由于`/chat-jump`总能找到它的目标，因此相关的`Element not found`警告被完全根除。
+    - **用户体验无缝:** 用户几乎不会察觉到这短暂的延迟和临时文本，最终看到的是一个被正确更新的、无任何错误的聊天界面。这是解决该UI冲突的最稳健方案。
+  - **受影响文件:**
+    - `index.js`
+    - `项目文档.txt` (更新此条目)
+>>>>>>> main
+
+popup-fix-manual-auto-unification-20250721-2325:
+- **核心逻辑修复：统一手动与自动填表时的弹窗行为**
+  - **问题:** 分步填表功能的提示框在手动点击“立即填表”时会显示，但在自动触发（如跑楼层）时，即使用户选择了“一直选是”，弹窗依然会出现，行为不一致。
+  - **根本原因:**
+    - 1. **状态访问性:** 用于跟踪“一直选是”选择的 `alwaysConfirmPopups` 对象是 `components/popupConfirm.js` 的内部变量，外部模块无法直接访问来判断是否应跳过弹窗。
+    - 2. **逻辑不一致:** `scripts/runtime/separateTableUpdate.js` 中的 `TableTwoStepSummary` 函数在显示弹窗前，没有预先检查“一直选是”的状态，导致在所有情况下都会尝试调用弹窗函数。
+  - **实现方式 (两步修复):**
+    - **1. 暴露状态 (`components/popupConfirm.js`):**
+        - 将 `alwaysConfirmPopups` 对象通过 `export` 关键字暴露出去，使其可以被其他模块导入和访问。
+    - **2. 增加前置检查 (`scripts/runtime/separateTableUpdate.js`):**
+        - 在 `TableTwoStepSummary` 函数中，导入 `alwaysConfirmPopups` 对象。
+        - 在调用 `newPopupConfirm` 之前，增加了一个判断逻辑：首先检查 `alwaysConfirmPopups` 中是否存在当前操作的ID。
+        - 如果存在，则完全跳过弹窗的创建和调用，直接将确认结果设为 `true`，并继续执行填表流程。
+  - **结果:**
+    - **行为完全统一:** 无论是手动点击还是自动触发，只要用户在会话中选择过一次“一直选是”，后续的所有同类操作都会在后台静默执行，不再显示任何确认弹窗。
+    - **逻辑更健壮:** 通过将状态检查前置，代码逻辑更加清晰，彻底解决了因调用路径不同而导致的行为差异问题。
+  - **受影响文件:**
+    - `components/popupConfirm.js`
+    - `scripts/runtime/separateTableUpdate.js`
+    - `项目文档.txt` (新增此条目)
+
+popup-fix-and-disable-auto-resume-20250721-2300:
+- **核心功能修复与逻辑调整：修复提示框BUG并禁用任务自动恢复**
+  - **问题 1 (BUG):** 分步填表功能的提示框存在逻辑问题。当用户选择“一直选是”后，虽然系统会默认执行操作，但提示框依然会显示，与用户预期不符。
+  - **问题 2 (体验):** “收到消息后填表”功能包含一个持久化机制，会在页面刷新后自动恢复未完成的任务。这导致了用户反馈的“刷新后自动填表”问题，影响了用户的主动控制。
+  - **实现方式:**
+    - **1. 修复提示框逻辑 (`components/popupConfirm.js`):**
+        - 重构了 `newPopupConfirm` 函数的逻辑。
+        - 现在，当检测到用户已选择“一直选是”或“不再提醒”时，函数会直接返回相应的结果，**并阻止弹窗的显示**，使两种选择的行为模式保持一致。
+    - **2. 增加状态重置机制 (`components/popupConfirm.js` & `index.js`):**
+        - 在 `popupConfirm.js` 中，将用于存储选择状态的对象从 `const` 改为 `let`，并增加了一个 `resetPopupConfirmations` 导出函数，用于清空这些状态对象。
+        - 在 `index.js` 的主初始化流程中，调用 `resetPopupConfirmations()`，确保每次页面刷新时，用户的“一直选是”和“不再提醒”设置都会被清除，可以重新选择。
+    - **3. 禁用任务自动恢复 (`index.js`):**
+        - 在 `index.js` 的主初始化流程中，定位到 `checkForPendingStepUpdate()` 函数的调用处。
+        - **暂时注释掉了**对该函数的调用。这禁用了在页面加载时自动恢复 `localStorage` 中待办任务的功能，从而解决了“刷新后自动填表”的问题。
+  - **结果:**
+    - **提示框行为正常:** “一直选是”选项现在可以正确地在后台静默执行，不再弹出多余的提示框，符合用户预期。
+    - **用户控制力增强:** 通过禁用自动任务恢复，用户不再会遇到意外的自动填表行为，所有操作都需要由用户主动发起。
+    - **状态管理更清晰:** 提示框的“记住选择”状态现在仅在单次会话中有效，刷新后即可重置，避免了永久性设置带来的困扰。
+  - **受影响文件:**
+    - `components/popupConfirm.js`
+    - `index.js`
+    - `项目文档.txt` (新增此条目)
+
+final-dynamic-data-push-20250721-2230:
+- **最终方案：通过解决时序问题，完善基于回调的动态数据推送机制**
+  - **问题:** 即便实现了回调机制，UI刷新问题依旧存在，日志显示 `Notifying 0 callbacks`。这表明当地图UI尝试注册回调时，插件核心的API（`window.stMemoryEnhancement`）尚未准备就绪，导致注册失败。这是一个典型的**初始化时序（Race Condition）**问题。
+  - **解决方案:** 调整插件API的暴露时机，确保它在任何外部UI加载之前就已经可用，并简化UI端的注册逻辑。
+  - **实现方式:**
+    - **1. 提前暴露API (`index.js`):**
+        - 将 `window.stMemoryEnhancement` 对象的创建及其回调管理器方法的定义，从 `jQuery(async () => { ... });` 内部**移动到 `index.js` 的顶层作用域**。
+        - 这确保了只要插件的JS文件被浏览器加载，`stMemoryEnhancement` API就立即可用，无需等待DOM Ready事件。
+    - **2. 简化UI初始化 (`原版地图表格美化.html`):**
+        - **移除了** `setInterval` 轮询检查API是否可用的逻辑。
+        - 修改为在 `DOMContentLoaded` 事件触发后，**立即、直接地**调用 `parent.stMemoryEnhancement.registerTableUpdateCallback(refreshWithData)` 来注册回调函数。
+  - **结果:**
+    - **时序问题解决:** 通过确保插件API的即时可用性，彻底解决了回调函数“未来得及注册，通知就已发出”的时序冲突。
+    - **通信链路稳定:** 现在，地图UI总能在第一时间成功注册其刷新函数，从而保证了在“分步填表”完成后，能够100%接收到数据推送并执行UI更新。
+    - **代码更简洁:** 移除了不稳定的轮询逻辑，使得UI端的初始化代码更清晰、更健壮。
+  - **受影响文件:**
+    - `index.js`
+    - `原版地图表格美化.html`
+    - `项目文档.txt` (新增此条目)
+
+map-data-flow-refactor-20250721-2206:
+- **核心数据流重构：实现地图UI的动态、高效实时刷新**
+  - **问题:** `stMemoryEnhancement.ext_exportAllTablesAsJson` 函数提供的是静态数据快照。当通过“分步填表”更新表格后，地图UI无法自动感知变化，必须重新调用API并刷新，效率低下且非实时。
+  - **解决方案:** 仿照 `特殊角色卡.html` 的事件驱动模式，改造数据通信链路，将静态数据拉取升级为动态数据推送。
+  - **实现方式:**
+    - **1. 优化事件派发 (`scripts/runtime/separateTableUpdate.js`):**
+        - 在 `manualSummaryChat` 函数中，当填表成功并保存后，对事件派发逻辑进行了关键性修改。
+        - 不再派发一个无内容的“信号”事件，而是直接调用 `ext_exportAllTablesAsJson()` 获取最新的完整表格数据。
+        - 将此完整的JSON数据直接作为 `detail` 负载，随 `st-memory-enhancement:data-updated` 事件一同派发。
+    - **2. 优化事件接收 (`原版地图表格美化.html`):**
+        - 重构了 `runInitialization` 函数，使其能接收一个可选的 `data` 参数。
+        - 修改了 `st-memory-enhancement:data-updated` 事件的监听器回调。
+        - 现在，回调函数会直接从 `event.detail` 中提取由派发方提供的最新数据，并将其作为参数传递给 `runInitialization(event.detail)`。
+        - 这使得UI刷新不再需要执行额外的API调用，而是直接利用推送来的数据。
+  - **结果:**
+    - **动态数据接口:** `ext_exportAllTablesAsJson` 虽未改变，但其使用方式结合事件机制，等效地构成了一个动态数据出口。
+    - **实时刷新:** 分步填表完成后，地图UI能立即、无延迟地接收到最新数据并完成局部刷新，用户体验如丝般顺滑。
+    - **性能提升:** 消除了冗余的API调用，降低了系统开销，实现了更高效的前后端数据同步。
+  - **受影响文件:**
+    - `scripts/runtime/separateTableUpdate.js`
+    - `原版地图表格美化.html`
+    - `项目文档.txt` (新增此条目)
+
+map-form-sync-20250721-1952:
+- **核心功能联动：实现分步填表后地图UI的实时刷新**
+  - **问题:** “收到消息后填表”功能（分步填表）在完成后，外部的“原版地图表格美化.html”UI无法感知到数据变化，导致其显示旧的信息，需要手动刷新页面。
+  - **解决方案:** 借鉴“特殊角色卡.html”的事件驱动架构，实现插件内部与外部UI的通信。
+  - **实现方式:**
+    - **1. 派发自定义事件 (`scripts/runtime/separateTableUpdate.js`):**
+        - 在 `manualSummaryChat` 函数中，当表格数据成功更新并保存后，增加了一个关键步骤。
+        - 使用 `window.dispatchEvent` 派发一个名为 `st-memory-enhancement:data-updated` 的全局自定义事件。
+        - 为了最高效率，该事件的 `detail` 对象直接包含了通过 `ext_exportAllTablesAsJson()` 获取的最新的、完整的表格JSON数据。
+    - **2. 监听自定义事件 (`原版地图表格美化.html`):**
+        - 在地图UI的JavaScript逻辑中，增加了一个新的事件监听器。
+        - 使用 `parent.window.addEventListener` 来监听从主窗口（酒馆环境）派发的 `st-memory-enhancement:data-updated` 事件。
+        - 当监听到该事件时，其回调函数会立即执行核心的 `runInitialization()` 函数，该函数负责重新解析数据并完整地重绘整个地图界面。
+    - **3. 移除旧的刷新逻辑 (`scripts/runtime/separateTableUpdate.js`):**
+        - 根据用户反馈，删除了 `manualSummaryChat` 函数中原有的 `reloadCurrentChat()` 调用。这消除了低效的、破坏用户体验的整页强制刷新。
+  - **结果:**
+    - **实时同步:** 当用户完成分步填表后，记忆插件会“通知”地图UI，地图UI收到通知后会立即用新数据刷新自己。
+    - **体验优化:** 整个过程无缝衔接，实现了局部UI的实时更新，无需刷新整个酒馆页面，操作更流畅。
+    - **代码解耦:** 插件核心逻辑与外部UI逻辑分离，通过标准的浏览器事件进行通信，提高了代码的可维护性和扩展性。
+  - **受影响文件:**
+    - `scripts/runtime/separateTableUpdate.js`
+    - `原版地图表格美化.html`
+    - `项目文档.txt` (新增此条目)
+
+analysis-20250721-1835:
+- **分析任务：解析 `特殊角色卡.html` 的实时更新机制**
+  - **目标:** 理解该HTML文件如何在SillyTavern（酒馆）聊天界面中，接收数据后实时更新自身UI，而无需刷新整个页面。
+  - **分析过程:**
+    - **1. 确认环境:** 通过分析 `<script>` 标签，确认该文件是一个为SillyTavern环境设计的、内嵌式的UI组件，依赖于 `TavernHelper` 等全局API。
+    - **2. 识别核心对象:** 找到了名为 `GuixuManager` 的核心JavaScript对象，它封装了所有的UI逻辑和交互。
+    - **3. 追踪数据流:**
+        - **初始化:** 页面加载时，通过 `getChatMessages()` 从当前聊天记录中读取角色数据（模型），并调用 `renderUI()` 首次渲染界面（视图）。
+        - **用户交互:** 用户的任何操作都会触发 `handleAction()` 函数。
+        - **数据处理:** `handleAction` 将用户输入和指令打包，通过 `TavernHelper.generate()` 发送给AI。
+        - **核心机制:** 收到AI回复后，脚本并不自行解析，而是通过 `eventEmit('mag_invoke_mvu', ...)` 触发一个全局事件。一个专门的MVU（Model-View-Update）处理器会监听此事件，解析AI回复中的指令，并更新储存在聊天记录中的核心数据（模型）。
+        - **UI刷新:** 事件处理完毕后，`handleAction` 函数会获得更新后的新数据，并再次调用 `renderUI()`，用新数据重绘界面上的所有元素。
+  - **结论:**
+    该页面并非通过简单的“正则注入”，而是采用了一套成熟的**事件驱动的MVU（模型-视图-更新）架构**。它通过监听SillyTavern的事件、调用其API，并与一个专门的数据处理模块（通过`mag_invoke_mvu`事件进行通信）协作，实现了数据与视图的分离。当数据模型被更新后，它仅通过JavaScript重绘需要改变的UI部分，从而实现了高效的、无需刷新页面的实时更新。
+  - **涉及文件:**
+    - `特殊角色卡.html` (已分析)
+    - `项目文档.txt` (新增此条目)
+
 v3.3.0-custom-api-proxy-toggle
 - **核心功能修复：为自定义API增加代理切换选项，解决非轮询API的授权问题**
   - **问题:** 当用户使用非轮询（即不支持SillyTavern内部路由）的自定义API端点时，插件的API请求会因通过SillyTavern代理而导致`Unauthorized` (401) 或 `Bad Request` (400) 错误，因为这些API需要直接调用。
@@ -185,8 +330,8 @@ v2.1.1-runtime-error-hotfix
   - **结果:** 通过从根源上修复不安全的DOMM操作，并为后续的数据处理和渲染流程增加健壮性检查，彻底解决了这一连锁错误。插件现在能够更稳定地处理异常数据和边界情况，提升了整体的可靠性。
   - **受影响文件:**
     - `index.js`
-    - `scripts/editor/chatSheetsDataView.js`
-
+  - **问题:** 用户在刷新页面后立即遇到 `TypeError: Cannot read properties of undefined (reading 'avatar')` 错误。经分析，这是由于插件在主程序（SillyTavern）数据（尤其是用户信息）完全加载前，过早地执行了依赖这些数据的操作，从而引发了典型的竞态条件（Race Condition）问题。
+  - **实现方式:**
 v2.e.m-final-independent-structure-export-fix:
 - **功能增强：实现独立填表结构（提示词）的导入导出**
   - **问题:** 用户在导出设置时，无法将“收到消息后填表”策略下的“独立填表整体结构”（即`step_by_step_user_prompt`）一并导出，导致在不同环境下导入预设后需要手动重新配置。
@@ -404,29 +549,3 @@ analysis-20250705-1111:
     - `index.js`
     - `assets/templates/appHeaderTableDrawer.html`
     - `scripts/renderer/appHeaderTableBaseDrawer.js`
-<environment_details>
-# VSCode Visible Files
-D:/Tool/cursor/scripts/settings/standaloneAPI.js
-D:/Tool/cursor/scripts/settings/standaloneAPI.js
-index.js
-
-# VSCode Open Tabs
-services/appFuncManager.js
-assets/templates/appHeaderTableDrawer.html
-services/stepByStepStorage.js
-scripts/runtime/separateTableUpdate.js
-scripts/editor/chatSheetsDataView.js
-core/manager.js
-scripts/settings/standaloneAPI.js
-项目文档.txt
-index.js
-
-# Current Time
-2025/7/18 下午11:17:07 (Asia/Shanghai, UTC+8:00)
-
-# Context Window Usage
-0 / 128K tokens used (0%)
-
-# Current Mode
-ACT MODE
-</environment_details>

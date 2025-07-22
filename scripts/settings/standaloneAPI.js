@@ -709,42 +709,56 @@ export function ext_getAllTables() {
  *
  * @returns {Object}
  */
+/**
+ * @description
+ * - **功能**: 将一个 hash_sheets 对象转换为与导出格式兼容的 JSON 对象。
+ * - **这是所有基于 hash_sheets 导出的核心函数**
+ * @param {Object} hashSheets - The hash_sheets object from a chat piece.
+ * @returns {Object} A JSON object representing the tables.
+ */
+export function ext_hashSheetsToJson(hashSheets) {
+    const exportData = {};
+    if (!hashSheets) return exportData;
+
+    try {
+        const tables = BASE.hashSheetsToSheets(hashSheets);
+        if (tables && tables.length > 0) {
+            tables.forEach(table => {
+                if (!table.enable) return; // 跳过禁用的表格
+
+                try {
+                    const rawContent = table.getContent(true) || [];
+                    const sanitizedContent = rawContent.map(row =>
+                        Array.isArray(row) ? row.map(cell => String(cell ?? '')) : []
+                    );
+
+                    exportData[table.uid] = {
+                        uid: table.uid,
+                        name: table.name,
+                        content: sanitizedContent
+                    };
+                } catch (error) {
+                    console.error(`[Memory Enhancement] 导出表格 ${table.name} (UID: ${table.uid}) 时出错:`, error);
+                }
+            });
+        }
+    } catch (error) {
+        console.error("[Memory Enhancement] 从 hash_sheets 转换表格时发生意外错误:", error);
+    }
+    
+    return exportData;
+}
+
+
 export function ext_exportAllTablesAsJson() {
     let exportData = {};
 
     try {
-        // [健壮性改造] 增加前置检查，防止在插件未完全加载或无聊天记录时崩溃。
         const context = USER.getContext();
         if (context && context.chat && context.chat.length > 0) {
-            // [数据源一致性] 调用已经过重构的函数链，确保从最新的本地数据生成实例。
             const { piece } = BASE.getLastSheetsPiece();
             if (piece && piece.hash_sheets) {
-                const tables = BASE.hashSheetsToSheets(piece.hash_sheets);
-                if (tables && tables.length > 0) {
-                    tables.forEach(table => {
-                        if (!table.enable) return; // 跳过禁用的表格
-
-                        try {
-                            // 注意：由于 hashSheetsToSheets 已确保实例是全新的，这里的 getContent 总是能获取到最新数据。
-                            const rawContent = table.getContent(true) || [];
-
-                            // 深度清洗，确保所有单元格都是字符串类型。
-                            const sanitizedContent = rawContent.map(row =>
-                                Array.isArray(row) ? row.map(cell =>
-                                    String(cell ?? '') // 将 null 和 undefined 转换为空字符串
-                                ) : []
-                            );
-
-                            exportData[table.uid] = {
-                                uid: table.uid,
-                                name: table.name,
-                                content: sanitizedContent
-                            };
-                        } catch (error) {
-                            console.error(`[Memory Enhancement] 导出表格 ${table.name} (UID: ${table.uid}) 时出错:`, error);
-                        }
-                    });
-                }
+                exportData = ext_hashSheetsToJson(piece.hash_sheets);
             }
         }
     } catch (error) {
@@ -752,12 +766,10 @@ export function ext_exportAllTablesAsJson() {
     }
 
     try {
-        // [新增功能] 尝试从 localStorage 读取暂存的数据并合并
         const stashedDataString = localStorage.getItem('table_stash_data');
         if (stashedDataString) {
             try {
                 const stashedData = JSON.parse(stashedDataString);
-                // 合并数据，当前聊天中的数据会覆盖暂存的数据
                 exportData = { ...stashedData, ...exportData };
             } catch (parseError) {
                 console.warn("[Memory Enhancement] 解析 localStorage 中的暂存数据失败:", parseError);
@@ -767,7 +779,6 @@ export function ext_exportAllTablesAsJson() {
         console.error("[Memory Enhancement] 从 localStorage 读取暂存数据时发生意外错误:", error);
     }
 
-    // 即使发生错误，也返回当前已成功导出的部分，确保函数不会崩溃
     if (Object.keys(exportData).length === 0) {
         console.warn("[Memory Enhancement] ext_exportAllTablesAsJson: 未能从任何来源导出有效数据。");
     }

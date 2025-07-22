@@ -1,6 +1,7 @@
 import { APP, BASE, DERIVED, EDITOR, SYSTEM, USER } from './core/manager.js';
 import { openTableRendererPopup, updateSystemMessageTableStatus } from "./scripts/renderer/tablePushToChat.js";
 import { loadSettings } from "./scripts/settings/userExtensionSetting.js";
+import { resetPopupConfirmations } from './components/popupConfirm.js';
 import { ext_getAllTables, ext_exportAllTablesAsJson } from './scripts/settings/standaloneAPI.js';
 import { openTableDebugLogPopup } from "./scripts/settings/devConsole.js";
 import { TableTwoStepSummary } from "./scripts/runtime/separateTableUpdate.js";
@@ -18,6 +19,51 @@ import applicationFunctionManager from "./services/appFuncManager.js";
 
 
 console.log("______________________记忆插件：开始加载______________________")
+
+// --- [核心改造] 回调函数管理器 ---
+// 将其定义在顶层作用域，确保在脚本加载后立即对其他窗口可用。
+const tableUpdateCallbacks = [];
+window.stMemoryEnhancement = {
+    ext_getAllTables,
+    ext_exportAllTablesAsJson,
+    /**
+     * 注册一个回调函数，当表格数据更新时将被调用。
+     * @param {function(Object)} callback - 当数据更新时要执行的回调函数，它将接收最新的表格JSON数据作为参数。
+     */
+    registerTableUpdateCallback: function(callback) {
+        if (typeof callback === 'function' && !tableUpdateCallbacks.includes(callback)) {
+            tableUpdateCallbacks.push(callback);
+            console.log('[Memory Enhancement] A new table update callback has been registered.');
+        }
+    },
+    /**
+     * 注销一个已注册的回调函数。
+     * @param {function} callback - 要移除的回调函数。
+     */
+    unregisterTableUpdateCallback: function(callback) {
+        const index = tableUpdateCallbacks.indexOf(callback);
+        if (index > -1) {
+            tableUpdateCallbacks.splice(index, 1);
+            console.log('[Memory Enhancement] A table update callback has been unregistered.');
+        }
+    },
+    /**
+     * (内部使用) 通知所有已注册的监听器数据已更新。
+     * @param {Object} newData - 最新的表格JSON数据。
+     */
+    _notifyTableUpdate: function(newData) {
+        console.log(`[Memory Enhancement] Notifying ${tableUpdateCallbacks.length} callbacks about table update.`);
+        tableUpdateCallbacks.forEach(callback => {
+            try {
+                callback(newData);
+            } catch (e) {
+                console.error('[Memory Enhancement] Error executing a table update callback:', e);
+            }
+        });
+    }
+};
+// --- [核心改造] 结束 ---
+
 
 let reloadDebounceTimer;
 const VERSION = '2.1.1'
@@ -715,27 +761,49 @@ async function performWaitThenSend(chat_id, messageContent) {
     }
 
     try {
-        // 1. 拦截
-        messageElement.hide();
+        // 1. [新方案] 拦截但不隐藏，立即将内容替换为“处理中”状态，以避免破坏 /chat-jump 的目标。
+        messageElement.find('.mes_text').html('<em>正在处理表格，请稍候...</em>');
 
         // 2. 处理
-        const success = await TableTwoStepSummary("auto_wait", messageContent);
+        const result = await TableTwoStepSummary("auto_wait", messageContent);
 
-        if (success) {
-            // 3. 核心修复：用最新的内容更新数据模型，然后再保存并刷新UI
+        // 3. 根据填表结果决定后续操作
+        if (result === 'success') {
+            // 填表成功，更新数据模型
             const chat = USER.getContext().chat;
             if (chat[chat_id]) {
                 chat[chat_id].mes = messageContent;
             }
             await USER.getContext().saveChat();
-            await reloadCurrentChat();
+
+            // a. 将消息内容更新为成功提示
+            messageElement.find('.mes_text').html('<em>表格更新成功，正在刷新...</em>');
+            
+            // b. 延迟执行破坏性的UI重载，为酒馆的内部命令（如 /chat-jump）提供一个安全的执行窗口
+            setTimeout(() => {
+                reloadCurrentChat();
+            }, 100); // 保持100ms延迟作为安全余量
+
         } else {
-            EDITOR.error("后台分步填表执行失败。");
-            messageElement.show();
+            // 填表失败或被用户取消
+            const reason = result === 'cancelled' ? '用户取消' : '执行失败';
+            EDITOR.error(`后台分步填表${reason}。`);
+            
+            // [新方案] 恢复原始消息内容，而不是简单地 .show() 一个被隐藏的元素
+            const originalContent = USER.getContext().chat[chat_id]?.mes ?? '内容恢复失败。';
+            messageElement.find('.mes_text').html(originalContent);
         }
     } catch(e) {
         EDITOR.error("“填完再发”流程发生错误: ", e.message, e);
-        messageElement.show();
+        // [新方案] 发生错误时，也尝试恢复原始消息内容
+        try {
+            const originalContent = USER.getContext().chat[chat_id]?.mes ?? '发生错误，无法恢复内容。';
+            messageElement.find('.mes_text').html(originalContent);
+        } catch (innerErr) {
+            // 如果连恢复都失败了，就显示一个错误消息
+             messageElement.find('.mes_text').html('<em>处理时发生严重错误，请检查控制台。</em>');
+        }
+        messageElement.show(); // 确保在任何意外情况下，元素最终都是可见的。
     }
 }
 
@@ -987,12 +1055,9 @@ function observeChatForSecondaryInterception() {
 
 
 jQuery(async () => {
-    // 注册API
-    window.stMemoryEnhancement = {
-        ext_getAllTables,
-        ext_exportAllTablesAsJson,
-    };
-
+    // 在插件加载时立即重置所有确认框的状态
+    resetPopupConfirmations();
+    
     // 版本检查
     fetch("http://api.muyoo.com.cn/check-version", {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientVersion: VERSION, user: USER.getContext().name1 })
@@ -1101,7 +1166,7 @@ jQuery(async () => {
         observeChatForSecondaryInterception();
 
         // [持久化改造] 检查是否有中断的待办任务需要恢复
-        checkForPendingStepUpdate();
+        // checkForPendingStepUpdate(); // 暂时禁用，以解决刷新后自动填表的问题
     }, 500); // 500毫秒延迟
 
 
