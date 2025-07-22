@@ -300,14 +300,30 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
                 stream: false,
             }),
         });
-        const responseText = data?.choices?.[0]?.message?.content;
+
+        console.log('自定义API测试响应:', data);
+        let responseData = data;
+
+        // 检查返回的data是否为字符串，如果是，则尝试解析为JSON对象
+        if (typeof responseData === 'string') {
+            try {
+                responseData = JSON.parse(responseData);
+            } catch (e) {
+                // 如果解析失败，说明返回的不是有效的JSON字符串，按原逻辑会抛出错误
+                console.error('API响应是字符串但无法解析为JSON:', e);
+            }
+        }
+
+        const responseText = responseData?.choices?.[0]?.message?.content;
         if (responseText && typeof responseText === 'string') {
             results.push({ keyIndex: 0, success: true });
         } else {
-            throw new Error('Invalid or empty response received.');
+            // 在错误信息中包含响应数据，方便排查
+            throw new Error(`收到的响应无效或为空。 响应: ${JSON.stringify(responseData)}`);
         }
     } catch (error) {
-        const errorMessage = error.responseJSON?.error?.message || error.statusText || error.message || 'Unknown error';
+        console.error('自定义API测试失败:', error);
+        const errorMessage = error.responseJSON?.error?.message || error.statusText || error.message || '未知错误';
         results.push({ keyIndex: 0, success: false, error: errorMessage });
     }
     
@@ -378,8 +394,30 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
         });
         
         loadingToast?.close();
-        const responseText = response?.choices?.[0]?.message?.content;
-        return suspended ? 'suspended' : responseText;
+
+        console.log('自定义API调用响应:', response);
+        let responseData = response;
+        if (typeof responseData === 'string') {
+            try {
+                responseData = JSON.parse(responseData);
+            } catch (e) {
+                console.error('API响应是字符串但无法解析为JSON:', e);
+            }
+        }
+
+        const responseText = responseData?.choices?.[0]?.message?.content;
+
+        if (suspended) {
+            return 'suspended';
+        }
+        
+        if (!responseText) {
+            const errorMessage = `响应中未找到有效内容。响应: ${JSON.stringify(responseData)}`;
+            EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${errorMessage}`);
+            return `错误: ${errorMessage}`;
+        }
+        
+        return responseText;
 
     } catch (error) {
         const errorMessage = error.responseJSON?.error?.message || error.statusText || error.message || 'Unknown error';
@@ -433,15 +471,25 @@ export async function updateModelList() {
             }),
         });
 
-        if (data.error || !Array.isArray(data.data) || data.data.length === 0) {
-            throw new Error('未返回有效模型列表');
+        console.log('获取模型列表响应:', data);
+        let responseData = data;
+        if (typeof responseData === 'string') {
+            try {
+                responseData = JSON.parse(responseData);
+            } catch (e) {
+                console.error('模型列表响应是字符串但无法解析为JSON:', e);
+            }
+        }
+
+        if (responseData.error || !Array.isArray(responseData.data) || responseData.data.length === 0) {
+            throw new Error(`未返回有效模型列表。 响应: ${JSON.stringify(responseData)}`);
         }
 
         $selector.prop('disabled', false).empty();
         const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
         let hasMatchedModel = false;
 
-        const sortedModels = data.data.sort((a, b) => a.id.localeCompare(b.id));
+        const sortedModels = responseData.data.sort((a, b) => a.id.localeCompare(b.id));
         sortedModels.forEach(model => {
             $selector.append($('<option>', { value: model.id, text: model.id }));
             if (model.id === customModelName) hasMatchedModel = true;
