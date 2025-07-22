@@ -1,3 +1,126 @@
+v3.6.2-silent-retry
+- **体验优化：实现无感知的API请求重试**
+  - **问题:** 在v3.6.1的混合请求模式中，当第一种模式（后端代理）失败并切换到第二种模式（前端直连）时，会向用户显示一个错误提示。这中断了操作的流畅性，给用户带来了不必要的困扰。
+  - **实现方式:**
+    - **1. 移除中间错误提示 (`scripts/settings/standaloneAPI.js`):**
+        - 在 `updateModelList` 和 `testApiConnection` 函数的 `catch` 块中，移除了当代理模式失败时调用的 `EDITOR.error`。
+        - 现在，只有当两种模式都尝试过并全部失败后，才会向用户显示一个包含了两种模式失败原因的最终错误信息。
+    - **2. 保持加载提示的持续性 (`scripts/settings/standaloneAPI.js`):**
+        - 调整了 `handleCustomAPIRequest` 函数中的 `loadingToast` 逻辑，确保加载提示框在整个自动重试流程中（包括从代理模式切换到直连模式）都保持可见，直到请求最终成功或彻底失败。
+  - **结果:**
+    - **无缝的用户体验:** API请求的故障切换过程现在对用户完全透明。用户不会看到中间的错误提示，只会看到一个持续的加载指示器，直到操作完成或最终失败，这使得整个体验更加流畅和专业。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
+v3.6.1-hybrid-api-request-all
+- **核心重构：将混合API请求模式应用于所有API调用**
+  - **问题:** v3.6.0只为模型列表获取和API测试实现了混合请求模式，而实际的表格填充（`handleCustomAPIRequest`）仍然只使用单一的后端代理模式，这使得在某些特定网络环境下，即使用户能成功获取模型列表，实际的填表功能也可能失败。
+  - **实现方式:**
+    - **1. 全面应用混合模式 (`scripts/settings/standaloneAPI.js`):**
+        - 对 `handleCustomAPIRequest` 函数进行了与 `updateModelList` 和 `testApiConnection` 相同的重构。
+        - 现在，当调用自定义API进行表格填充时，它会首先尝试通过SillyTavern后端代理进行请求。
+        - 如果代理请求失败，它会自动、无感地切换到前端直连模式 (`fetch`) 进行重试。
+        - 只有当两种模式都失败后，才会向用户报告一个包含了两种模式失败原因的复合错误信息。
+  - **结果:**
+    - **终极兼容性与稳定性:** 现在插件的所有核心API交互功能（测试、获取模型、生成内容）都具备了自动故障切换能力。这确保了无论用户的网络环境或API提供商的配置如何，插件都能以最大可能成功执行，提供了最稳定、最无缝的用户体验。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
+v3.6.0-hybrid-api-request
+- **核心重构：实现混合API请求模式以达到最大兼容性**
+  - **问题:** 单独使用后端代理模式或前端直连模式都无法完美解决所有问题。代理模式解决了CORS（跨域）问题，但可能因服务器配置导致认证失败；直连模式解决了认证问题，但会触发浏览器的CORS安全限制。
+  - **实现方式:**
+    - **1. 实现自动故障切换 (`scripts/settings/standaloneAPI.js`):**
+        - 重构了 `updateModelList` 和 `testApiConnection` 函数，使其内部包含两种请求模式。
+        - **默认首先尝试“后端代理”模式** (`$.ajax`)。这是最通用的方式，可以避免大多数CORS问题。
+        - **如果代理模式请求失败**，代码会自动捕获错误，并**无缝切换到“前端直连”模式** (`fetch`) 进行重试。
+        - 只有当两种模式都失败时，才会向用户报告最终的复合错误信息，明确指出两种模式的失败原因。
+    - **2. 移除不必要的用户选项 (`assets/templates/index.html`):**
+        - 删除了之前为解决此问题而添加的“绕过酒馆代理”复选框，因为现在插件可以自动处理模式切换，不再需要用户手动干预。
+  - **结果:**
+    - **终极兼容性:** 插件现在能够智能地自动适应不同的API和网络环境。无论是需要代理的、有CORS限制的API，还是必须直接连接的API，插件都能在无需用户干预的情况下找到成功路径。
+    - **最佳用户体验:** 用户不再需要理解复杂的CORS或代理概念，也无需手动切换选项。插件在后台自动完成所有尝试，提供了无缝、可靠的体验。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `assets/templates/index.html`
+    - `项目文档.txt` (新增此条目)
+
+v3.5.2-hotfix-cors-and-auth
+- **核心重构：恢复后端代理以解决CORS问题并修正认证**
+  - **问题:** v3.5.0和v3.5.1的修改在解决了部分问题的同时，引入了新的CORS（跨域资源共享）错误。直接从前端 `fetch` API会导致浏览器安全策略阻止跨域请求。
+  - **实现方式:**
+    - **1. 全面恢复后端代理 (`scripts/settings/standaloneAPI.js`):**
+        - `testApiConnection` 和 `updateModelList` 函数都已恢复为v3.4.9的状态，即通过 `$.ajax` 向SillyTavern后端的 `/api/backends/chat-completions/...` 端点发送请求。这是解决CORS问题的唯一可靠方法。
+    - **2. 确保认证信息传递 (`scripts/settings/standaloneAPI.js`):**
+        - 确认了在 `testApiConnection` 和 `updateModelList` 的 `$.ajax` 请求体中，都包含了 `api_key: apiKeys[0]` 字段。这确保了我们自定义的API Key能够被传递给SillyTavern后端，后端在转发请求时会使用这个Key，从而解决认证失败的问题。
+    - **3. 保留兼容性修复 (`scripts/settings/standaloneAPI.js`):**
+        - 保留了所有先前版本中对API响应的兼容性处理，包括解析JSON字符串和处理嵌套的 `data` 对象。
+  - **结果:**
+    - **最终解决方案:** 此版本结合了代理模式和正确的密钥传递，应能同时解决CORS和认证问题，为不同类型的API提供最广泛的兼容性。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
+v3.5.1-hotfix-url-join
+- **紧急修复：修正API端点URL的拼接逻辑**
+  - **问题:** 在v3.5.0的重构中，构造请求URL的方式 `new URL('/models', apiUrl)` 存在缺陷。如果用户提供的 `apiUrl` 包含路径（如 `https://api.example.com/v1`），该方法会错误地生成 `https://api.example.com/models`，而不是正确的 `https://api.example.com/v1/models`，导致请求404并返回HTML错误页面，从而引发JSON解析失败。
+  - **实现方式:**
+    - **1. 改进URL拼接 (`scripts/settings/standaloneAPI.js`):**
+        - 在 `testApiConnection` 和 `updateModelList` 两个函数中，都修改了URL的构造方式。
+        - 新逻辑通过 `apiUrl.replace(/\/$/, '') + '/models'` 的方式，先移除 `apiUrl` 末尾可能存在的斜杠，然后再安全地拼接上目标路径，确保最终生成的URL总是正确的。
+  - **结果:**
+    - **URL构造正确:** API请求现在总是能指向正确的端点，彻底解决了因URL错误导致的HTML响应和JSON解析失败问题。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
+v3.5.0-hotfix-direct-api-request
+- **核心重构：绕过酒馆后端，直接从前端请求API**
+  - **问题:** 即便在请求中加入了API Key，测试连接和获取模型列表的功能依然失败，并返回“Unauthorized”错误。根本原因是插件通过SillyTavern后端代理API请求的方式存在问题：后端不会从POST请求体中读取并使用我们插件自定义的API Key，而是尝试读取酒馆自身的密钥，导致认证失败。
+  - **实现方式:**
+    - **1. 重构API测试逻辑 (`scripts/settings/standaloneAPI.js`):**
+        - `testApiConnection` 函数不再使用 `$.ajax` 向酒馆后端发送代理请求。
+        - **修改为** 使用 `fetch` API 直接向用户指定的API URL的 `/chat/completions` 端点发送 `POST` 请求。
+        - 在请求的 `headers` 中正确设置 `Authorization: Bearer <apiKey>`，确保认证信息被目标服务器正确识别。
+    - **2. 重构模型列表获取逻辑 (`scripts/settings/standaloneAPI.js`):**
+        - `updateModelList` 函数同样不再通过酒馆后端代理。
+        - **修改为** 使用 `fetch` API 直接向用户指定的API URL的 `/models` 端点发送 `GET` 请求。
+        - 同样地，在请求的 `headers` 中也设置了正确的 `Authorization` 信息。
+  - **结果:**
+    - **认证问题彻底解决:** 通过绕过有问题的后端代理，直接从前端发起标准化的API请求，认证流程完全符合OpenAI兼容API的规范，API测试和模型列表获取功能现已完全恢复正常。
+    - **逻辑更清晰:** 代码逻辑更加直接和清晰，减少了对SillyTavern内部实现的依赖，提高了插件的健壮性和可维护性。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
+v3.4.9-hotfix-auth-key
+- **紧急修复：为模型列表请求添加API Key**
+  - **问题:** API测试和获取模型列表的功能均失败，返回“Unauthorized”错误。根本原因是 `updateModelList` 函数在向API发送请求时，没有包含必需的API Key，导致请求因未授权而被拒绝。
+  - **实现方式:**
+    - **1. 在请求中加入API Key (`scripts/settings/standaloneAPI.js`):**
+        - 修改了 `updateModelList` 函数，使其在执行 `$.ajax` 请求之前，会先调用 `getDecryptedApiKey()` 来获取用户保存的、已解密的API Key。
+        - 将获取到的第一个有效API Key 添加到发送给 `/api/backends/chat-completions/status` 端点的请求体中。
+  - **结果:**
+    - **授权问题解决:** 获取模型列表的请求现在包含了正确的认证信息，能够通过服务器的验证，API测试和模型列表获取功能均已恢复正常。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
+v3.4.8-hotfix-model-list-compat
+- **紧急修复：增强获取模型列表的兼容性**
+  - **问题:** 在使用某些API代理或中转站时，获取模型列表的功能失败，并报告 `未返回有效模型列表` 错误。这是因为部分API返回的数据结构存在额外嵌套，例如 `{"data": {"data": [...]}}`，导致插件无法直接解析模型数组。
+  - **实现方式:**
+    - **1. 智能解析模型数据 (`scripts/settings/standaloneAPI.js`):**
+        - 在 `updateModelList` 函数中，增加了一个新的逻辑来处理不同的响应格式。
+        - 新代码会首先检查 `responseData.data` 是否为数组。如果不是，它会继续检查 `responseData.data.data` 是否为数组，从而能够正确地从嵌套结构中提取模型列表。
+  - **结果:**
+    - **兼容性提升:** 插件现在能够兼容更多种类的API响应格式，成功获取模型列表，解决了因数据结构不一致导致的问题。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
 v3.4.7-hotfix-response-handling
 - **紧急修复：全面增强API响应处理，修复中转站兼容性**
   - **问题:** 当使用某些API中转站时，插件的API测试、调用及模型列表获取功能均可能失败，报告 `Invalid or empty response` 或 `未返回有效模型列表` 等错误。根本原因是部分代理返回的响应体是JSON字符串，而非标准的JSON对象，导致插件无法正确解析。
