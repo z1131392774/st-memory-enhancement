@@ -122,6 +122,11 @@ export async function buildSheetsByTemplates(targetPiece) {
             // 移除原有的 `reloadCurrentChat()`，因为它会导致不必要的全局刷新，造成“覆盖”的错觉。
             return;
         }
+        // [二次修复] 如果从暂存加载失败，并且当前没有任何聊天记录，则直接中止，防止在空载体情况下循环
+        if (USER.getContext().chat.length === 0) {
+            console.log('[Memory Enhancement] 暂存为空，且无聊天载体，已中止表格创建。');
+            return;
+        }
     }
 
     // 如果不是新对话，或者暂存区为空，则按原计划从模板创建

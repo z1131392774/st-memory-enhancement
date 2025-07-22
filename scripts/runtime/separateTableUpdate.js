@@ -127,17 +127,38 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
     } else {
         // [新增功能] 在确认填表后，如果“填完再发”未开启，则自动跳转
         if (USER.tableBaseSetting.wait_for_fill_then_send === false) {
-            setTimeout(() => {
+            // [修复] 采用轮询+延迟的方式，确保跳转时目标消息已渲染，解决竞态条件
+            (async () => {
                 try {
-                    if (typeof globalThis.TavernHelper?.triggerSlash === 'function' && typeof globalThis.TavernHelper?.getLastMessageId === 'function') {
-                        const lastMessageId = globalThis.TavernHelper.getLastMessageId();
+                    if (typeof globalThis.TavernHelper?.triggerSlash !== 'function' || typeof globalThis.TavernHelper?.getLastMessageId !== 'function') {
+                        return;
+                    }
+
+                    const lastMessageId = globalThis.TavernHelper.getLastMessageId();
+                    let messageElement;
+                    const maxAttempts = 30; // 最多尝试30次 (3秒)
+                    let attempts = 0;
+
+                    // 轮询等待DOM元素出现
+                    while (attempts < maxAttempts) {
+                        messageElement = document.querySelector(`div.mes[mesid="${lastMessageId}"]`);
+                        if (messageElement) break;
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        attempts++;
+                    }
+
+                    if (messageElement) {
+                        // 找到元素后，再短暂延迟，确保渲染稳定
+                        await new Promise(resolve => setTimeout(resolve, 150));
                         console.log(`[Memory Enhancement] 分步填表开始，执行跳转: /chat-jump ${lastMessageId}`);
                         globalThis.TavernHelper.triggerSlash(`/chat-jump ${lastMessageId}`);
+                    } else {
+                        console.warn(`[Memory Enhancement] 轮询3秒后，仍无法找到目标消息 (ID: ${lastMessageId})，跳转取消。`);
                     }
                 } catch (e) {
                     console.error('[Memory Enhancement] 执行 /chat-jump 失败:', e);
                 }
-            }, 1500); // 延迟以确保新消息的DOM元素已渲染
+            })();
         }
 
         // 根据模式决定是否刷新页面
@@ -163,8 +184,9 @@ export async function manualSummaryChat(todoChats, confirmResult, shouldReload =
     // 首先获取当前的聊天片段，以判断表格状态
     const { piece: initialPiece } = USER.getChatPiece();
     if (!initialPiece) {
-        EDITOR.error("无法获取当前的聊天片段，操作中止。");
-        return;
+        // EDITOR.error("无法获取当前的聊天片段，操作中止。");
+        console.log('[Memory Enhancement] 无法获取当前的聊天片段，自动填充已中止。');
+        return 'no_carrier'; // 返回一个特定状态，表示没有载体
     }
 
     // 只有当表格中已经有内容时，才执行“撤销并重做”

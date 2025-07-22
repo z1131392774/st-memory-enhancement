@@ -490,8 +490,8 @@ function InitBinging() {
     });
 
     // 是否通过酒馆代理
-    $('#use_tavern_proxy').on('change', function() {
-        USER.tableBaseSetting.use_tavern_proxy = this.checked;
+    $('#custom_api_stream').on('change', function() {
+        USER.tableBaseSetting.custom_api_stream = this.checked;
     });
 
     // 获取模型列表
@@ -581,7 +581,7 @@ export function renderSetting() {
     // updateSwitch('#advanced_settings', USER.tableBaseSetting.advanced_settings);
     updateSwitch('#confirm_before_execution', USER.tableBaseSetting.confirm_before_execution);
     updateSwitch('#use_main_api', USER.tableBaseSetting.use_main_api);
-    updateSwitch('#use_tavern_proxy', USER.tableBaseSetting.use_tavern_proxy);
+    updateSwitch('#custom_api_stream', USER.tableBaseSetting.custom_api_stream);
     updateSwitch('#step_by_step_use_main_api', USER.tableBaseSetting.step_by_step_use_main_api);
     updateSwitch('#ignore_del', USER.tableBaseSetting.bool_ignore_del);
     // updateSwitch('#bool_force_refresh', USER.tableBaseSetting.bool_force_refresh);

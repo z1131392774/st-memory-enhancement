@@ -725,9 +725,15 @@ export async function refreshContextView() {
  * @returns {Promise<boolean>} 是否成功加载数据
  */
 export async function autoImportFromStash() {
+    // [终极修复] 在执行任何操作前，首先检查是否存在聊天载体。
+    if (USER.getContext().chat.length === 0) {
+        console.log('[Memory Enhancement] 检测到暂存数据，但无聊天载体，已中止自动恢复。');
+        return false; // 直接返回，不进行任何后续操作
+    }
+
     const content = await readDataFromLocalStorage('table_stash_data');
     if (content && content.length > 2) { // 检查内容是否为一个有效的json object
-        console.log('[Memory Enhancement] 检测到暂存数据，将在5秒后尝试自动恢复...');
+        console.log('[Memory Enhancement] 检测到暂存数据，将在1.5秒后尝试自动恢复...');
         return new Promise(resolve => {
             setTimeout(async () => {
                 // 自动导入时，isAuto为true，跳过弹窗

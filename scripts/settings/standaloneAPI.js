@@ -1,17 +1,7 @@
 // standaloneAPI.js
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
-import LLMApiService from "../../services/llmApi.js";
 import {PopupConfirm} from "../../components/popupConfirm.js";
-
-// @ts-ignore
-let ChatCompletionService = undefined;
-try {
-    // 动态导入，兼容模块不存在的情况
-    const module = await import('/scripts/custom-request.js');
-    ChatCompletionService = module.ChatCompletionService;
-} catch (e) {
-    console.warn("未检测到 /scripts/custom-request.js 或未正确导出 ChatCompletionService，将禁用代理相关功能。", e);
-}
+import { oai_settings, prepareOpenAIMessages, sendOpenAIRequest } from '/scripts/openai.js';
 
 let loadingToast = null;
 let currentApiKeyIndex = 0;// 用于记录当前使用的API Key的索引
@@ -291,71 +281,36 @@ export async function handleApiTestRequest(apiUrl, encryptedApiKeys, modelName) 
  */
 export async function testApiConnection(apiUrl, apiKeys, modelName) {
     const results = [];
-    const testPrompt = "Say 'test'"; // 测试用例
-    const useProxy = USER.tableBaseSetting.use_tavern_proxy;
+    const testPrompt = "Say 'test'";
+    const apiKey = apiKeys[0];
 
-    for (let i = 0; i < apiKeys.length; i++) {
-        const apiKey = apiKeys[i];
-        console.log(`Testing API Key index: ${i} (Proxy: ${useProxy})`);
-        try {
-            let response;
-            if (useProxy) {
-                // 使用SillyTavern代理 (现有逻辑)
-                const llmService = new LLMApiService({
-                    api_url: apiUrl,
-                    api_key: apiKey,
-                    model_name: modelName || 'gpt-3.5-turbo',
-                    system_prompt: 'You are a test assistant.',
-                    temperature: 0.1
-                });
-                response = await llmService.callLLM(testPrompt);
-            } else {
-                // 不使用代理，直接fetch
-                const directUrl = new URL(apiUrl);
-                if (!directUrl.pathname.endsWith('/chat/completions')) {
-                     directUrl.pathname = directUrl.pathname.replace(/\/$/, '') + '/chat/completions';
-                }
-                const responseFetch = await fetch(directUrl.href, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: modelName || 'gpt-3.5-turbo',
-                        messages: [{ role: 'user', content: testPrompt }],
-                        temperature: 0.1,
-                        stream: false
-                    })
-                });
-
-                if (!responseFetch.ok) {
-                    const errorBody = await responseFetch.text();
-                    throw new Error(`Request failed with status ${responseFetch.status}: ${errorBody}`);
-                }
-                const result = await responseFetch.json();
-                response = result?.choices?.[0]?.message?.content;
-            }
-
-            if (response && typeof response === 'string') {
-                console.log(`API Key index ${i} test successful. Response: ${response}`);
-                results.push({ keyIndex: i, success: true });
-            } else {
-                throw new Error('Invalid or empty response received.');
-            }
-        } catch (error) {
-            console.error(`API Key index ${i} test failed (raw error object):`, error); // Log the raw error object
-            let errorMessage = 'Unknown error';
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            } else if (typeof error === 'string') {
-                errorMessage = error;
-            } else if (error && typeof error.toString === 'function') {
-                errorMessage = error.toString();
-            }
-            results.push({ keyIndex: i, success: false, error: errorMessage });
+    try {
+        const data = await $.ajax({
+            url: '/api/backends/chat-completions/generate',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                chat_completion_source: 'custom',
+                custom_url: apiUrl,
+                api_key: apiKey,
+                messages: [{ role: 'user', content: testPrompt }],
+                model: modelName || 'gpt-3.5-turbo',
+                temperature: 0.1,
+                max_tokens: 50,
+                stream: false,
+            }),
+        });
+        const responseText = data?.choices?.[0]?.message?.content;
+        if (responseText && typeof responseText === 'string') {
+            results.push({ keyIndex: 0, success: true });
+        } else {
+            throw new Error('Invalid or empty response received.');
         }
+    } catch (error) {
+        const errorMessage = error.responseJSON?.error?.message || error.statusText || error.message || 'Unknown error';
+        results.push({ keyIndex: 0, success: false, error: errorMessage });
     }
+    
     return results;
 }
 
@@ -367,138 +322,77 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
  * @returns {Promise<string>} 生成的响应内容
  */
 export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByStepSummary = false, isSilent = false) {
-    const USER_API_URL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url;
     const decryptedApiKeysString = await getDecryptedApiKey();
-    const USER_API_MODEL = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-    const MAX_RETRIES = 0;
-    const USE_TAVERN_PROXY = USER.tableBaseSetting.use_tavern_proxy;
-
-    if (!USER_API_URL || !USER_API_MODEL) {
-        EDITOR.error('请填写完整的自定义API配置 (URL 和模型)');
-        return;
-    }
-
     if (!decryptedApiKeysString) {
-        EDITOR.error('API key解密失败或未设置，请检查API key设置！');
+        EDITOR.error('API key解密失败或未设置!');
         return;
     }
 
-    const apiKeys = decryptedApiKeysString.split(',').map(k => k.trim()).filter(k => k.length > 0);
-
+    const apiKeys = decryptedApiKeysString.split(',').map(k => k.trim()).filter(Boolean);
     if (apiKeys.length === 0) {
-        EDITOR.error('未找到有效的API Key，请检查输入。');
+        EDITOR.error('未找到有效的API Key.');
         return;
     }
-
+    
     let suspended = false;
-    createLoadingToast(false, isSilent).then((r) => {
-        if (loadingToast) loadingToast.close();
+    createLoadingToast(false, isSilent).then(r => {
+        loadingToast?.close();
         suspended = r;
     });
 
-    const totalKeys = apiKeys.length;
-    const attempts = MAX_RETRIES === 0 ? totalKeys : Math.min(MAX_RETRIES, totalKeys);
-    let lastError = null;
-
-    for (let i = 0; i < attempts; i++) {
-        if (suspended) break;
-
-        const keyIndexToTry = currentApiKeyIndex % totalKeys;
-        const currentApiKey = apiKeys[keyIndexToTry];
-        currentApiKeyIndex++;
-
-        console.log(`尝试使用API密钥索引进行API调用: ${keyIndexToTry} (代理: ${USE_TAVERN_PROXY})`);
-        if (loadingToast) {
-            loadingToast.text = `尝试使用第 ${keyIndexToTry + 1}/${totalKeys} 个自定义API Key...`;
-        }
-
-        try {
-            let response;
-            const promptData = Array.isArray(systemPrompt) ? systemPrompt : userPrompt;
-
-            if (USE_TAVERN_PROXY) {
-                // ### 通过SillyTavern代理API (轮询/流式) ###
-                console.log(`自定义API: 使用 llmService.callLLM`);
-                const llmService = new LLMApiService({
-                    api_url: USER_API_URL,
-                    api_key: currentApiKey,
-                    model_name: USER_API_MODEL,
-                    system_prompt: Array.isArray(promptData) ? "" : systemPrompt,
-                    temperature: USER.tableBaseSetting.custom_temperature,
-                    table_proxy_address: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address,
-                    table_proxy_key: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key
-                });
-                const streamCallback = (chunk) => {
-                    if (loadingToast) {
-                        const modeText = isStepByStepSummary ? "(分步)" : "";
-                        loadingToast.text = `正在使用第 ${keyIndexToTry + 1} 个Key生成${modeText}: ${chunk}`;
-                    }
-                };
-                response = await llmService.callLLM(promptData, streamCallback);
-
-            } else {
-                // ### 直接调用API (无代理) ###
-                console.log(`自定义API: 使用 direct fetch`);
-                const directUrl = new URL(USER_API_URL);
-                 if (!directUrl.pathname.endsWith('/chat/completions')) {
-                     directUrl.pathname = directUrl.pathname.replace(/\/$/, '') + '/chat/completions';
-                }
-
-                let messages;
-                if (Array.isArray(promptData)) {
-                    messages = promptData;
-                } else {
-                    messages = [
-                        { role: "system", content: systemPrompt },
-                        { role: "user", content: userPrompt }
-                    ];
-                }
-
-                const responseFetch = await fetch(directUrl.href, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${currentApiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: USER_API_MODEL,
-                        messages: messages,
-                        temperature: USER.tableBaseSetting.custom_temperature,
-                        stream: false // 直接调用时，流式处理更复杂，暂不支持
-                    })
-                });
-
-                if (!responseFetch.ok) {
-                    const errorBody = await responseFetch.text();
-                    throw new Error(`请求失败，状态码 ${responseFetch.status}: ${errorBody}`);
-                }
-                const result = await responseFetch.json();
-                response = result?.choices?.[0]?.message?.content;
-            }
-
-            // --- 通用成功处理 ---
-            console.log(`请求成功 (密钥索引: ${keyIndexToTry}):`, response);
-            loadingToast?.close();
-            return suspended ? 'suspended' : response;
-
-        } catch (error) {
-            console.error(`API调用失败，密钥索引 ${keyIndexToTry}:`, error);
-            lastError = error;
-            EDITOR.error(`使用第 ${keyIndexToTry + 1} 个 Key 调用失败: ${error.message || '未知错误'}`);
-        }
+    const keyIndexToTry = currentApiKeyIndex % apiKeys.length;
+    const currentApiKey = apiKeys[keyIndexToTry];
+    currentApiKeyIndex++;
+    
+    if (loadingToast) {
+        loadingToast.text = `尝试使用第 ${keyIndexToTry + 1}/${apiKeys.length} 个自定义API Key...`;
     }
 
-    // 所有尝试均失败
-    loadingToast?.close();
-    if (suspended) {
-        EDITOR.warning('操作已被用户中止。');
-        return 'suspended';
-    }
+    try {
+        let messages;
+        // 核心修正：确保当systemPrompt是数组时，它被正确地用作messages
+        if (Array.isArray(systemPrompt)) {
+            messages = systemPrompt;
+        } else {
+            messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ];
+        }
 
-    const errorMessage = `所有 ${attempts} 次尝试均失败。最后错误: ${lastError?.message || '未知错误'}`;
-    EDITOR.error(errorMessage);
-    console.error('所有API调用尝试均失败。', lastError);
-    return `错误: ${errorMessage}`;
+        const requestData = {
+            chat_completion_source: 'custom',
+            custom_url: USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url,
+            api_key: currentApiKey,
+            messages: messages,
+            model: USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name,
+            temperature: USER.tableBaseSetting.custom_temperature,
+            stream: USER.tableBaseSetting.custom_api_stream,
+        };
+
+        // TODO: 手动处理流式响应
+        if (requestData.stream) {
+             EDITOR.error("流式传输尚未在此重构中完全实现。");
+             throw new Error("流式传输未实现");
+        }
+
+        const response = await $.ajax({
+            url: '/api/backends/chat-completions/generate',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(requestData),
+        });
+        
+        loadingToast?.close();
+        const responseText = response?.choices?.[0]?.message?.content;
+        return suspended ? 'suspended' : responseText;
+
+    } catch (error) {
+        const errorMessage = error.responseJSON?.error?.message || error.statusText || error.message || 'Unknown error';
+        EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${errorMessage}`);
+        loadingToast?.close();
+        return `错误: ${errorMessage}`;
+    }
 }
 
 /**请求模型列表
@@ -526,120 +420,52 @@ function maskApiKey(key) {
 export async function updateModelList() {
     const apiUrl = $('#custom_api_url').val().trim();
     const $selector = $('#model_selector');
-    const useProxy = USER.tableBaseSetting.use_tavern_proxy;
-
+    
     if (!apiUrl) {
         EDITOR.error('请输入API URL');
         return;
     }
     
-    // 启用选择器
-    $selector.prop('disabled', false).empty().append($('<option>', { value: '', text: '正在获取模型...' }));
+    $selector.prop('disabled', true).empty().append($('<option>', { value: '', text: '正在获取...' }));
 
-    const decryptedApiKeysString = await getDecryptedApiKey();
-    if (!decryptedApiKeysString) {
-        EDITOR.error('API key解密失败或未设置，请检查API key设置！');
-        $selector.empty().append($('<option>', { value: '', text: 'API Key未设置' })).prop('disabled', true);
-        return;
-    }
-
-    const apiKeys = decryptedApiKeysString.split(',').map(k => k.trim()).filter(k => k.length > 0);
-    if (apiKeys.length === 0) {
-        EDITOR.error('未找到有效的API Key，请检查输入。');
-        $selector.empty().append($('<option>', { value: '', text: '无有效API Key' })).prop('disabled', true);
-        return;
-    }
-
-    let modelsUrl;
     try {
-        const normalizedUrl = new URL(apiUrl);
-        // 确保路径指向 /models
-        if (!normalizedUrl.pathname.endsWith('/models')) {
-            normalizedUrl.pathname = normalizedUrl.pathname.replace(/\/v1\/?$/, '') + '/v1/models';
-        }
-        modelsUrl = normalizedUrl.href;
-    } catch (e) {
-        EDITOR.error(`无效的API URL: ${apiUrl}`);
-        $selector.empty().append($('<option>', { value: '', text: 'URL无效' })).prop('disabled', true);
-        return;
-    }
+        const data = await $.ajax({
+            url: '/api/backends/chat-completions/status',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                chat_completion_source: 'custom',
+                custom_url: apiUrl,
+            }),
+        });
 
-    let firstSuccessfulKeyIndex = -1;
-    let modelCount = 0;
-    const invalidKeysInfo = [];
-
-    // 尝试使用第一个key获取模型列表
-    const apiKeyToTry = apiKeys[0];
-    
-    try {
-        console.log(`[Fetch] 使用第一个 Key 获取模型 (代理: ${useProxy})...`);
-        let data;
-
-        if (useProxy) {
-            // 通过酒馆代理获取
-            const llmService = new LLMApiService({
-                api_url: apiUrl,
-                api_key: apiKeyToTry,
-                model_name: '' // 不需要模型名称
-            });
-            // 注意：llmService中没有直接获取模型列表的方法，这里模拟一个错误，提示用户直接调用
-            throw new Error("模型列表获取不支持代理模式，请取消勾选“通过酒馆代理API”后重试。");
-            
-        } else {
-            // 直接获取
-            const response = await fetch(modelsUrl, {
-                headers: { 'Authorization': `Bearer ${apiKeyToTry}` }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`请求失败: ${response.status} ${response.statusText} - ${errorText}`);
-            }
-            data = await response.json();
+        if (data.error || !Array.isArray(data.data) || data.data.length === 0) {
+            throw new Error('未返回有效模型列表');
         }
 
-        if (data?.data?.length > 0) {
-            firstSuccessfulKeyIndex = 0; // 成功
-            modelCount = data.data.length;
+        $selector.prop('disabled', false).empty();
+        const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
+        let hasMatchedModel = false;
 
-            $selector.empty();
-            const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
-            let hasMatchedModel = false;
-            
-            // 对模型列表进行排序
-            const sortedModels = data.data.sort((a, b) => a.id.localeCompare(b.id));
+        const sortedModels = data.data.sort((a, b) => a.id.localeCompare(b.id));
+        sortedModels.forEach(model => {
+            $selector.append($('<option>', { value: model.id, text: model.id }));
+            if (model.id === customModelName) hasMatchedModel = true;
+        });
 
-            sortedModels.forEach(model => {
-                $selector.append($('<option>', { value: model.id, text: model.id }));
-                if (model.id === customModelName) hasMatchedModel = true;
-            });
-
-            if (hasMatchedModel) {
-                $selector.val(customModelName);
-            } else if (sortedModels.length > 0) {
-                // 如果没有匹配的模型，但列表不为空，则自动选择第一个
-                 $('#custom_model_name').val(sortedModels[0].id);
-                 USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = sortedModels[0].id;
-            }
-        } else {
-            throw new Error('请求成功但未返回有效模型列表');
+        if (hasMatchedModel) {
+            $selector.val(customModelName);
+        } else if (sortedModels.length > 0) {
+            $('#custom_model_name').val(sortedModels[0].id);
+            USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = sortedModels[0].id;
         }
+
+        EDITOR.success(`成功获取 ${sortedModels.length} 个模型`);
+
     } catch (error) {
-        console.error(`使用第一个 Key 获取模型失败:`, error);
-        invalidKeysInfo.push({ index: 1, key: apiKeyToTry, error: error.message });
-    }
-
-    // Final user feedback
-    if (firstSuccessfulKeyIndex !== -1) {
-        EDITOR.success(`成功获取 ${modelCount} 个模型 (使用第一个 Key)`);
-    } else {
-        EDITOR.error('获取模型列表失败。');
+        const errorMessage = error.responseJSON?.error || error.statusText || error.message || '未知错误';
+        EDITOR.error(`获取模型列表失败: ${errorMessage}`);
         $selector.empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
-    }
-    
-    if (invalidKeysInfo.length > 0) {
-        const errorDetails = invalidKeysInfo.map(item => `第一个 Key (${maskApiKey(item.key)}) 无效: ${item.error}`).join('\n');
-        EDITOR.error(errorDetails);
     }
 }
 /**
