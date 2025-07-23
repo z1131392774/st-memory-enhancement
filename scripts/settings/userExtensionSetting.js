@@ -489,6 +489,12 @@ function InitBinging() {
         USER.saveSettings && USER.saveSettings(); // 保存设置
     });
 
+    // Claw轮询
+    $('#use_claw_polling_api').change(function() {
+        USER.tableBaseSetting.use_claw_polling_api = this.checked;
+        USER.saveSettings && USER.saveSettings();
+    });
+
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
 
@@ -586,6 +592,7 @@ export function renderSetting() {
     updateSwitch('#alternate_switch', USER.tableBaseSetting.alternate_switch);
     updateSwitch('#show_drawer_in_extension_list', USER.tableBaseSetting.show_drawer_in_extension_list);
     updateSwitch('#table_to_chat_can_edit', USER.tableBaseSetting.table_to_chat_can_edit);
+    updateSwitch('#use_claw_polling_api', USER.tableBaseSetting.use_claw_polling_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
     $('#table_to_chat_options').toggle(USER.tableBaseSetting.isTableToChat);
