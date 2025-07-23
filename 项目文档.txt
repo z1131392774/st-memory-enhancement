@@ -1,3 +1,19 @@
+v4.5.0-fix-deployment-error
+- **核心重构: 增强设置加载的健壮性，修复新用户部署失败问题**
+  - **问题:** 新用户或从旧版本升级的用户在加载插件时，如果其本地存储的设置对象 `USER.tableBaseSetting` 中缺少新版本引入的字段（例如 `use_claw_polling_api`），代码在试图访问这个不存在的属性时会抛出“变量未找到”的错误，导致插件加载失败。
+  - **解决方案:** 在设置加载的入口函数 `loadSettings` 中增加了一个“前向兼容”的健壮性检查机制。
+  - **实现方式 (`scripts/settings/userExtensionSetting.js`):**
+    - **1. 增加设置校验循环:**
+        - 在 `loadSettings` 函数的开头，遍历 `USER.tableBaseDefaultSettings` (默认设置) 中的所有键。
+        - **关键逻辑:** 对于每一个默认设置的键，检查它是否存在于用户当前的 `USER.tableBaseSetting` 对象中。
+        - 如果检查到某个键在用户设置中不存在 (`undefined`)，系统会立即从 `defaultSettings` 中获取该键的默认值，并将其赋给 `USER.tableBaseSetting`。同时，在控制台打印一条警告，提示该设置项已被自动恢复。
+  - **结果:**
+    - **终极稳定性:** 彻底解决了因版本更新、设置项增减或用户本地数据损坏导致的插件加载失败问题。无论用户的设置文件处于何种状态，插件都能够安全启动，并自动使用默认值填补缺失的配置。
+    - **无缝升级体验:** 用户从任何旧版本升级到新版本时，插件都能在后台自动、无感地完成新设置项的初始化，无需手动干预或重置。
+  - **受影响文件:**
+    - `scripts/settings/userExtensionSetting.js`
+    - `项目文档.txt` (新增此条目)
+
 v4.4.0-force-non-streaming
 - **核心重构: 强制所有API请求为非流式**
   - **问题:** 即便在之前的修改后，“Claw轮询”模式仍然可能触发流式响应，与用户期望的非流式行为不符。
@@ -417,16 +433,21 @@ IMPORTANT: For any future changes to this file, use the final_file_content shown
 # VSCode Open Tabs
 core/table/base.js
 assets/templates/index.html
-scripts/settings/userExtensionSetting.js
 data/pluginSetting.js
 scripts/settings/standaloneAPI.js
+assets/styles/style.css
+scripts/settings/userExtensionSetting.js
+项目文档.txt
+
+# Recently Modified Files
+These files have been modified since you last accessed them (file was just edited so you may need to re-read it before editing):
 项目文档.txt
 
 # Current Time
-2025/7/24 上午1:46:47 (Asia/Shanghai, UTC+8:00)
+2025/7/24 上午2:25:51 (Asia/Shanghai, UTC+8:00)
 
 # Context Window Usage
-102,153 / 128K tokens used (80%)
+102,933 / 128K tokens used (80%)
 
 # Current Mode
 ACT MODE

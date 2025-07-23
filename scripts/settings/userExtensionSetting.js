@@ -609,6 +609,14 @@ export function renderSetting() {
 export function loadSettings() {
     USER.IMPORTANT_USER_PRIVACY_DATA = USER.IMPORTANT_USER_PRIVACY_DATA || {};
 
+    // 健壮性检查：确保所有默认设置都存在
+    for (const key in USER.tableBaseDefaultSettings) {
+        if (USER.tableBaseSetting[key] === undefined) {
+            console.warn(`[Memory Enhancement] 设置项 "${key}" 未找到，已从默认值恢复。`);
+            USER.tableBaseSetting[key] = USER.tableBaseDefaultSettings[key];
+        }
+    }
+
     // 旧版本提示词变更兼容
     if (USER.tableBaseSetting.updateIndex < 3) {
         USER.getSettings().message_template = USER.tableBaseDefaultSettings.message_template
