@@ -21,8 +21,8 @@ const customStyleConfig = {
 }
 
 export class SheetBase {
-    static SheetDomain = SheetDomain;
-    static SheetType = SheetType;
+    SheetDomain = SheetDomain;
+    SheetType = SheetType;
 
     constructor() {
         // 以下为基本属性
@@ -190,8 +190,8 @@ export class SheetBase {
         }
     }
 
-    findCellByValue(value) {
-        const cell = this.cellHistory.find(cell => cell.data.value === value);
+    findCellByValue(value, cellType = null) {
+        const cell = this.cellHistory.find(cell => cell.data.value === value && (cellType === null || cell.type === cellType));
         if (!cell) {
             return null;
         }
