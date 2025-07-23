@@ -489,12 +489,6 @@ function InitBinging() {
         USER.saveSettings && USER.saveSettings(); // 保存设置
     });
 
-    // Claw轮询
-    $('#use_claw_polling_api').change(function() {
-        USER.tableBaseSetting.use_claw_polling_api = this.checked;
-        USER.saveSettings && USER.saveSettings();
-    });
-
     // 获取模型列表
     $('#fetch_models_button').on('click', updateModelList);
 
@@ -592,7 +586,6 @@ export function renderSetting() {
     updateSwitch('#alternate_switch', USER.tableBaseSetting.alternate_switch);
     updateSwitch('#show_drawer_in_extension_list', USER.tableBaseSetting.show_drawer_in_extension_list);
     updateSwitch('#table_to_chat_can_edit', USER.tableBaseSetting.table_to_chat_can_edit);
-    updateSwitch('#use_claw_polling_api', USER.tableBaseSetting.use_claw_polling_api);
     $('#reply_options').toggle(!USER.tableBaseSetting.step_by_step);
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
     $('#table_to_chat_options').toggle(USER.tableBaseSetting.isTableToChat);
@@ -608,14 +601,6 @@ export function renderSetting() {
  */
 export function loadSettings() {
     USER.IMPORTANT_USER_PRIVACY_DATA = USER.IMPORTANT_USER_PRIVACY_DATA || {};
-
-    // 健壮性检查：确保所有默认设置都存在
-    for (const key in USER.tableBaseDefaultSettings) {
-        if (USER.tableBaseSetting[key] === undefined) {
-            console.warn(`[Memory Enhancement] 设置项 "${key}" 未找到，已从默认值恢复。`);
-            USER.tableBaseSetting[key] = USER.tableBaseDefaultSettings[key];
-        }
-    }
 
     // 旧版本提示词变更兼容
     if (USER.tableBaseSetting.updateIndex < 3) {
