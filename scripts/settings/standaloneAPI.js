@@ -550,15 +550,9 @@ async function handleClawPollingAPIRequest(systemPrompt, userPrompt, isStepBySte
                 table_proxy_key: USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_key
             });
 
-            const streamCallback = (chunk) => {
-                if (loadingToast) {
-                    const modeText = isStepByStepSummary ? "(分步)" : "";
-                    loadingToast.text = `正在使用第 ${keyIndexToTry + 1} 个Key生成${modeText}: ${chunk}`;
-                }
-            };
-
             try {
-                response = await llmService.callLLM(promptData, streamCallback);
+                // 移除 streamCallback 参数以强制使用非流式请求
+                response = await llmService.callLLM(promptData);
                 console.log(`请求成功 (llmService, 密钥索引: ${keyIndexToTry}):`, response);
                 loadingToast?.close();
                 return suspended ? 'suspended' : response;

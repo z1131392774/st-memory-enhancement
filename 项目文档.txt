@@ -1,3 +1,15 @@
+v4.4.0-force-non-streaming
+- **核心重构: 强制所有API请求为非流式**
+  - **问题:** 即便在之前的修改后，“Claw轮询”模式仍然可能触发流式响应，与用户期望的非流式行为不符。
+  - **解决方案:** 在 `handleClawPollingAPIRequest` 函数中，移除了传递给 `llmService.callLLM` 的 `streamCallback` 参数。
+  - **实现方式 (`scripts/settings/standaloneAPI.js`):**
+    - 在 `handleClawPollingAPIRequest` 函数中，将 `llmService.callLLM(promptData, streamCallback)` 修改为 `llmService.callLLM(promptData)`。根据 `LLMApiService` 的设计，不传递回调函数会强制其执行标准的非流式请求/响应循环。
+  - **结果:**
+    - **行为统一:** 现在无论是前端直连模式还是“Claw轮询”后端代理模式，所有API请求都将以非流式方式执行，确保了行为的完全一致性和可预测性。
+  - **受影响文件:**
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
 v4.3.0-fix-cors-error
 - **核心重构: 修复“Claw轮询”模式下的CORS错误**
   - **问题:** 在勾选“Claw轮询”复选框后，获取模型列表和测试连接的操作仍然尝试通过前端直接请求API，导致CORS错误。
@@ -411,10 +423,10 @@ scripts/settings/standaloneAPI.js
 项目文档.txt
 
 # Current Time
-2025/7/24 上午1:34:00 (Asia/Shanghai, UTC+8:00)
+2025/7/24 上午1:46:47 (Asia/Shanghai, UTC+8:00)
 
 # Context Window Usage
-101,531 / 128K tokens used (79%)
+102,153 / 128K tokens used (80%)
 
 # Current Mode
 ACT MODE
