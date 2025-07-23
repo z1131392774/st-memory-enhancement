@@ -313,11 +313,10 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
     const results = [];
     const testPrompt = "Say 'test'";
     const apiKey = apiKeys[0];
+    const useBackendProxy = USER.tableBaseSetting.custom_api_use_backend_proxy;
 
     const processResponse = (rawResponseData) => {
         const responseData = normalizeApiResponse(rawResponseData);
-        // 测试连接时，我们不关心返回的具体内容，只关心是否成功收到一个有效的JSON响应。
-        // 即使 content 为空，只要 choices 数组存在，就代表API调用是通的。
         if (responseData && Array.isArray(responseData.choices)) {
             results.push({ keyIndex: 0, success: true });
         } else {
@@ -326,46 +325,15 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
         }
     };
 
-    try {
-        // 模式一：前端直接连接
-        console.log("尝试前端直接连接测试...");
-        const finalApiUrl = apiUrl.replace(/\/$/, '') + '/chat/completions';
-        const response = await fetch(finalApiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                messages: [{ role: 'user', content: testPrompt }],
-                model: modelName || 'gpt-3.5-turbo',
-                temperature: 0.1,
-                max_tokens: 50,
-                stream: false,
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || response.statusText || '请求失败');
-        }
-
-        const responseData = await response.json();
-        processResponse(responseData);
-
-    } catch (directError) {
-        console.warn("前端直连模式测试失败:", directError);
-
+    if (useBackendProxy) {
+        // 模式二：通过后端代理
         try {
-            // 模式二：通过后端代理
             console.log("尝试通过后端代理测试连接...");
             const data = await $.ajax({
                 url: '/api/backends/chat-completions/generate',
                 type: 'POST',
                 contentType: 'application/json',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`
-                },
+                headers: { 'Authorization': `Bearer ${apiKey}` },
                 data: JSON.stringify({
                     chat_completion_source: 'custom',
                     custom_url: apiUrl,
@@ -379,14 +347,39 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
             });
             processResponse(data);
         } catch (proxyError) {
-            console.error("后端代理模式测试也失败了:", proxyError);
-            let finalErrorMessage = `两种模式均失败：\n1. 直连: ${directError.message}\n2. 代理: ${proxyError.statusText || proxyError.message}`;
-            // 检查是否为SSL证书错误
-            if (directError instanceof TypeError && directError.message.includes('Failed to fetch')) {
-                const friendlyMessage = `\n\n[提示] “直连”失败通常由SSL证书问题导致。请尝试在新标签页中打开您的API地址 (${apiUrl})，手动信任该网站的安全证书后，再返回此处重试。`;
-                finalErrorMessage += friendlyMessage;
+            console.error("后端代理模式测试失败:", proxyError);
+            results.push({ keyIndex: 0, success: false, error: proxyError.statusText || proxyError.message });
+        }
+    } else {
+        // 模式一：前端直接连接
+        try {
+            console.log("尝试前端直接连接测试...");
+            const finalApiUrl = apiUrl.replace(/\/$/, '') + '/chat/completions';
+            const response = await fetch(finalApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: testPrompt }],
+                    model: modelName || 'gpt-3.5-turbo',
+                    temperature: 0.1,
+                    max_tokens: 50,
+                    stream: false,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || response.statusText || '请求失败');
             }
-            results.push({ keyIndex: 0, success: false, error: finalErrorMessage });
+
+            const responseData = await response.json();
+            processResponse(responseData);
+        } catch (directError) {
+            console.error("前端直连模式测试失败:", directError);
+            results.push({ keyIndex: 0, success: false, error: directError.message });
         }
     }
     
@@ -448,38 +441,11 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
         return responseText;
     };
 
-    try {
-        // 模式一：前端直接连接
-        console.log("尝试前端直接连接发送请求...");
-        const finalApiUrl = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url.replace(/\/$/, '') + '/chat/completions';
-        const response = await fetch(finalApiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentApiKey}`,
-            },
-            body: JSON.stringify({
-                messages: messages,
-                model: USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name,
-                temperature: USER.tableBaseSetting.custom_temperature,
-                stream: false,
-            }),
-        });
+    const useBackendProxy = USER.tableBaseSetting.custom_api_use_backend_proxy;
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || response.statusText || '请求失败');
-        }
-        
-        const responseData = await response.json();
-        loadingToast?.close();
-        return processResponse(responseData);
-
-    } catch (directError) {
-        console.warn("前端直连模式失败:", directError);
-        
+    if (useBackendProxy) {
+        // 模式二：通过后端代理
         try {
-            // 模式二：通过后端代理
             console.log("尝试通过后端代理发送请求...");
             const requestData = {
                 chat_completion_source: 'custom',
@@ -494,22 +460,49 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
                 url: '/api/backends/chat-completions/generate',
                 type: 'POST',
                 contentType: 'application/json',
-                headers: {
-                    'Authorization': `Bearer ${currentApiKey}`
-                },
+                headers: { 'Authorization': `Bearer ${currentApiKey}` },
                 data: JSON.stringify(requestData),
             });
             const result = processResponse(response);
             loadingToast?.close();
             return result;
         } catch (proxyError) {
-            console.error("后端代理模式也失败了:", proxyError);
-            let finalErrorMessage = `两种模式均失败：\n1. 直连: ${directError.message}\n2. 代理: ${proxyError.statusText || proxyError.message}`;
-            // 检查是否为SSL证书错误
-            if (directError instanceof TypeError && directError.message.includes('Failed to fetch')) {
-                const friendlyMessage = `\n\n[提示] “直连”失败通常由SSL证书问题导致。请尝试在新标签页中打开您的API地址 (${USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url})，手动信任该网站的安全证书后，再返回此处重试。`;
-                finalErrorMessage += friendlyMessage;
+            console.error("后端代理模式失败:", proxyError);
+            const finalErrorMessage = `代理模式失败: ${proxyError.statusText || proxyError.message}`;
+            EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${finalErrorMessage}`);
+            loadingToast?.close();
+            return `错误: ${finalErrorMessage}`;
+        }
+    } else {
+        // 模式一：前端直接连接
+        try {
+            console.log("尝试前端直接连接发送请求...");
+            const finalApiUrl = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url.replace(/\/$/, '') + '/chat/completions';
+            const response = await fetch(finalApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentApiKey}`,
+                },
+                body: JSON.stringify({
+                    messages: messages,
+                    model: USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name,
+                    temperature: USER.tableBaseSetting.custom_temperature,
+                    stream: false,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || response.statusText || '请求失败');
             }
+            
+            const responseData = await response.json();
+            loadingToast?.close();
+            return processResponse(responseData);
+        } catch (directError) {
+            console.error("前端直连模式失败:", directError);
+            const finalErrorMessage = `直连模式失败: ${directError.message}`;
             EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${finalErrorMessage}`);
             loadingToast?.close();
             return `错误: ${finalErrorMessage}`;
@@ -564,7 +557,7 @@ export async function updateModelList() {
 
     const processResponse = (rawResponseData) => {
         const responseData = normalizeApiResponse(rawResponseData);
-        const models = responseData.data || []; // 经过 normalizeApiResponse 处理后，models 就在 .data 中
+        const models = responseData.data || [];
 
         if (responseData.error || !Array.isArray(models) || models.length === 0) {
             const errorMessage = responseData?.error?.message || '未返回有效模型列表。';
@@ -585,7 +578,7 @@ export async function updateModelList() {
 
         sortedModels.forEach(model => {
             const modelId = getModelId(model);
-            if (!modelId) return; // 跳过没有标识符的模型
+            if (!modelId) return;
 
             $selector.append($('<option>', { value: modelId, text: modelId }));
             if (modelId === customModelName) hasMatchedModel = true;
@@ -602,36 +595,17 @@ export async function updateModelList() {
         EDITOR.success(`成功获取 ${sortedModels.length} 个模型`);
     };
 
-    try {
-        // 模式一：前端直接连接
-        console.log("尝试前端直接连接获取模型列表...");
-        const finalApiUrl = apiUrl.replace(/\/$/, '') + '/models';
-        const response = await fetch(finalApiUrl, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${apiKeys[0]}` },
-        });
+    const useBackendProxy = USER.tableBaseSetting.custom_api_use_backend_proxy;
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || response.statusText || '请求失败');
-        }
-        
-        const responseData = await response.json();
-        processResponse(responseData);
-
-    } catch (directError) {
-        console.warn("前端直连模式失败:", directError);
-
+    if (useBackendProxy) {
+        // 模式二：通过后端代理
         try {
-            // 模式二：通过后端代理
             console.log("尝试通过后端代理获取模型列表...");
             const data = await $.ajax({
                 url: '/api/backends/chat-completions/status',
                 type: 'POST',
                 contentType: 'application/json',
-                headers: {
-                    'Authorization': `Bearer ${apiKeys[0]}`
-                },
+                headers: { 'Authorization': `Bearer ${apiKeys[0]}` },
                 data: JSON.stringify({
                     chat_completion_source: 'custom',
                     custom_url: apiUrl,
@@ -640,15 +614,33 @@ export async function updateModelList() {
             });
             processResponse(data);
         } catch (proxyError) {
-            console.error("后端代理模式也失败了:", proxyError);
-            let finalErrorMessage = `两种模式均失败：\n1. 直连: ${directError.message}\n2. 代理: ${proxyError.statusText || proxyError.message}`;
-            // 检查是否为SSL证书错误
-            if (directError instanceof TypeError && directError.message.includes('Failed to fetch')) {
-                const friendlyMessage = `\n\n[提示] “直连”失败通常由SSL证书问题导致。请尝试在新标签页中打开您的API地址 (${apiUrl})，手动信任该网站的安全证书后，再返回此处重试。`;
-                finalErrorMessage += friendlyMessage;
-            }
+            console.error("后端代理模式失败:", proxyError);
+            const finalErrorMessage = `代理模式失败: ${proxyError.statusText || proxyError.message}`;
             EDITOR.error(finalErrorMessage);
-            $selector.empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
+            $selector.prop('disabled', false).empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
+        }
+    } else {
+        // 模式一：前端直接连接
+        try {
+            console.log("尝试前端直接连接获取模型列表...");
+            const finalApiUrl = apiUrl.replace(/\/$/, '') + '/models';
+            const response = await fetch(finalApiUrl, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${apiKeys[0]}` },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || response.statusText || '请求失败');
+            }
+            
+            const responseData = await response.json();
+            processResponse(responseData);
+        } catch (directError) {
+            console.error("前端直连模式失败:", directError);
+            const finalErrorMessage = `直连模式失败: ${directError.message}`;
+            EDITOR.error(finalErrorMessage);
+            $selector.prop('disabled', false).empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
         }
     }
 }

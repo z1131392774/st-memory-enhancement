@@ -1,3 +1,31 @@
+v4.1.0-manual-api-mode-selection
+- **核心重构: 分离API请求模式，引入手动切换选项**
+  - **问题:** 自动回退的API请求模式（前端直连失败后自动尝试后端代理）虽然提高了成功率，但隐藏了潜在的配置问题（如SSL证书），并且在某些情况下（如使用Claw轮询服务时）后端代理是必需的，无法通过自动逻辑解决。
+  - **解决方案:** 移除自动故障切换机制，改为提供一个明确的UI选项，让用户根据自己的API类型手动选择请求模式。
+  - **实现方式:**
+    - **1. 新增UI选项 (`assets/templates/index.html`):**
+        - 在自定义API设置区域，增加了一个新的复选框：“如果是Claw轮询就勾选这个”。
+    - **2. 增加配置项 (`data/pluginSetting.js`):**
+        - 在插件设置中新增 `custom_api_use_backend_proxy` 配置项，默认为 `false` (即默认使用前端直连)。
+    - **3. 绑定UI逻辑 (`scripts/settings/userExtensionSetting.js`):**
+        - 为新的复选框添加了事件监听，使其状态与 `custom_api_use_backend_proxy` 配置项同步。
+    - **4. 重构核心API函数 (`scripts/settings/standaloneAPI.js`):**
+        - **移除了自动回退逻辑:** 在 `testApiConnection`、`handleCustomAPIRequest` 和 `updateModelList` 三个核心函数中，彻底删除了 `try...catch` 中用于从一种模式切换到另一种模式的代码。
+        - **引入条件判断:** 在每个函数开始时，会检查 `USER.tableBaseSetting.custom_api_use_backend_proxy` 的值。
+        - 如果勾选了复选框 (`true`)，则代码**只执行**通过酒馆后端的代理请求 (`$.ajax`)。
+        - 如果未勾选 (`false`)，则代码**只执行**前端直连的请求 (`fetch`)。
+        - **取消了合并错误提示:** 由于不再有自动回退，失败时的错误提示现在只会显示单一模式的失败原因，不再有引导用户信任证书的特殊提示。
+  - **结果:**
+    - **控制权交还用户:** 用户现在可以明确控制API的请求方式，解决了特定服务（如Claw）必须使用后端代理的问题。
+    - **问题定位更清晰:** 请求失败时，错误信息直接反映了所选模式的问题，不再被自动回退所掩盖，便于用户排查是CORS问题还是后端代理配置问题。
+    - **代码逻辑简化:** 移除了复杂的嵌套 `try...catch` 和回退逻辑，使得API相关代码更加清晰和易于维护。
+  - **受影响文件:**
+    - `assets/templates/index.html`
+    - `data/pluginSetting.js`
+    - `scripts/settings/userExtensionSetting.js`
+    - `scripts/settings/standaloneAPI.js`
+    - `项目文档.txt` (新增此条目)
+
 回退到稳定版本
 v4.0.0-data-consistency-enhancement
 - **核心重构: 引入数据一致性容错机制，修复因数据不同步导致的表格渲染失败问题**

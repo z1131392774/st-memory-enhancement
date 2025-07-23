@@ -266,6 +266,8 @@ export const defaultSettings = await switchLanguage('__defaultSettings__', {
     use_main_api: true,
     // 重整理自定义温度
     custom_temperature: 1.0,
+    // 如果是Claw轮询就勾选这个
+    custom_api_use_backend_proxy: false,
     // 重整理自定义最大token数
     custom_max_tokens: 2048,
     // 重整理自定义top_p
