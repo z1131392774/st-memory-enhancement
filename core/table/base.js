@@ -21,8 +21,8 @@ const customStyleConfig = {
 }
 
 export class SheetBase {
-    SheetDomain = SheetDomain;
-    SheetType = SheetType;
+    static SheetDomain = SheetDomain;
+    static SheetType = SheetType;
 
     constructor() {
         // 以下为基本属性
@@ -165,17 +165,21 @@ export class SheetBase {
             if (this.hashSheet && this.hashSheet.length > 0) {
                 this.hashSheet.forEach((rowUids, rowIndex) => {
                     rowUids.forEach((cellUid, colIndex) => {
-                        const cell = this.cells.get(cellUid);
-                        if (cell) {
-                            if (rowIndex === 0 && colIndex === 0) {
-                                cell.type = cell.CellType.sheet_origin;
-                            } else if (rowIndex === 0) {
-                                cell.type = cell.CellType.column_header;
-                            } else if (colIndex === 0) {
-                                cell.type = cell.CellType.row_header;
-                            } else {
-                                cell.type = cell.CellType.cell;
-                            }
+                        let cell = this.cells.get(cellUid);
+                        if (!cell) {
+                            cell = new Cell(this);
+                            cell.uid = cellUid;
+                            cell.data.value = '空数据'
+                            this.cells.set(cell.uid, cell);
+                        }
+                        if (rowIndex === 0 && colIndex === 0) {
+                            cell.type = Cell.CellType.sheet_origin;
+                        } else if (rowIndex === 0) {
+                            cell.type = Cell.CellType.column_header;
+                        } else if (colIndex === 0) {
+                            cell.type = Cell.CellType.row_header;
+                        } else {
+                            cell.type = Cell.CellType.cell;
                         }
                     });
                 });
@@ -202,8 +206,12 @@ export class SheetBase {
         const hash = this.hashSheet[rowIndex][colIndex]
         const target = this.cells.get(hash) || null;
         if (!target) {
-            console.warn(`未找到单元格 ${rowIndex} ${colIndex} ${hash}`);
-            return null;
+            const cell = new Cell(this);
+            cell.data.value = '空数据';
+            cell.type = colIndex === 0 ? Cell.CellType.row_header : rowIndex === 0 ? Cell.CellType.column_header : Cell.CellType.cell;
+            cell.uid = hash;
+            this.cells.set(cell.uid, cell);
+            return cell;
         }
         console.log('找到单元格',target);
         return target;
