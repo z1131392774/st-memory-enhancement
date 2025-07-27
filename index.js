@@ -1,10 +1,11 @@
 import { APP, BASE, DERIVED, EDITOR, SYSTEM, USER } from './core/manager.js';
+import { Logger } from './services/logger.js';
 import { openTableRendererPopup, updateSystemMessageTableStatus } from "./scripts/renderer/tablePushToChat.js";
 import { loadSettings } from "./scripts/settings/userExtensionSetting.js";
 import { resetPopupConfirmations } from './components/popupConfirm.js';
 import { ext_getAllTables, ext_exportAllTablesAsJson } from './scripts/settings/standaloneAPI.js';
 import { openTableDebugLogPopup } from "./scripts/settings/devConsole.js";
-import { TableTwoStepSummary } from "./scripts/runtime/separateTableUpdate.js";
+import { TableTwoStepSummary, triggerTableFillFromLastMessage } from "./scripts/runtime/separateTableUpdate.js";
 import { saveStepData, readStepData, clearStepData } from './services/stepByStepStorage.js';
 import { initTest } from "./components/_fotTest.js";
 import { initAppHeaderTableDrawer, openAppHeaderTableDrawer } from "./scripts/renderer/appHeaderTableBaseDrawer.js";
@@ -18,22 +19,104 @@ import {executeTranslation} from "./services/translate.js";
 import applicationFunctionManager from "./services/appFuncManager.js";
 
 
-console.log("______________________记忆插件：开始加载______________________")
+Logger.info("______________________记忆插件：开始加载______________________")
 
 // --- [核心改造] 回调函数管理器 ---
 // 将其定义在顶层作用域，确保在脚本加载后立即对其他窗口可用。
 const tableUpdateCallbacks = [];
+const tableFillStartCallbacks = []; // 新增：用于通知填表开始的回调
 window.stMemoryEnhancement = {
+    // 新增：触发“填表开始”的通知
+    _notifyTableFillStart: function() {
+        Logger.debug(`[Memory Enhancement] Notifying ${tableFillStartCallbacks.length} callbacks about table fill start.`);
+        tableFillStartCallbacks.forEach(callback => {
+            try {
+                callback();
+            } catch (e) {
+                Logger.error('[Memory Enhancement] Error executing a table fill start callback:', e);
+            }
+        });
+    },
+    // 新增：注册“填表开始”的回调
+    registerTableFillStartCallback: function(callback) {
+        if (typeof callback === 'function' && !tableFillStartCallbacks.includes(callback)) {
+            tableFillStartCallbacks.push(callback);
+            Logger.info('[Memory Enhancement] A new table fill start callback has been registered.');
+        }
+    },
+    // 新增：注销“填表开始”的回调
+    unregisterTableFillStartCallback: function(callback) {
+        const index = tableFillStartCallbacks.indexOf(callback);
+        if (index > -1) {
+            tableFillStartCallbacks.splice(index, 1);
+            Logger.info('[Memory Enhancement] A table fill start callback has been unregistered.');
+        }
+    },
     ext_getAllTables,
     ext_exportAllTablesAsJson,
     /**
-     * 注册一个回调函数，当表格数据更新时将被调用。
+     * 从一个JSON对象或字符串加载所有表格数据，并覆盖现有数据。
+     * @param {string|Object} jsonData - 包含表格数据的JSON字符串或对象。
+     */
+    ext_loadAllTablesFromJson: function(jsonData) {
+        try {
+            const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+            if (!data || typeof data !== 'object') {
+                throw new Error('Provided data is not a valid object.');
+            }
+            
+            // 假设 BASE.load 可以处理这种格式的数据来更新内存
+            // 这需要 BASE.load 函数有能力解析 hash_sheets 和 cell_history
+            const { hash_sheets, cell_history } = data;
+            if (!hash_sheets || !cell_history) {
+                // 如果数据格式不直接匹配，可能需要一个转换层
+                // 但基于 v5.4.0 的文档，我们假设数据是直接从 ext_exportAllTablesAsJson 来的
+                Logger.warn('ext_loadAllTablesFromJson: JSON data is missing hash_sheets or cell_history. Attempting to load directly.');
+                BASE.load(data);
+            } else {
+                BASE.load(hash_sheets, cell_history);
+            }
+
+        // 通知UI更新
+        window.stMemoryEnhancement._notifyTableUpdate(ext_exportAllTablesAsJson());
+        Logger.info('[Memory Enhancement] Tables loaded and UI notified.');
+
+    } catch (error) {
+        Logger.error('[Memory Enhancement] Failed to load tables from JSON:', error);
+        EDITOR.error(`从JSON加载表格失败: ${error.message}`);
+    }
+},
+/**
+ * [新增] 作为“导入”功能的正式接口，使用 applyJsonToChatSheets 实现完全覆盖。
+ * @param {string|Object} jsonData - 包含表格数据的JSON字符串或对象。
+ */
+ext_importAllTablesFromJson: function(jsonData) {
+    try {
+        const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+        if (!data || typeof data !== 'object') {
+            throw new Error('Provided data is not a valid object.');
+        }
+        BASE.applyJsonToChatSheets(data);
+        Logger.info('[Memory Enhancement] Tables imported via applyJsonToChatSheets.');
+        
+        // [修复] 手动触发UI刷新
+        BASE.refreshContextView(); // 刷新插件的表格数据页面
+        window.stMemoryEnhancement._notifyTableUpdate(ext_exportAllTablesAsJson()); // 通知外部UI（美化界面）刷新
+
+    } catch (error) {
+        Logger.error('[Memory Enhancement] Failed to import tables from JSON:', error);
+        EDITOR.error(`导入表格失败: ${error.message}`);
+    }
+},
+triggerTableFillFromLastMessage,
+/**
+ * 注册一个回调函数，当表格数据更新时将被调用。
      * @param {function(Object)} callback - 当数据更新时要执行的回调函数，它将接收最新的表格JSON数据作为参数。
      */
     registerTableUpdateCallback: function(callback) {
         if (typeof callback === 'function' && !tableUpdateCallbacks.includes(callback)) {
             tableUpdateCallbacks.push(callback);
-            console.log('[Memory Enhancement] A new table update callback has been registered.');
+            Logger.info('[Memory Enhancement] A new table update callback has been registered.');
         }
     },
     /**
@@ -44,7 +127,7 @@ window.stMemoryEnhancement = {
         const index = tableUpdateCallbacks.indexOf(callback);
         if (index > -1) {
             tableUpdateCallbacks.splice(index, 1);
-            console.log('[Memory Enhancement] A table update callback has been unregistered.');
+            Logger.info('[Memory Enhancement] A table update callback has been unregistered.');
         }
     },
     /**
@@ -52,12 +135,12 @@ window.stMemoryEnhancement = {
      * @param {Object} newData - 最新的表格JSON数据。
      */
     _notifyTableUpdate: function(newData) {
-        console.log(`[Memory Enhancement] Notifying ${tableUpdateCallbacks.length} callbacks about table update.`);
+        Logger.debug(`[Memory Enhancement] Notifying ${tableUpdateCallbacks.length} callbacks about table update.`);
         tableUpdateCallbacks.forEach(callback => {
             try {
                 callback(newData);
             } catch (e) {
-                console.error('[Memory Enhancement] Error executing a table update callback:', e);
+                Logger.error('[Memory Enhancement] Error executing a table update callback:', e);
             }
         });
     }
@@ -124,7 +207,7 @@ export async function buildSheetsByTemplates(targetPiece) {
         }
         // [二次修复] 如果从暂存加载失败，并且当前没有任何聊天记录，则直接中止，防止在空载体情况下循环
         if (USER.getContext().chat.length === 0) {
-            console.log('[Memory Enhancement] 暂存为空，且无聊天载体，已中止表格创建。');
+            Logger.warn('[Memory Enhancement] 暂存为空，且无聊天载体，已中止表格创建。');
             return;
         }
     }
@@ -138,7 +221,7 @@ export async function buildSheetsByTemplates(targetPiece) {
 
         // 检查 template 结构
         if (!template || !template.hashSheet || !Array.isArray(template.hashSheet) || template.hashSheet.length === 0 || !Array.isArray(template.hashSheet[0]) || !template.cellHistory || !Array.isArray(template.cellHistory)) {
-            console.error(`[Memory Enhancement] 在 buildSheetsByTemplates 中遇到无效的模板结构 (缺少 hashSheet 或 cellHistory)。跳过模板:`, template);
+            Logger.error(`[Memory Enhancement] 在 buildSheetsByTemplates 中遇到无效的模板结构 (缺少 hashSheet 或 cellHistory)。跳过模板:`, template);
             return; // 跳过处理此模板
         }
         try {
@@ -167,7 +250,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         if (targetSheetUid) {
             // 如果表格已存在，则更新表格数据
             const targetSheet = BASE.getChatSheet(targetSheetUid)
-            console.log("表格已存在，更新表格数据", targetSheet)
+            Logger.info("表格已存在，更新表格数据", targetSheet)
             targetSheet.rebuildHashSheetByValueSheet(valueSheet)
             targetSheet.save(targetPiece)
             addOldTablePrompt(targetSheet)
@@ -199,7 +282,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
         sheets.push(newSheet)
     }
     // USER.saveChat()
-    console.log("转换旧表格数据为新表格数据", sheets)
+    Logger.info("转换旧表格数据为新表格数据", sheets)
     return sheets
 }
 
@@ -209,7 +292,7 @@ export function convertOldTablesToNewSheets(oldTableList, targetPiece) {
  */
 function addOldTablePrompt(sheet) {
     const tableStructure = USER.tableBaseSetting.tableStructure.find(table => table.tableName === sheet.name)
-    console.log("添加旧表格提示词", tableStructure, USER.tableBaseSetting.tableStructure, sheet.name)
+    Logger.debug("添加旧表格提示词", tableStructure, USER.tableBaseSetting.tableStructure, sheet.name)
     if (!tableStructure) return false
     const source = sheet.source
     source.required = tableStructure.Required
@@ -245,7 +328,7 @@ export function findNextChatWhitTableData(startIndex, isIncludeStartIndex = fals
 export function initTableData(eventData) {
     const allPrompt = USER.tableBaseSetting.message_template.replace('{{tableData}}', getTablePrompt(eventData))
     const promptContent = replaceUserTag(allPrompt)  //替换所有的<user>标签
-    console.log("完整提示", promptContent)
+    Logger.debug("完整提示", promptContent)
     return promptContent
 }
 
@@ -254,14 +337,26 @@ export function initTableData(eventData) {
  * @returns {string} 表格相关提示词
  */
 export function getTablePrompt(eventData, isPureData = false, ignoreToChatFilter = false) {
-    // 优先使用传入的 piece (eventData)，如果不是有效的 piece，则回退到 getReferencePiece
-    const lastSheetsPiece = (eventData && eventData.hash_sheets) ? eventData : BASE.getReferencePiece();
-    // [二次修复] 增加对 lastSheetsPiece 的有效性检查，防止在没有有效数据时继续执行
-    if (!lastSheetsPiece || !lastSheetsPiece.hash_sheets) {
+    // [v4.9.0] 核心重构：不再从历史消息中读取数据，而是动态生成包含最新表格状态的 piece。
+    const currentSheets = BASE.getChatSheets();
+    if (!currentSheets || currentSheets.length === 0) {
         return '';
     }
-    console.log("获取到的参考表格数据", lastSheetsPiece)
-    return getTablePromptByPiece(lastSheetsPiece, isPureData, ignoreToChatFilter)
+
+    // 创建一个临时的 piece 对象，用于收集所有当前表格的最新状态。
+    const dynamicPiece = { hash_sheets: {} };
+    currentSheets.forEach(sheet => {
+        if (sheet.enable) {
+            sheet.save(dynamicPiece); // 调用 save 方法将 sheet 的当前状态填充到 dynamicPiece 中
+        }
+    });
+
+    if (Object.keys(dynamicPiece.hash_sheets).length === 0) {
+        return ''; // 如果没有任何启用的表格，则不生成提示词
+    }
+
+    Logger.debug("动态生成的、包含最新表格数据的 piece:", dynamicPiece);
+    return getTablePromptByPiece(dynamicPiece, isPureData, ignoreToChatFilter);
 }
 
 /**
@@ -273,7 +368,7 @@ export function getTablePromptByPiece(piece, isPureData = false, ignoreToChatFil
     const {hash_sheets} = piece
     const sheets = BASE.hashSheetsToSheets(hash_sheets)
         .filter(sheet => sheet.enable);
-    console.log("构建提示词时的信息 (已过滤)", hash_sheets, sheets)
+    Logger.debug("构建提示词时的信息 (已过滤)", { hash_sheets, sheets });
     const customParts = isPureData ? ['title', 'headers', 'rows'] : ['title', 'node', 'headers', 'rows', 'editRules'];
     const sheetDataPrompt = sheets.map((sheet, index) => sheet.getTableText(index, customParts, piece, ignoreToChatFilter)).join('\n')
     return sheetDataPrompt
@@ -364,25 +459,27 @@ export function handleEditStrInMessage(chat, mesIndex = -1, ignoreCheck = false)
  * @param {*} piece 单个聊天对象
  * @param {number} mesIndex 修改的消息索引
  * @param {boolean} ignoreCheck 是否跳过重复性检查
+ * @param {boolean} manualSave 是否强制保存聊天记录
  */
-export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
+export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false, manualSave = true) {
     const { matches } = getTableEditTag(piece.mes)
     if (!ignoreCheck && !isTableEditStrChanged(piece, matches)) return false
     const tableEditActions = handleTableEditTag(matches)
     tableEditActions.forEach((action, index) => tableEditActions[index].action = classifyParams(formatParams(action.param)))
-    console.log("解析到的表格编辑指令", tableEditActions)
+    Logger.debug("解析到的表格编辑指令", tableEditActions)
 
     // 获取上一个表格数据
     const { piece: prePiece } = mesIndex === -1 ? BASE.getLastSheetsPiece(1) : BASE.getLastSheetsPiece(mesIndex - 1, 1000, false)
     const sheets = BASE.hashSheetsToSheets(prePiece.hash_sheets).filter(sheet => sheet.enable)
-    console.log("执行指令时的信息", sheets)
+    Logger.debug("执行指令时的信息", sheets)
     for (const EditAction of sortActions(tableEditActions)) {
         executeAction(EditAction, sheets)
     }
-    sheets.forEach(sheet => sheet.save(piece, true))
-    console.log("聊天模板：", BASE.sheetsData.context)
-    console.log("获取到的表格数据", prePiece)
-    console.log("测试总chat", USER.getContext().chat)
+    // 修复：只有在需要时才强制保存，避免在“立即填表”的撤销阶段引发文件竞争
+    sheets.forEach(sheet => sheet.save(piece, manualSave))
+    Logger.debug("聊天模板：", BASE.sheetsData.context)
+    Logger.debug("获取到的表格数据", prePiece)
+    Logger.debug("测试总chat", USER.getContext().chat)
     return true
 }
 
@@ -393,16 +490,16 @@ export function parseTableEditTag(piece, mesIndex = -1, ignoreCheck = false) {
 export function executeTableEditActions(matches, referencePiece) {
     const tableEditActions = handleTableEditTag(matches)
     tableEditActions.forEach((action, index) => tableEditActions[index].action = classifyParams(formatParams(action.param)))
-    console.log("解析到的表格编辑指令", tableEditActions)
+    Logger.debug("解析到的表格编辑指令", tableEditActions)
 
     // 核心修复：不再信任传入的 referencePiece.hash_sheets，而是直接从 BASE 获取当前激活的、唯一的 Sheet 实例。
     const sheets = BASE.getChatSheets().filter(sheet => sheet.enable)
     if (!sheets || sheets.length === 0) {
-        console.error("executeTableEditActions: 未找到任何启用的表格实例，操作中止。");
+        Logger.error("executeTableEditActions: 未找到任何启用的表格实例，操作中止。");
         return false;
     }
 
-    console.log("执行指令时的信息 (来自 BASE.getChatSheets)", sheets)
+    Logger.debug("执行指令时的信息 (来自 BASE.getChatSheets)", sheets)
     for (const EditAction of sortActions(tableEditActions)) {
         executeAction(EditAction, sheets)
     }
@@ -410,13 +507,13 @@ export function executeTableEditActions(matches, referencePiece) {
     // 核心修复：确保修改被保存到当前最新的聊天片段中。
     const { piece: currentPiece } = USER.getChatPiece();
     if (!currentPiece) {
-        console.error("executeTableEditActions: 无法获取当前聊天片段，保存操作失败。");
+        Logger.error("executeTableEditActions: 无法获取当前聊天片段，保存操作失败。");
         return false;
     }
     sheets.forEach(sheet => sheet.save(currentPiece, true))
 
-    console.log("聊天模板：", BASE.sheetsData.context)
-    console.log("测试总chat", USER.getContext().chat)
+    Logger.debug("聊天模板：", BASE.sheetsData.context)
+    Logger.debug("测试总chat", USER.getContext().chat)
     return true // 返回 true 表示成功
 }
 
@@ -427,7 +524,7 @@ function executeAction(EditAction, sheets) {
     const action = EditAction.action
     const sheet = sheets[action.tableIndex]
     if (!sheet) {
-        console.error("表格不存在，无法执行编辑操作", EditAction);
+        Logger.error("表格不存在，无法执行编辑操作", EditAction);
         return -1;
     }
 
@@ -468,7 +565,7 @@ function executeAction(EditAction, sheets) {
             cell.newAction(cell.CellAction.deleteSelfRow, {}, false)
             break
     }
-    console.log("执行表格编辑操作", EditAction)
+    Logger.debug("执行表格编辑操作", EditAction)
     return 1
 }
 
@@ -612,7 +709,7 @@ async function onChatCompletionPromptReady(eventData) {
                     } else {
                         eventData.chat.splice(-USER.tableBaseSetting.deep, 0, { role: getMesRole(), content: finalPrompt });
                     }
-                    console.log("分步填表模式：注入只读表格数据", eventData.chat);
+                    Logger.info("分步填表模式：注入只读表格数据", eventData.chat);
                 }
             }
             return; // 处理完分步模式后直接退出，不执行后续的常规注入
@@ -626,7 +723,7 @@ async function onChatCompletionPromptReady(eventData) {
             return;
         }
 
-        console.log("生成提示词前", USER.getContext().chat)
+        Logger.debug("生成提示词前", USER.getContext().chat)
         const promptContent = initTableData(eventData)
         if (USER.tableBaseSetting.deep === 0)
             eventData.chat.push({ role: getMesRole(), content: promptContent })
@@ -637,7 +734,7 @@ async function onChatCompletionPromptReady(eventData) {
     } catch (error) {
         EDITOR.error(`记忆插件：表格数据注入失败\n原因：`,error.message, error);
     }
-    console.log("注入表格总体提示词", eventData.chat)
+    Logger.info("注入表格总体提示词", eventData.chat)
 }
 
 /**
@@ -818,6 +915,7 @@ async function performWaitThenSend(chat_id, messageContent) {
  */
 async function onMessageReceived(chat_id) {
     setTimeout(async () => {
+        Logger.group(`onMessageReceived - chat_id: ${chat_id}`);
         try {
             if (USER.tableBaseSetting.isExtensionAble === false) return;
             
@@ -825,7 +923,7 @@ async function onMessageReceived(chat_id) {
             if (isWaitThenSendEnabled()) {
                 // 检查优化插件是否存在，如果不存在，则执行首次拦截
                 if (!window.Amily2ChatOptimisation) {
-                    console.log('[Memory Enhancement] 未检测到优化插件，执行首次拦截-填完再发流程。');
+                    Logger.info('[Memory Enhancement] 未检测到优化插件，执行首次拦截-填完再发流程。');
                     const chat = USER.getContext().chat[chat_id];
                     if (chat) {
                         await performWaitThenSend(chat_id, chat.mes);
@@ -833,14 +931,14 @@ async function onMessageReceived(chat_id) {
                 }
                 // 如果优化插件存在，则不做任何事，等待 MutationObserver 进行二次拦截
                 else {
-                    console.log('[Memory Enhancement] “填完再发”已激活，等待二次拦截。');
+                    Logger.info('[Memory Enhancement] “填完再发”已激活，等待二次拦截。');
                 }
                 return;
             }
 
             const chat = USER.getContext().chat[chat_id];
             if (!chat) {
-                console.warn(`[Memory Enhancement] onMessageReceived: 在延迟后未找到 chat_id ${chat_id} 对应的聊天对象。`);
+                Logger.warn(`[Memory Enhancement] onMessageReceived: 在延迟后未找到 chat_id ${chat_id} 对应的聊天对象。`);
                 return;
             }
 
@@ -855,6 +953,8 @@ async function onMessageReceived(chat_id) {
             updateSheetsView();
         } catch (error) {
             EDITOR.error("记忆插件：onMessageReceived 处理失败\n原因：", error.message, error);
+        } finally {
+            Logger.groupEnd();
         }
     }, 0);
 }
@@ -882,7 +982,7 @@ function resolveTableMacros(text) {
             const cellValue = cell ? cell.data.value : undefined;
             return cellValue !== undefined ? cellValue : `<span style="color: orange">[GET: 在 "${tableName}" 中未找到单元格 "${cellAddress}"]</span>`;
         } catch (error) {
-            console.error(`Error resolving GET macro for ${tableName}:${cellAddress}`, error);
+            Logger.error(`Error resolving GET macro for ${tableName}:${cellAddress}`, error);
             return `<span style="color: red">[GET: 处理时出错]</span>`;
         }
     });
@@ -921,7 +1021,7 @@ async function onChatChanged() {
 async function onMessageSwiped(chat_id) {
     if (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.isAiWriteTable === false) return
     const chat = USER.getContext().chat[chat_id];
-    console.log("滑动切换消息", chat)
+    Logger.info("滑动切换消息", chat)
     if (!chat.swipe_info[chat.swipe_id]) return
     try {
         handleEditStrInMessage(chat)
@@ -938,8 +1038,9 @@ async function onMessageSwiped(chat_id) {
 export async function undoSheets(deep) {
     const {piece, deep:findDeep} = BASE.getLastSheetsPiece(deep)
     if(findDeep === -1) return 
-    console.log("撤回表格数据", piece, findDeep)
-    handleEditStrInMessage(piece, findDeep, true)
+    Logger.info("撤回表格数据", piece, findDeep)
+    // 修复：在撤销操作中调用 handleEditStrInMessage 时，传递第四个参数为 false，以禁止其内部的强制保存操作，从而避免文件竞争。
+    handleEditStrInMessage(piece, findDeep, true, false)
     updateSheetsView()
 }
 
@@ -952,9 +1053,9 @@ async function updateSheetsView() {
     const task = new SYSTEM.taskTiming('openAppHeaderTableDrawer_task')
     try{
        // 刷新表格视图
-        console.log("========================================\n更新表格视图")
+        Logger.info("========================================\n更新表格视图")
         refreshTempView(true).then(() => task.log());
-        console.log("========================================\n更新表格内容视图")
+        Logger.info("========================================\n更新表格内容视图")
         refreshContextView().then(() => task.log());
 
         // 更新系统消息中的表格状态
@@ -992,7 +1093,7 @@ export function isDrawerNewVersion() {
 async function checkForPendingStepUpdate() {
     const pendingData = readStepData();
     if (pendingData && pendingData.chatId && pendingData.content) {
-        console.log('[Memory Enhancement / StepByStep] 检测到待处理的填表任务。', pendingData);
+        Logger.info('[Memory Enhancement / StepByStep] 检测到待处理的填表任务。', pendingData);
 
         const context = USER.getContext();
         const lastMessageIndex = context.chat.length - 1;
@@ -1002,7 +1103,7 @@ async function checkForPendingStepUpdate() {
             EDITOR.info("正在恢复上次中断的填表任务...");
             await performWaitThenSend(pendingData.chatId, pendingData.content);
         } else {
-            console.warn(`[Memory Enhancement / StepByStep] 待处理任务的chatId (${pendingData.chatId}) 与当前上下文 (${lastMessageIndex}) 不匹配，已跳过。`);
+            Logger.warn(`[Memory Enhancement / StepByStep] 待处理任务的chatId (${pendingData.chatId}) 与当前上下文 (${lastMessageIndex}) 不匹配，已跳过。`);
             // 在不匹配的情况下也清除，避免在错误的对话中意外触发
             clearStepData();
         }
@@ -1015,7 +1116,7 @@ async function checkForPendingStepUpdate() {
 function observeChatForSecondaryInterception() {
     const targetNode = document.getElementById('chat-scroll-container');
     if (!targetNode) {
-        console.error('[Memory Enhancement] 无法找到 #chat-scroll-container，二次拦截功能启动失败。');
+        Logger.error('[Memory Enhancement] 无法找到 #chat-scroll-container，二次拦截功能启动失败。');
         return;
     }
 
@@ -1040,7 +1141,7 @@ function observeChatForSecondaryInterception() {
                     // 核心修复：直接从被修改的DOM中提取最新文本，而不是从旧的数据模型中读取
                     const optimizedContent = mutation.target.textContent;
                     
-                    console.log('[Memory Enhancement] MutationObserver检测到内容变化，触发二次拦截。');
+                    Logger.info('[Memory Enhancement] MutationObserver检测到内容变化，触发二次拦截。');
                     
                     // 使用优化后的文本执行流程
                     await performWaitThenSend(lastMessageIndex, optimizedContent);
@@ -1055,7 +1156,7 @@ function observeChatForSecondaryInterception() {
 
     const config = { childList: true, subtree: true };
     observer.observe(targetNode, config);
-    console.log('[Memory Enhancement] “二次拦截哨兵” (MutationObserver) 已启动。');
+    Logger.info('[Memory Enhancement] “二次拦截哨兵” (MutationObserver) 已启动。');
 }
 
 
@@ -1078,10 +1179,10 @@ jQuery(async () => {
 
     // 分离手机和电脑事件
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        console.log("手机端")
+        Logger.info("手机端")
         // 手机端事件
     } else {
-        console.log("电脑端")
+        Logger.info("电脑端")
         // 电脑端事件
         initTest();
     }
@@ -1107,14 +1208,14 @@ jQuery(async () => {
             // 返回JSON字符串，不带额外的格式化，以便在代码中直接使用
             return JSON.stringify(jsonData);
         } catch (error) {
-            console.error("GET_ALL_TABLES_JSON 宏执行出错:", error);
+            Logger.error("GET_ALL_TABLES_JSON 宏执行出错:", error);
             EDITOR.error("导出所有表格数据时出错。");
             return "{}"; // 出错时返回空JSON对象
         }
     });
 
     // 设置表格编辑按钮
-    console.log("设置表格编辑按钮", applicationFunctionManager.doNavbarIconClick)
+    Logger.info("设置表格编辑按钮", applicationFunctionManager.doNavbarIconClick)
     if (isDrawerNewVersion()) {
         $('#table_database_settings_drawer .drawer-toggle').on('click', applicationFunctionManager.doNavbarIconClick);
     }else{
@@ -1165,7 +1266,7 @@ jQuery(async () => {
         APP.eventSource.on(APP.event_types.MESSAGE_EDITED, onMessageEdited);
         APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
         APP.eventSource.on(APP.event_types.MESSAGE_DELETED, onChatChanged);
-        console.log("______________________记忆插件：事件监听器已激活______________________");
+        Logger.info("______________________记忆插件：事件监听器已激活______________________");
         
         // 启动二次拦截的哨兵
         observeChatForSecondaryInterception();
@@ -1175,5 +1276,5 @@ jQuery(async () => {
     }, 500); // 500毫秒延迟
 
 
-    console.log("______________________记忆插件：加载完成______________________")
+    Logger.info("______________________记忆插件：加载完成______________________")
 });

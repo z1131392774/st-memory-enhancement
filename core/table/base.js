@@ -1,5 +1,6 @@
 import {Cell} from "./cell.js";
 import {filterSavingData} from "./utils.js";
+import { Logger } from "../../services/logger.js";
 
 const SheetDomain = {
     global: 'global',
@@ -77,7 +78,7 @@ export class SheetBase {
                         });
                     });
                     this._cellPositionCacheDirty = false;   // 更新完成，标记为干净
-                    console.log('重新计算 positionCache: ', map);
+                    Logger.debug('重新计算 positionCache: ', map);
                 }
                 return map.get(uid);
             },
@@ -156,7 +157,7 @@ export class SheetBase {
                 this.cells.set(cell.uid, cell);
             });
         } catch (e) {
-            console.error(`加载失败：${e}`);
+            Logger.error(`加载失败：${e}`);
             return false;
         }
 
@@ -173,19 +174,19 @@ export class SheetBase {
                             this.cells.set(cell.uid, cell);
                         }
                         if (rowIndex === 0 && colIndex === 0) {
-                            cell.type = Cell.CellType.sheet_origin;
+                            cell.type = cell.CellType.sheet_origin;
                         } else if (rowIndex === 0) {
-                            cell.type = Cell.CellType.column_header;
+                            cell.type = cell.CellType.column_header;
                         } else if (colIndex === 0) {
-                            cell.type = Cell.CellType.row_header;
+                            cell.type = cell.CellType.row_header;
                         } else {
-                            cell.type = Cell.CellType.cell;
+                            cell.type = cell.CellType.cell;
                         }
                     });
                 });
             }
         } catch (e) {
-            console.error(`加载失败：${e}`);
+            Logger.error(`加载失败：${e}`);
             return false;
         }
     }
@@ -200,7 +201,7 @@ export class SheetBase {
 
     findCellByPosition(rowIndex, colIndex) {
         if (rowIndex < 0 || colIndex < 0 || rowIndex >= this.hashSheet.length || colIndex >= this.hashSheet[0].length) {
-            console.warn('无效的行列索引');
+            Logger.warn('无效的行列索引');
             return null;
         }
         const hash = this.hashSheet[rowIndex][colIndex]
@@ -208,12 +209,12 @@ export class SheetBase {
         if (!target) {
             const cell = new Cell(this);
             cell.data.value = '空数据';
-            cell.type = colIndex === 0 ? Cell.CellType.row_header : rowIndex === 0 ? Cell.CellType.column_header : Cell.CellType.cell;
+            cell.type = colIndex === 0 ? cell.CellType.row_header : rowIndex === 0 ? cell.CellType.column_header : cell.CellType.cell;
             cell.uid = hash;
             this.cells.set(cell.uid, cell);
             return cell;
         }
-        console.log('找到单元格',target);
+        Logger.debug('找到单元格',target);
         return target;
     }
     /**
@@ -223,7 +224,7 @@ export class SheetBase {
      */
     getCellsByRowIndex(rowIndex) {
         if (rowIndex < 0 || rowIndex >= this.hashSheet.length) {
-            console.warn('无效的行索引');
+            Logger.warn('无效的行索引');
             return null;
         }
         return this.hashSheet[rowIndex].map(uid => this.cells.get(uid));
@@ -234,7 +235,7 @@ export class SheetBase {
      */
     getSheetCSV( removeHeader = true,key = 'value') {
         if (this.isEmpty()) return '（此表格当前为空）\n'
-        console.log("测试获取map", this.cells)
+        Logger.debug("测试获取map", this.cells)
         const content = this.hashSheet.slice(removeHeader?1:0).map((row, index) => row.map(cellUid => {
             const cell = this.cells.get(cellUid)
             if (!cell) return ""

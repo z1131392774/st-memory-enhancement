@@ -1,4 +1,5 @@
 import { TTable } from "./tTableManager.js";
+import { Logger } from "../services/logger.js";
 import applicationFunctionManager from "../services/appFuncManager.js";
 // 移除旧表格系统引用
 import { consoleMessageToEditor } from "../scripts/settings/devConsole.js";
@@ -63,7 +64,7 @@ export const USER = {
             USER.getSettings().table_database_templates = templates;
             USER.saveSettings();
         }
-        console.log("全局模板", templates)
+        Logger.debug("全局模板", templates)
         return templates;
     },
     tableBaseSetting: createProxyWithUserSetting('muyoo_dataTable'),
@@ -193,7 +194,7 @@ export const BASE = {
         if(type === 'data') return BASE.saveChatSheets()
         const oldSheets = BASE.getChatSheets().filter(sheet => !newSheets.some(newSheet => newSheet.uid === sheet.uid))
         oldSheets.forEach(sheet => sheet.enable = false)
-        console.log("应用表格数据", newSheets, oldSheets)
+        Logger.info("应用表格数据", newSheets, oldSheets)
         const mergedSheets = [...newSheets, ...oldSheets]
         BASE.reSaveAllChatSheets(mergedSheets)
     },
@@ -220,7 +221,7 @@ export const BASE = {
         updateSelectBySheetStatus()
     },
     getLastSheetsPiece(deep = 0, cutoff = 1000, startAtLastest = true) {
-        console.log("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
+        Logger.debug("向上查询表格数据，深度", deep, "截断", cutoff, "从最新开始", startAtLastest)
         const chat = APP.getContext()?.chat; // 安全地访问 chat
         if (!chat || chat.length === 0 || chat.length <= deep) {
             return { deep: -1, piece: BASE.initHashSheet() }
@@ -240,13 +241,13 @@ export const BASE = {
             }
 
             if (chat[i].hash_sheets) {
-                console.log("向上查询表格数据，找到表格数据", chat[i])
+                Logger.debug("向上查询表格数据，找到表格数据", chat[i])
                 return { deep: i, piece: chat[i] }
             }
             
             // 兼容旧的 dataTable
             if (chat[i].dataTable) {
-                console.log("找到旧表格数据", chat[i])
+                Logger.info("找到旧表格数据", chat[i])
                 convertOldTablesToNewSheets(chat[i].dataTable, chat[i])
                 return { deep: i, piece: chat[i] }
             }
@@ -255,7 +256,7 @@ export const BASE = {
     },
     getReferencePiece(){
         const swipeInfo = USER.isSwipe()
-        console.log("获取参考片段", swipeInfo)
+        Logger.debug("获取参考片段", swipeInfo)
         const {piece} = swipeInfo.isSwipe?swipeInfo.deep===-1?{piece:BASE.initHashSheet()}: BASE.getLastSheetsPiece(swipeInfo.deep-1,1000,false):BASE.getLastSheetsPiece()
         return piece
     },
@@ -271,7 +272,7 @@ export const BASE = {
             // 1. 从 context 中找到原始的、持久化的 sheet 模板数据
             const sheetTemplate = BASE.sheetsData.context.find(s => s.uid === sheetUid);
             if (!sheetTemplate) {
-                console.warn(`[hashSheetsToSheets] 未在 context 中找到 UID 为 ${sheetUid} 的 sheet 模板，已跳过。`);
+                Logger.warn(`[hashSheetsToSheets] 未在 context 中找到 UID 为 ${sheetUid} 的 sheet 模板，已跳过。`);
                 continue;
             }
 
@@ -302,7 +303,7 @@ export const BASE = {
     },
     initHashSheet() {
         if (BASE.sheetsData.context.length === 0) {
-            console.log("尝试从模板中构建表格数据")
+            Logger.info("尝试从模板中构建表格数据")
             const {piece: currentPiece} = USER.getChatPiece()
             buildSheetsByTemplates(currentPiece)
             if (currentPiece?.hash_sheets) {
@@ -381,14 +382,14 @@ export const DERIVED = {
  */
 export const SYSTEM = {
     getTemplate: (name) => {
-        console.log('getTemplate', name);
+        Logger.debug('getTemplate', name);
         return APP.renderExtensionTemplateAsync('third-party/st-memory-enhancement/assets/templates', name);
     },
 
     codePathLog: function (context = '', deep = 2) {
         const r = getRelativePositionOfCurrentCode(deep);
         const rs = `${r.codeFileRelativePathWithRoot}[${r.codePositionInFile}] `;
-        console.log(`%c${rs}${r.codeAbsolutePath}`, 'color: red', context);
+        Logger.debug(`%c${rs}${r.codeAbsolutePath}`, 'color: red', context);
     },
     lazy: lazy,
     generateRandomString: generateRandomString,
