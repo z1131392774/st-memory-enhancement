@@ -1,3 +1,249 @@
+v6.0.3-hotfix-collaborative-saving
+- **核心修复: 再次重构并完善了协同保存机制，以完美实现“等待-接力”式的数据持久化。**
+  - **问题:** 上一版的修复（v6.0.2）通过跳过自动保存来避免冲突，但这并不完全符合用户的期望，因为在锁定期间发生的新更改可能会丢失。用户的意图是“等一方记录完了再进行另一方的记录”，而不是直接取消。
+  - **解决方案:**
+    1.  **引入“待办”标志:**
+        - 在 `core/manager.js` 中增加了一个 `USER.debouncedSaveRequired` 标志，默认为 `false`。
+        - 当自动保存（`debouncedSaveChat`）遇到激活的保存锁时，它不再直接跳过，而是将此标志设置为 `true`，表示“有一个保存任务正在排队等待”。
+    2.  **升级锁释放逻辑:**
+        - 彻底重构了 `scripts/runtime/separateTableUpdate.js` 中 `manualSummaryChat` 和 `triggerTableFillFromLastMessage` 的 `finally` 块（锁释放部分）。
+        - 在释放锁（`USER.isSaveLocked = false`）之后，会检查 `USER.debouncedSaveRequired` 的状态。
+        - **如果手动流程成功**，它会执行自己的最终保存，这个保存已经包含了所有最新的更改，因此只需重置待办标志即可。
+        - **如果手动流程失败**，但待办标志为 `true`，这意味着在手动操作期间有其他更改请求了自动保存。此时，系统会立即执行一次补救性的保存，以确保这些“排队”的更改不会丢失。
+  - **实现方式:**
+    - **1. 修改 `core/manager.js`:**
+        - 增加了 `debouncedSaveRequired: false` 到 `USER` 对象。
+        - 修改了 `debouncedSaveChat` 的逻辑，当遇到锁时，不再是 `return`，而是设置 `USER.debouncedSaveRequired = true`。
+    - **2. 修改 `scripts/runtime/separateTableUpdate.js`:**
+        - 在 `manualSummaryChat` 和 `triggerTableFillFromLastMessage` 的 `finally` 块中，增加了对 `USER.debouncedSaveRequired` 的检查和相应的处理逻辑。
+  - **结果:**
+    - **实现了完美的协同保存:** 现在，自动保存和手动保存可以智能地协同工作。自动保存会耐心等待手动操作完成，并在必要时“接力”完成保存，确保了数据的完整性和一致性，完全杜绝了任何形式的保存冲突和数据丢失风险。
+  - **受影响文件:**
+    - `core/manager.js` (升级了自动保存逻辑，增加了待办标志)
+    - `scripts/runtime/separateTableUpdate.js` (升级了锁释放逻辑，增加了接力保存功能)
+    - `项目文档.txt` (新增此条目)
+
+v6.0.2-hotfix-save-lock-enhancement
+- **核心修复: 彻底重构了“保存锁”机制，以解决手动填表与自动保存之间的深层冲突。**
+  - **问题:** 即便引入了取消机制，在特定的高频操作下，自动保存（debouncedSaveChat）仍有可能在手动保存锁释放的间隙被触发，导致逻辑冲突和控制台警告。
+  - **解决方案:**
+    1.  **引入全局锁状态:**
+        - 在 `core/manager.js` 中增加了一个全局状态标志 `USER.isSaveLocked`，默认为 `false`。
+    2.  **重构手动保存流程:**
+        - 修改了 `scripts/runtime/separateTableUpdate.js` 中的 `manualSummaryChat` 和 `triggerTableFillFromLastMessage` 函数。
+        - 它们不再通过临时替换函数的方式来“锁定”，而是在操作开始时设置 `USER.isSaveLocked = true`，并在 `finally` 块中确保将其设置回 `false`，实现了更可靠的加锁与解锁。
+    3.  **升级自动保存逻辑:**
+        - 修改了 `core/manager.js` 中的 `debouncedSaveChat` 函数。
+        - 现在，在它准备执行真正的 `USER.saveChat()` 之前，会先检查 `USER.isSaveLocked` 的状态。如果为 `true`，则本次自动保存会被主动跳过。
+  - **实现方式:**
+    - **1. 修改 `core/manager.js`:**
+        - 增加了 `isSaveLocked: false` 属性到 `USER` 对象。
+        - 在 `debouncedSaveChat` 函数的执行体中增加了 `if (USER.isSaveLocked) { ... return; }` 的前置检查。
+    - **2. 修改 `scripts/runtime/separateTableUpdate.js`:**
+        - 在 `manualSummaryChat` 和 `triggerTableFillFromLastMessage` 函数中，将旧的通过替换 `USER.saveChat` 函数的锁定方式，改为在 `try...finally` 块中控制 `USER.isSaveLocked` 的布尔值。
+  - **结果:**
+    - **彻底解决了冲突:** 新的全局锁机制确保了手动保存操作拥有绝对的优先权。自动保存会主动“避让”正在进行的手动操作，完美实现了用户“让一方等待另一方”的建议，彻底消除了相关的控制台警告。
+  - **受影响文件:**
+    - `core/manager.js` (新增全局锁状态并升级自动保存逻辑)
+    - `scripts/runtime/separateTableUpdate.js` (重构手动保存的加锁/解锁方式)
+    - `项目文档.txt` (新增此条目)
+
+v6.0.1-hotfix-persistence-conflict
+- **核心修复: 解决了新的自动保存机制与旧的“保存锁”机制之间的冲突。**
+  - **问题:** 在执行“立即填表”或由外部触发的填表操作时，旧的保存锁会临时禁用 `USER.saveChat()` 以防止文件并发写入。然而，新的 `debouncedSaveChat` 函数并不知道这一点，仍然会在后台尝试调用被禁用的保存函数，从而导致控制台出现“A save attempt was intercepted”的警告，并可能引发不确定的行为。
+  - **解决方案:**
+    1.  **为`debounce`函数增加取消功能:**
+        - 修改了 `utils/utility.js` 中的 `debounce` 函数，为其增加了一个 `.cancel()` 方法。这允许我们从外部取消一个已经设定好但尚未执行的延迟调用。
+    2.  **集成取消逻辑:**
+        - 修改了 `scripts/runtime/separateTableUpdate.js` 中 `manualSummaryChat` 和 `triggerTableFillFromLastMessage` 两个函数。
+        - 在它们启动“保存锁”的同时，会立即调用 `USER.debouncedSaveChat.cancel()`。
+        - 这确保了在执行这些关键、手动的填表操作时，所有待处理的、由常规编辑触发的自动保存任务都会被取消，从而避免了冲突。
+  - **实现方式:**
+    - **1. 修改 `utils/utility.js`:**
+        - 为 `debounce` 函数增加了 `cancel` 方法，用于清除已设置的 `setTimeout`。
+    - **2. 修改 `scripts/runtime/separateTableUpdate.js`:**
+        - 在 `manualSummaryChat` 和 `triggerTableFillFromLastMessage` 两个函数中，于启动保存锁的代码 `const originalSaveChat = USER.saveChat;` 之前，增加了 `USER.debouncedSaveChat.cancel();` 的调用。
+  - **结果:**
+    - **提升了系统稳定性:** 新旧两种保存机制现在可以无冲突地协同工作。自动保存的便利性和手动操作的安全性都得到了保证。
+  - **受影响文件:**
+    - `utils/utility.js` (增强了debounce函数)
+    - `scripts/runtime/separateTableUpdate.js` (集成了取消逻辑以解决冲突)
+    - `项目文档.txt` (新增此条目)
+
+v6.0.0-feature-robust-data-persistence
+- **核心修复: 彻底重构了表格数据的保存机制，以解决在关闭或切换角色卡后数据丢失的问题。**
+  - **问题:** 表格数据的修改（如编辑单元格、增删行列）仅更新了内存中的状态，但没有一个可靠的机制来确保这些更改能在用户关闭角色卡前被及时写入到SillyTavern的持久化存储中，导致数据丢失。
+  - **解决方案:**
+    1.  **引入防抖保存机制:**
+        - 在核心管理器 `core/manager.js` 中，新增了一个 `USER.debouncedSaveChat` 函数。
+        - 该函数使用了防抖（debounce）技术，在被调用后会等待1.5秒。如果在等待期间没有新的调用，它才会执行一次 `USER.saveChat()`，将整个聊天上下文（包含所有表格数据）写入文件。
+        - 这样做既能确保数据被保存，又可以合并短时间内的多次连续编辑操作，避免了频繁I/O操作导致的性能问题和文件冲突。
+    2.  **触发自动保存:**
+        - 修改了表格核心类 `core/table/sheet.js` 中的 `save()` 方法。
+        - 现在，每当调用 `sheet.save()` 来保存对单个表格的任何更改时，它都会自动调用 `USER.debouncedSaveChat()`。
+    3.  **移除冗余代码:**
+        - 清理了 `core/manager.js` 中几处手动的 `USER.saveChat()` 调用，因为现在持久化已由新的防抖机制全权负责。
+  - **实现方式:**
+    - **1. 修改 `core/manager.js`:**
+        - 导入 `debounce` 工具函数。
+        - 在 `USER` 对象中添加 `debouncedSaveChat` 函数。
+        - 在 `saveChatSheets` 和 `reSaveAllChatSheets` 函数中，移除了手动的 `USER.saveChat()` 调用。
+    - **2. 修改 `core/table/sheet.js`:**
+        - 在 `save()` 方法的核心逻辑中，将原来的 `if (manualSave)` 分支扩展为 `else` 分支，在非手动保存的情况下调用 `USER.debouncedSaveChat()`。
+    - **3. 新增 `services/stepByStepStorage.js`:**
+        - 补全了项目中缺失的该文件，使其能够处理“填完再发”功能的本地存储，增强了相关功能的健壮性。
+  - **结果:**
+    - **提升了数据健壮性:** 任何对表格的修改现在都能被可靠、自动地持久化。用户不再需要担心因忘记手动保存或直接关闭角色卡而导致的数据丢失问题。
+    - **优化了性能:** 通过防抖机制，避免了不必要的、过于频繁的文件写入操作。
+  - **受影响文件:**
+    - `core/manager.js` (增加了防抖保存的核心逻辑)
+    - `core/table/sheet.js` (在表格保存时触发自动持久化)
+    - `services/stepByStepStorage.js` (新增文件，增强辅助功能)
+    - `项目文档.txt` (新增此条目)
+
+v5.9.9-hotfix-loading-animation-logic
+- **核心优化: 优化了加载动画的显示逻辑，使其可以被用户完全禁用，并修复了禁用后0层模式下的打字机效果。**
+  - **问题 1 (功能):** “启用Gal模式加载动画”的描述不够清晰，且禁用后0层模式下仍然会显示加载动画。
+  - **问题 2 (功能):** 禁用加载动画后，在0层模式下，填表完成后会错误地重置打字机效果，导致文本重新从头开始输出。
+  - **解决方案:**
+    1.  **重命名与逻辑统一:**
+        - 将设置中的勾选框从“启动加载模式”重命名为“启动加载时的动画效果”，使其含义更通用。
+        - 修改了 `handleZeroLevelReply` 函数，使其在处理0层模式的AI回复时，会检查“启动加载时的动画效果”的设置。如果未勾选，则跳过显示加载动画的步骤。
+    2.  **回调逻辑调整:**
+        - 修改了 `registerTableUpdateCallback` (填表完成回调) 的逻辑。现在，`shouldUpdateStoryText` (是否重置打字机) 完全取决于“启动加载时的动画效果”的勾选状态。
+        - 当“启动加载时的动画效果”被取消勾选时，无论是0层模式还是普通Gal模式，在填表完成后都只会刷新UI数据 (`refreshWithData(newData, false)`)，不再重置打字机效果。
+        - 确保了在接收到新的AI回复时，无论加载模式是否启用，都会正常触发初始的打字机效果，只影响填表后的刷新行为。
+  - **实现方式:**
+    - **1. 修改 `新界面美化完全版.html`:**
+        - **JavaScript:**
+            - 在 `openSettingsModal` 函数中，将 `createSettingCheckbox` 的文本参数从“启动加载模式”修改为“启动加载时的动画效果”。
+            - 在 `handleZeroLevelReply` 函数中，为显示和隐藏 `.loading-overlay` 的代码增加了 `&& uiSettings.enableGalLoading` 的判断条件。
+            - 在 `registerTableUpdateCallback` 的回调函数中，将 `shouldUpdateStoryText` 的赋值逻辑从 `uiSettings.isZeroLayerMode || uiSettings.enableGalLoading` 简化为 `uiSettings.enableGalLoading`。
+  - **结果:**
+    - **提升了用户控制力:** 用户现在可以通过“启动加载时的动画效果”选项完全控制所有模式下的加载动画和填表后的打字机重置行为。
+    - **优化了0层模式体验:** 在禁用加载模式后，0层模式的操作流程更流畅，UI刷新和文本追加的体验与预期一致。
+  - **受影响文件:**
+    - `新界面美化完全版.html` (调整了设置项文本和核心加载逻辑)
+    - `项目文档.txt` (新增此条目)
+
+v5.9.8-hotfix-history-and-mobile-UI
+- **核心修复: 解决了存档导航状态在页面刷新后丢失的问题，并全面优化了移动端按钮布局。**
+  - **问题 1 (功能):** 存档导航的状态（当前在哪一条记录）完全依赖于JavaScript变量，页面刷新后该状态丢失，导致导航功能重置。
+  - **问题 2 (UI):** 新增“存档导航”按钮后，在竖屏和横屏的移动设备上，右下角工具栏的按钮会因空间不足而被挤出界面或排列错乱。
+  - **解决方案:**
+    1.  **状态持久化:**
+        - 使用 `localStorage` 来存储和读取 `currentHistoryIndex` 变量。
+        - 每次通过导航或直接读取存档时，都会更新 `localStorage` 中的值。
+        - 页面加载时，会优先从 `localStorage` 恢复上次的导航位置。
+        - 当触发新的存档操作（自动或手动）时，会清除该 `localStorage` 记录，确保导航基准点正确重置为最新存档。
+    2.  **移动端UI优化:**
+        - **CSS媒体查询调整:** 针对 `max-width: 600px`（竖屏）和 `orientation: landscape`（横屏）的设备，对 `.right-tool-bar` 及其内部按钮应用了更紧凑的样式。
+        - **尺寸与间距调整:** 减小了按钮的 `padding`、`font-size` 和 `gap`，确保在小屏幕上所有按钮都能完整显示，避免溢出。
+  - **实现方式:**
+    - **1. 修改 `新界面美化完全版.html`:**
+        - **JavaScript:**
+            - 初始化 `currentHistoryIndex` 时，增加从 `localStorage.getItem('st-beautify-ui-history-nav-index')` 读取的逻辑。
+            - 在 `loadStateFromLorebook` 函数中，增加了将当前 `slotIndex` 保存到 `localStorage` 的代码。
+            - 在 `saveContextToLorebook` 和 `loadStateManually` 函数中，增加了清除相应 `localStorage` 项的逻辑，以在创建新存档后重置导航状态。
+        - **CSS:**
+            - 在 `@media (max-width: 600px)` 规则下，为 `.right-tool-bar` 及其子元素添加了更小的内外边距和字体大小。
+            - 在 `@media (orientation: landscape)` 规则下，同样对工具栏按钮进行了微调，使其在横屏模式下也能良好显示。
+  - **结果:**
+    - **提升了健壮性:** 存档导航功能现在可以跨页面刷新保持状态，体验更加连贯。
+    - **优化了移动端UI:** 无论在何种移动设备或屏幕方向下，工具栏按钮都能保持整齐、美观的布局。
+  - **受影响文件:**
+    - `新界面美化完全版.html` (调整了JS状态管理逻辑和CSS媒体查询样式)
+    - `项目文档.txt` (新增此条目)
+
+v5.9.7-feature-history-navigation
+- **核心功能: 在主界面右下角新增一个存档导航按钮，用于快速读取上/下一条世界书存档。**
+  - **问题:** 在不同时间点的存档之间切换需要进入设置，再打开读取存档列表，操作较为繁琐。
+  - **解决方案:**
+    1.  在右下角工具栏增加了一个“历史”图标按钮。
+    2.  点击该按钮会弹出一个小型的上拉框，内含“上一条”和“下一条”两个按钮。
+    3.  通过新的 `navigateHistory` JavaScript 函数，实现了在5个自动存档槽位之间的循环导航。
+    4.  如果已经是最新或最旧的存档，会弹出相应的提示框。
+  - **实现方式:**
+    - **1. 修改 `新界面美化完全版.html`:**
+        - **HTML:** 在 `.right-tool-bar` 中添加了 `<div id="history-nav-container">`，包含触发按钮和弹出框。
+        - **CSS:** 为新添加的 `#history-nav-container` 和 `#history-nav-popup` 添加了样式，控制其位置、外观和显隐。
+        - **JavaScript:**
+            - 新增 `navigateHistory(direction)` 函数，处理导航逻辑，并能判断边界条件。
+            - 修改 `loadStateFromLorebook(slotIndex, silent = false)` 函数，增加 `silent` 参数以在导航加载时禁止弹出“加载成功”的提示。
+            - 为新按钮添加了事件监听器，实现弹出框的显示/隐藏以及导航功能的调用。
+  - **结果:**
+    - **提升了操作便捷性:** 用户可以一键调出导航菜单，快速在不同剧情节点间切换，极大地优化了读档体验。
+  - **受影响文件:**
+    - `新界面美化完全版.html` (新增了UI元素、样式和核心导航逻辑)
+    - `项目文档.txt` (新增此条目)
+
+v5.9.6-UI-settings-buttons-alignment-fix
+- **核心功能: 微调设置弹窗内按钮的对齐方式，以满足特定的布局要求。**
+  - **问题:** 即便经过多次调整，“上传默认背景”按钮仍未能与下方的其他按钮精确对齐，同时“重置”按钮的位置也不符合预期。
+  - **解决方案:**
+    1.  采用新的布局策略，不再将“上传”和“重置”按钮放在同一个flex容器中统一居中。
+    2.  创建一个相对定位的父容器，将“上传”按钮在其中水平居中。
+    3.  将“重置”按钮设置为绝对定位，并将其精确地放置在父容器的最右侧，从而实现了主按钮的居中对齐，同时让辅助按钮跟随在其行尾。
+  - **实现方式:**
+    - **1. 修改 `新界面美化完全版.html`:**
+        - 在 `openSettingsModal` 函数中，为“上传”和“重置”按钮创建了一个新的父容器 `backgroundButtonContainer`，并为其设置了 `position: 'relative'` 和 `text-align: 'center'`。
+        - “上传”按钮通过 `margin: '0 auto'` 实现居中。
+        - “重置”按钮通过 `position: 'absolute'`, `right: '0'`, 和 `top: '0'` 实现靠右对齐。
+  - **结果:**
+    - **优化了UI布局:** 实现了用户期望的精确对齐效果，即主操作按钮与其他按钮垂直对齐，而次要操作按钮则紧随其后。
+  - **受影响文件:**
+    - `新界面美化完全版.html` (调整按钮布局逻辑)
+    - `项目文档.txt` (新增此条目)
+
+v5.9.5-UI-settings-buttons
+- **核心功能: 调整设置弹窗内按钮的布局和样式。**
+  - **问题:** 根据用户反馈，设置弹窗内的按钮样式需要优化，使其宽度适中、排列整齐且整体居中。
+  - **解决方案:**
+    1.  恢复勾选框（checkbox）的默认左对齐布局，不再强制居中。
+    2.  为功能按钮（如“上传背景”、“手动存档”等）设置一个统一的、合理的固定宽度（150px）。
+    3.  通过设置父容器的 `justify-content` 和按钮自身的 `align-self` 属性，实现按钮组的水平居中和垂直方向上的对齐。
+  - **实现方式:**
+    - **1. 修改 `新界面美化完全版.html`:**
+        - 在 `openSettingsModal` 函数中，移除了对主内容容器 `content` 的 `alignItems: 'center'` 样式，以恢复勾选框的默认对齐方式。
+        - 为所有功能按钮添加了 `style.width = '150px'` 和 `style.alignSelf = 'center'` 样式，确保它们大小统一并居中显示。
+        - 对于“上传背景”和“重置”按钮组，通过将其父容器 `bgContainer` 设置为 `justify-content: 'center'` 来实现该行内的居中。
+  - **结果:**
+    - **优化了UI:** 设置弹窗内的布局更加规整、美观，符合用户的视觉偏好。
+  - **受影响文件:**
+    - `新界面美化完全版.html` (调整设置弹窗样式)
+    - `项目文档.txt` (新增此条目)
+
+v5.9.4-feature-custom-background
+- **核心功能: 新增自定义默认背景图功能，并优化图片加载逻辑。**
+  - **问题:** 场景图片加载失败时，只能回退到一个固定的网络图片，不够灵活。
+  - **解决方案:**
+    1.  在设置弹窗中增加“上传默认背景”按钮，允许用户上传自己的图片作为默认背景。图片以Base64格式存储在`localStorage`中。
+    2.  在“上传”按钮旁增加一个“重置”按钮，可以清除用户设置，恢复到原始的硬编码背景图。
+    3.  优化了图片加载逻辑：优先加载表格中指定的场景图片，失败则尝试加载用户自定义的默认背景，若再次失败，则加载硬编码的在线背景图。如果所有图片都加载失败，最终会显示毛玻璃效果。
+  - **实现方式:**
+    - **1. 修改 `新界面美化完全版.html`:**
+        - 在 `openSettingsModal` 函数中，动态创建“上传默认背景”和“重置”按钮，并绑定相应的文件上传和`localStorage`操作事件。
+        - 在 `refreshWithData` 函数中，修改图片加载逻辑，增加从`localStorage`读取自定义背景的步骤，并建立多层回退机制。
+  - **结果:**
+    - **增强了UI的自定义能力:** 用户可以自由设定加载失败时的备用背景图。
+    - **提升了健壮性:** 即使在网络状况不佳或图片链接失效时，也能保证界面有合适的背景显示。
+  - **受影响文件:**
+    - `新界面美化完全版.html` (新增设置项和加载逻辑)
+    - `项目文档.txt` (新增此条目)
+
+v5.9.3-UI-profile-height
+- **核心功能: 调整桌面端全屏模式下主角弹窗的默认高度。**
+  - **问题:** 桌面端全屏模式下的主角按钮弹窗默认高度有一点太矮了。
+  - **解决方案:** 将 `新界面美化完全版.html` 中主角弹窗的 `max-height` 从 `75vh` 逐步调整到 `100vh`。
+  - **实现方式:**
+    - **1. 修改 `新界面美化完全版.html`:**
+        - 将 `[data-content='profile']` 选择器下的 `max-height` 属性修改为 `100vh`。
+  - **结果:**
+    - **优化了UI:** 桌面端全屏模式下主角弹窗有更大的显示空间。
+  - **受影响文件:**
+    - `新界面美化完全版.html` (调整弹窗高度)
+    - `项目文档.txt` (新增此条目)
+
 v5.9.2-hotfix-eperm-error
 - **核心修复: 解决因并发文件写入导致的 EPERM 错误。**
   - **问题:** 在使用“0层模式”或通过特殊角色卡（如“新界面美化完全版.html”）触发的快速、连续的填表操作中，多个异步函数尝试同时写入聊天记录文件，导致 `EPERM: operation not permitted, rename` 错误，因为文件已被前一个操作锁定。

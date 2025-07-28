@@ -190,13 +190,14 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
  * @param {boolean} shouldReload - 是否在完成后刷新页面。
  */
 export async function manualSummaryChat(todoChats, confirmResult, shouldReload = true) {
-    const originalSaveChat = USER.saveChat;
     let finalStatus = 'error'; // 用于跟踪流程的最终结果
 
     try {
         // --- 保存锁：启动 ---
-        // 临时替换保存函数，阻止在此关键操作期间的任何文件写入
-        USER.saveChat = () => { Logger.warn('[Save Lock] A save attempt was intercepted and blocked during immediate table fill.'); };
+        // [v6.0.2] 使用新的全局锁状态，并取消待处理的自动保存。
+        USER.debouncedSaveChat.cancel();
+        USER.isSaveLocked = true;
+        Logger.info('[Save Lock] Lock acquired by manualSummaryChat.');
         
         // 步骤一：检查是否需要执行“撤销”操作
         const { piece: initialPiece } = USER.getChatPiece();
@@ -257,14 +258,21 @@ export async function manualSummaryChat(todoChats, confirmResult, shouldReload =
         finalStatus = 'error';
     } finally {
         // --- 保存锁：释放 ---
-        // 无论成功与否，都恢复原始的保存函数
-        USER.saveChat = originalSaveChat;
-        Logger.info('[Save Lock] Original save function restored.');
+        // [v6.0.2] 释放全局锁。
+        USER.isSaveLocked = false;
+        Logger.info('[Save Lock] Lock released by manualSummaryChat.');
 
-        // 只有在整个流程完全成功后，才执行唯一一次的、最终的保存操作
+        // [v6.0.3] 检查在锁定期间是否有被延迟的保存请求。
         if (finalStatus === 'success') {
+            // 如果手动流程成功，它自己的保存会覆盖所有内容，所以只需重置标志即可。
             Logger.info('[Save Lock] Performing final, consolidated save.');
             await USER.saveChat();
+            USER.debouncedSaveRequired = false;
+        } else if (USER.debouncedSaveRequired) {
+            // 如果手动流程失败，但有待处理的保存，则执行它以确保其他更改不丢失。
+            Logger.info('[Save Lock] Main operation failed, but executing a postponed save for other changes.');
+            await USER.saveChat();
+            USER.debouncedSaveRequired = false;
         }
     }
     
@@ -277,12 +285,14 @@ export async function manualSummaryChat(todoChats, confirmResult, shouldReload =
  * 核心逻辑：确保使用内存中的实时表格数据作为操作基础，执行更新，然后将更新后的数据同步回主内存状态。
  */
 export async function triggerTableFillFromLastMessage() {
-    const originalSaveChat = USER.saveChat;
     let finalStatus = 'error';
 
     try {
         // --- 保存锁：启动 ---
-        USER.saveChat = () => { Logger.warn('[Save Lock] A save attempt was intercepted during external table fill trigger.'); };
+        // [v6.0.2] 使用新的全局锁状态，并取消待处理的自动保存。
+        USER.debouncedSaveChat.cancel();
+        USER.isSaveLocked = true;
+        Logger.info('[Save Lock] Lock acquired by triggerTableFillFromLastMessage.');
         
         // 1. 获取当前最新消息（AI的回复），这是需要分析以更新表格的内容。
         const { piece: messagePiece } = USER.getChatPiece();
@@ -349,12 +359,21 @@ export async function triggerTableFillFromLastMessage() {
         Logger.error('[Memory Enhancement] 外部触发填表流程发生严重错误', e);
     } finally {
         // --- 保存锁：释放 ---
-        USER.saveChat = originalSaveChat;
-        Logger.info('[Save Lock] Original save function restored after external trigger.');
+        // [v6.0.2] 释放全局锁。
+        USER.isSaveLocked = false;
+        Logger.info('[Save Lock] Lock released by triggerTableFillFromLastMessage.');
 
+        // [v6.0.3] 检查在锁定期间是否有被延迟的保存请求。
         if (finalStatus === 'success') {
+            // 如果手动流程成功，它自己的保存会覆盖所有内容，所以只需重置标志即可。
             Logger.info('[Save Lock] Performing final, consolidated save after external trigger.');
             await USER.saveChat();
+            USER.debouncedSaveRequired = false;
+        } else if (USER.debouncedSaveRequired) {
+            // 如果手动流程失败，但有待处理的保存，则执行它以确保其他更改不丢失。
+            Logger.info('[Save Lock] Main operation failed, but executing a postponed save for other changes.');
+            await USER.saveChat();
+            USER.debouncedSaveRequired = false;
         }
     }
     

@@ -94,11 +94,12 @@ export class Sheet extends SheetBase {
             if (!targetPiece.hash_sheets) targetPiece.hash_sheets = {};
             targetPiece.hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
             Logger.debug('保存表格数据', targetPiece, this.hashSheet);
-            // 默认情况下，只更新内存中的表格数据，而不触发SillyTavern的聊天保存。
-            // 只有在明确需要将更改立即写入文件时（例如，用户手动点击“保存”按钮），才应将 manualSave 设置为 true。
-            // 这样做可以避免在生成提示词等高频操作中因频繁写入文件而与SillyTavern自身保存机制冲突，从而修复 EPERM 文件锁定错误。
+            // [持久化修复] 调用防抖保存函数，确保在操作后能自动保存聊天记录。
+            // 如果需要立即保存，则直接调用，否则使用防抖版本。
             if (manualSave) {
                 USER.saveChat();
+            } else {
+                USER.debouncedSaveChat();
             }
             
             return this;

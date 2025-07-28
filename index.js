@@ -1084,82 +1084,6 @@ export function isDrawerNewVersion() {
     return !!applicationFunctionManager.doNavbarIconClick
 }
 
-/**
- * 设置并启动用于二次拦截的 MutationObserver
- */
-/**
- * [持久化改造] 检查并执行因页面刷新而中断的待办填表任务
- */
-async function checkForPendingStepUpdate() {
-    const pendingData = readStepData();
-    if (pendingData && pendingData.chatId && pendingData.content) {
-        Logger.info('[Memory Enhancement / StepByStep] 检测到待处理的填表任务。', pendingData);
-
-        const context = USER.getContext();
-        const lastMessageIndex = context.chat.length - 1;
-
-        // 确保在正确的上下文中执行
-        if (lastMessageIndex === pendingData.chatId) {
-            EDITOR.info("正在恢复上次中断的填表任务...");
-            await performWaitThenSend(pendingData.chatId, pendingData.content);
-        } else {
-            Logger.warn(`[Memory Enhancement / StepByStep] 待处理任务的chatId (${pendingData.chatId}) 与当前上下文 (${lastMessageIndex}) 不匹配，已跳过。`);
-            // 在不匹配的情况下也清除，避免在错误的对话中意外触发
-            clearStepData();
-        }
-    }
-}
-
-/**
- * 设置并启动用于二次拦截的 MutationObserver
- */
-function observeChatForSecondaryInterception() {
-    const targetNode = document.getElementById('chat-scroll-container');
-    if (!targetNode) {
-        Logger.error('[Memory Enhancement] 无法找到 #chat-scroll-container，二次拦截功能启动失败。');
-        return;
-    }
-
-    let isProcessing = false; // 添加一个锁，防止重复触发
-
-    const observer = new MutationObserver(async (mutationsList) => {
-        if (!isWaitThenSendEnabled() || isProcessing) {
-            return;
-        }
-
-        const chat = USER.getContext().chat;
-        const lastMessageIndex = chat.length - 1;
-        const lastMessage = chat[lastMessageIndex];
-
-        // 寻找针对最新AI消息内容的修改
-        for (const mutation of mutationsList) {
-            if (mutation.type === 'childList' && mutation.target.nodeName === 'DIV' && mutation.target.classList.contains('mes_text')) {
-                const mesDiv = mutation.target.closest('.mes');
-                if (mesDiv && parseInt(mesDiv.getAttribute('mesid')) === lastMessageIndex && !lastMessage.is_user) {
-                    isProcessing = true;
-                    
-                    // 核心修复：直接从被修改的DOM中提取最新文本，而不是从旧的数据模型中读取
-                    const optimizedContent = mutation.target.textContent;
-                    
-                    Logger.info('[Memory Enhancement] MutationObserver检测到内容变化，触发二次拦截。');
-                    
-                    // 使用优化后的文本执行流程
-                    await performWaitThenSend(lastMessageIndex, optimizedContent);
-
-                    // 短暂延迟后释放锁
-                    setTimeout(() => { isProcessing = false; }, 100); 
-                    break; 
-                }
-            }
-        }
-    });
-
-    const config = { childList: true, subtree: true };
-    observer.observe(targetNode, config);
-    Logger.info('[Memory Enhancement] “二次拦截哨兵” (MutationObserver) 已启动。');
-}
-
-
 jQuery(async () => {
     // 在插件加载时立即重置所有确认框的状态
     resetPopupConfirmations();
@@ -1267,12 +1191,6 @@ jQuery(async () => {
         APP.eventSource.on(APP.event_types.MESSAGE_SWIPED, onMessageSwiped);
         APP.eventSource.on(APP.event_types.MESSAGE_DELETED, onChatChanged);
         Logger.info("______________________记忆插件：事件监听器已激活______________________");
-        
-        // 启动二次拦截的哨兵
-        observeChatForSecondaryInterception();
-
-        // [持久化改造] 检查是否有中断的待办任务需要恢复
-        // checkForPendingStepUpdate(); // 暂时禁用，以解决刷新后自动填表的问题
     }, 500); // 500毫秒延迟
 
 

@@ -13,6 +13,7 @@ import { pushCodeToQueue } from "../components/_fotTest.js";
 import { createProxy, createProxyWithUserSetting } from "../utils/codeProxy.js";
 import { refreshTempView } from '../scripts/editor/tableTemplateEditView.js';
 import { newPopupConfirm, PopupConfirm } from "../components/popupConfirm.js";
+import { debounce } from "../utils/utility.js";
 import { refreshContextView } from "../scripts/editor/chatSheetsDataView.js";
 import { updateSystemMessageTableStatus } from "../scripts/renderer/tablePushToChat.js";
 import {taskTiming} from "../utils/system.js";
@@ -32,6 +33,23 @@ export const USER = {
     getExtensionSettings: () => APP.extension_settings,
     saveSettings: () => APP.saveSettings(),
     saveChat: () => APP.saveChat(),
+    // [持久化修复] 引入一个带防抖的保存函数，用于在表格数据变更时自动、安全地保存聊天记录。
+    // 延迟1.5秒执行，以合并短时间内的多次连续操作。
+    isSaveLocked: false, // [v6.0.2] 新增保存锁状态
+    debouncedSaveRequired: false, // [v6.0.3] 新增延迟保存标志
+    debouncedSaveChat: debounce(() => {
+        // [v6.0.3] 协同修复：在执行防抖保存前，检查保存锁是否已激活。
+        if (USER.isSaveLocked) {
+            Logger.warn('[Save Lock] A debounced save attempt was intercepted by an active save lock and has been postponed.');
+            // 不直接跳过，而是设置一个标志，表示在锁释放后需要进行一次保存。
+            USER.debouncedSaveRequired = true;
+            return; 
+        }
+        Logger.info('[Memory Enhancement] Debounced save executed.');
+        USER.saveChat();
+        // 成功执行后，重置标志。
+        USER.debouncedSaveRequired = false;
+    }, 1500),
     getContext: () => APP.getContext(),
     isSwipe:()=>
     {
@@ -201,21 +219,23 @@ export const BASE = {
     saveChatSheets(saveToPiece = true) {
         if(saveToPiece){
             const {piece} = USER.getChatPiece()
-            if(!piece) return EDITOR.error("表格数据没有记录载体，请聊过一轮后再试")
+            if(!piece) return EDITOR.error("没有记录载体，表格是保存在聊天记录中的，请聊至少一轮后再重试")
+            // [持久化修复] sheet.save内部会触发 debouncedSaveChat, 这里不再需要手动调用 USER.saveChat()
             BASE.getChatSheets(sheet => sheet.save(piece, true))
         }else BASE.getChatSheets(sheet => sheet.save(undefined, true))
-        USER.saveChat()
+        // USER.saveChat() // 已通过 debouncedSaveChat 自动处理
     },
     reSaveAllChatSheets(sheets) {
         BASE.sheetsData.context = []
         const {piece} = USER.getChatPiece()
         if(!piece) return EDITOR.error("没有记录载体")
         sheets.forEach(sheet => {
+            // [持久化修复] sheet.save内部会触发 debouncedSaveChat, 这里不再需要手动调用 USER.saveChat()
             sheet.save(piece, true)
         })
         updateSelectBySheetStatus()
         BASE.refreshTempView(true)
-        USER.saveChat()
+        // USER.saveChat() // 已通过 debouncedSaveChat 自动处理
     },
     updateSelectBySheetStatus(){
         updateSelectBySheetStatus()
