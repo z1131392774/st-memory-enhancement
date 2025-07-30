@@ -335,7 +335,9 @@ export async function triggerTableFillFromLastMessage() {
 
             try {
                 Logger.info('[Memory Enhancement] 填表成功，正在将更新后的数据同步回主内存状态...');
-                BASE.load(messagePiece.hash_sheets, messagePiece.cell_history);
+                // [hotfix] 修复了v6.0.6版本中因API调用错误导致外部触发填表失败的问题。
+                // 旧的 `BASE.load` 不存在，应使用 `applyJsonToChatSheets` 来更新内存中的表格数据。
+                BASE.applyJsonToChatSheets(messagePiece.hash_sheets, 'data');
                 Logger.info('[Memory Enhancement] 主内存状态同步完成。');
             } catch (e) {
                 Logger.error('[Memory Enhancement] 将更新后的表格同步回BASE内存失败:', e);
