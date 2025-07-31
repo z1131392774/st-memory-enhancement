@@ -1,4 +1,5 @@
 import {BASE, DERIVED, EDITOR, SYSTEM, USER} from '../../core/manager.js';
+import { Logger } from '../../services/logger.js';
 import { executeIncrementalUpdateFromSummary, sheetsToTables } from "./absoluteRefresh.js";
 import { newPopupConfirm, alwaysConfirmPopups } from '../../components/popupConfirm.js';
 import { clearStepData } from '../../services/stepByStepStorage.js';
@@ -67,9 +68,9 @@ function handleMessages(string) {
 }
 
 function MarkChatAsWaiting(chat, swipeUid) {
-    console.log(USER.getContext().chat);
-    console.log('chat.two_step_links:',chat.two_step_links);
-    console.log('chat.two_step_waiting:',chat.two_step_waiting);
+    Logger.debug('Current chat context:', USER.getContext().chat);
+    Logger.debug('chat.two_step_links:', chat.two_step_links);
+    Logger.debug('chat.two_step_waiting:', chat.two_step_waiting);
     chat.two_step_waiting[swipeUid] = true;
 }
 
@@ -77,13 +78,15 @@ function MarkChatAsWaiting(chat, swipeUid) {
  * 执行两步总结
  * */
 export async function TableTwoStepSummary(mode, messageContent = null) {
-    if (mode !== "manual" && (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === false)) return;
+    Logger.group(`TableTwoStepSummary - mode: ${mode}`);
+    try {
+        if (mode !== "manual" && (USER.tableBaseSetting.isExtensionAble === false || USER.tableBaseSetting.step_by_step === false)) return;
 
-    let todoChats;
+        let todoChats;
 
     if (messageContent) {
         todoChats = messageContent;
-        console.log('使用提供的消息内容进行填表:', todoChats);
+        Logger.info('使用提供的消息内容进行填表:', todoChats);
     } else {
         const { piece: todoPiece } = USER.getChatPiece();
         if (!todoPiece || !todoPiece.mes) {
@@ -93,7 +96,7 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
         todoChats = todoPiece.mes;
     }
 
-    console.log('待填表的对话片段:', todoChats);
+    Logger.info('待填表的对话片段:', todoChats);
 
     const popupId = 'stepwiseSummaryConfirm';
     let confirmResult;
@@ -104,7 +107,7 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
     if (alwaysConfirm) {
         // 如果用户已经选择“一直选是”，则跳过弹窗，直接设置为 true
         confirmResult = true;
-        console.log(`[Memory Enhancement] 检测到 “${popupId}” 已设置为 '一直选是'，跳过弹窗。`);
+        Logger.info(`[Memory Enhancement] 检测到 “${popupId}” 已设置为 '一直选是'，跳过弹窗。`);
     } else {
         // 否则，正常显示弹窗
         const popupContentHtml = `<p>累计 ${todoChats.length} 长度的文本，是否开始独立填表？</p>`;
@@ -116,11 +119,11 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
             "不再提示",
             "一直选是"
         );
-        console.log('newPopupConfirm result for stepwise summary:', confirmResult);
+        Logger.info('newPopupConfirm result for stepwise summary:', confirmResult);
     }
 
     if (confirmResult === false) {
-        console.log('用户取消执行独立填表: ', `(${todoChats.length}) `, toBeExecuted);
+        Logger.info('用户取消执行独立填表: ', `(${todoChats.length}) `, toBeExecuted);
         // MarkChatAsWaiting is not fully implemented, commenting out for now
         // MarkChatAsWaiting(currentPiece, swipeUid);
         return 'cancelled'; // 返回取消状态
@@ -150,13 +153,17 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
                     if (messageElement) {
                         // 找到元素后，再短暂延迟，确保渲染稳定
                         await new Promise(resolve => setTimeout(resolve, 150));
-                        console.log(`[Memory Enhancement] 分步填表开始，执行跳转: /chat-jump ${lastMessageId}`);
+                        // [新增] 通知前端UI显示加载动画
+                        if (globalThis.stMemoryEnhancement && typeof globalThis.stMemoryEnhancement._notifyTableFillStart === 'function') {
+                            globalThis.stMemoryEnhancement._notifyTableFillStart();
+                        }
+                        Logger.info(`[Memory Enhancement] 分步填表开始，执行跳转: /chat-jump ${lastMessageId}`);
                         globalThis.TavernHelper.triggerSlash(`/chat-jump ${lastMessageId}`);
                     } else {
-                        console.warn(`[Memory Enhancement] 轮询3秒后，仍无法找到目标消息 (ID: ${lastMessageId})，跳转取消。`);
+                        Logger.warn(`[Memory Enhancement] 轮询3秒后，仍无法找到目标消息 (ID: ${lastMessageId})，跳转取消。`);
                     }
                 } catch (e) {
-                    console.error('[Memory Enhancement] 执行 /chat-jump 失败:', e);
+                    Logger.error('[Memory Enhancement] 执行 /chat-jump 失败:', e);
                 }
             })();
         }
@@ -166,6 +173,9 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
         // 移除 “检测到自动确认设置...” 的提示
         // 核心修复：返回 manualSummaryChat 的执行结果
         return manualSummaryChat(todoChats, confirmResult, shouldReload);
+    }
+    } finally {
+        Logger.groupEnd();
     }
 }
 
@@ -180,100 +190,196 @@ export async function TableTwoStepSummary(mode, messageContent = null) {
  * @param {boolean} shouldReload - 是否在完成后刷新页面。
  */
 export async function manualSummaryChat(todoChats, confirmResult, shouldReload = true) {
-    // 设置一个旗标，用于在onChatCompletionPromptReady中判断是否为填表请求
-    DERIVED.any.isAITableFillingRequest = true;
+    let finalStatus = 'error'; // 用于跟踪流程的最终结果
+
+    try {
+        // --- 保存锁：启动 ---
+        // [v6.0.2] 使用新的全局锁状态，并取消待处理的自动保存。
+        USER.debouncedSaveChat.cancel();
+        USER.isSaveLocked = true;
+        Logger.info('[Save Lock] Lock acquired by manualSummaryChat.');
+        
+        // 设置一个旗标，用于在onChatCompletionPromptReady中判断是否为填表请求
+        DERIVED.any.isAITableFillingRequest = true;
     // 步骤一：检查是否需要执行“撤销”操作
-    // 首先获取当前的聊天片段，以判断表格状态
-    const { piece: initialPiece } = USER.getChatPiece();
-    if (!initialPiece) {
-        // EDITOR.error("无法获取当前的聊天片段，操作中止。");
-        console.log('[Memory Enhancement] 无法获取当前的聊天片段，自动填充已中止。');
-        return 'no_carrier'; // 返回一个特定状态，表示没有载体
-    }
-
-    // 只有当表格中已经有内容时，才执行“撤销并重做”
-    if (initialPiece.hash_sheets && Object.keys(initialPiece.hash_sheets).length > 0) {
-        console.log('[Memory Enhancement] 立即填表：检测到表格中有数据，执行恢复操作...');
-        try {
-            await undoSheets(0);
-            EDITOR.success('表格已恢复到上一版本。');
-            console.log('[Memory Enhancement] 表格恢复成功，准备执行填表。');
-        } catch (e) {
-            EDITOR.error('恢复表格失败，操作中止。');
-            console.error('[Memory Enhancement] 调用 undoSheets 失败:', e);
-            return;
+        const { piece: initialPiece } = USER.getChatPiece();
+        if (!initialPiece) {
+            Logger.warn('[Memory Enhancement] 无法获取当前的聊天片段，自动填充已中止。');
+            return 'no_carrier';
         }
-    } else {
-        console.log('[Memory Enhancement] 立即填表：检测到为空表，跳过恢复步骤，直接执行填表。');
-    }
 
-    // 步骤二：以当前状态（可能已恢复）为基础，继续执行填表
-    // 重新获取 piece，确保我们使用的是最新状态（无论是原始状态还是恢复后的状态）
-    const { piece: referencePiece } = USER.getChatPiece();
-    if (!referencePiece) {
-        EDITOR.error("无法获取用于操作的聊天片段，操作中止。");
-        return;
-    }
-    
-    // 表格数据
-    const originText = getTablePrompt(referencePiece, false, true);
+        if (initialPiece.hash_sheets && Object.keys(initialPiece.hash_sheets).length > 0) {
+            Logger.info('[Memory Enhancement] 立即填表：检测到表格中有数据，执行恢复操作...');
+            await undoSheets(0); // 此操作内部的保存将被“保存锁”拦截
+            EDITOR.success('表格已恢复到上一版本。');
+            Logger.info('[Memory Enhancement] 表格恢复成功，准备执行填表。');
+        } else {
+            Logger.info('[Memory Enhancement] 立即填表：检测到为空表，跳过恢复步骤，直接执行填表。');
+        }
 
-    // 表格总体提示词
-    const finalPrompt = initTableData(); // 获取表格相关提示词
-    
-    // 设置
-    const useMainApiForStepByStep = USER.tableBaseSetting.step_by_step_use_main_api ?? true;
-    const isSilentMode = confirmResult === 'dont_remind_active';
+        // 步骤二：以当前状态（可能已恢复）为基础，继续执行填表
+        const { piece: referencePiece } = USER.getChatPiece();
+        if (!referencePiece) {
+            EDITOR.error("无法获取用于操作的聊天片段，操作中止。");
+            return 'error';
+        }
+        
+        const originText = getTablePrompt(referencePiece, false, true);
+        const finalPrompt = initTableData();
+        const useMainApiForStepByStep = USER.tableBaseSetting.step_by_step_use_main_api ?? true;
+        const isSilentMode = confirmResult === 'dont_remind_active';
 
-    const r = await executeIncrementalUpdateFromSummary(
-        todoChats,
-        originText,
-        finalPrompt,
-        referencePiece, // 直接传递原始的 piece 对象引用
-        useMainApiForStepByStep, // API choice for step-by-step
-        USER.tableBaseSetting.bool_silent_refresh, // isSilentUpdate
-        isSilentMode // Pass silent mode flag
-    );
+        const r = await executeIncrementalUpdateFromSummary(
+            todoChats,
+            originText,
+            finalPrompt,
+            referencePiece,
+            useMainApiForStepByStep,
+            USER.tableBaseSetting.bool_silent_refresh,
+            isSilentMode
+        );
 
-    console.log('执行独立填表（增量更新）结果:', r);
-    if (r === 'success') {
-        // [持久化改造] 任务成功后，清除localStorage中的待办任务
-        clearStepData();
+        Logger.info('执行独立填表（增量更新）结果:', r);
+        if (r === 'success') {
+            finalStatus = 'success';
+            clearStepData();
+            toBeExecuted = [];
 
-        // 由于直接在 referencePiece 引用上操作，修改已自动同步，无需手动回写 hash_sheets。
-        toBeExecuted.forEach(chat => {
-            const chatSwipeUid = getSwipeUid(chat);
-            chat.two_step_links[chatSwipeUid].push(swipeUid);   // 标记已执行的两步总结
-        });
-        toBeExecuted = [];
-
-        // 保存
-        await USER.saveChat();
-
-        // 根据调用者要求决定是否刷新页面
-        // if (shouldReload) {
-        //     reloadCurrentChat();
-        // }
-
-        // 新增：通过回调函数管理器通知监听器数据已更新
-        try {
-            // 关键修复：不再调用全局API，而是直接使用函数作用域内最新的 referencePiece.hash_sheets
-            // 这确保了派发的数据绝对是刚刚更新完成的状态
+            // 通知UI更新
             const latestTableData = ext_hashSheetsToJson(referencePiece.hash_sheets);
             if (globalThis.stMemoryEnhancement && typeof globalThis.stMemoryEnhancement._notifyTableUpdate === 'function') {
                 globalThis.stMemoryEnhancement._notifyTableUpdate(latestTableData);
-            } else {
-                 console.warn('[Memory Enhancement] _notifyTableUpdate function not found on global object.');
             }
-        } catch (e) {
-            console.error('[Memory Enhancement] Failed to notify table update:', e);
+        } else {
+            finalStatus = r || 'error';
+            Logger.warn('执行增量独立填表失败或取消: ', `(${todoChats.length}) `, toBeExecuted);
         }
 
-        return 'success'; // 返回成功状态
-        
-    } else if (r === 'suspended' || r === 'error' || !r) {
-        console.log('执行增量独立填表失败或取消: ', `(${todoChats.length}) `, toBeExecuted);
-        return r || 'error'; // 返回失败状态
+    } catch (e) {
+        EDITOR.error('“立即填表”流程发生严重错误', e.message, e);
+        finalStatus = 'error';
+    } finally {
+        // --- 保存锁：释放 ---
+        // [v6.0.2] 释放全局锁。
+        USER.isSaveLocked = false;
+        Logger.info('[Save Lock] Lock released by manualSummaryChat.');
+
+        // [v6.0.3] 检查在锁定期间是否有被延迟的保存请求。
+        if (finalStatus === 'success') {
+            // 如果手动流程成功，它自己的保存会覆盖所有内容，所以只需重置标志即可。
+            Logger.info('[Save Lock] Performing final, consolidated save.');
+            await USER.saveChat();
+            USER.debouncedSaveRequired = false;
+        } else if (USER.debouncedSaveRequired) {
+            // 如果手动流程失败，但有待处理的保存，则执行它以确保其他更改不丢失。
+            Logger.info('[Save Lock] Main operation failed, but executing a postponed save for other changes.');
+            await USER.saveChat();
+            USER.debouncedSaveRequired = false;
+        }
     }
     
+    return finalStatus; // 返回最终状态
+}
+
+/**
+ * (外部调用) 根据最新的AI回复，仅执行增量填表操作。
+ * 专为特殊角色卡等需要后置触发填表的场景设计。
+ * 核心逻辑：确保使用内存中的实时表格数据作为操作基础，执行更新，然后将更新后的数据同步回主内存状态。
+ */
+export async function triggerTableFillFromLastMessage() {
+    let finalStatus = 'error';
+
+    try {
+        // --- 保存锁：启动 ---
+        // [v6.0.2] 使用新的全局锁状态，并取消待处理的自动保存。
+        USER.debouncedSaveChat.cancel();
+        USER.isSaveLocked = true;
+        Logger.info('[Save Lock] Lock acquired by triggerTableFillFromLastMessage.');
+        
+        // 1. 获取当前最新消息（AI的回复），这是需要分析以更新表格的内容。
+        const { piece: messagePiece } = USER.getChatPiece();
+        if (!messagePiece || !messagePiece.mes) {
+            Logger.error('[Memory Enhancement] 外部触发填表失败：未找到最新的对话内容。');
+            return 'no_content';
+        }
+        const todoChats = messagePiece.mes;
+
+        // 2. 核心修复：确保我们使用内存中的实时表格数据作为操作基础，并将其写回当前消息条目。
+        Logger.info('[Memory Enhancement] 外部触发填表：从内存动态获取实时表格数据，并覆盖当前消息中的表格。');
+        messagePiece.hash_sheets = {};
+        messagePiece.cell_history = {};
+        const sheets = BASE.getChatSheets();
+        sheets.forEach(sheet => {
+            sheet.save(messagePiece);
+        });
+
+        // 3. 准备提示词和设置
+        const originText = getTablePrompt(messagePiece, false, true);
+        const finalPrompt = initTableData();
+        const useMainApiForStepByStep = USER.tableBaseSetting.step_by_step_use_main_api ?? true;
+
+        // 4. 静默执行增量更新
+        Logger.info('[Memory Enhancement] 正在从外部触发器执行增量填表...');
+        const r = await executeIncrementalUpdateFromSummary(
+            todoChats,
+            originText,
+            finalPrompt,
+            messagePiece,
+            useMainApiForStepByStep,
+            USER.tableBaseSetting.bool_silent_refresh,
+            true
+        );
+
+        // 5. 处理结果
+        if (r === 'success') {
+            finalStatus = 'success';
+            clearStepData();
+
+            try {
+                Logger.info('[Memory Enhancement] 填表成功，正在将更新后的数据同步回主内存状态...');
+                // [hotfix] 修复了v6.0.6版本中因API调用错误导致外部触发填表失败的问题。
+                // 旧的 `BASE.load` 不存在，应使用 `applyJsonToChatSheets` 来更新内存中的表格数据。
+                BASE.applyJsonToChatSheets(messagePiece.hash_sheets, 'data');
+                Logger.info('[Memory Enhancement] 主内存状态同步完成。');
+            } catch (e) {
+                Logger.error('[Memory Enhancement] 将更新后的表格同步回BASE内存失败:', e);
+            }
+
+            try {
+                const latestTableData = ext_hashSheetsToJson(messagePiece.hash_sheets);
+                if (globalThis.stMemoryEnhancement && typeof globalThis.stMemoryEnhancement._notifyTableUpdate === 'function') {
+                    globalThis.stMemoryEnhancement._notifyTableUpdate(latestTableData);
+                }
+            } catch (e) {
+                Logger.error('[Memory Enhancement] 外部触发填表后，通知UI更新失败:', e);
+            }
+            Logger.info('[Memory Enhancement] 外部触发填表成功。');
+        } else {
+            finalStatus = r || 'error';
+            Logger.error('[Memory Enhancement] 外部触发填表失败。结果:', r);
+        }
+    } catch (e) {
+        finalStatus = 'error';
+        Logger.error('[Memory Enhancement] 外部触发填表流程发生严重错误', e);
+    } finally {
+        // --- 保存锁：释放 ---
+        // [v6.0.2] 释放全局锁。
+        USER.isSaveLocked = false;
+        Logger.info('[Save Lock] Lock released by triggerTableFillFromLastMessage.');
+
+        // [v6.0.3] 检查在锁定期间是否有被延迟的保存请求。
+        if (finalStatus === 'success') {
+            // 如果手动流程成功，它自己的保存会覆盖所有内容，所以只需重置标志即可。
+            Logger.info('[Save Lock] Performing final, consolidated save after external trigger.');
+            await USER.saveChat();
+            USER.debouncedSaveRequired = false;
+        } else if (USER.debouncedSaveRequired) {
+            // 如果手动流程失败，但有待处理的保存，则执行它以确保其他更改不丢失。
+            Logger.info('[Save Lock] Main operation failed, but executing a postponed save for other changes.');
+            await USER.saveChat();
+            USER.debouncedSaveRequired = false;
+        }
+    }
+    
+    return finalStatus;
 }

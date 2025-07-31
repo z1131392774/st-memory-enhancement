@@ -8,6 +8,36 @@ let currentApiKeyIndex = 0;// 用于记录当前使用的API Key的索引
 
 
 /**
+ * 统一处理和规范化API响应数据。
+ * - 自动解析JSON字符串。
+ * - 自动处理嵌套的 'data' 对象。
+ * @param {*} responseData - 从API收到的原始响应数据
+ * @returns {object} 规范化后的数据对象
+ */
+function normalizeApiResponse(responseData) {
+    let data = responseData;
+    // 1. 如果响应是字符串，尝试解析为JSON
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch (e) {
+            console.error("API响应JSON解析失败:", e);
+            // 返回一个错误结构，以便下游可以一致地处理
+            return { error: { message: 'Invalid JSON response' } };
+        }
+    }
+    // 2. 检查并解开嵌套的 'data' 属性
+    // 这种情况经常出现在一些代理服务中，例如 { "data": { "data": [...] } }
+    if (data && typeof data.data === 'object' && data.data !== null && !Array.isArray(data.data)) {
+        if (Object.hasOwn(data.data, 'data')) {
+            data = data.data;
+        }
+    }
+    return data;
+}
+
+
+/**
  * 加密
  * @param {*} rawKey - 原始密钥
  * @param {*} deviceId - 设备ID
@@ -283,48 +313,74 @@ export async function testApiConnection(apiUrl, apiKeys, modelName) {
     const results = [];
     const testPrompt = "Say 'test'";
     const apiKey = apiKeys[0];
+    const useBackendProxy = USER.tableBaseSetting.custom_api_use_backend_proxy;
 
-    try {
-        const data = await $.ajax({
-            url: '/api/backends/chat-completions/generate',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                chat_completion_source: 'custom',
-                custom_url: apiUrl,
-                api_key: apiKey,
-                messages: [{ role: 'user', content: testPrompt }],
-                model: modelName || 'gpt-3.5-turbo',
-                temperature: 0.1,
-                max_tokens: 50,
-                stream: false,
-            }),
-        });
-
-        console.log('自定义API测试响应:', data);
-        let responseData = data;
-
-        // 检查返回的data是否为字符串，如果是，则尝试解析为JSON对象
-        if (typeof responseData === 'string') {
-            try {
-                responseData = JSON.parse(responseData);
-            } catch (e) {
-                // 如果解析失败，说明返回的不是有效的JSON字符串，按原逻辑会抛出错误
-                console.error('API响应是字符串但无法解析为JSON:', e);
-            }
-        }
-
-        const responseText = responseData?.choices?.[0]?.message?.content;
-        if (responseText && typeof responseText === 'string') {
+    const processResponse = (rawResponseData) => {
+        const responseData = normalizeApiResponse(rawResponseData);
+        if (responseData && Array.isArray(responseData.choices)) {
             results.push({ keyIndex: 0, success: true });
         } else {
-            // 在错误信息中包含响应数据，方便排查
-            throw new Error(`收到的响应无效或为空。 响应: ${JSON.stringify(responseData)}`);
+            const errorMessage = responseData?.error?.message || `收到的响应无效或为空。`;
+            throw new Error(`${errorMessage} 响应: ${JSON.stringify(rawResponseData)}`);
         }
-    } catch (error) {
-        console.error('自定义API测试失败:', error);
-        const errorMessage = error.responseJSON?.error?.message || error.statusText || error.message || '未知错误';
-        results.push({ keyIndex: 0, success: false, error: errorMessage });
+    };
+
+    if (useBackendProxy) {
+        // 模式二：通过后端代理
+        try {
+            console.log("尝试通过后端代理测试连接...");
+            const data = await $.ajax({
+                url: '/api/backends/chat-completions/generate',
+                type: 'POST',
+                contentType: 'application/json',
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                data: JSON.stringify({
+                    chat_completion_source: 'custom',
+                    custom_url: apiUrl,
+                    api_key: apiKey,
+                    messages: [{ role: 'user', content: testPrompt }],
+                    model: modelName || 'gpt-3.5-turbo',
+                    temperature: 0.1,
+                    max_tokens: 50,
+                    stream: false,
+                }),
+            });
+            processResponse(data);
+        } catch (proxyError) {
+            console.error("后端代理模式测试失败:", proxyError);
+            results.push({ keyIndex: 0, success: false, error: proxyError.statusText || proxyError.message });
+        }
+    } else {
+        // 模式一：前端直接连接
+        try {
+            console.log("尝试前端直接连接测试...");
+            const finalApiUrl = apiUrl.replace(/\/$/, '') + '/chat/completions';
+            const response = await fetch(finalApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: testPrompt }],
+                    model: modelName || 'gpt-3.5-turbo',
+                    temperature: 0.1,
+                    max_tokens: 50,
+                    stream: false,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || response.statusText || '请求失败');
+            }
+
+            const responseData = await response.json();
+            processResponse(responseData);
+        } catch (directError) {
+            console.error("前端直连模式测试失败:", directError);
+            results.push({ keyIndex: 0, success: false, error: directError.message });
+        }
     }
     
     return results;
@@ -364,66 +420,93 @@ export async function handleCustomAPIRequest(systemPrompt, userPrompt, isStepByS
         loadingToast.text = `尝试使用第 ${keyIndexToTry + 1}/${apiKeys.length} 个自定义API Key...`;
     }
 
-    try {
-        let messages;
-        // 核心修正：确保当systemPrompt是数组时，它被正确地用作messages
-        if (Array.isArray(systemPrompt)) {
-            messages = systemPrompt;
-        } else {
-            messages = [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ];
-        }
+    let messages;
+    if (Array.isArray(systemPrompt)) {
+        messages = systemPrompt;
+    } else {
+        messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ];
+    }
 
-        const requestData = {
-            chat_completion_source: 'custom',
-            custom_url: USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url,
-            api_key: currentApiKey,
-            messages: messages,
-            model: USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name,
-            temperature: USER.tableBaseSetting.custom_temperature,
-            stream: false,
-        };
-
-        const response = await $.ajax({
-            url: '/api/backends/chat-completions/generate',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(requestData),
-        });
-        
-        loadingToast?.close();
-
-        console.log('自定义API调用响应:', response);
-        let responseData = response;
-        if (typeof responseData === 'string') {
-            try {
-                responseData = JSON.parse(responseData);
-            } catch (e) {
-                console.error('API响应是字符串但无法解析为JSON:', e);
-            }
-        }
-
+    const processResponse = (rawResponseData) => {
+        const responseData = normalizeApiResponse(rawResponseData);
         const responseText = responseData?.choices?.[0]?.message?.content;
-
-        if (suspended) {
-            return 'suspended';
-        }
-        
+        if (suspended) return 'suspended';
         if (!responseText) {
-            const errorMessage = `响应中未找到有效内容。响应: ${JSON.stringify(responseData)}`;
-            EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${errorMessage}`);
-            return `错误: ${errorMessage}`;
+            const errorMessage = responseData?.error?.message || `响应中未找到有效内容。`;
+            throw new Error(`${errorMessage} 响应: ${JSON.stringify(rawResponseData)}`);
         }
-        
         return responseText;
+    };
 
-    } catch (error) {
-        const errorMessage = error.responseJSON?.error?.message || error.statusText || error.message || 'Unknown error';
-        EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${errorMessage}`);
-        loadingToast?.close();
-        return `错误: ${errorMessage}`;
+    const useBackendProxy = USER.tableBaseSetting.custom_api_use_backend_proxy;
+
+    if (useBackendProxy) {
+        // 模式二：通过后端代理
+        try {
+            console.log("尝试通过后端代理发送请求...");
+            const requestData = {
+                chat_completion_source: 'custom',
+                custom_url: USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url,
+                api_key: currentApiKey,
+                messages: messages,
+                model: USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name,
+                temperature: USER.tableBaseSetting.custom_temperature,
+                stream: false,
+            };
+            const response = await $.ajax({
+                url: '/api/backends/chat-completions/generate',
+                type: 'POST',
+                contentType: 'application/json',
+                headers: { 'Authorization': `Bearer ${currentApiKey}` },
+                data: JSON.stringify(requestData),
+            });
+            const result = processResponse(response);
+            loadingToast?.close();
+            return result;
+        } catch (proxyError) {
+            console.error("后端代理模式失败:", proxyError);
+            const finalErrorMessage = `代理模式失败: ${proxyError.statusText || proxyError.message}`;
+            EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${finalErrorMessage}`);
+            loadingToast?.close();
+            return `错误: ${finalErrorMessage}`;
+        }
+    } else {
+        // 模式一：前端直接连接
+        try {
+            console.log("尝试前端直接连接发送请求...");
+            const finalApiUrl = USER.IMPORTANT_USER_PRIVACY_DATA.custom_api_url.replace(/\/$/, '') + '/chat/completions';
+            const response = await fetch(finalApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentApiKey}`,
+                },
+                body: JSON.stringify({
+                    messages: messages,
+                    model: USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name,
+                    temperature: USER.tableBaseSetting.custom_temperature,
+                    stream: false,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || response.statusText || '请求失败');
+            }
+            
+            const responseData = await response.json();
+            loadingToast?.close();
+            return processResponse(responseData);
+        } catch (directError) {
+            console.error("前端直连模式失败:", directError);
+            const finalErrorMessage = `直连模式失败: ${directError.message}`;
+            EDITOR.error(`API 调用失败 (Key ${keyIndexToTry + 1}): ${finalErrorMessage}`);
+            loadingToast?.close();
+            return `错误: ${finalErrorMessage}`;
+        }
     }
 }
 
@@ -457,57 +540,108 @@ export async function updateModelList() {
         EDITOR.error('请输入API URL');
         return;
     }
+
+    const decryptedApiKeysString = await getDecryptedApiKey();
+    if (!decryptedApiKeysString) {
+        EDITOR.error('API Key解密失败或未设置!');
+        return;
+    }
+
+    const apiKeys = decryptedApiKeysString.split(',').map(k => k.trim()).filter(Boolean);
+    if (apiKeys.length === 0) {
+        EDITOR.error('未找到有效的API Key.');
+        return;
+    }
     
     $selector.prop('disabled', true).empty().append($('<option>', { value: '', text: '正在获取...' }));
 
-    try {
-        const data = await $.ajax({
-            url: '/api/backends/chat-completions/status',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                chat_completion_source: 'custom',
-                custom_url: apiUrl,
-            }),
-        });
+    const processResponse = (rawResponseData) => {
+        const responseData = normalizeApiResponse(rawResponseData);
+        const models = responseData.data || [];
 
-        console.log('获取模型列表响应:', data);
-        let responseData = data;
-        if (typeof responseData === 'string') {
-            try {
-                responseData = JSON.parse(responseData);
-            } catch (e) {
-                console.error('模型列表响应是字符串但无法解析为JSON:', e);
-            }
-        }
-
-        if (responseData.error || !Array.isArray(responseData.data) || responseData.data.length === 0) {
-            throw new Error(`未返回有效模型列表。 响应: ${JSON.stringify(responseData)}`);
+        if (responseData.error || !Array.isArray(models) || models.length === 0) {
+            const errorMessage = responseData?.error?.message || '未返回有效模型列表。';
+            throw new Error(`${errorMessage} 响应: ${JSON.stringify(rawResponseData)}`);
         }
 
         $selector.prop('disabled', false).empty();
         const customModelName = USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name;
         let hasMatchedModel = false;
+        
+        const getModelId = (model) => model.id || model.model;
 
-        const sortedModels = responseData.data.sort((a, b) => a.id.localeCompare(b.id));
+        const sortedModels = models.sort((a, b) => {
+            const idA = getModelId(a) || '';
+            const idB = getModelId(b) || '';
+            return idA.localeCompare(idB);
+        });
+
         sortedModels.forEach(model => {
-            $selector.append($('<option>', { value: model.id, text: model.id }));
-            if (model.id === customModelName) hasMatchedModel = true;
+            const modelId = getModelId(model);
+            if (!modelId) return;
+
+            $selector.append($('<option>', { value: modelId, text: modelId }));
+            if (modelId === customModelName) hasMatchedModel = true;
         });
 
         if (hasMatchedModel) {
             $selector.val(customModelName);
         } else if (sortedModels.length > 0) {
-            $('#custom_model_name').val(sortedModels[0].id);
-            USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = sortedModels[0].id;
+            const firstModelId = getModelId(sortedModels[0]);
+            $('#custom_model_name').val(firstModelId);
+            USER.IMPORTANT_USER_PRIVACY_DATA.custom_model_name = firstModelId;
         }
 
         EDITOR.success(`成功获取 ${sortedModels.length} 个模型`);
+    };
 
-    } catch (error) {
-        const errorMessage = error.responseJSON?.error || error.statusText || error.message || '未知错误';
-        EDITOR.error(`获取模型列表失败: ${errorMessage}`);
-        $selector.empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
+    const useBackendProxy = USER.tableBaseSetting.custom_api_use_backend_proxy;
+
+    if (useBackendProxy) {
+        // 模式二：通过后端代理
+        try {
+            console.log("尝试通过后端代理获取模型列表...");
+            const data = await $.ajax({
+                url: '/api/backends/chat-completions/status',
+                type: 'POST',
+                contentType: 'application/json',
+                headers: { 'Authorization': `Bearer ${apiKeys[0]}` },
+                data: JSON.stringify({
+                    chat_completion_source: 'custom',
+                    custom_url: apiUrl,
+                    api_key: apiKeys[0],
+                }),
+            });
+            processResponse(data);
+        } catch (proxyError) {
+            console.error("后端代理模式失败:", proxyError);
+            const finalErrorMessage = `代理模式失败: ${proxyError.statusText || proxyError.message}`;
+            EDITOR.error(finalErrorMessage);
+            $selector.prop('disabled', false).empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
+        }
+    } else {
+        // 模式一：前端直接连接
+        try {
+            console.log("尝试前端直接连接获取模型列表...");
+            const finalApiUrl = apiUrl.replace(/\/$/, '') + '/models';
+            const response = await fetch(finalApiUrl, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${apiKeys[0]}` },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || response.statusText || '请求失败');
+            }
+            
+            const responseData = await response.json();
+            processResponse(responseData);
+        } catch (directError) {
+            console.error("前端直连模式失败:", directError);
+            const finalErrorMessage = `直连模式失败: ${directError.message}`;
+            EDITOR.error(finalErrorMessage);
+            $selector.prop('disabled', false).empty().append($('<option>', { value: '', text: '获取失败,请手动输入' }));
+        }
     }
 }
 /**

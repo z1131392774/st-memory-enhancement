@@ -1,4 +1,5 @@
 import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../manager.js';
+import { Logger } from '../../services/logger.js';
 import { SheetBase } from "./base.js";
 import { cellStyle, filterSavingData } from "./utils.js";
 import {Cell} from "./cell.js";
@@ -53,7 +54,7 @@ export class Sheet extends SheetBase {
             rowUids.forEach((cellUid, colIndex) => {
                 let cell = this.cells.get(cellUid)
                 if(!cell) {
-                    console.warn(`Cell not found: ${cellUid}`);
+                    Logger.warn(`Cell not found: ${cellUid}`);
                     cell = new Cell(this); // 如果没有找到对应的单元格，则创建一个新的 Cell 实例
                     cell.uid = cellUid; // 设置 uid
                     cell.data = { value: '' }; // 初始化数据
@@ -87,13 +88,19 @@ export class Sheet extends SheetBase {
             }
             BASE.sheetsData.context = sheets;
             if (!targetPiece) {
-                console.log("没用消息能承载hash_sheets数据，不予保存")
+                Logger.warn("没用消息能承载hash_sheets数据，不予保存")
                 return this
             }
             if (!targetPiece.hash_sheets) targetPiece.hash_sheets = {};
             targetPiece.hash_sheets[this.uid] = this.hashSheet?.map(row => row.map(hash => hash));
-            console.log('保存表格数据', targetPiece, this.hashSheet);
-            if (!manualSave) USER.saveChat();
+            Logger.debug('保存表格数据', targetPiece, this.hashSheet);
+            // [持久化修复] 调用防抖保存函数，确保在操作后能自动保存聊天记录。
+            // 如果需要立即保存，则直接调用，否则使用防抖版本。
+            if (manualSave) {
+                USER.saveChat();
+            } else {
+                USER.debouncedSaveChat();
+            }
             
             return this;
         } catch (e) {
@@ -119,7 +126,7 @@ export class Sheet extends SheetBase {
      * @returns 表格内容提示词
      */
     getTableText(index, customParts = ['title', 'node', 'headers', 'rows', 'editRules'], eventData, ignoreToChatFilter = false) {
-        console.log('获取表格内容提示词', this, `ignoreToChatFilter: ${ignoreToChatFilter}`)
+        Logger.debug('获取表格内容提示词', this, `ignoreToChatFilter: ${ignoreToChatFilter}`)
         if (ignoreToChatFilter === false && this.config.toChat === false) return ''; // 如果配置为不发送到聊天，则直接返回空
         if (this.triggerSend && this.triggerSendDeep < 1) return ''; // 如果触发深度=0，则不发送，可以用作信息一览表
         const title = `* ${index}:${this.name}\n`;
@@ -142,7 +149,7 @@ export class Sheet extends SheetBase {
             rows = rowsArray.join('\n');
         }
         let result = '';
-        console.log('测试获取表格内容提示词', customParts, result, this);
+        Logger.debug('测试获取表格内容提示词', customParts, result, this);
         if (customParts.includes('title')) {
             result += title;
         }
@@ -206,7 +213,7 @@ export class Sheet extends SheetBase {
         }
         if (typeof target === 'object') {
             if (target.domain === this.SheetDomain.global) {
-                console.log('从模板转化表格', target, this);
+                Logger.info('从模板转化表格', target, this);
                 this.loadJson(target)
                 this.domain = 'chat'
                 this.uid = `sheet_${SYSTEM.generateRandomString(8)}`;

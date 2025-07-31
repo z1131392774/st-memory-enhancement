@@ -478,6 +478,11 @@ function InitBinging() {
         USER.tableBaseSetting.custom_temperature = Number(value);
     });
 
+    // 如果是Claw轮询就勾选这个
+    $('#custom_api_use_backend_proxy').change(function() {
+        USER.tableBaseSetting.custom_api_use_backend_proxy = this.checked;
+    });
+
     // 代理地址
     $('#table_proxy_address').on('input', function() {
         USER.IMPORTANT_USER_PRIVACY_DATA.table_proxy_address = $(this).val();
@@ -586,6 +591,7 @@ export function renderSetting() {
     updateSwitch('#alternate_switch', USER.tableBaseSetting.alternate_switch);
     updateSwitch('#show_drawer_in_extension_list', USER.tableBaseSetting.show_drawer_in_extension_list);
     updateSwitch('#table_to_chat_can_edit', USER.tableBaseSetting.table_to_chat_can_edit);
+    updateSwitch('#custom_api_use_backend_proxy', USER.tableBaseSetting.custom_api_use_backend_proxy);
     $('#reply_options').show();
     $('#step_by_step_options').toggle(USER.tableBaseSetting.step_by_step);
     $('#table_to_chat_options').toggle(USER.tableBaseSetting.isTableToChat);
